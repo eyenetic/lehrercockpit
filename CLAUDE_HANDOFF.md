@@ -64,3 +64,32 @@ http://127.0.0.1:4173
 3. Orgaplan-Aenderungserkennung im UI noch aggressiver hervorheben
 4. Klassenarbeitsplan auf besseren Export-/Direktlink umstellen
 5. Weitere Schul-PDFs oder Rundschreiben in den Dokumentenmonitor aufnehmen
+
+## Deployment Status (Stand: 2026-03-19)
+
+### Railway Backend
+
+- **URL:** `https://lehrercockpit-production.up.railway.app` — Live ✅
+- **Start-Befehl:** `python3 server_test.py`
+- **Builder:** NIXPACKS
+- **PORT:** aus `$PORT` Env-Variable
+- **CORS:** `CORS_ORIGIN` Env-Variable (Default: `*`)
+- **Config:** `railway.json` + `Procfile`
+
+### Vercel Frontend
+
+- **URL:** `https://lehrercockpit.vercel.app` — Live ✅
+- **Hosting:** Statisches Hosting (kein Build-Step)
+- **Config:** `vercel.json` + `.vercelignore`
+- **API-URL in `index.html`:** `window.RAILWAY_API_URL = "https://lehrercockpit-production.up.railway.app"`
+
+### GitHub Repo
+
+- **URL:** `https://github.com/eyenetic/lehrercockpit` (branch: `main`)
+- **Git-Committer:** `eyenetic@users.noreply.github.com` (wichtig fuer Vercel-Deploys!)
+
+### Wichtige Hinweise
+
+- Alle Commits MUESSEN mit `user.email = eyenetic@users.noreply.github.com` gemacht werden, sonst blockt Vercel den Deploy
+- `server_test.py` ist der Railway-Produktionsserver; `server.py` ist fuer lokale Entwicklung
+- Lokaler Dev-Server: `python3 server.py` → `http://localhost:4173`
