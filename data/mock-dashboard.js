@@ -1,9 +1,9 @@
 window.LEHRER_COCKPIT_FALLBACK_DATA = {
   "generatedAt": "2026-03-19T21:31:14.843907+01:00",
   "meta": {
-    "mode": "snapshot",
-    "note": "Backend ist gerade nicht erreichbar. Du siehst den zuletzt synchronisierten Stand aus deinem Account.",
-    "lastUpdatedLabel": "21:31"
+    "mode": "mixed",
+    "note": "Cockpit aktiv. Live-Daten werden bei konfiguriertem WebUntis-iCal oder Dienstmail geladen.",
+    "lastUpdatedLabel": "00:00"
   },
   "teacher": {
     "name": "Herr Mustermann",
