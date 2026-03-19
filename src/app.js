@@ -87,9 +87,9 @@
     const data = JSON.parse(JSON.stringify(payload));
     const now = new Date();
 
-    data.generatedAt = now.toISOString();
+    data.generatedAt = data.generatedAt || now.toISOString();
     data.meta = data.meta || {};
-    data.meta.lastUpdatedLabel = formatTime(now);
+    data.meta.lastUpdatedLabel = data.meta.lastUpdatedLabel || formatTime(now);
 
     data.webuntisCenter = data.webuntisCenter || {
       status: "warning",
@@ -215,6 +215,13 @@
       elements.runtimeBanner.hidden = false;
       elements.runtimeBanner.textContent =
         "Direktdatei geoeffnet. Fuer Live-Daten bitte http://127.0.0.1:4173 nutzen.";
+      return;
+    }
+
+    if (data.meta.mode === "snapshot") {
+      elements.runtimeBanner.hidden = false;
+      elements.runtimeBanner.textContent =
+        `Railway ist gerade nicht erreichbar. Du siehst den zuletzt synchronisierten Stand von ${data.meta.lastUpdatedLabel}.`;
       return;
     }
 
