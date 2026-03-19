@@ -67,29 +67,36 @@ http://127.0.0.1:4173
 
 ## Deployment Status (Stand: 2026-03-19)
 
+### Netlify Frontend (Primary)
+
+- **URL:** `https://dainty-empanada-5ab04b.netlify.app` — Live ✅
+- **Hosting:** Statisches Hosting (kein Build-Step, kostenlos, kein Team-Membership nötig)
+- **Config:** `netlify.toml` + `.netlifyignore`
+- **API-URL in `index.html`:** `window.RAILWAY_API_URL = "https://lehrercockpit-production.up.railway.app"`
+
 ### Railway Backend
 
-- **URL:** `https://lehrercockpit-production.up.railway.app` — Live ✅
+- **URL:** `https://lehrercockpit-production.up.railway.app` — Konfiguriert (Free-Tier, kann schlafen)
 - **Start-Befehl:** `python3 server_test.py`
 - **Builder:** NIXPACKS
 - **PORT:** aus `$PORT` Env-Variable
 - **CORS:** `CORS_ORIGIN` Env-Variable (Default: `*`)
 - **Config:** `railway.json` + `Procfile`
 
-### Vercel Frontend
+### Vercel Frontend (Legacy)
 
-- **URL:** `https://lehrercockpit.vercel.app` — Live ✅
-- **Hosting:** Statisches Hosting (kein Build-Step)
-- **Config:** `vercel.json` + `.vercelignore`
-- **API-URL in `index.html`:** `window.RAILWAY_API_URL = "https://lehrercockpit-production.up.railway.app"`
+- **URL:** `https://lehrercockpit.vercel.app` — Nicht mehr primärer Hoster
+- **Hinweis:** Vercel wird nicht mehr als primärer Frontend-Hoster verwendet. Netlify ist jetzt der primäre Hoster.
+- **Config:** `vercel.json` + `.vercelignore` (noch im Repo, aber nicht aktiv genutzt)
 
 ### GitHub Repo
 
 - **URL:** `https://github.com/eyenetic/lehrercockpit` (branch: `main`)
-- **Git-Committer:** `eyenetic@users.noreply.github.com` (wichtig fuer Vercel-Deploys!)
+- **Git-Committer:** `eyenetic@users.noreply.github.com`
 
 ### Wichtige Hinweise
 
-- Alle Commits MUESSEN mit `user.email = eyenetic@users.noreply.github.com` gemacht werden, sonst blockt Vercel den Deploy
+- **Primäres Frontend:** Netlify (`https://dainty-empanada-5ab04b.netlify.app`)
 - `server_test.py` ist der Railway-Produktionsserver; `server.py` ist fuer lokale Entwicklung
 - Lokaler Dev-Server: `python3 server.py` → `http://localhost:4173`
+- CORS ist auf `*` gesetzt, sodass sowohl Netlify als auch Vercel als Origins erlaubt sind
