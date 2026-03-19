@@ -1,0 +1,6 @@
+.DS_Store
+.env.local
+*.zip
+__pycache__/
+backend/__pycache__/
+data/document-monitor-state.json

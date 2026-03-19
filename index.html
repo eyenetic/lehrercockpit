@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lehrer-Cockpit</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow" id="workspace-eyebrow">Gebuendelte Schulinfos</p>
+          <h1 id="workspace-title">Lehrer-Cockpit fuer den echten Schulalltag</h1>
+          <p class="hero-text" id="workspace-description">
+            Eine Oberflaeche fuer Nachrichten, Vertretungen, Fristen und PDFs. Der Fokus liegt auf dem, was heute fuer dich zaehlt.
+          </p>
+          <div class="hero-actions">
+            <button class="primary-button" id="briefing-button" type="button">
+              Daten und Briefing neu laden
+            </button>
+            <span class="hero-note" id="hero-note">Initialisiere Quellen und Tagesbriefing</span>
+          </div>
+        </div>
+        <section class="briefing-card" aria-labelledby="briefing-title">
+          <div class="card-heading">
+            <p class="card-kicker">Heute</p>
+            <h2 id="briefing-title">Daily Briefing</h2>
+          </div>
+          <div id="briefing-output" class="briefing-output"></div>
+        </section>
+      </header>
+
+      <main class="dashboard">
+        <section class="stats-grid" id="stats-grid" aria-label="Kennzahlen"></section>
+
+        <section class="grid-two">
+          <article class="card" aria-labelledby="quicklinks-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Direktzugriff</p>
+                <h2 id="quicklinks-title">Berlin-Quick-Links</h2>
+              </div>
+              <span class="pill">Portal-Zentrale</span>
+            </div>
+            <div id="quick-link-grid" class="link-grid"></div>
+          </article>
+
+          <article class="card" aria-labelledby="berlin-focus-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Impuls</p>
+                <h2 id="berlin-focus-title">Heute in Berlin</h2>
+              </div>
+              <span class="pill pill-positive">Portal-fit</span>
+            </div>
+            <div id="berlin-focus-list" class="stack-list"></div>
+          </article>
+        </section>
+
+        <section class="grid-two">
+          <article class="card" aria-labelledby="priorities-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Fokus</p>
+                <h2 id="priorities-title">Prioritaeten heute</h2>
+              </div>
+              <span class="pill pill-attention">Live priorisiert</span>
+            </div>
+            <div id="priority-list" class="stack-list"></div>
+          </article>
+
+          <article class="card" aria-labelledby="sources-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Anbindungen</p>
+                <h2 id="sources-title">Quellenstatus</h2>
+              </div>
+              <span class="pill">Sync-Readiness</span>
+            </div>
+            <div id="source-list" class="source-list"></div>
+          </article>
+        </section>
+
+        <section class="grid-two">
+          <article class="card" aria-labelledby="inbox-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Kommunikation</p>
+                <h2 id="inbox-title">Unified Inbox</h2>
+              </div>
+              <div id="channel-filters" class="filter-row"></div>
+            </div>
+            <div id="message-list" class="stack-list"></div>
+          </article>
+
+          <article class="card" aria-labelledby="monitor-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Monitor</p>
+                <h2 id="monitor-title">Dokumentenmonitor</h2>
+              </div>
+              <span class="pill">Aenderungen im Blick</span>
+            </div>
+            <div id="monitor-list" class="stack-list"></div>
+          </article>
+        </section>
+
+        <section class="grid-single">
+
+          <article class="card" aria-labelledby="schedule-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Woche</p>
+                <h2 id="schedule-title">Termine und Fristen</h2>
+              </div>
+              <span class="pill">Kalenderblick</span>
+            </div>
+            <div id="schedule-list" class="timeline"></div>
+          </article>
+        </section>
+
+        <section class="grid-two grid-two-bottom">
+          <article class="card" aria-labelledby="docs-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Dokumente</p>
+                <h2 id="docs-title">PDFs und Plaene</h2>
+              </div>
+              <label class="search-box">
+                <span class="sr-only">Dokumente filtern</span>
+                <input
+                  id="document-search"
+                  type="search"
+                  placeholder="Dokumente durchsuchen"
+                  autocomplete="off"
+                />
+              </label>
+            </div>
+            <div id="document-list" class="document-list"></div>
+          </article>
+
+          <article class="card assistant-card" aria-labelledby="assistant-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Assistenz</p>
+                <h2 id="assistant-title">Fragen an dein Cockpit</h2>
+              </div>
+              <span class="pill pill-positive">Suchfertig</span>
+            </div>
+            <form id="assistant-form" class="assistant-form">
+              <label for="assistant-input" class="assistant-label">
+                Stelle eine Frage wie "Was ist morgen wichtig?" oder "Welche PDFs sind neu?"
+              </label>
+              <textarea
+                id="assistant-input"
+                rows="4"
+                placeholder="Welche Termine betreffen meine Klassen diese Woche?"
+              ></textarea>
+              <div class="assistant-actions">
+                <button class="primary-button" type="submit">Antwort generieren</button>
+              </div>
+            </form>
+            <div id="assistant-answer" class="assistant-answer"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="./src/app.js"></script>
+  </body>
+</html>

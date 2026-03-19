@@ -1,0 +1,266 @@
+{
+  "generatedAt": "2026-03-15T07:10:00+01:00",
+  "meta": {
+    "mode": "demo",
+    "note": "Demo-Daten aktiv, bis echte Quellen konfiguriert sind.",
+    "lastUpdatedLabel": "07:10"
+  },
+  "teacher": {
+    "name": "Herr Mustermann",
+    "school": "Stadtteilschule Nord"
+  },
+  "workspace": {
+    "eyebrow": "Berlin Lehrer-Cockpit",
+    "title": "Dein Tagesstart fuer Berliner Schuldienste",
+    "description": "Ein persoenliches Dashboard fuer Berliner Schulportal-Dienste, WebUntis, itslearning und eure wichtigsten Schul-Dokumente."
+  },
+  "sources": [
+    {
+      "id": "mail",
+      "name": "Dienstmail",
+      "type": "E-Mail",
+      "status": "warning",
+      "cadence": "auf Abruf",
+      "lastSync": "07:06",
+      "nextStep": "MAIL_IMAP_HOST, MAIL_USERNAME und MAIL_PASSWORD setzen",
+      "detail": "Sobald Zugangsdaten gesetzt sind, werden aktuelle Mails direkt aus dem Postfach geladen."
+    },
+    {
+      "id": "webuntis",
+      "name": "WebUntis",
+      "type": "Stundenplan",
+      "status": "warning",
+      "cadence": "alle 10 Minuten",
+      "lastSync": "06:58",
+      "nextStep": "Vertretungs- und Raumdaten per API oder Session-Sync uebernehmen",
+      "detail": "Vertretungen, Raumwechsel und Aufsichten werden in die Tagesansicht gehoben."
+    },
+    {
+      "id": "itslearning",
+      "name": "itslearning",
+      "type": "Lernplattform",
+      "status": "warning",
+      "cadence": "alle 15 Minuten",
+      "lastSync": "06:55",
+      "nextStep": "Kursmeldungen und Aufgabenfeed anbinden",
+      "detail": "Relevante Kursnachrichten, Abgaben und Schuelerhinweise laufen in einer Inbox zusammen."
+    },
+    {
+      "id": "website",
+      "name": "Schulwebsite",
+      "type": "Webseite",
+      "status": "ok",
+      "cadence": "stuendlich",
+      "lastSync": "07:00",
+      "nextStep": "Aenderungserkennung fuer neue PDFs und Rundschreiben nutzen",
+      "detail": "Orgaplan, Vertretungsinfos und neue Aushaenge koennen automatisch erkannt werden."
+    },
+    {
+      "id": "pdf",
+      "name": "PDF-Ablage",
+      "type": "Dokumente",
+      "status": "ok",
+      "cadence": "beim Upload",
+      "lastSync": "07:08",
+      "nextStep": "Textextraktion und Tags fuer Termin-, Raum- und Klassenbezug verfeinern",
+      "detail": "Neue PDFs werden indiziert, zusammengefasst und fuer die Suche aufbereitet."
+    }
+  ],
+  "priorities": [
+    {
+      "id": "prio-1",
+      "title": "Raumwechsel 8b ab der 3. Stunde",
+      "detail": "WebUntis meldet heute den Wechsel von Raum B204 nach C112 fuer Mathematik.",
+      "priority": "critical",
+      "source": "WebUntis",
+      "due": "heute, 09:35"
+    },
+    {
+      "id": "prio-2",
+      "title": "Elternmail zur Klassenfahrt 9a beantworten",
+      "detail": "Zwei Rueckfragen zur Zahlungsfrist warten seit gestern Abend in der Dienstmail.",
+      "priority": "high",
+      "source": "Dienstmail",
+      "due": "heute"
+    },
+    {
+      "id": "prio-3",
+      "title": "Neuer Orgaplan als PDF",
+      "detail": "Der hochgeladene Orgaplan enthaelt eine geaenderte Pausenaufsicht fuer Mittwoch.",
+      "priority": "high",
+      "source": "Schulwebsite",
+      "due": "morgen"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg-1",
+      "channel": "mail",
+      "channelLabel": "Dienstmail",
+      "sender": "Schulleitung",
+      "title": "Konferenzraum fuer Montag geaendert",
+      "snippet": "Die Fachkonferenz Deutsch findet nun im Medienraum statt. Bitte Material fuer den Beamer mitbringen.",
+      "priority": "high",
+      "timestamp": "06:52",
+      "unread": true
+    },
+    {
+      "id": "msg-2",
+      "channel": "itslearning",
+      "channelLabel": "itslearning",
+      "sender": "Kurs 9a Mathematik",
+      "title": "Drei neue Rueckfragen zur Klassenarbeit",
+      "snippet": "Schueler haben die erlaubten Hilfsmittel und den genauen Startzeitpunkt nachgefragt.",
+      "priority": "medium",
+      "timestamp": "06:40",
+      "unread": true
+    },
+    {
+      "id": "msg-3",
+      "channel": "website",
+      "channelLabel": "Schulwebsite",
+      "sender": "Dokumentenbereich",
+      "title": "Orgaplan 12. KW aktualisiert",
+      "snippet": "Im PDF wurden Aufsichten und der Ablauf des Studientags angepasst.",
+      "priority": "high",
+      "timestamp": "06:15",
+      "unread": true
+    },
+    {
+      "id": "msg-4",
+      "channel": "mail",
+      "channelLabel": "Dienstmail",
+      "sender": "Eltern 9a",
+      "title": "Rueckfrage zur Klassenfahrtzahlung",
+      "snippet": "Die Eltern bitten um Bestaetigung, ob eine Teilzahlung bis Freitag moeglich ist.",
+      "priority": "medium",
+      "timestamp": "21:14",
+      "unread": true
+    },
+    {
+      "id": "msg-5",
+      "channel": "webuntis",
+      "channelLabel": "WebUntis",
+      "sender": "Vertretungsplan",
+      "title": "Aufsicht 2. Pause uebernommen",
+      "snippet": "Die Aufsicht am Altbauhof wurde dir fuer Mittwoch zugeordnet.",
+      "priority": "medium",
+      "timestamp": "05:58",
+      "unread": false
+    },
+    {
+      "id": "msg-6",
+      "channel": "itslearning",
+      "channelLabel": "itslearning",
+      "sender": "Kurs 8b Mathematik",
+      "title": "Abgabefrist fuer Wochenplan naht",
+      "snippet": "Noch 7 von 25 Schuelerabgaben fehlen fuer morgen frueh.",
+      "priority": "high",
+      "timestamp": "05:50",
+      "unread": false
+    }
+  ],
+  "schedule": [
+    {
+      "id": "evt-1",
+      "title": "Mathematik 8b",
+      "time": "08:45 - 09:30",
+      "dateLabel": "Heute",
+      "detail": "Raumwechsel nach C112 beachten. Tafelbild fuer Bruchgleichungen bereitlegen.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "evt-2",
+      "title": "Klassenarbeit 9a vorbereiten",
+      "time": "11:20 - 11:50",
+      "dateLabel": "Heute",
+      "detail": "Hilfsmittelliste finalisieren und ueber itslearning an den Kurs senden.",
+      "category": "Vorbereitung"
+    },
+    {
+      "id": "evt-3",
+      "title": "Dienstbesprechung Deutsch",
+      "time": "Montag, 14:15",
+      "dateLabel": "Morgen",
+      "detail": "Neuer Raum laut Schulleitung: Medienraum. Agenda im PDF Rundschreiben 18/26.",
+      "category": "Konferenz"
+    },
+    {
+      "id": "evt-4",
+      "title": "Pausenaufsicht Altbauhof",
+      "time": "Mittwoch, 10:55",
+      "dateLabel": "Mittwoch",
+      "detail": "Aenderung im neuen Orgaplan erkannt. Erinnerung 30 Minuten vorher einblenden.",
+      "category": "Aufsicht"
+    }
+  ],
+  "documents": [
+    {
+      "id": "doc-1",
+      "title": "Orgaplan KW 12",
+      "source": "Schulwebsite",
+      "updatedAt": "heute, 06:15",
+      "tags": ["Aufsicht", "Studientag", "PDF"],
+      "summary": "Neue Version mit geaenderter Pausenaufsicht und aktualisiertem Ablauf fuer Mittwoch."
+    },
+    {
+      "id": "doc-2",
+      "title": "Klassenarbeitsplan Sek I",
+      "source": "PDF-Ablage",
+      "updatedAt": "gestern, 17:30",
+      "tags": ["Klassenarbeiten", "Sek I", "PDF"],
+      "summary": "Naechste Klassenarbeit in 9a am Dienstag, Korrekturfenster bis 28.03."
+    },
+    {
+      "id": "doc-3",
+      "title": "Rundschreiben 18/26",
+      "source": "Dienstmail",
+      "updatedAt": "gestern, 15:05",
+      "tags": ["Konferenz", "Schulleitung", "Mail-Anhang"],
+      "summary": "Enthaelt Tagesordnung, Raumwechsel und Hinweise zum Studientag."
+    },
+    {
+      "id": "doc-4",
+      "title": "Vertretungsplan Oberstufe",
+      "source": "WebUntis",
+      "updatedAt": "heute, 05:58",
+      "tags": ["Vertretung", "Raeume", "Plan"],
+      "summary": "Zwei Kursverschiebungen und ein Raumtausch wurden uebernommen."
+    }
+  ],
+  "quickLinks": [
+    {
+      "id": "schoolportal",
+      "title": "Berliner Schulportal",
+      "url": "https://schulportal.berlin.de",
+      "kind": "Portal",
+      "note": "Zentraler Einstieg fuer Berliner Schuldienste"
+    }
+  ],
+  "berlinFocus": [
+    {
+      "title": "SSO-Dienste zuerst",
+      "detail": "WebUntis und itslearning lassen sich im Berliner Alltag am besten als Portal-Einstiege und spaetere Session-Quellen denken."
+    },
+    {
+      "title": "Dokumente bringen den Mehrwert",
+      "detail": "Orgaplan, Klassenarbeitsplan und Rundschreiben lohnen sich besonders fuer Aenderungserkennung und Kurzbriefings."
+    },
+    {
+      "title": "Mail vorerst nur Portal-Logik",
+      "detail": "Die Berliner Dienstmail wird bis zu einer offiziellen Schnittstelle besser als Webzugang statt als technischen Sync behandelt."
+    }
+  ],
+  "documentMonitor": [
+    {
+      "id": "orgaplan",
+      "title": "Orgaplan",
+      "type": "PDF",
+      "status": "tracked",
+      "changed": false,
+      "checkedAt": "07:10",
+      "detail": "Orgaplan-Monitor aktiv. Erstbeobachtung gespeichert.",
+      "url": "https://schulportal.berlin.de"
+    }
+  ]
+}
