@@ -4,128 +4,161 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lehrer-Cockpit</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=4" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow" id="workspace-eyebrow">Gebuendelte Schulinfos</p>
-          <h1 id="workspace-title">Lehrer-Cockpit fuer den echten Schulalltag</h1>
-          <p class="hero-text" id="workspace-description">
-            Eine Oberflaeche fuer Nachrichten, Vertretungen, Fristen und PDFs. Der Fokus liegt auf dem, was heute fuer dich zaehlt.
-          </p>
-          <div class="hero-actions">
-            <button class="primary-button" id="briefing-button" type="button">
-              Daten und Briefing neu laden
-            </button>
-            <span class="hero-note" id="hero-note">Initialisiere Quellen und Tagesbriefing</span>
+    <div class="app-shell">
+      <aside class="app-sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">U</div>
+          <div class="brand-copy">
+            <p class="eyebrow" id="workspace-eyebrow">Berlin Lehrer-Cockpit</p>
+            <strong class="brand-title">Lehrer-Cockpit</strong>
+            <p class="brand-subtitle">im WebUntis-Stil</p>
           </div>
         </div>
-        <section class="briefing-card" aria-labelledby="briefing-title">
-          <div class="card-heading">
-            <p class="card-kicker">Heute</p>
-            <h2 id="briefing-title">Daily Briefing</h2>
+
+        <div class="runtime-banner" id="runtime-banner" hidden></div>
+
+        <nav class="sidebar-nav" aria-label="Bereiche">
+          <a class="nav-link" href="#overview">Heute</a>
+          <a class="nav-link" href="#schedule-section">Stundenplan</a>
+          <a class="nav-link" href="#inbox-section">Inbox</a>
+          <a class="nav-link" href="#documents-section">Dokumente</a>
+          <a class="nav-link" href="#sources-section">Quellen</a>
+        </nav>
+
+        <section class="sidebar-panel" aria-labelledby="quicklinks-title">
+          <div class="sidebar-head">
+            <p class="card-kicker">Direktzugriff</p>
+            <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
           </div>
-          <div id="briefing-output" class="briefing-output"></div>
-        </section>
-      </header>
-
-      <main class="dashboard">
-        <section class="stats-grid" id="stats-grid" aria-label="Kennzahlen"></section>
-
-        <section class="grid-two">
-          <article class="card" aria-labelledby="quicklinks-title">
-            <div class="section-head">
-              <div>
-                <p class="card-kicker">Direktzugriff</p>
-                <h2 id="quicklinks-title">Berlin-Quick-Links</h2>
-              </div>
-              <span class="pill">Portal-Zentrale</span>
-            </div>
-            <div id="quick-link-grid" class="link-grid"></div>
-          </article>
-
-          <article class="card" aria-labelledby="berlin-focus-title">
-            <div class="section-head">
-              <div>
-                <p class="card-kicker">Impuls</p>
-                <h2 id="berlin-focus-title">Heute in Berlin</h2>
-              </div>
-              <span class="pill pill-positive">Portal-fit</span>
-            </div>
-            <div id="berlin-focus-list" class="stack-list"></div>
-          </article>
+          <div id="quick-link-grid" class="link-grid"></div>
         </section>
 
-        <section class="grid-two">
+        <section class="sidebar-panel" aria-labelledby="berlin-focus-title">
+          <div class="sidebar-head">
+            <p class="card-kicker">Hinweise</p>
+            <h2 id="berlin-focus-title">Heute in Berlin</h2>
+          </div>
+          <div id="berlin-focus-list" class="stack-list compact-list"></div>
+        </section>
+      </aside>
+
+      <main class="app-main">
+        <header class="topbar" id="overview">
+          <div class="topbar-copy">
+            <p class="eyebrow">Arbeitsansicht</p>
+            <h1 id="workspace-title">Lehrer-Cockpit fuer den echten Schulalltag</h1>
+            <p class="hero-text" id="workspace-description">
+              Eine klare Tagesansicht fuer Stunden, Aenderungen, Hinweise und Dokumente.
+            </p>
+          </div>
+          <div class="topbar-actions">
+            <button class="primary-button" id="briefing-button" type="button">Neu laden</button>
+            <p class="hero-note" id="hero-note">Initialisiere Quellen und Tagesbriefing</p>
+          </div>
+        </header>
+
+        <section class="overview-grid">
+          <section class="card briefing-card" aria-labelledby="briefing-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Heute</p>
+                <h2 id="briefing-title">Tagesbriefing</h2>
+              </div>
+              <span class="pill pill-live">Live</span>
+            </div>
+            <div id="briefing-output" class="briefing-output"></div>
+          </section>
+
+          <section class="stats-grid" id="stats-grid" aria-label="Kennzahlen"></section>
+        </section>
+
+        <section class="content-grid primary-grid">
           <article class="card" aria-labelledby="priorities-title">
             <div class="section-head">
               <div>
-                <p class="card-kicker">Fokus</p>
-                <h2 id="priorities-title">Prioritaeten heute</h2>
+                <p class="card-kicker">Heute</p>
+                <h2 id="priorities-title">Prioritaeten</h2>
               </div>
-              <span class="pill pill-attention">Live priorisiert</span>
+              <span class="pill pill-attention">wichtig</span>
             </div>
             <div id="priority-list" class="stack-list"></div>
           </article>
 
-          <article class="card" aria-labelledby="sources-title">
+          <article class="card schedule-card" id="schedule-section" aria-labelledby="schedule-title">
             <div class="section-head">
               <div>
-                <p class="card-kicker">Anbindungen</p>
-                <h2 id="sources-title">Quellenstatus</h2>
+                <p class="card-kicker">Plan</p>
+                <h2 id="schedule-title">WebUntis-Zentrale</h2>
               </div>
-              <span class="pill">Sync-Readiness</span>
+              <span class="pill">WebUntis</span>
             </div>
-            <div id="source-list" class="source-list"></div>
+            <div class="webuntis-toolbar">
+              <div id="webuntis-view-switch" class="segmented-control" aria-label="WebUntis-Ansicht"></div>
+              <div class="webuntis-toolbar-actions">
+                <a id="webuntis-open-today" class="secondary-link" href="#" target="_blank" rel="noreferrer">Heute in WebUntis</a>
+                <a id="webuntis-open-base" class="secondary-link" href="#" target="_blank" rel="noreferrer">WebUntis oeffnen</a>
+              </div>
+            </div>
+            <div class="webuntis-layout">
+              <div class="webuntis-main-panel">
+                <div class="webuntis-summary">
+                  <div>
+                    <strong id="webuntis-active-plan">Mein WebUntis-Plan</strong>
+                    <p id="webuntis-detail" class="schedule-note">Persoenlicher Plan ueber iCal verbunden.</p>
+                  </div>
+                  <span id="webuntis-range-label" class="meta-tag low">Tag</span>
+                </div>
+                <div id="schedule-list" class="webuntis-list"></div>
+              </div>
+              <aside class="webuntis-sidepanel">
+                <div class="sidebar-head">
+                  <div>
+                    <p class="card-kicker">Plaene</p>
+                    <h2>Lehrkraft, Klasse, Raum</h2>
+                  </div>
+                </div>
+                <p id="webuntis-shortcut-hint" class="source-detail">
+                  Speichere WebUntis-Links fuer weitere Plaene.
+                </p>
+                <div id="webuntis-shortcut-list" class="stack-list compact-list"></div>
+                <form id="webuntis-shortcut-form" class="shortcut-form">
+                  <label class="shortcut-label" for="webuntis-shortcut-type">Typ</label>
+                  <select id="webuntis-shortcut-type">
+                    <option value="teacher">Lehrkraft</option>
+                    <option value="class">Klasse</option>
+                    <option value="room">Raum</option>
+                  </select>
+                  <label class="shortcut-label" for="webuntis-shortcut-label">Bezeichnung</label>
+                  <input id="webuntis-shortcut-label" type="text" placeholder="z. B. 8a oder Frau Meyer" />
+                  <label class="shortcut-label" for="webuntis-shortcut-url">WebUntis-Link</label>
+                  <input id="webuntis-shortcut-url" type="url" placeholder="https://...webuntis.com/..." />
+                  <button class="primary-button shortcut-button" type="submit">Schnellzugriff speichern</button>
+                </form>
+              </aside>
+            </div>
           </article>
         </section>
 
-        <section class="grid-two">
-          <article class="card" aria-labelledby="inbox-title">
+        <section class="content-grid secondary-grid">
+          <article class="card" id="inbox-section" aria-labelledby="inbox-title">
             <div class="section-head section-head-wrap">
               <div>
                 <p class="card-kicker">Kommunikation</p>
-                <h2 id="inbox-title">Unified Inbox</h2>
+                <h2 id="inbox-title">Inbox</h2>
               </div>
               <div id="channel-filters" class="filter-row"></div>
             </div>
             <div id="message-list" class="stack-list"></div>
           </article>
 
-          <article class="card" aria-labelledby="monitor-title">
-            <div class="section-head">
-              <div>
-                <p class="card-kicker">Monitor</p>
-                <h2 id="monitor-title">Dokumentenmonitor</h2>
-              </div>
-              <span class="pill">Aenderungen im Blick</span>
-            </div>
-            <div id="monitor-list" class="stack-list"></div>
-          </article>
-        </section>
-
-        <section class="grid-single">
-
-          <article class="card" aria-labelledby="schedule-title">
-            <div class="section-head">
-              <div>
-                <p class="card-kicker">Woche</p>
-                <h2 id="schedule-title">Termine und Fristen</h2>
-              </div>
-              <span class="pill">Kalenderblick</span>
-            </div>
-            <div id="schedule-list" class="timeline"></div>
-          </article>
-        </section>
-
-        <section class="grid-two grid-two-bottom">
-          <article class="card" aria-labelledby="docs-title">
+          <article class="card" id="documents-section" aria-labelledby="docs-title">
             <div class="section-head section-head-wrap">
               <div>
                 <p class="card-kicker">Dokumente</p>
-                <h2 id="docs-title">PDFs und Plaene</h2>
+                <h2 id="docs-title">Orgaplan und Plaene</h2>
               </div>
               <label class="search-box">
                 <span class="sr-only">Dokumente filtern</span>
@@ -137,16 +170,67 @@
                 />
               </label>
             </div>
+            <div class="plan-digest-grid">
+              <section class="plan-digest-card" aria-labelledby="orgaplan-digest-title">
+                <div class="sidebar-head">
+                  <div>
+                    <p class="card-kicker">Orgaplan</p>
+                    <h2 id="orgaplan-digest-title">Spalten-Digest</h2>
+                  </div>
+                  <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer">PDF oeffnen</a>
+                </div>
+                <p id="orgaplan-digest-detail" class="source-detail"></p>
+                <div id="orgaplan-upcoming-list" class="stack-list compact-list"></div>
+              </section>
+
+              <section class="plan-digest-card" aria-labelledby="classwork-digest-title">
+                <div class="sidebar-head">
+                  <div>
+                    <p class="card-kicker">Klassenarbeitsplan</p>
+                    <h2 id="classwork-digest-title">Sync-Status</h2>
+                  </div>
+                  <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer">Datei oeffnen</a>
+                </div>
+                <p id="classwork-digest-detail" class="source-detail"></p>
+                <div id="classwork-preview-list" class="stack-list compact-list"></div>
+              </section>
+            </div>
             <div id="document-list" class="document-list"></div>
           </article>
+        </section>
 
+        <section class="content-grid tertiary-grid" id="sources-section">
+          <article class="card" aria-labelledby="sources-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Verbindungen</p>
+                <h2 id="sources-title">Quellenstatus</h2>
+              </div>
+              <span class="pill">sync</span>
+            </div>
+            <div id="source-list" class="source-list"></div>
+          </article>
+
+          <article class="card" aria-labelledby="monitor-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Kontrolle</p>
+                <h2 id="monitor-title">Dokumentenmonitor</h2>
+              </div>
+              <span class="pill">pdf</span>
+            </div>
+            <div id="monitor-list" class="stack-list"></div>
+          </article>
+        </section>
+
+        <section class="assistant-row">
           <article class="card assistant-card" aria-labelledby="assistant-title">
             <div class="section-head">
               <div>
                 <p class="card-kicker">Assistenz</p>
                 <h2 id="assistant-title">Fragen an dein Cockpit</h2>
               </div>
-              <span class="pill pill-positive">Suchfertig</span>
+              <span class="pill pill-positive">suche</span>
             </div>
             <form id="assistant-form" class="assistant-form">
               <label for="assistant-input" class="assistant-label">
@@ -167,6 +251,7 @@
       </main>
     </div>
 
-    <script src="./src/app.js"></script>
+    <script src="./data/mock-dashboard.js?v=4"></script>
+    <script src="./src/app.js?v=4"></script>
   </body>
 </html>

@@ -1,0 +1,255 @@
+window.LEHRER_COCKPIT_FALLBACK_DATA = {
+  generatedAt: "2026-03-19T17:05:00+01:00",
+  meta: {
+    mode: "demo",
+    note: "Lokaler Fallback aktiv. Fuer Live-Daten bitte den lokalen Server verwenden.",
+    lastUpdatedLabel: "17:05",
+  },
+  teacher: {
+    name: "Lehrkraft",
+    school: "Hermann-Ehlers-Oberschule",
+  },
+  workspace: {
+    eyebrow: "Berlin Lehrer-Cockpit",
+    title: "Dein Tagesstart fuer Hermann-Ehlers-Oberschule",
+    description:
+      "Fallback-Ansicht mit euren Schul-Links. Fuer echte WebUntis-Daten bitte die lokale Adresse mit Server nutzen.",
+  },
+  sources: [
+    {
+      id: "mail",
+      name: "Dienstmail",
+      type: "E-Mail",
+      status: "warning",
+      cadence: "Portal-Zugriff",
+      lastSync: "--:--",
+      nextStep: "Berliner Dienstmail bleibt vorerst ein externer Zugang",
+      detail: "Keine Live-Anbindung im Fallback.",
+    },
+    {
+      id: "webuntis",
+      name: "WebUntis",
+      type: "Stundenplan",
+      status: "warning",
+      cadence: "nur mit lokalem Server",
+      lastSync: "--:--",
+      nextStep: "http://127.0.0.1:4173 oeffnen, damit der iCal-Sync greift",
+      detail: "Der persoenliche WebUntis-iCal wird nur ueber das lokale Backend geladen.",
+    },
+    {
+      id: "itslearning",
+      name: "itslearning",
+      type: "Lernplattform",
+      status: "ok",
+      cadence: "Direktlink",
+      lastSync: "konfiguriert",
+      nextStep: "Spaeter Session- oder Feed-Anbindung ergaenzen",
+      detail: "itslearning ist als Schulzugang hinterlegt.",
+    },
+    {
+      id: "website",
+      name: "Schulwebsite",
+      type: "Webseite",
+      status: "ok",
+      cadence: "Direktlink",
+      lastSync: "konfiguriert",
+      nextStep: "Orgaplan ueber den lokalen Monitor beobachten",
+      detail: "Orgaplan-Link ist im Cockpit hinterlegt.",
+    },
+    {
+      id: "pdf",
+      name: "PDF-Ablage",
+      type: "Dokumente",
+      status: "ok",
+      cadence: "Direktlink",
+      lastSync: "konfiguriert",
+      nextStep: "OneDrive-Export fuer robusten Abruf verbessern",
+      detail: "Klassenarbeitsplan-Link ist hinterlegt.",
+    },
+  ],
+  priorities: [
+    {
+      id: "fallback-1",
+      title: "Live-Modus ueber lokalen Server starten",
+      detail: "Oeffne http://127.0.0.1:4173, damit WebUntis-iCal und der Dokumentenmonitor geladen werden.",
+      priority: "critical",
+      source: "System",
+      due: "jetzt",
+    },
+    {
+      id: "fallback-2",
+      title: "Orgaplan ist hinterlegt",
+      detail: "Der Orgaplan-Link ist bereits konfiguriert und steht unten im Dokumentenbereich bereit.",
+      priority: "high",
+      source: "Schulwebsite",
+      due: "heute",
+    },
+  ],
+  messages: [
+    {
+      id: "fallback-msg-1",
+      channel: "website",
+      channelLabel: "System",
+      sender: "Lehrer-Cockpit",
+      title: "Fallback-Ansicht aktiv",
+      snippet: "Wenn du die Datei direkt geoeffnet hast, nutze bitte die lokale Adresse mit laufendem Server.",
+      priority: "high",
+      timestamp: "17:05",
+      unread: true,
+    },
+  ],
+  schedule: [
+    {
+      id: "fallback-evt-1",
+      title: "Lokalen Server nutzen",
+      time: "http://127.0.0.1:4173",
+      dateLabel: "Jetzt",
+      detail: "Nur dort erscheinen deine echten WebUntis-Termine aus dem persoenlichen iCal.",
+      category: "Hinweis",
+    },
+  ],
+  webuntisCenter: {
+    status: "warning",
+    note: "Lokaler Fallback aktiv. Fuer Live-WebUntis bitte den Server verwenden.",
+    detail: "Der persoenliche WebUntis-iCal wird nur ueber das lokale Backend geladen.",
+    activePlan: "Mein WebUntis-Plan",
+    todayUrl: "https://hermann-ehlers-os.webuntis.com/today",
+    startUrl: "https://hermann-ehlers-os.webuntis.com",
+    currentDate: "2026-03-19",
+    currentWeekLabel: "KW 12",
+    events: [],
+    planTypes: [
+      { id: "teacher", label: "Lehrkraft" },
+      { id: "class", label: "Klasse" },
+      { id: "room", label: "Raum" },
+    ],
+    shortcutHint:
+      "Speichere WebUntis-Links fuer Lehrkraefte, Klassen oder Raeume. Im Fallback werden nur die Schnellzugriffe angezeigt.",
+  },
+  documents: [
+    {
+      id: "doc-1",
+      title: "Orgaplan",
+      source: "Schulwebsite",
+      updatedAt: "konfiguriert",
+      tags: ["PDF", "Orgaplan", "Schule"],
+      summary:
+        "Direktlink zur aktuellen Orgaplan-Datei ist im Cockpit hinterlegt.",
+    },
+    {
+      id: "doc-2",
+      title: "Klassenarbeitsplan",
+      source: "PDF-Ablage",
+      updatedAt: "konfiguriert",
+      tags: ["OneDrive", "Klassenarbeiten", "Plan"],
+      summary:
+        "Der Freigabelink ist hinterlegt, der automatische Abruf braucht spaeter noch einen robusteren Export.",
+    },
+  ],
+  quickLinks: [
+    {
+      id: "schoolportal",
+      title: "Berliner Schulportal",
+      url: "https://schulportal.berlin.de",
+      kind: "Portal",
+      note: "Zentraler Einstieg fuer Berliner Schuldienste",
+    },
+    {
+      id: "webuntis",
+      title: "WebUntis",
+      url: "https://hermann-ehlers-os.webuntis.com",
+      kind: "Planung",
+      note: "Schulzugang fuer Stundenplan und Heute",
+    },
+    {
+      id: "itslearning",
+      title: "itslearning",
+      url: "https://berlin.itslearning.com",
+      kind: "Lernen",
+      note: "Kurse, Aufgaben und Kursmeldungen",
+    },
+    {
+      id: "orgaplan",
+      title: "Orgaplan",
+      url: "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf",
+      kind: "PDF",
+      note: "Aktueller Orgaplan",
+    },
+    {
+      id: "classwork",
+      title: "Klassenarbeitsplan",
+      url: "https://onedrive.live.com/:x:/g/personal/f42aa6058c6f8b05/IQARI3pnv6iKTJPiUb8rXd2FAaicK7ietHgMFsOfgye3QlA?rtime=gxP0o32C3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE",
+      kind: "Dokument",
+      note: "Geteilter Link fuer Klassenarbeiten",
+    },
+  ],
+  berlinFocus: [
+    {
+      title: "WebUntis ist livefaehig",
+      detail: "Der echte Stundenplan kommt ueber das lokale Backend und deinen persoenlichen iCal-Export.",
+    },
+    {
+      title: "Direktdatei ist nur Fallback",
+      detail: "Beim Oeffnen von index.html ohne Server erscheinen keine Live-Daten, sondern nur vorbereitete Links.",
+    },
+  ],
+  documentMonitor: [
+    {
+      id: "orgaplan",
+      title: "Orgaplan",
+      type: "PDF",
+      status: "warning",
+      changed: false,
+      checkedAt: "--:--",
+      detail: "Der Monitor arbeitet nur mit laufendem lokalen Server.",
+      url: "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf",
+    },
+  ],
+  planDigest: {
+    orgaplan: {
+      status: "warning",
+      title: "Orgaplan",
+      detail:
+        "Im Fallback wird der Orgaplan nicht live gelesen. Mit lokalem Server wird das PDF bei jedem Refresh neu ausgewertet.",
+      monthLabel: "Maerz",
+      updatedAt: "17:05",
+      highlights: [],
+      upcoming: [
+        {
+          dateLabel: "19.03.",
+          title: "FK D und GEV",
+          text:
+            "Allgemein: FK D 3. GEV, 18.30 h | Oberstufe: Q4: Deadline Notenabgabe fuer das 4. Kurshalbjahr",
+          general: "FK D 3. GEV, 18.30 h",
+          middle: "",
+          middleNotes: "",
+          upper: "Q4: Deadline Notenabgabe fuer das 4. Kurshalbjahr",
+          upperNotes: "",
+        },
+        {
+          dateLabel: "24.03.",
+          title: "Klassenrat und Praesentationen",
+          text:
+            "Mittelstufe: Klassenrat | Oberstufe: Q4 AUFSPIELEN DER PRAESENTATION fuer die 5. PK",
+          general: "",
+          middle: "Klassenrat",
+          middleNotes: "",
+          upper: "Q4 AUFSPIELEN DER PRAESENTATION fuer die 5. PK",
+          upperNotes: "",
+        },
+      ],
+      sourceUrl:
+        "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf",
+    },
+    classwork: {
+      status: "warning",
+      title: "Klassenarbeitsplan",
+      detail:
+        "Der Klassenarbeitsplan wird bei jedem Refresh neu versucht, OneDrive blockiert den automatischen Abruf aktuell aber noch.",
+      updatedAt: "17:05",
+      previewRows: [],
+      sourceUrl:
+        "https://onedrive.live.com/:x:/g/personal/f42aa6058c6f8b05/IQARI3pnv6iKTJPiUb8rXd2FAaicK7ietHgMFsOfgye3QlA?rtime=gxP0o32C3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE",
+    },
+  },
+};

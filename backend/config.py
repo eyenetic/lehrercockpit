@@ -27,6 +27,7 @@ class AppSettings:
     mail: MailSettings
     schoolportal_url: str
     webuntis_base_url: str
+    webuntis_ical_url: str
     itslearning_base_url: str
     orgaplan_pdf_url: str
     classwork_plan_url: str
@@ -70,6 +71,7 @@ def load_settings() -> AppSettings:
         mail=mail_settings,
         schoolportal_url=os.getenv("SCHOOLPORTAL_URL", "https://schulportal.berlin.de").strip(),
         webuntis_base_url=os.getenv("WEBUNTIS_BASE_URL", "").strip(),
+        webuntis_ical_url=os.getenv("WEBUNTIS_ICAL_URL", "").strip(),
         itslearning_base_url=os.getenv("ITSLEARNING_BASE_URL", "").strip(),
         orgaplan_pdf_url=os.getenv("ORGAPLAN_PDF_URL", "").strip(),
         classwork_plan_url=os.getenv("CLASSWORK_PLAN_URL", "").strip(),
