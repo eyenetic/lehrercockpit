@@ -1,6 +1,47 @@
-.DS_Store
-.env.local
-*.zip
+# Python
 __pycache__/
 backend/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+dist/
+build/
+*.egg-info/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Keep example env files
+!config/mail.env.example
+
+# Node.js
+node_modules/
+npm-debug.log*
+.npm
+
+# IDE and OS
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# Data and cache
+*.log
+*.sqlite
+*.db
+.cache/
 data/document-monitor-state.json
+
+# Project-specific
+*.zip
+lehrer-cockpit-claude-opus-2026-03-19/
+.codesight/
