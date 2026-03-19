@@ -72,16 +72,21 @@ http://127.0.0.1:4173
 - **URL:** `https://dainty-empanada-5ab04b.netlify.app` — Live ✅
 - **Hosting:** Statisches Hosting (kein Build-Step, kostenlos, kein Team-Membership nötig)
 - **Config:** `netlify.toml` + `.netlifyignore`
-- **API-URL in `index.html`:** `window.RAILWAY_API_URL = "https://lehrercockpit-production.up.railway.app"`
+- **API-URL in `index.html`:** `window.RAILWAY_API_URL = "https://lehrercockpit.onrender.com"`
 
-### Railway Backend
+### Render Backend (Primary)
 
-- **URL:** `https://lehrercockpit-production.up.railway.app` — Konfiguriert (Free-Tier, kann schlafen)
+- **URL:** `https://lehrercockpit.onrender.com` — Live ✅
+- **Hinweis:** Render Free Tier — 30s Kaltstart nach 15min Inaktivität
 - **Start-Befehl:** `python3 server_test.py`
-- **Builder:** NIXPACKS
 - **PORT:** aus `$PORT` Env-Variable
 - **CORS:** `CORS_ORIGIN` Env-Variable (Default: `*`)
-- **Config:** `railway.json` + `Procfile`
+
+### Railway Backend (Legacy)
+
+- **URL:** `https://lehrercockpit-production.up.railway.app` — Nicht mehr primärer Hoster
+- **Hinweis:** Railway wird nicht mehr als primärer Backend-Hoster verwendet. Render ist jetzt der primäre Hoster.
+- **Config:** `railway.json` + `Procfile` (noch im Repo, aber nicht aktiv genutzt)
 
 ### Vercel Frontend (Legacy)
 
