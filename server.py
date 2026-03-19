@@ -15,9 +15,19 @@ MOCK_DATA_PATH = PROJECT_ROOT / "data" / "mock-dashboard.json"
 MONITOR_STATE_PATH = PROJECT_ROOT / "data" / "document-monitor-state.json"
 
 
+CORS_ORIGIN = "https://lehrercockpit.eyenetic.com"
+
+
 class LehrerCockpitHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(PROJECT_ROOT), **kwargs)
+
+    def do_OPTIONS(self) -> None:
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self.send_header("Access-Control-Allow-Origin", CORS_ORIGIN)
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -35,6 +45,9 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Access-Control-Allow-Origin", CORS_ORIGIN)
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         super().end_headers()
 
     def _send_json(self, payload: dict) -> None:
@@ -48,8 +61,9 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
 
 def run() -> None:
     port = int(os.getenv("PORT", "4173"))
-    server = ThreadingHTTPServer(("127.0.0.1", port), LehrerCockpitHandler)
-    print(f"Lehrer-Cockpit laeuft auf http://127.0.0.1:{port}")
+    host = "0.0.0.0"
+    server = ThreadingHTTPServer((host, port), LehrerCockpitHandler)
+    print(f"Lehrer-Cockpit laeuft auf http://{host}:{port}")
     server.serve_forever()
 
 

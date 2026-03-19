@@ -1,4 +1,8 @@
 (function bootstrapApp() {
+  // API-Basis-URL: Im Production-Build durch Railway-URL ersetzen
+  // Lokal: leerer String (relative URL), Production: https://xxx.up.railway.app
+  const API_BASE = window.RAILWAY_API_URL || "";
+
   const state = {
     selectedChannel: "all",
     documentSearch: "",
@@ -37,7 +41,7 @@
   };
 
   async function loadDashboard() {
-    const sources = ["/api/dashboard", "./data/mock-dashboard.json"];
+    const sources = [API_BASE + "/api/dashboard", "./data/mock-dashboard.json"];
 
     for (const source of sources) {
       try {
