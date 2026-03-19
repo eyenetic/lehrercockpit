@@ -42,7 +42,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "not found"}, 404)
 
 if __name__ == "__main__":
+    import sys
+    print(f"Python version: {sys.version}", flush=True)
+    print(f"PORT env var: {os.environ.get('PORT', 'NOT SET')}", flush=True)
     print(f"Starting server on 0.0.0.0:{PORT}", flush=True)
-    server = HTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"Server ready on port {PORT}", flush=True)
-    server.serve_forever()
+    try:
+        server = HTTPServer(("0.0.0.0", PORT), Handler)
+        print(f"Server ready and listening on port {PORT}", flush=True)
+        server.serve_forever()
+    except Exception as e:
+        print(f"FATAL: Server failed to start: {e}", flush=True)
+        sys.exit(1)
