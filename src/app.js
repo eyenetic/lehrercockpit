@@ -221,7 +221,7 @@
     if (data.meta.mode === "snapshot") {
       elements.runtimeBanner.hidden = false;
       elements.runtimeBanner.textContent =
-        `Backend (Render) ist gerade nicht erreichbar. Du siehst den zuletzt synchronisierten Stand von ${data.meta.lastUpdatedLabel}.`;
+        `Backend ist gerade nicht erreichbar. Du siehst den zuletzt synchronisierten Stand von ${data.meta.lastUpdatedLabel}.`;
       return;
     }
 
