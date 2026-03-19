@@ -60,7 +60,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
 
 
 def run() -> None:
-    port = int(os.getenv("PORT", "4173"))
+    port = int(os.environ.get("PORT", 4173))
     host = "0.0.0.0"
     server = ThreadingHTTPServer((host, port), LehrerCockpitHandler)
     print(f"Lehrer-Cockpit laeuft auf http://{host}:{port}")
