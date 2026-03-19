@@ -12,4 +12,5 @@ config/
 docs/
 CLAUDE_HANDOFF.md
 README.md
+.git/
 data/document-monitor-state.json
