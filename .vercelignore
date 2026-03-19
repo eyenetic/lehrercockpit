@@ -1,0 +1,15 @@
+# Python backend files — not needed for static frontend
+requirements.txt
+server.py
+server_test.py
+Procfile
+Dockerfile
+railway.json
+nixpacks.toml
+runtime.txt
+backend/
+config/
+docs/
+CLAUDE_HANDOFF.md
+README.md
+data/document-monitor-state.json
