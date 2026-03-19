@@ -22,7 +22,7 @@ MOCK_DATA_PATH = PROJECT_ROOT / "data" / "mock-dashboard.json"
 MONITOR_STATE_PATH = PROJECT_ROOT / "data" / "document-monitor-state.json"
 
 
-CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "https://lehrercockpit.eyenetic.com")
+CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "*")
 
 
 class LehrerCockpitHandler(SimpleHTTPRequestHandler):
