@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal Railway-compatible server for testing."""
+"""Minimal production-compatible server for testing."""
 import os
 import json
 from http.server import HTTPServer, BaseHTTPRequestHandler

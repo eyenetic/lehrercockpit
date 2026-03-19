@@ -1,6 +1,6 @@
 (function bootstrapApp() {
   const WEBUNTIS_SHORTCUTS_KEY = "lehrerCockpit.webuntis.shortcuts";
-  const API_BASE = window.RAILWAY_API_URL || "";
+  const API_BASE = window.BACKEND_API_URL || "";
 
   const state = {
     selectedChannel: "all",
