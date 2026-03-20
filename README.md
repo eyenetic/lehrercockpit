@@ -66,10 +66,13 @@ Schon hinterlegbar sind:
 - Mail-Variablen fuer Umgebungen, in denen IMAP erlaubt ist
 - optional `MAIL_LOCAL_SOURCE=apple_mail` fuer eine lokale Inbox-Vorschau aus Apple Mail
 - optional `MAIL_LOCAL_ACCOUNT=lehrkraft@schule.berlin.de`, um die Vorschau auf genau dieses Dienstkonto zu beschraenken
+- optional `ITSLEARNING_USERNAME` und `ITSLEARNING_PASSWORD`, um lokal die neuesten itslearning-Updates zu laden
 
 Wenn `MAIL_LOCAL_SOURCE=apple_mail` gesetzt ist, versucht das Backend lokal auf dem Mac eine read-only Vorschau aus Apple Mail zu laden. Das ist fuer den lokalen Lehrer-Cockpit-Modus gedacht und ersetzt keine vollwertige Mailclient-Integration.
 
 Wenn `WEBUNTIS_ICAL_URL` gesetzt ist, ersetzt das Backend die bisherigen Platzhalter im Stundenplan durch echte WebUntis-Termine aus dem persoenlichen Kalenderexport. Der Link bleibt lokal in `.env.local` und wird nicht in Git eingecheckt.
+
+Wenn `ITSLEARNING_USERNAME` und `ITSLEARNING_PASSWORD` gesetzt sind, versucht das Backend lokal den nativen itslearning-Login zu verwenden und daraus einen kompakten Updates-Feed fuer die Inbox zu lesen. Der Zugriff ist bewusst schlank gehalten: Das Cockpit soll nur die neuesten Updates zeigen, die weitere Arbeit bleibt in itslearning selbst.
 
 Der `Orgaplan` wird bei jedem Refresh neu gelesen und als kompakter Digest im Cockpit zusammengefasst. Dabei versucht das Backend jetzt, die PDF-Spalten `Allgemein`, `Mittelstufe` und `Oberstufe` getrennt zu erkennen. Der `Klassenarbeitsplan` wird ebenfalls bei jedem Refresh neu versucht; solange OneDrive den automatischen Abruf blockiert, zeigt das Cockpit den Status transparent an.
 

@@ -9,6 +9,7 @@ from typing import Any
 
 from .config import load_settings
 from .document_monitor import MonitoredDocument, build_document_monitor
+from .itslearning_adapter import fetch_itslearning_sync
 from .mail_adapter import fetch_mail_sync
 from .plan_digest import build_plan_digest
 from .webuntis_adapter import fetch_webuntis_sync
@@ -19,6 +20,7 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path) -> dict[s
     settings = load_settings()
     now = datetime.now().astimezone()
     mail_sync = fetch_mail_sync(settings.mail, now)
+    itslearning_sync = fetch_itslearning_sync(settings.itslearning, now)
     webuntis_sync = fetch_webuntis_sync(settings.webuntis_base_url, settings.webuntis_ical_url, now)
     document_monitor = build_document_monitor(_monitored_documents(settings), monitor_state_path, now)
     plan_digest = build_plan_digest(settings.orgaplan_pdf_url, settings.classwork_plan_url, now)
@@ -27,7 +29,7 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path) -> dict[s
     payload["teacher"]["name"] = settings.teacher_name
     payload["teacher"]["school"] = settings.school_name
     payload["workspace"] = _build_workspace(settings)
-    payload["meta"] = _build_meta(settings, mail_sync, webuntis_sync, now)
+    payload["meta"] = _build_meta(settings, mail_sync, itslearning_sync, webuntis_sync, now)
     payload["quickLinks"] = _build_quick_links(settings)
     payload["berlinFocus"] = _build_berlin_focus(settings)
     payload["documentMonitor"] = document_monitor
@@ -39,6 +41,7 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path) -> dict[s
     payload["documents"] = _filter_placeholder_documents(payload["documents"])
     payload["sources"] = _apply_source_configuration(payload["sources"], settings)
     payload["sources"] = _merge_source(payload["sources"], mail_sync.source)
+    payload["sources"] = _merge_source(payload["sources"], itslearning_sync.source)
     payload["sources"] = _merge_source(payload["sources"], webuntis_sync.source)
     payload["sources"] = _apply_source_configuration(payload["sources"], settings)
     payload["documents"] = _apply_document_configuration(payload["documents"], settings)
@@ -53,6 +56,14 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path) -> dict[s
         payload["sources"] = _set_source_detail(payload["sources"], "mail", mail_sync.source)
         payload["messages"] = [message for message in payload["messages"] if message["channel"] != "mail"]
         payload["priorities"] = [priority for priority in payload["priorities"] if priority["source"] != "Dienstmail"]
+
+    if itslearning_sync.messages:
+        payload["messages"] = itslearning_sync.messages + [message for message in payload["messages"] if message["channel"] != "itslearning"]
+        payload["priorities"] = _merge_priorities(itslearning_sync.priorities, payload["priorities"])
+    else:
+        payload["sources"] = _set_source_detail(payload["sources"], "itslearning", itslearning_sync.source)
+        payload["messages"] = [message for message in payload["messages"] if message["channel"] != "itslearning"]
+        payload["priorities"] = [priority for priority in payload["priorities"] if priority["source"] != "itslearning"]
 
     if webuntis_sync.schedule:
         payload["schedule"] = webuntis_sync.schedule
@@ -92,7 +103,7 @@ def _merge_priorities(incoming: list[dict[str, Any]], existing: list[dict[str, A
     return combined[:4]
 
 
-def _build_meta(settings: Any, mail_sync: Any, webuntis_sync: Any, now: datetime) -> dict[str, str]:
+def _build_meta(settings: Any, mail_sync: Any, itslearning_sync: Any, webuntis_sync: Any, now: datetime) -> dict[str, str]:
     notes = []
     live_modes = set()
 
@@ -103,7 +114,7 @@ def _build_meta(settings: Any, mail_sync: Any, webuntis_sync: Any, now: datetime
         notes.append("WebUntis ist als Schulzugang hinterlegt, aber noch nicht vollstaendig live.")
 
     if settings.itslearning_base_url:
-        notes.append("itslearning ist aktuell als Direktlink vorbereitet.")
+        notes.append(itslearning_sync.note)
 
     if mail_sync.mode == "live-mail":
         notes.append(mail_sync.note)
@@ -147,13 +158,6 @@ def _apply_source_configuration(existing_sources: list[dict[str, Any]], settings
             updated["cadence"] = "naechster Schritt: persoenlichen iCal verbinden"
             updated["nextStep"] = "Persoenlichen WebUntis-iCal hinterlegen oder spaeter Session-Cookie fuer Vertretungen pruefen"
             updated["detail"] = f"WebUntis-Basis gesetzt: {settings.webuntis_base_url}"
-
-        if source["id"] == "itslearning" and settings.itslearning_base_url:
-            updated["status"] = "ok"
-            updated["lastSync"] = "konfiguriert"
-            updated["cadence"] = "naechster Schritt: Login-/Feed-Pruefung"
-            updated["nextStep"] = "itslearning-Startpunkt pruefen und relevante Ansichten identifizieren"
-            updated["detail"] = f"itslearning-Basis gesetzt: {settings.itslearning_base_url}"
 
         if source["id"] == "website" and settings.orgaplan_pdf_url:
             updated["status"] = "ok"
@@ -284,7 +288,7 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
 
     optional_links = [
         ("webuntis", "WebUntis", settings.webuntis_base_url, "Planung", "Stundenplan, Vertretung und Heute"),
-        ("itslearning", "itslearning", settings.itslearning_base_url, "Lernen", "Kurse, Aufgaben und Kursmeldungen"),
+        ("itslearning", "itslearning", settings.itslearning_base_url, "Lernen", "Updates und Kursmeldungen"),
         ("orgaplan", "Orgaplan", settings.orgaplan_pdf_url, "PDF", "Aktueller Orgaplan fuer eure Schule"),
         (
             "classwork",

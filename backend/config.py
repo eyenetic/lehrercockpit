@@ -32,16 +32,36 @@ class MailSettings:
 
 
 @dataclass
+class ItslearningSettings:
+    base_url: str
+    username: str
+    password: str
+    max_updates: int
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.base_url)
+
+    @property
+    def native_login_configured(self) -> bool:
+        return bool(self.base_url and self.username and self.password)
+
+
+@dataclass
 class AppSettings:
     teacher_name: str
     school_name: str
     mail: MailSettings
+    itslearning: ItslearningSettings
     schoolportal_url: str
     webuntis_base_url: str
     webuntis_ical_url: str
-    itslearning_base_url: str
     orgaplan_pdf_url: str
     classwork_plan_url: str
+
+    @property
+    def itslearning_base_url(self) -> str:
+        return self.itslearning.base_url
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -78,15 +98,21 @@ def load_settings() -> AppSettings:
         use_ssl=_env_flag("MAIL_USE_SSL", True),
         max_messages=_env_int("MAIL_MAX_MESSAGES", 8),
     )
+    itslearning_settings = ItslearningSettings(
+        base_url=os.getenv("ITSLEARNING_BASE_URL", "").strip(),
+        username=os.getenv("ITSLEARNING_USERNAME", "").strip(),
+        password=os.getenv("ITSLEARNING_PASSWORD", "").strip(),
+        max_updates=_env_int("ITSLEARNING_MAX_UPDATES", 6),
+    )
 
     return AppSettings(
         teacher_name=os.getenv("TEACHER_NAME", "").strip(),
         school_name=os.getenv("SCHOOL_NAME", "Stadtteilschule Nord").strip() or "Stadtteilschule Nord",
         mail=mail_settings,
+        itslearning=itslearning_settings,
         schoolportal_url=os.getenv("SCHOOLPORTAL_URL", "https://schulportal.berlin.de").strip(),
         webuntis_base_url=os.getenv("WEBUNTIS_BASE_URL", "").strip(),
         webuntis_ical_url=os.getenv("WEBUNTIS_ICAL_URL", "").strip(),
-        itslearning_base_url=os.getenv("ITSLEARNING_BASE_URL", "").strip(),
         orgaplan_pdf_url=os.getenv("ORGAPLAN_PDF_URL", "").strip(),
         classwork_plan_url=os.getenv("CLASSWORK_PLAN_URL", "").strip(),
     )
