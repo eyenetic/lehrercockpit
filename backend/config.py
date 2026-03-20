@@ -7,6 +7,8 @@ from pathlib import Path
 
 @dataclass
 class MailSettings:
+    local_source: str
+    local_mailbox: str
     host: str
     port: int
     username: str
@@ -16,8 +18,16 @@ class MailSettings:
     max_messages: int
 
     @property
-    def configured(self) -> bool:
+    def imap_configured(self) -> bool:
         return bool(self.host and self.username and self.password)
+
+    @property
+    def apple_mail_enabled(self) -> bool:
+        return self.local_source.lower() == "apple_mail"
+
+    @property
+    def configured(self) -> bool:
+        return self.apple_mail_enabled or self.imap_configured
 
 
 @dataclass
@@ -56,6 +66,8 @@ def load_settings() -> AppSettings:
     _load_local_env_file()
 
     mail_settings = MailSettings(
+        local_source=os.getenv("MAIL_LOCAL_SOURCE", "").strip(),
+        local_mailbox=os.getenv("MAIL_LOCAL_MAILBOX", "INBOX").strip() or "INBOX",
         host=os.getenv("MAIL_IMAP_HOST", "").strip(),
         port=_env_int("MAIL_IMAP_PORT", 993),
         username=os.getenv("MAIL_USERNAME", "").strip(),
@@ -66,7 +78,7 @@ def load_settings() -> AppSettings:
     )
 
     return AppSettings(
-        teacher_name=os.getenv("TEACHER_NAME", "Herr Mustermann").strip() or "Herr Mustermann",
+        teacher_name=os.getenv("TEACHER_NAME", "").strip(),
         school_name=os.getenv("SCHOOL_NAME", "Stadtteilschule Nord").strip() or "Stadtteilschule Nord",
         mail=mail_settings,
         schoolportal_url=os.getenv("SCHOOLPORTAL_URL", "https://schulportal.berlin.de").strip(),

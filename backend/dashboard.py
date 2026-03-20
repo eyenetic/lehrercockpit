@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import datetime
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 from .config import load_settings
@@ -360,11 +361,137 @@ def _build_webuntis_center(settings: Any, webuntis_sync: Any, now: datetime) -> 
             {"id": "class", "label": "Klasse"},
             {"id": "room", "label": "Raum"},
         ],
+        "finder": _build_webuntis_finder(settings, webuntis_sync, start_url, today_url, now),
         "shortcutHint": (
-            "Speichere WebUntis-Links fuer Kolleg:innen, Klassen oder Raeume. "
-            "So wird das Cockpit zur Plan-Zentrale, auch wenn die Daten noch nicht direkt synchronisiert werden."
+            "Dein persoenlicher Plan kommt live ueber iCal. Fuer Kolleg:innen-, Klassen- und Raumplaene bereiten wir die Suche lokal vor und haengen sie als Naechstes an deine WebUntis-Sitzung."
         ),
     }
+
+
+def _build_webuntis_finder(
+    settings: Any,
+    webuntis_sync: Any,
+    start_url: str,
+    today_url: str,
+    now: datetime,
+) -> dict[str, Any]:
+    entities: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    has_named_teacher = _has_real_teacher_name(settings.teacher_name)
+
+    def add_entity(entity_type: str, label: str, detail: str, *, url: str = "", live: bool = False) -> None:
+        compact = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
+        entity_id = f"{entity_type}-{compact or 'eintrag'}"
+        if entity_id in seen_ids:
+            return
+        seen_ids.add(entity_id)
+        entities.append(
+            {
+                "id": entity_id,
+                "type": entity_type,
+                "label": label,
+                "detail": detail,
+                "url": url,
+                "live": live,
+            }
+        )
+
+    if start_url or today_url:
+        add_entity(
+            "teacher",
+            settings.teacher_name if has_named_teacher else "Mein Plan",
+            "Dein persoenlicher WebUntis-Plan ist live verbunden.",
+            url=start_url or today_url,
+            live=True,
+        )
+
+    for room in _extract_rooms(webuntis_sync.events):
+        add_entity("room", room, "Aus deinem aktuellen Stundenplan erkannt. Fuer Live-Aenderungen ist die WebUntis-Sitzung noetig.")
+
+    for school_class in _extract_classes(webuntis_sync.events):
+        add_entity("class", school_class, "Aus deinem aktuellen Stundenplan erkannt. Klassenplaene werden spaeter direkt ueber die lokale Suche geladen.")
+
+    finder_status = "warning"
+    finder_note = "Aktuell suchbar: Klassen und Raeume aus deinem eigenen Plan. Kolleg:innen folgen erst mit lokaler WebUntis-Sitzung."
+    if webuntis_sync.mode == "missing":
+        finder_note = "WebUntis ist noch nicht verbunden. Fuer Planfinder zuerst den persoenlichen Zugang aktivieren."
+    elif webuntis_sync.mode == "webuntis-error":
+        finder_note = "WebUntis konnte gerade nicht geladen werden. Der Planfinder bleibt vorbereitet."
+    elif len(entities) > 1:
+        finder_status = "ok"
+
+    return {
+        "status": finder_status,
+        "note": finder_note,
+        "indexedAt": now.strftime("%H:%M"),
+        "supportsSessionSearch": False,
+        "searchPlaceholder": "Klasse oder Raum aus deinem Plan suchen",
+        "availableTypes": [
+            {"id": "teacher", "label": "Mein Plan"},
+            {"id": "class", "label": "Klasse"},
+            {"id": "room", "label": "Raum"},
+        ],
+        "entities": entities[:18],
+        "watchlist": _build_webuntis_watchlist(webuntis_sync),
+    }
+
+
+def _build_webuntis_watchlist(webuntis_sync: Any) -> list[dict[str, str]]:
+    items = []
+
+    for priority in webuntis_sync.priorities[:3]:
+        items.append(
+            {
+                "id": priority["id"],
+                "title": priority["title"],
+                "detail": priority["detail"],
+                "status": "changed" if priority["priority"] in {"critical", "high"} else "watch",
+            }
+        )
+
+    if not items:
+        items.append(
+            {
+                "id": "watch-session",
+                "title": "Aenderungsradar vorbereitet",
+                "detail": "Sobald die lokale WebUntis-Suche gekoppelt ist, koennen wir Vertretungen, Raumwechsel und Ausfaelle fuer weitere Plaene verfolgen.",
+                "status": "watch",
+            }
+        )
+
+    return items
+
+
+def _extract_rooms(events: list[dict[str, Any]]) -> list[str]:
+    rooms = []
+    seen = set()
+    for event in events:
+        room = (event.get("location") or "").strip()
+        if room and room not in seen:
+            seen.add(room)
+            rooms.append(room)
+    return rooms
+
+
+def _extract_classes(events: list[dict[str, Any]]) -> list[str]:
+    class_pattern = re.compile(r"\b(?:[5-9]\w?|1[0-3]\w?|Q\d(?:/Q\d)?|S\d)\b", re.IGNORECASE)
+    classes = []
+    seen = set()
+
+    for event in events:
+        for field in (event.get("detail") or "", event.get("description") or "", event.get("title") or ""):
+            for match in class_pattern.findall(field):
+                label = match.upper()
+                if label not in seen:
+                    seen.add(label)
+                    classes.append(label)
+
+    return classes
+
+
+def _has_real_teacher_name(value: str) -> bool:
+    normalized = (value or "").strip().lower()
+    return normalized not in {"", "herr mustermann", "mustermann", "frau mustermann"}
 
 
 def _build_berlin_focus(settings: Any) -> list[dict[str, str]]:

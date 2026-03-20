@@ -2,6 +2,8 @@
 
 Dieses Projekt ist jetzt eine lokale Web-App mit Python-Backend. Das Cockpit fuehrt Nachrichten, Vertretungen, Termine und PDFs in einer einzigen Tagesoberflaeche zusammen und kann erste echte Quellen wie WebUntis bereits live ueber einen persoenlichen iCal-Export aufnehmen.
 
+Fuer Deployments ist das Frontend so vorbereitet, dass es zuerst ein gleiches Origin (`/api`) versucht und danach auf konfigurierte externe Backend-URLs zurueckfallen kann. Damit laesst sich ein Wechsel zwischen Plattformen wie Render oder Railway ohne Umbau der App-Logik abfedern.
+
 ## Was schon drin ist
 
 - `Heute`-Briefing mit Reload aus einer lokalen JSON-API
@@ -14,6 +16,7 @@ Dieses Projekt ist jetzt eine lokale Web-App mit Python-Backend. Das Cockpit fue
 - Dokumentencenter mit Suche ueber PDFs und Plaene
 - Quellenkarten mit Live- oder Demo-Status
 - IMAP-Mailadapter ohne externe Python-Abhaengigkeiten
+- lokale Apple-Mail-Vorschau als read-only Inbox-Quelle auf dem Mac
 - WebUntis-iCal-Adapter fuer persoenliche Stundenplantermine aus dem Account
 
 ## Projektstruktur
@@ -61,6 +64,9 @@ Schon hinterlegbar sind:
 - `ORGAPLAN_PDF_URL`
 - `CLASSWORK_PLAN_URL`
 - Mail-Variablen fuer Umgebungen, in denen IMAP erlaubt ist
+- optional `MAIL_LOCAL_SOURCE=apple_mail` fuer eine lokale Inbox-Vorschau aus Apple Mail
+
+Wenn `MAIL_LOCAL_SOURCE=apple_mail` gesetzt ist, versucht das Backend lokal auf dem Mac eine read-only Vorschau aus Apple Mail zu laden. Das ist fuer den lokalen Lehrer-Cockpit-Modus gedacht und ersetzt keine vollwertige Mailclient-Integration.
 
 Wenn `WEBUNTIS_ICAL_URL` gesetzt ist, ersetzt das Backend die bisherigen Platzhalter im Stundenplan durch echte WebUntis-Termine aus dem persoenlichen Kalenderexport. Der Link bleibt lokal in `.env.local` und wird nicht in Git eingecheckt.
 

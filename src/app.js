@@ -1,13 +1,25 @@
 (function bootstrapApp() {
   const WEBUNTIS_SHORTCUTS_KEY = "lehrerCockpit.webuntis.shortcuts";
-  const API_BASE = window.RAILWAY_API_URL || "";
+  const WEBUNTIS_FAVORITES_KEY = "lehrerCockpit.webuntis.favorites";
+  const ACTIVE_WEBUNTIS_PLAN_KEY = "lehrerCockpit.webuntis.activePlan";
+  const IS_LOCAL_RUNTIME =
+    window.location.protocol === "file:" ||
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+  const PRODUCTION_API_BASES = buildProductionApiBases();
 
   const state = {
     selectedChannel: "all",
     documentSearch: "",
-    webuntisView: "day",
+    webuntisView: "week",
+    webuntisPickerOpen: false,
+    webuntisPickerCategory: null,
+    webuntisPickerSearch: "",
     data: null,
     shortcuts: loadSavedShortcuts(),
+    favorites: loadWebUntisFavorites(),
+    activeShortcutId: "personal",
+    activeFinderEntityId: null,
   };
 
   const elements = {
@@ -33,12 +45,27 @@
     webuntisActivePlan: document.querySelector("#webuntis-active-plan"),
     webuntisDetail: document.querySelector("#webuntis-detail"),
     webuntisRangeLabel: document.querySelector("#webuntis-range-label"),
-    webuntisShortcutHint: document.querySelector("#webuntis-shortcut-hint"),
-    webuntisShortcutList: document.querySelector("#webuntis-shortcut-list"),
-    webuntisShortcutForm: document.querySelector("#webuntis-shortcut-form"),
-    webuntisShortcutType: document.querySelector("#webuntis-shortcut-type"),
-    webuntisShortcutLabel: document.querySelector("#webuntis-shortcut-label"),
-    webuntisShortcutUrl: document.querySelector("#webuntis-shortcut-url"),
+    webuntisPlanStrip: document.querySelector("#webuntis-plan-strip"),
+    webuntisWatchlist: document.querySelector("#webuntis-watchlist"),
+    webuntisPickerButton: document.querySelector("#webuntis-picker-button"),
+    webuntisPickerOverlay: document.querySelector("#webuntis-picker-overlay"),
+    webuntisPickerBackdrop: document.querySelector("#webuntis-picker-backdrop"),
+    webuntisPickerClose: document.querySelector("#webuntis-picker-close"),
+    webuntisPickerEdit: document.querySelector("#webuntis-picker-edit"),
+    webuntisPickerSearch: document.querySelector("#webuntis-picker-search"),
+    webuntisPickerHome: document.querySelector("#webuntis-picker-home"),
+    webuntisPickerCurrent: document.querySelector("#webuntis-picker-current"),
+    webuntisPickerResultsSection: document.querySelector("#webuntis-picker-results-section"),
+    webuntisPickerResultsLabel: document.querySelector("#webuntis-picker-results-label"),
+    webuntisPickerResults: document.querySelector("#webuntis-picker-results"),
+    webuntisPickerFavorites: document.querySelector("#webuntis-picker-favorites"),
+    webuntisPickerCategories: document.querySelector("#webuntis-picker-categories"),
+    webuntisPickerCategoryView: document.querySelector("#webuntis-picker-category"),
+    webuntisPickerBack: document.querySelector("#webuntis-picker-back"),
+    webuntisPickerCategoryKicker: document.querySelector("#webuntis-picker-category-kicker"),
+    webuntisPickerCategoryTitle: document.querySelector("#webuntis-picker-category-title"),
+    webuntisPickerCategoryNote: document.querySelector("#webuntis-picker-category-note"),
+    webuntisPickerCategoryResults: document.querySelector("#webuntis-picker-category-results"),
     orgaplanOpenLink: document.querySelector("#orgaplan-open-link"),
     orgaplanDigestDetail: document.querySelector("#orgaplan-digest-detail"),
     orgaplanUpcomingList: document.querySelector("#orgaplan-upcoming-list"),
@@ -61,7 +88,9 @@
   };
 
   async function loadDashboard() {
-    const sources = [API_BASE + "/api/dashboard", "./data/mock-dashboard.json"];
+    const sources = IS_LOCAL_RUNTIME
+      ? ["/api/dashboard", "./data/mock-dashboard.json"]
+      : [...PRODUCTION_API_BASES.map((base) => `${base}/api/dashboard`), "./data/mock-dashboard.json"];
 
     for (const source of sources) {
       try {
@@ -106,6 +135,15 @@
         { id: "class", label: "Klasse" },
         { id: "room", label: "Raum" },
       ],
+      finder: {
+        status: "warning",
+        note: "Planfinder ist vorbereitet.",
+        indexedAt: formatTime(now),
+        supportsSessionSearch: false,
+        searchPlaceholder: "Lehrkraft, Klasse oder Raum suchen",
+        entities: [],
+        watchlist: [],
+      },
       shortcutHint: "WebUntis-Links koennen hier als Schnellzugriff gespeichert werden.",
     };
 
@@ -164,6 +202,15 @@
             { id: "class", label: "Klasse" },
             { id: "room", label: "Raum" },
           ],
+          finder: {
+            status: "warning",
+            note: "Planfinder ist vorbereitet.",
+            indexedAt: formatTime(new Date()),
+            supportsSessionSearch: false,
+            searchPlaceholder: "Lehrkraft, Klasse oder Raum suchen",
+            entities: [],
+            watchlist: [],
+          },
           shortcutHint: "WebUntis-Links koennen hier als Schnellzugriff gespeichert werden.",
         },
         planDigest: {
@@ -208,20 +255,24 @@
   }
 
   function renderRuntimeBanner() {
-    const usingFileProtocol = window.location.protocol === "file:";
     const data = getData();
 
-    if (usingFileProtocol) {
+    if (window.location.protocol === "file:") {
       elements.runtimeBanner.hidden = false;
       elements.runtimeBanner.textContent =
         "Direktdatei geoeffnet. Fuer Live-Daten bitte http://127.0.0.1:4173 nutzen.";
       return;
     }
 
+    if (IS_LOCAL_RUNTIME && data.meta.mode === "live") {
+      elements.runtimeBanner.hidden = false;
+      elements.runtimeBanner.textContent = `Lokaler Live-Modus aktiv. Neu geladen um ${data.meta.lastUpdatedLabel}.`;
+      return;
+    }
+
     if (data.meta.mode !== "live") {
       elements.runtimeBanner.hidden = false;
-      elements.runtimeBanner.textContent =
-        "Fallback aktiv. Die Zeit aktualisiert sich, aber Live-Daten kommen nur ueber den lokalen Server.";
+      elements.runtimeBanner.textContent = `${data.meta.note} Letztes Update: ${data.meta.lastUpdatedLabel}.`;
       return;
     }
 
@@ -271,28 +322,37 @@
 
   function renderBriefing() {
     const data = getData();
-    const webuntisEvents = getWebUntisEvents();
-
     const briefingItems = [];
+    const nextEvent = findNextLesson(data);
+    const orgaplanItem = pickOrgaplanBriefing(data);
+    const classworkItem = pickClassworkBriefing(data);
+    const inboxItem = pickInboxBriefing(data);
 
-    if (data.priorities[0]) {
+    if (nextEvent) {
       briefingItems.push({
-        title: "Jetzt zuerst",
-        copy: `${data.priorities[0].title}. ${data.priorities[0].detail}`,
+        title: "Naechste Stunde",
+        copy: `${nextEvent.title} um ${nextEvent.time}${nextEvent.location ? ` in ${nextEvent.location}` : ""}.`,
       });
     }
 
-    if (webuntisEvents[0]) {
+    if (orgaplanItem) {
       briefingItems.push({
-        title: "WebUntis",
-        copy: `${state.webuntisView === "day" ? "Heute" : "Diese Woche"}: ${webuntisEvents[0].title} um ${webuntisEvents[0].time}.`,
+        title: "Orgaplan",
+        copy: `${orgaplanItem.label}: ${orgaplanItem.copy}`,
       });
     }
 
-    if (data.documents[0]) {
+    if (classworkItem) {
       briefingItems.push({
-        title: "Dokumente",
-        copy: `${data.documents[0].title}: ${data.documents[0].summary}`,
+        title: "Klassenarbeitsplan",
+        copy: classworkItem,
+      });
+    }
+
+    if (inboxItem) {
+      briefingItems.push({
+        title: "Inbox",
+        copy: inboxItem,
       });
     }
 
@@ -308,6 +368,72 @@
           )
           .join("")
       : `<div class="empty-state">Noch keine Briefing-Daten verfuegbar.</div>`;
+  }
+
+  function findNextLesson(data) {
+    const events = (data.webuntisCenter?.events || []).filter((event) => event.startsAt);
+    const now = new Date(data.generatedAt || Date.now());
+
+    const upcoming = events
+      .filter((event) => new Date(event.startsAt) >= now)
+      .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt));
+
+    if (upcoming.length) {
+      return upcoming[0];
+    }
+
+    return events
+      .filter((event) => isSameDay(new Date(event.startsAt), now))
+      .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt))[0] || null;
+  }
+
+  function pickOrgaplanBriefing(data) {
+    const orgaplan = data.planDigest?.orgaplan;
+    if (!orgaplan) {
+      return null;
+    }
+
+    const now = new Date(data.generatedAt || Date.now());
+    const dayToken = now.getDate().toString().padStart(2, "0");
+    const monthToken = (now.getMonth() + 1).toString().padStart(2, "0");
+    const candidates = [...(orgaplan.upcoming || []), ...(orgaplan.highlights || [])];
+    const todayCandidate = candidates.find((item) => {
+      const haystack = `${item.dateLabel || ""} ${item.title || ""}`.toLowerCase();
+      return haystack.includes(`${dayToken}.${monthToken}`) || haystack.includes(` ${dayToken} `);
+    });
+    const chosen = todayCandidate || candidates[0];
+
+    if (!chosen) {
+      return null;
+    }
+
+    return {
+      label: chosen.dateLabel || chosen.title || "Hinweis",
+      copy: chosen.detail || chosen.general || chosen.text || "Kein weiterer Hinweis im Orgaplan erkannt.",
+    };
+  }
+
+  function pickClassworkBriefing(data) {
+    const classwork = data.planDigest?.classwork;
+    if (!classwork) {
+      return "";
+    }
+
+    return classwork.previewRows?.[0] || classwork.detail || "";
+  }
+
+  function pickInboxBriefing(data) {
+    const unread = (data.messages || []).filter((message) => message.unread);
+    if (!unread.length) {
+      return "";
+    }
+
+    const mailMessages = unread.filter((message) => message.channel === "mail");
+    if (mailMessages.length) {
+      return `${mailMessages.length} neue Mail${mailMessages.length === 1 ? "" : "s"}, zuerst: ${mailMessages[0].title}.`;
+    }
+
+    return `${unread.length} neue Hinweise, zuerst: ${unread[0].title}.`;
   }
 
   function renderQuickLinks() {
@@ -601,17 +727,160 @@
         state.webuntisView = button.dataset.webuntisView;
         renderWebUntisControls();
         renderWebUntisSchedule();
-        renderStats();
       });
     });
 
     bindExternalLink(elements.webuntisOpenToday, center.todayUrl, "Heute in WebUntis");
-    bindExternalLink(elements.webuntisOpenBase, center.startUrl, "WebUntis oeffnen");
+    bindExternalLink(elements.webuntisOpenBase, center.startUrl || center.todayUrl, "WebUntis oeffnen");
 
-    elements.webuntisActivePlan.textContent = center.activePlan || "Mein WebUntis-Plan";
-    elements.webuntisDetail.textContent = center.detail || center.note;
+    elements.webuntisActivePlan.textContent = "Mein Stundenplan";
+    elements.webuntisDetail.textContent =
+      "Persoenlicher Plan ueber WebUntis-iCal. Im Cockpit kompakt, fuer Details direkt in WebUntis weiter.";
     elements.webuntisRangeLabel.textContent = state.webuntisView === "day" ? "Tag" : center.currentWeekLabel || "Woche";
-    elements.webuntisShortcutHint.textContent = center.shortcutHint;
+  }
+
+  function renderWebUntisPicker() {
+    const center = getData().webuntisCenter;
+    const finder = center.finder || {
+      status: "warning",
+      note: "Planfinder ist vorbereitet.",
+      availableTypes: [
+        { id: "teacher", label: "Mein Plan" },
+        { id: "class", label: "Klasse" },
+        { id: "room", label: "Raum" },
+      ],
+      entities: [],
+      watchlist: [],
+      searchPlaceholder: "Klasse oder Raum aus deinem Plan suchen",
+    };
+    const query = state.webuntisPickerSearch.trim().toLowerCase();
+    const currentPlan = {
+      id: "personal",
+      type: "teacher",
+      label: center.activePlan || "Mein Stundenplan",
+      detail: center.detail || center.note,
+      favorite: state.favorites.includes("personal"),
+    };
+    const searchResults = getGlobalPickerResults(center, query);
+    const categories = (finder.availableTypes || center.planTypes || []).map((category) => ({
+      ...category,
+      count: getPickerEntities(center, category.id, query).length,
+    }));
+    const activePlan = getActivePlan(center);
+
+    elements.webuntisPickerOverlay.hidden = !state.webuntisPickerOpen;
+    elements.webuntisPickerSearch.value = state.webuntisPickerSearch;
+    elements.webuntisPickerSearch.placeholder = finder.searchPlaceholder || "Stundenplan suchen";
+    elements.webuntisPickerEdit.textContent = activePlan.id === "personal" ? "Fertig" : "Zuruecksetzen";
+
+    const favorites = getFavoriteEntities(center, query);
+    elements.webuntisPickerCurrent.innerHTML = renderPickerItem(currentPlan, {
+      active: !state.activeFinderEntityId && state.activeShortcutId === "personal",
+      compact: false,
+      showFavorite: true,
+      action: "select",
+    });
+    elements.webuntisPickerResultsSection.hidden = !query;
+    elements.webuntisPickerResultsLabel.textContent = query ? `Treffer fuer "${state.webuntisPickerSearch}"` : "Suche";
+    elements.webuntisPickerResults.innerHTML = query
+      ? searchResults.length
+        ? searchResults
+            .map((entity) => renderPickerItem(entity, { active: isEntityActive(center, entity), showFavorite: entity.id !== "personal" }))
+            .join("")
+        : `<div class="empty-state">Keine passenden Plaene gefunden.</div>`
+      : "";
+    elements.webuntisPickerFavorites.innerHTML = favorites.length
+      ? favorites.map((entity) => renderPickerItem(entity, { active: isEntityActive(center, entity), showFavorite: true, action: "select" })).join("")
+      : `<div class="empty-state">Noch keine Favoriten gespeichert.</div>`;
+    elements.webuntisPickerCategories.innerHTML = categories
+      .map(
+        (category) => `
+          <button class="picker-category-item" type="button" data-picker-category="${category.id}">
+            <span>${category.label}</span>
+            <span>${category.count}</span>
+          </button>
+        `
+      )
+      .join("");
+
+    elements.webuntisPickerCategories.querySelectorAll("[data-picker-category]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.webuntisPickerCategory = button.dataset.pickerCategory;
+        renderWebUntisPicker();
+      });
+    });
+
+    const showCategory = Boolean(state.webuntisPickerCategory);
+    elements.webuntisPickerHome.hidden = showCategory;
+    elements.webuntisPickerCategoryView.hidden = !showCategory;
+
+    if (showCategory) {
+      const category = categories.find((item) => item.id === state.webuntisPickerCategory);
+      const categoryItems = getPickerEntities(center, state.webuntisPickerCategory, query);
+      elements.webuntisPickerCategoryKicker.textContent = "Stundenplaene";
+      elements.webuntisPickerCategoryTitle.textContent = category?.label || "Auswahl";
+      elements.webuntisPickerCategoryNote.textContent =
+        state.webuntisPickerCategory === "teacher"
+          ? "Kolleg:innen-Listen folgen erst mit echter WebUntis-Session. Aktuell bleibt dein persoenlicher Plan die stabile Basis."
+          : "Auswaehlen wechselt die Anzeige im Cockpit. Klassen und Raeume stammen derzeit aus deinem persoenlichen Plan.";
+      elements.webuntisPickerCategoryResults.innerHTML = categoryItems.length
+        ? categoryItems
+            .map((entity) =>
+              renderPickerItem(entity, {
+                active: isEntityActive(center, entity),
+                showFavorite: entity.id !== "personal",
+                action: "select",
+              })
+            )
+            .join("")
+        : `<div class="empty-state">In dieser Kategorie gibt es aktuell keine weiteren Live-Eintraege.</div>`;
+    }
+
+    bindPickerActions(center);
+  }
+
+  function renderWebUntisWatchlist() {
+    const finder = getData().webuntisCenter.finder || { watchlist: [] };
+    elements.webuntisWatchlist.innerHTML = (finder.watchlist || []).length
+      ? finder.watchlist
+          .map(
+            (item) => `
+              <article class="priority-item">
+                <div class="priority-top">
+                  <strong>${item.title}</strong>
+                  <span class="meta-tag ${watchStatusClass(item.status)}">${watchStatusLabel(item.status)}</span>
+                </div>
+                <p class="priority-copy">${item.detail}</p>
+              </article>
+            `
+          )
+          .join("")
+      : `<div class="empty-state">Noch keine geoeffneten Plaene im Radar.</div>`;
+  }
+
+  function renderWebUntisPlanStrip() {
+    const center = getData().webuntisCenter;
+    const plans = getPinnedPlans(center);
+    const visiblePlans = plans.filter((plan) => !(plan.id === "personal" && plans.length === 1));
+
+    elements.webuntisPlanStrip.hidden = visiblePlans.length === 0;
+
+    elements.webuntisPlanStrip.innerHTML = visiblePlans.length
+      ? visiblePlans
+          .map(
+            (plan) => `
+              <button class="plan-chip ${isPlanChipActive(center, plan) ? "active" : ""}" type="button" data-plan-chip="${plan.id}">
+                <span class="plan-chip-type">${shortcutTypeLabel(plan.type)}</span>
+                <strong>${plan.label}</strong>
+              </button>
+            `
+          )
+      .join("")
+      : `<div class="empty-state">Noch keine Plaene gespeichert.</div>`;
+
+    elements.webuntisPlanStrip.querySelectorAll("[data-plan-chip]").forEach((button) => {
+      button.addEventListener("click", () => selectPlanById(getData().webuntisCenter, button.dataset.planChip));
+    });
   }
 
   function renderWebUntisSchedule() {
@@ -622,118 +891,105 @@
       return;
     }
 
+    if (state.webuntisView === "week") {
+      elements.scheduleList.innerHTML = renderWeekSchedule(events, getData().webuntisCenter);
+      return;
+    }
+
     const grouped = groupEventsByDay(events);
-    elements.scheduleList.innerHTML = grouped
-      .map(
-        (group) => `
-          <section class="webuntis-day-group">
-            <div class="webuntis-day-label">
-              <span>${group.label}</span>
-              <span>${group.events.length} Eintraege</span>
-            </div>
-            ${group.events
-              .map(
-                (event) => `
-                  <article class="webuntis-event">
-                    <div class="webuntis-event-time">${event.time}</div>
-                    <div>
-                      <strong>${event.title}</strong>
-                      <p class="webuntis-event-copy">${event.detail || "Kein weiterer Kontext."}</p>
-                      <div class="meta-row">
-                        <span class="meta-tag">${event.category}</span>
-                        ${event.location ? `<span class="meta-tag">${event.location}</span>` : ""}
-                      </div>
-                    </div>
-                  </article>
-                `
-              )
-              .join("")}
-          </section>
-        `
-      )
-      .join("");
+    elements.scheduleList.innerHTML = grouped.map((group) => renderDayGroup(group)).join("");
   }
 
-  function renderWebUntisShortcuts() {
-    const center = getData().webuntisCenter;
-    const defaultShortcuts = [];
+  function renderWeekSchedule(events, center) {
+    const columns = buildWeekColumns(events, center.currentDate);
 
-    if (center.todayUrl) {
-      defaultShortcuts.push({
-        id: "system-today",
-        type: "teacher",
-        label: "Mein Plan heute",
-        url: center.todayUrl,
-        fixed: true,
-      });
-    }
-
-    if (center.startUrl) {
-      defaultShortcuts.push({
-        id: "system-start",
-        type: "teacher",
-        label: "WebUntis Start",
-        url: center.startUrl,
-        fixed: true,
-      });
-    }
-
-    const shortcuts = [...defaultShortcuts, ...state.shortcuts];
-
-    elements.webuntisShortcutList.innerHTML = shortcuts.length
-      ? shortcuts
+    return `
+      <div class="webuntis-week-grid">
+        ${columns
           .map(
-            (shortcut) => `
-              <article class="priority-item">
-                <div class="shortcut-item-top">
-                  <strong>${shortcut.label}</strong>
-                  <span class="meta-tag">${shortcutTypeLabel(shortcut.type)}</span>
+            (column) => `
+              <section class="webuntis-week-column">
+                <div class="webuntis-week-head">
+                  <span class="webuntis-weekday">${column.weekday}</span>
+                  <strong>${column.date}</strong>
                 </div>
-                <p class="priority-copy">${shortcut.url}</p>
-                <div class="shortcut-actions">
-                  <a class="shortcut-link-button" href="${shortcut.url}" target="_blank" rel="noreferrer">oeffnen</a>
+                <div class="webuntis-week-stack">
                   ${
-                    shortcut.fixed
-                      ? ""
-                      : `<button class="shortcut-remove-button" type="button" data-remove-shortcut="${shortcut.id}">entfernen</button>`
+                    column.events.length
+                      ? column.events.map((event) => renderWeekEvent(event)).join("")
+                      : `<div class="webuntis-week-empty">frei</div>`
                   }
                 </div>
-              </article>
+              </section>
             `
           )
-          .join("")
-      : `<div class="empty-state">Noch keine WebUntis-Schnellzugriffe gespeichert.</div>`;
+          .join("")}
+      </div>
+    `;
+  }
 
-    elements.webuntisShortcutList.querySelectorAll("[data-remove-shortcut]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.shortcuts = state.shortcuts.filter((shortcut) => shortcut.id !== button.dataset.removeShortcut);
-        persistShortcuts();
-        renderWebUntisShortcuts();
-      });
-    });
+  function renderDayGroup(group) {
+    return `
+      <section class="webuntis-day-group">
+        <div class="webuntis-day-label">
+          <span>${group.label}</span>
+          <span>${group.events.length} Eintraege</span>
+        </div>
+        ${group.events.map((event) => renderDayEvent(event)).join("")}
+      </section>
+    `;
+  }
+
+  function renderDayEvent(event) {
+    return `
+      <article class="webuntis-event">
+        <div class="webuntis-event-time">${event.time}</div>
+        <div>
+          <strong>${event.title}</strong>
+          <p class="webuntis-event-copy">${compactEventDetail(event)}</p>
+          <div class="meta-row">
+            <span class="meta-tag">${event.category}</span>
+            ${event.location ? `<span class="meta-tag">${event.location}</span>` : ""}
+            ${event.description ? `<span class="meta-tag">${event.description}</span>` : ""}
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderWeekEvent(event) {
+    return `
+      <article class="webuntis-week-event">
+        <div class="webuntis-week-time">${event.time.replace(" - ", "–")}</div>
+        <strong>${event.title}</strong>
+        ${event.location ? `<div class="webuntis-week-meta">${event.location}</div>` : ""}
+        ${event.description ? `<div class="webuntis-week-meta">${event.description}</div>` : ""}
+      </article>
+    `;
   }
 
   function getWebUntisEvents() {
     const center = getData().webuntisCenter;
     const referenceDate = new Date(`${center.currentDate}T00:00:00`);
-    const events = (center.events || []).filter((event) => event.startsAt);
+    let events = (center.events || []).filter((event) => event.startsAt);
 
     if (!events.length) {
       return [];
     }
 
     if (state.webuntisView === "day") {
-      return events.filter((event) => isSameDay(new Date(event.startsAt), referenceDate));
+      events = events.filter((event) => isSameDay(new Date(event.startsAt), referenceDate));
+    } else {
+      const weekStart = startOfWeek(referenceDate);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
+
+      events = events.filter((event) => {
+        const startsAt = new Date(event.startsAt);
+        return startsAt >= weekStart && startsAt < weekEnd;
+      });
     }
-
-    const weekStart = startOfWeek(referenceDate);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 7);
-
-    return events.filter((event) => {
-      const startsAt = new Date(event.startsAt);
-      return startsAt >= weekStart && startsAt < weekEnd;
-    });
+    return events;
   }
 
   function groupEventsByDay(events) {
@@ -750,6 +1006,33 @@
     });
 
     return Array.from(groups.values());
+  }
+
+  function buildWeekColumns(events, currentDate) {
+    const referenceDate = new Date(`${currentDate}T00:00:00`);
+    const weekStart = startOfWeek(referenceDate);
+    const byKey = new Map();
+
+    events.forEach((event) => {
+      const date = new Date(event.startsAt);
+      const key = date.toISOString().slice(0, 10);
+      if (!byKey.has(key)) {
+        byKey.set(key, []);
+      }
+      byKey.get(key).push(event);
+    });
+
+    return Array.from({ length: 5 }, (_, index) => {
+      const day = new Date(weekStart);
+      day.setDate(weekStart.getDate() + index);
+      const key = day.toISOString().slice(0, 10);
+      return {
+        key,
+        weekday: day.toLocaleDateString("de-DE", { weekday: "short" }),
+        date: formatDate(day),
+        events: byKey.get(key) || [],
+      };
+    });
   }
 
   function bindExternalLink(element, url, label) {
@@ -818,32 +1101,53 @@
       renderDocuments();
     });
 
+    if (elements.webuntisPickerButton) {
+      elements.webuntisPickerButton.addEventListener("click", () => {
+        state.webuntisPickerOpen = true;
+        state.webuntisPickerCategory = null;
+        renderWebUntisPicker();
+        if (elements.webuntisPickerSearch) {
+          window.setTimeout(() => elements.webuntisPickerSearch.focus(), 30);
+        }
+      });
+    }
+
+    if (elements.webuntisPickerClose) {
+      elements.webuntisPickerClose.addEventListener("click", closePicker);
+    }
+    if (elements.webuntisPickerBackdrop) {
+      elements.webuntisPickerBackdrop.addEventListener("click", closePicker);
+    }
+    if (elements.webuntisPickerEdit) {
+      elements.webuntisPickerEdit.addEventListener("click", () => {
+        if (getActivePlan(getData().webuntisCenter).id !== "personal") {
+          selectPlanById(getData().webuntisCenter, "personal");
+          return;
+        }
+        closePicker();
+      });
+    }
+    if (elements.webuntisPickerBack) {
+      elements.webuntisPickerBack.addEventListener("click", () => {
+        state.webuntisPickerCategory = null;
+        renderWebUntisPicker();
+      });
+    }
+    if (elements.webuntisPickerSearch) {
+      elements.webuntisPickerSearch.addEventListener("input", (event) => {
+        state.webuntisPickerSearch = event.target.value;
+        renderWebUntisPicker();
+      });
+    }
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.webuntisPickerOpen) {
+        closePicker();
+      }
+    });
+
     elements.assistantForm.addEventListener("submit", (event) => {
       event.preventDefault();
       elements.assistantAnswer.textContent = respondToAssistant(elements.assistantInput.value);
-    });
-
-    elements.webuntisShortcutForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const type = elements.webuntisShortcutType.value;
-      const label = elements.webuntisShortcutLabel.value.trim();
-      const url = elements.webuntisShortcutUrl.value.trim();
-
-      if (!label || !url) {
-        elements.heroNote.textContent = `Bitte Bezeichnung und WebUntis-Link ausfuellen. Letztes Update: ${getData().meta.lastUpdatedLabel}.`;
-        return;
-      }
-
-      state.shortcuts.unshift({
-        id: `shortcut-${Date.now()}`,
-        type,
-        label,
-        url,
-      });
-      persistShortcuts();
-      elements.webuntisShortcutForm.reset();
-      renderWebUntisShortcuts();
-      renderMeta();
     });
   }
 
@@ -851,18 +1155,12 @@
     renderWorkspace();
     renderMeta();
     renderRuntimeBanner();
-    renderStats();
-    renderQuickLinks();
-    renderBerlinFocus();
     renderBriefing();
-    renderPriorities();
-    renderSources();
+    renderQuickLinks();
     renderChannelFilters();
     renderMessages();
     renderWebUntisControls();
     renderWebUntisSchedule();
-    renderWebUntisShortcuts();
-    renderDocumentMonitor();
     renderPlanDigest();
     renderDocuments();
   }
@@ -885,10 +1183,35 @@
   }
 
   function initialize() {
+    normalizeLocalWebUntisState();
     elements.assistantAnswer.textContent =
-      "Frag mich nach WebUntis, nach PDFs oder nach Terminen dieser Woche.";
+      "Frag mich nach der Woche, nach dem Orgaplan, nach Dokumenten oder nach deiner Inbox.";
     registerEvents();
     refreshDashboard();
+  }
+
+  function buildProductionApiBases() {
+    const bases = [];
+    const configuredBase = (window.BACKEND_API_URL || window.LEHRER_COCKPIT_API_URL || "").trim();
+    const configuredFallbacks = Array.isArray(window.LEHRER_COCKPIT_API_FALLBACKS)
+      ? window.LEHRER_COCKPIT_API_FALLBACKS
+      : [];
+
+    if (window.location.protocol !== "file:") {
+      bases.push(window.location.origin);
+    }
+
+    if (configuredBase) {
+      bases.push(configuredBase);
+    }
+
+    configuredFallbacks.forEach((entry) => {
+      if (typeof entry === "string" && entry.trim()) {
+        bases.push(entry.trim());
+      }
+    });
+
+    return bases.filter((entry, index, items) => items.indexOf(entry) === index);
   }
 
   function loadSavedShortcuts() {
@@ -898,7 +1221,7 @@
         return [];
       }
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) ? sanitizeShortcuts(parsed) : [];
     } catch (error) {
       return [];
     }
@@ -906,6 +1229,378 @@
 
   function persistShortcuts() {
     window.localStorage.setItem(WEBUNTIS_SHORTCUTS_KEY, JSON.stringify(state.shortcuts));
+  }
+
+  function loadWebUntisFavorites() {
+    try {
+      const raw = window.localStorage.getItem(WEBUNTIS_FAVORITES_KEY);
+      const parsed = JSON.parse(raw || "[]");
+      return Array.isArray(parsed) ? sanitizeFavorites(parsed) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function persistFavorites() {
+    window.localStorage.setItem(WEBUNTIS_FAVORITES_KEY, JSON.stringify(state.favorites));
+  }
+
+  function loadActiveShortcutId() {
+    try {
+      return window.localStorage.getItem(ACTIVE_WEBUNTIS_PLAN_KEY) || "personal";
+    } catch (error) {
+      return "personal";
+    }
+  }
+
+  function persistActiveShortcutId() {
+    window.localStorage.setItem(ACTIVE_WEBUNTIS_PLAN_KEY, state.activeShortcutId);
+  }
+
+  function getWebUntisPlans(center) {
+    const defaultPlans = [];
+
+    if (center.startUrl || center.todayUrl) {
+      defaultPlans.push({
+        id: "personal",
+        type: "teacher",
+        label: center.activePlan || "Mein Plan",
+        url: center.startUrl || center.todayUrl,
+        fixed: true,
+      });
+    }
+
+    return [...defaultPlans, ...sanitizeShortcuts(state.shortcuts)];
+  }
+
+  function getPinnedPlans(center) {
+    const basePlans = getWebUntisPlans(center);
+    const favoriteEntities = getFavoriteEntities(center, "");
+
+    const merged = [...basePlans];
+    favoriteEntities.forEach((entity) => {
+      if (!merged.some((plan) => plan.id === entity.id)) {
+        merged.push({
+          id: entity.id,
+          type: entity.type,
+          label: entity.label,
+          url: entity.url || "",
+          fixed: false,
+          localFilter: !entity.url,
+        });
+      }
+    });
+
+    return merged.slice(0, 6);
+  }
+
+  function getActivePlan(center) {
+    const activeEntity = getActiveFinderEntity(center);
+    if (activeEntity && !activeEntity.url) {
+      return {
+        id: activeEntity.id,
+        type: activeEntity.type,
+        label: activeEntity.label,
+        url: "",
+        fixed: false,
+        localFilter: true,
+      };
+    }
+
+    const plans = getWebUntisPlans(center);
+    return (
+      plans.find((plan) => plan.id === state.activeShortcutId) ||
+      plans[0] || {
+        id: "personal",
+        type: "teacher",
+        label: center.activePlan || "Mein Plan",
+        url: center.startUrl || center.todayUrl || "",
+        fixed: true,
+      }
+    );
+  }
+
+  function getActiveFinderEntity(center) {
+    return (center.finder?.entities || []).find((entity) => entity.id === state.activeFinderEntityId) || null;
+  }
+
+  function isPlanChipActive(center, plan) {
+    if (plan.localFilter) {
+      return state.activeFinderEntityId === plan.id;
+    }
+
+    if (plan.id === "personal") {
+      return state.activeShortcutId === "personal" && !state.activeFinderEntityId;
+    }
+
+    return state.activeShortcutId === plan.id;
+  }
+
+  function getPickerEntities(center, type, query) {
+    const entities = (center.finder?.entities || [])
+      .filter((entity) => entity.type === type)
+      .filter((entity) => {
+        if (!query) {
+          return true;
+        }
+        const haystack = `${entity.label} ${entity.detail} ${entity.type}`.toLowerCase();
+        return haystack.includes(query);
+      });
+
+    if (type !== "teacher") {
+      return entities;
+    }
+
+    const teacherEntries = [
+      {
+        id: "personal",
+        type: "teacher",
+        label: center.activePlan || "Mein Stundenplan",
+        detail: center.detail || center.note,
+        url: center.startUrl || center.todayUrl || "",
+        fixed: true,
+      },
+      ...entities,
+    ];
+
+    return teacherEntries.filter((entity, index, items) => items.findIndex((item) => item.id === entity.id) === index);
+  }
+
+  function getFavoriteEntities(center, query) {
+    const allEntities = [
+      {
+        id: "personal",
+        type: "teacher",
+        label: center.activePlan || "Mein Stundenplan",
+        detail: center.detail || center.note,
+        url: center.startUrl || center.todayUrl || "",
+        fixed: true,
+      },
+      ...(center.finder?.entities || []),
+    ];
+
+    return allEntities
+      .filter((entity) => state.favorites.includes(entity.id))
+      .filter((entity) => {
+        if (!query) {
+          return true;
+        }
+        const haystack = `${entity.label} ${entity.detail} ${entity.type}`.toLowerCase();
+        return haystack.includes(query);
+      });
+  }
+
+  function getGlobalPickerResults(center, query) {
+    if (!query) {
+      return [];
+    }
+
+    const combined = [
+      {
+        id: "personal",
+        type: "teacher",
+        label: center.activePlan || "Mein Stundenplan",
+        detail: center.detail || center.note,
+        url: center.startUrl || center.todayUrl || "",
+        fixed: true,
+      },
+      ...(center.finder?.entities || []),
+    ];
+
+    return combined
+      .filter((entity) => {
+        const haystack = `${entity.label} ${entity.detail} ${entity.type}`.toLowerCase();
+        return haystack.includes(query);
+      })
+      .filter((entity, index, items) => items.findIndex((item) => item.id === entity.id) === index)
+      .slice(0, 8);
+  }
+
+  function isEntityActive(center, entity) {
+    if (entity.id === "personal") {
+      return state.activeShortcutId === "personal" && !state.activeFinderEntityId;
+    }
+
+    if (entity.url) {
+      return state.activeShortcutId === entity.id || state.activeShortcutId === `picker-${entity.id}`;
+    }
+
+    return state.activeFinderEntityId === entity.id;
+  }
+
+  function renderPickerItem(entity, options = {}) {
+    const { active = false, showFavorite = true, compact = false } = options;
+    return `
+      <article class="picker-item ${active ? "active" : ""} ${compact ? "compact" : ""}">
+        <button class="picker-item-main" type="button" data-picker-select="${entity.id}">
+          <span class="picker-item-icon">${pickerIcon(entity.type)}</span>
+          <span class="picker-item-copy">
+            <strong>${entity.label}</strong>
+            ${entity.detail ? `<span>${entity.detail}</span>` : ""}
+          </span>
+        </button>
+        ${
+          showFavorite
+            ? `<button class="picker-star ${state.favorites.includes(entity.id) ? "active" : ""}" type="button" data-picker-favorite="${entity.id}" aria-label="Favorit umschalten">★</button>`
+            : ""
+        }
+      </article>
+    `;
+  }
+
+  function bindPickerActions(center) {
+    elements.webuntisPickerCurrent.querySelectorAll("[data-picker-select], [data-picker-favorite]").forEach((button) => {
+      if (button.dataset.pickerSelect) {
+        button.addEventListener("click", () => selectPlanById(center, button.dataset.pickerSelect));
+      }
+      if (button.dataset.pickerFavorite) {
+        button.addEventListener("click", () => toggleFavorite(button.dataset.pickerFavorite));
+      }
+    });
+    elements.webuntisPickerResults.querySelectorAll("[data-picker-select], [data-picker-favorite]").forEach((button) => {
+      if (button.dataset.pickerSelect) {
+        button.addEventListener("click", () => selectPlanById(center, button.dataset.pickerSelect));
+      }
+      if (button.dataset.pickerFavorite) {
+        button.addEventListener("click", () => toggleFavorite(button.dataset.pickerFavorite));
+      }
+    });
+    elements.webuntisPickerFavorites.querySelectorAll("[data-picker-select], [data-picker-favorite]").forEach((button) => {
+      if (button.dataset.pickerSelect) {
+        button.addEventListener("click", () => selectPlanById(center, button.dataset.pickerSelect));
+      }
+      if (button.dataset.pickerFavorite) {
+        button.addEventListener("click", () => toggleFavorite(button.dataset.pickerFavorite));
+      }
+    });
+    elements.webuntisPickerCategoryResults.querySelectorAll("[data-picker-select], [data-picker-favorite]").forEach((button) => {
+      if (button.dataset.pickerSelect) {
+        button.addEventListener("click", () => selectPlanById(center, button.dataset.pickerSelect));
+      }
+      if (button.dataset.pickerFavorite) {
+        button.addEventListener("click", () => toggleFavorite(button.dataset.pickerFavorite));
+      }
+    });
+  }
+
+  function selectPlanById(center, planId) {
+    const entity = planId === "personal"
+      ? {
+          id: "personal",
+          type: "teacher",
+          label: center.activePlan || "Mein Plan",
+          url: center.startUrl || center.todayUrl || "",
+        }
+      : (center.finder?.entities || []).find((item) => item.id === planId) || state.shortcuts.find((item) => item.id === planId);
+
+    if (!entity) {
+      return;
+    }
+
+    if (entity.id === "personal") {
+      state.activeShortcutId = "personal";
+      state.activeFinderEntityId = null;
+    } else if (entity.url) {
+      const shortcutId = entity.id.startsWith("shortcut-") ? entity.id : `picker-${entity.id}`;
+      const existing = state.shortcuts.find((shortcut) => shortcut.id === shortcutId);
+      if (!existing) {
+        state.shortcuts.unshift({
+          id: shortcutId,
+          type: entity.type,
+          label: entity.label,
+          url: entity.url,
+        });
+        persistShortcuts();
+      }
+      state.activeShortcutId = shortcutId;
+      state.activeFinderEntityId = null;
+    } else {
+      state.activeShortcutId = "personal";
+      state.activeFinderEntityId = entity.id;
+    }
+
+    persistActiveShortcutId();
+    closePicker();
+    renderAll();
+  }
+
+  function toggleFavorite(entityId) {
+    if (state.favorites.includes(entityId)) {
+      state.favorites = state.favorites.filter((id) => id !== entityId);
+    } else {
+      state.favorites.unshift(entityId);
+    }
+    persistFavorites();
+    renderWebUntisPicker();
+    renderWebUntisPlanStrip();
+  }
+
+  function closePicker() {
+    state.webuntisPickerOpen = false;
+    state.webuntisPickerCategory = null;
+    state.webuntisPickerSearch = "";
+    renderWebUntisPicker();
+  }
+
+  function normalizeLocalWebUntisState() {
+    if (state.shortcuts.length) {
+      state.shortcuts = [];
+      persistShortcuts();
+    }
+
+    if (state.favorites.length) {
+      state.favorites = [];
+      persistFavorites();
+    }
+
+    state.activeShortcutId = "personal";
+    state.activeFinderEntityId = null;
+    persistActiveShortcutId();
+  }
+
+  function compactEventDetail(event) {
+    const parts = [];
+    if (event.location) {
+      parts.push(`Ort ${event.location}`);
+    }
+    if (event.description) {
+      parts.push(event.description);
+    }
+    return parts.join(" • ") || "Persoenlicher WebUntis-Termin";
+  }
+
+  function sanitizeShortcuts(entries) {
+    return entries
+      .filter((entry) => entry && typeof entry === "object")
+      .filter((entry) => entry.id && entry.label && entry.type)
+      .filter((entry) => !isPlaceholderTeacher(entry.label))
+      .filter((entry, index, items) => items.findIndex((item) => item.id === entry.id) === index);
+  }
+
+  function sanitizeFavorites(entries) {
+    return entries
+      .filter((entry) => typeof entry === "string" && entry)
+      .filter((entry) => !entry.includes("mustermann"))
+      .filter((entry, index, items) => items.indexOf(entry) === index);
+  }
+
+  function isPlaceholderTeacher(label) {
+    const normalized = String(label || "").trim().toLowerCase();
+    return normalized === "herr mustermann" || normalized === "frau mustermann" || normalized === "mustermann";
+  }
+
+  function eventMatchesFinderEntity(event, entity) {
+    const needle = entity.label.toLowerCase();
+    if (entity.type === "room") {
+      return (event.location || "").toLowerCase().includes(needle);
+    }
+
+    if (entity.type === "class") {
+      const haystack = `${event.title || ""} ${event.detail || ""} ${event.description || ""}`.toLowerCase();
+      return haystack.includes(needle);
+    }
+
+    return false;
   }
 
   function priorityLabel(priority) {
@@ -962,6 +1657,26 @@
     );
   }
 
+  function watchStatusLabel(status) {
+    return (
+      {
+        changed: "geaendert",
+        watch: "beobachten",
+        synced: "live",
+      }[status] || status
+    );
+  }
+
+  function watchStatusClass(status) {
+    return (
+      {
+        changed: "high",
+        watch: "low",
+        synced: "low",
+      }[status] || ""
+    );
+  }
+
   function shortcutTypeLabel(type) {
     return (
       {
@@ -969,6 +1684,16 @@
         class: "Klasse",
         room: "Raum",
       }[type] || type
+    );
+  }
+
+  function pickerIcon(type) {
+    return (
+      {
+        teacher: "L",
+        class: "K",
+        room: "R",
+      }[type] || "•"
     );
   }
 

@@ -8,6 +8,7 @@ from email.utils import parseaddr, parsedate_to_datetime
 import html
 import imaplib
 import re
+import subprocess
 from typing import Any
 
 from .config import MailSettings
@@ -32,14 +33,17 @@ def fetch_mail_sync(settings: MailSettings, now: datetime) -> MailSyncResult:
                 "status": "warning",
                 "cadence": "auf Abruf",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "MAIL_IMAP_HOST, MAIL_USERNAME und MAIL_PASSWORD setzen",
-                "detail": "Dienstmail ist vorbereitet, aber noch nicht konfiguriert.",
+                "nextStep": "MAIL_LOCAL_SOURCE=apple_mail setzen oder IMAP-Zugang hinterlegen",
+                "detail": "Mail-Vorschau ist vorbereitet, aber noch nicht konfiguriert.",
             },
             messages=[],
             priorities=[],
             mode="demo",
-            note="Demo-Daten aktiv, weil noch keine Mail-Zugangsdaten gesetzt sind.",
+            note="Demo-Daten aktiv, weil weder Apple Mail noch IMAP als Mailquelle aktiviert sind.",
         )
+
+    if settings.apple_mail_enabled:
+        return _fetch_apple_mail_sync(settings, now)
 
     client: imaplib.IMAP4 | imaplib.IMAP4_SSL
     try:
@@ -116,6 +120,181 @@ def fetch_mail_sync(settings: MailSettings, now: datetime) -> MailSyncResult:
             mode="demo",
             note="Dienstmail konnte nicht geladen werden. Demo-Daten bleiben sichtbar, bis der Zugang funktioniert.",
         )
+
+
+def _fetch_apple_mail_sync(settings: MailSettings, now: datetime) -> MailSyncResult:
+    try:
+        messages = _load_from_apple_mail(settings, now)
+        priorities = [
+            {
+                "id": f"prio-mail-{message['id']}",
+                "title": message["title"],
+                "detail": message["snippet"],
+                "priority": message["priority"],
+                "source": "Dienstmail",
+                "due": "neu",
+            }
+            for message in messages
+            if message["priority"] in {"critical", "high"}
+        ][:3]
+
+        return MailSyncResult(
+            source={
+                "id": "mail",
+                "name": "Dienstmail",
+                "type": "Apple Mail",
+                "status": "ok",
+                "cadence": "lokal bei Reload",
+                "lastSync": now.strftime("%H:%M"),
+                "nextStep": "Read-only Vorschau in Apple Mail spaeter um Filter fuer Schulleitung und Eltern erweitern",
+                "detail": f"{len(messages)} lokale Nachrichten aus Apple Mail geladen.",
+            },
+            messages=messages,
+            priorities=priorities,
+            mode="live-mail",
+            note=f"Apple-Mail-Vorschau ist lokal aktiv. Letzter Abruf: {now.strftime('%H:%M')}.",
+        )
+    except Exception as exc:
+        return MailSyncResult(
+            source={
+                "id": "mail",
+                "name": "Dienstmail",
+                "type": "Apple Mail",
+                "status": "warning",
+                "cadence": "lokal bei Reload",
+                "lastSync": now.strftime("%H:%M"),
+                "nextStep": "Apple Mail oeffnen und Codex ggf. unter Systemeinstellungen > Datenschutz > Automation freigeben",
+                "detail": f"Apple-Mail-Vorschau konnte nicht geladen werden: {type(exc).__name__}.",
+            },
+            messages=[],
+            priorities=[],
+            mode="demo",
+            note="Apple Mail ist als lokale Quelle aktiviert, konnte aber gerade nicht ausgelesen werden.",
+        )
+
+
+def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[str, Any]]:
+    script = _build_apple_mail_script(settings.max_messages, settings.local_mailbox)
+    result = subprocess.run(
+        ["osascript", "-"],
+        input=script,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    messages = []
+    for index, line in enumerate(lines, start=1):
+        fields = line.split("\x1f")
+        if len(fields) != 5:
+            continue
+
+        subject, sender, read_state, received_iso, snippet = fields
+        received_at = _parse_local_date(received_iso, now)
+        messages.append(
+            {
+                "id": f"apple-mail-{index}",
+                "channel": "mail",
+                "channelLabel": "Dienstmail",
+                "sender": sender or "Apple Mail",
+                "title": subject or "(ohne Betreff)",
+                "snippet": snippet or "Keine Textvorschau verfuegbar.",
+                "priority": _priority_for_message(subject, sender, snippet),
+                "timestamp": received_at.strftime("%H:%M"),
+                "unread": read_state.strip().lower() != "true",
+            }
+        )
+
+    return messages
+
+
+def _build_apple_mail_script(max_messages: int, mailbox_name: str) -> str:
+    mailbox_name = mailbox_name.replace('"', "")
+    return f"""
+set fieldSep to ASCII character 31
+set outputLines to {{}}
+set maxCount to {max_messages}
+set fallbackMailboxName to "{mailbox_name}"
+
+on twoDigits(valueNumber)
+  if valueNumber < 10 then
+    return "0" & valueNumber
+  end if
+  return valueNumber as text
+end twoDigits
+
+on monthNumber(monthValue)
+  if monthValue is January then return "01"
+  if monthValue is February then return "02"
+  if monthValue is March then return "03"
+  if monthValue is April then return "04"
+  if monthValue is May then return "05"
+  if monthValue is June then return "06"
+  if monthValue is July then return "07"
+  if monthValue is August then return "08"
+  if monthValue is September then return "09"
+  if monthValue is October then return "10"
+  if monthValue is November then return "11"
+  return "12"
+end monthNumber
+
+on normalizeText(rawText)
+  set cleanText to rawText as text
+  set cleanText to my replaceText(return, " ", cleanText)
+  set cleanText to my replaceText(linefeed, " ", cleanText)
+  set cleanText to my replaceText(tab, " ", cleanText)
+  return cleanText
+end normalizeText
+
+on replaceText(findText, replaceText, sourceText)
+  set oldDelimiters to AppleScript's text item delimiters
+  set AppleScript's text item delimiters to findText
+  set textItems to every text item of sourceText
+  set AppleScript's text item delimiters to replaceText
+  set sourceText to textItems as text
+  set AppleScript's text item delimiters to oldDelimiters
+  return sourceText
+end replaceText
+
+tell application "Mail"
+  set mailboxRef to missing value
+  try
+    set mailboxRef to inbox
+  end try
+  if mailboxRef is missing value then
+    set mailboxRef to first mailbox whose name is fallbackMailboxName
+  end if
+
+  set mailMessages to messages of mailboxRef
+  set limitCount to count of mailMessages
+  if limitCount > maxCount then set limitCount to maxCount
+
+  repeat with indexNumber from 1 to limitCount
+    set theMessage to item indexNumber of mailMessages
+    set receivedDate to date received of theMessage
+    set receivedValue to (year of receivedDate as text) & "-" & my monthNumber(month of receivedDate) & "-" & my twoDigits(day of receivedDate) & "T" & my twoDigits(hours of receivedDate) & ":" & my twoDigits(minutes of receivedDate) & ":" & my twoDigits(seconds of receivedDate)
+    set subjectValue to my normalizeText(subject of theMessage as text)
+    set senderValue to my normalizeText(sender of theMessage as text)
+    set snippetValue to my normalizeText(content of theMessage as text)
+    if (length of snippetValue) > 240 then set snippetValue to text 1 thru 240 of snippetValue
+    set readValue to (read status of theMessage) as text
+    copy (subjectValue & fieldSep & senderValue & fieldSep & readValue & fieldSep & receivedValue & fieldSep & snippetValue) to end of outputLines
+  end repeat
+end tell
+
+set AppleScript's text item delimiters to linefeed
+return outputLines as text
+""".strip()
+
+
+def _parse_local_date(raw_value: str, now: datetime) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(raw_value)
+        return parsed.replace(tzinfo=now.tzinfo)
+    except ValueError:
+        return now
 
 
 def _normalize_message(message_id: str, parsed_message: Message, now: datetime) -> dict[str, Any]:
