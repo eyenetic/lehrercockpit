@@ -116,9 +116,9 @@
     const data = JSON.parse(JSON.stringify(payload));
     const now = new Date();
 
-    data.generatedAt = now.toISOString();
+    data.generatedAt = data.generatedAt || now.toISOString();
     data.meta = data.meta || {};
-    data.meta.lastUpdatedLabel = formatTime(now);
+    data.meta.lastUpdatedLabel = data.meta.lastUpdatedLabel || formatTime(now);
 
     data.webuntisCenter = data.webuntisCenter || {
       status: "warning",
@@ -267,6 +267,13 @@
     if (IS_LOCAL_RUNTIME && data.meta.mode === "live") {
       elements.runtimeBanner.hidden = false;
       elements.runtimeBanner.textContent = `Lokaler Live-Modus aktiv. Neu geladen um ${data.meta.lastUpdatedLabel}.`;
+      return;
+    }
+
+    if (data.meta.mode === "snapshot") {
+      elements.runtimeBanner.hidden = false;
+      elements.runtimeBanner.textContent =
+        `Backend ist gerade nicht erreichbar. Du siehst den zuletzt synchronisierten Stand von ${data.meta.lastUpdatedLabel}.`;
       return;
     }
 

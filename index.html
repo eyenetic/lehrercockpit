@@ -248,49 +248,6 @@
       </main>
     </div>
 
-    <div class="picker-overlay" id="webuntis-picker-overlay" hidden>
-      <div class="picker-backdrop" id="webuntis-picker-backdrop"></div>
-      <section class="picker-panel" aria-labelledby="picker-title" aria-modal="true" role="dialog">
-        <header class="picker-header">
-          <button id="webuntis-picker-close" class="picker-close" type="button" aria-label="Schliessen">×</button>
-          <h2 id="picker-title">Stundenplan auswaehlen</h2>
-          <button id="webuntis-picker-edit" class="picker-edit" type="button">Bearbeiten</button>
-        </header>
-        <label class="picker-search">
-          <span class="sr-only">Stundenplan suchen</span>
-          <input id="webuntis-picker-search" type="search" placeholder="Stundenplan suchen" autocomplete="off" />
-        </label>
-        <div class="picker-body">
-          <section id="webuntis-picker-home" class="picker-home">
-            <div id="webuntis-picker-current" class="picker-current"></div>
-            <div id="webuntis-picker-results-section" class="picker-section" hidden>
-              <p id="webuntis-picker-results-label" class="picker-label">Suche</p>
-              <div id="webuntis-picker-results" class="picker-list"></div>
-            </div>
-            <div class="picker-section">
-              <p class="picker-label">Favoriten</p>
-              <div id="webuntis-picker-favorites" class="picker-list"></div>
-            </div>
-            <div class="picker-section">
-              <p class="picker-label">Stundenplaene</p>
-              <div id="webuntis-picker-categories" class="picker-category-list"></div>
-            </div>
-          </section>
-          <section id="webuntis-picker-category" class="picker-category-view" hidden>
-            <div class="picker-category-head">
-              <button id="webuntis-picker-back" class="picker-back" type="button">‹</button>
-              <div>
-                <p id="webuntis-picker-category-kicker" class="picker-label">Kategorie</p>
-                <h3 id="webuntis-picker-category-title">Klassen</h3>
-              </div>
-            </div>
-            <div id="webuntis-picker-category-note" class="picker-note"></div>
-            <div id="webuntis-picker-category-results" class="picker-list"></div>
-          </section>
-        </div>
-      </section>
-    </div>
-
     <script src="./data/mock-dashboard.js?v=12"></script>
     <script src="./src/app.js?v=12"></script>
   </body>

@@ -1,255 +1,745 @@
 window.LEHRER_COCKPIT_FALLBACK_DATA = {
-  generatedAt: "2026-03-19T17:05:00+01:00",
-  meta: {
-    mode: "demo",
-    note: "Lokaler Fallback aktiv. Fuer Live-Daten bitte den lokalen Server verwenden.",
-    lastUpdatedLabel: "17:05",
+  "generatedAt": "2026-03-19T21:31:14.843907+01:00",
+  "meta": {
+    "mode": "mixed",
+    "note": "Cockpit aktiv. Live-Daten werden bei konfiguriertem WebUntis-iCal oder Dienstmail geladen.",
+    "lastUpdatedLabel": "00:00"
   },
-  teacher: {
-    name: "Lehrkraft",
-    school: "Hermann-Ehlers-Oberschule",
+  "teacher": {
+    "name": "Herr Mustermann",
+    "school": "Hermann-Ehlers-Oberschule"
   },
-  workspace: {
-    eyebrow: "Berlin Lehrer-Cockpit",
-    title: "Dein Tagesstart fuer Hermann-Ehlers-Oberschule",
-    description:
-      "Fallback-Ansicht mit euren Schul-Links. Fuer echte WebUntis-Daten bitte die lokale Adresse mit Server nutzen.",
+  "workspace": {
+    "eyebrow": "Berlin Lehrer-Cockpit",
+    "title": "Dein Tagesstart fuer Hermann-Ehlers-Oberschule",
+    "description": "Ein persoenliches Dashboard fuer Berliner Schulportal-Dienste, WebUntis, itslearning und eure wichtigsten Schul-Dokumente."
   },
-  sources: [
+  "sources": [
     {
-      id: "mail",
-      name: "Dienstmail",
-      type: "E-Mail",
-      status: "warning",
-      cadence: "Portal-Zugriff",
-      lastSync: "--:--",
-      nextStep: "Berliner Dienstmail bleibt vorerst ein externer Zugang",
-      detail: "Keine Live-Anbindung im Fallback.",
+      "id": "mail",
+      "name": "Dienstmail",
+      "type": "E-Mail",
+      "status": "warning",
+      "cadence": "auf Abruf",
+      "lastSync": "21:31",
+      "nextStep": "MAIL_IMAP_HOST, MAIL_USERNAME und MAIL_PASSWORD setzen",
+      "detail": "Dienstmail ist vorbereitet, aber noch nicht konfiguriert."
     },
     {
-      id: "webuntis",
-      name: "WebUntis",
-      type: "Stundenplan",
-      status: "warning",
-      cadence: "nur mit lokalem Server",
-      lastSync: "--:--",
-      nextStep: "http://127.0.0.1:4173 oeffnen, damit der iCal-Sync greift",
-      detail: "Der persoenliche WebUntis-iCal wird nur ueber das lokale Backend geladen.",
+      "id": "webuntis",
+      "name": "WebUntis",
+      "type": "Stundenplan",
+      "status": "ok",
+      "cadence": "bei jedem Reload",
+      "lastSync": "21:31",
+      "nextStep": "Als Naechstes koennen wir Vertretungen, Ausfaelle und Delta-Aenderungen hervorheben",
+      "detail": "235 Termine aus deinem persoenlichen WebUntis-iCal geladen."
     },
     {
-      id: "itslearning",
-      name: "itslearning",
-      type: "Lernplattform",
-      status: "ok",
-      cadence: "Direktlink",
-      lastSync: "konfiguriert",
-      nextStep: "Spaeter Session- oder Feed-Anbindung ergaenzen",
-      detail: "itslearning ist als Schulzugang hinterlegt.",
+      "id": "itslearning",
+      "name": "itslearning",
+      "type": "Lernplattform",
+      "status": "ok",
+      "cadence": "naechster Schritt: Login-/Feed-Pruefung",
+      "lastSync": "konfiguriert",
+      "nextStep": "itslearning-Startpunkt pruefen und relevante Ansichten identifizieren",
+      "detail": "itslearning-Basis gesetzt: https://berlin.itslearning.com"
     },
     {
-      id: "website",
-      name: "Schulwebsite",
-      type: "Webseite",
-      status: "ok",
-      cadence: "Direktlink",
-      lastSync: "konfiguriert",
-      nextStep: "Orgaplan ueber den lokalen Monitor beobachten",
-      detail: "Orgaplan-Link ist im Cockpit hinterlegt.",
+      "id": "website",
+      "name": "Schulwebsite",
+      "type": "Webseite",
+      "status": "ok",
+      "cadence": "naechster Schritt: PDF-Aenderungen pruefen",
+      "lastSync": "konfiguriert",
+      "nextStep": "Orgaplan regelmaessig abrufen und Aenderungen gegen die letzte Version vergleichen",
+      "detail": "Orgaplan hinterlegt: https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf"
     },
     {
-      id: "pdf",
-      name: "PDF-Ablage",
-      type: "Dokumente",
-      status: "ok",
-      cadence: "Direktlink",
-      lastSync: "konfiguriert",
-      nextStep: "OneDrive-Export fuer robusten Abruf verbessern",
-      detail: "Klassenarbeitsplan-Link ist hinterlegt.",
-    },
+      "id": "pdf",
+      "name": "PDF-Ablage",
+      "type": "Dokumente",
+      "status": "ok",
+      "cadence": "naechster Schritt: XLSX-/Share-Link-Pruefung",
+      "lastSync": "konfiguriert",
+      "nextStep": "Freigabelink oder Export fuer den Klassenarbeitsplan in ein robustes Abrufformat ueberfuehren",
+      "detail": "Klassenarbeitsplan-Link hinterlegt. OneDrive kann fuer automatisierte Abrufe zusaetzliche Freigaben verlangen."
+    }
   ],
-  priorities: [
+  "priorities": [
     {
-      id: "fallback-1",
-      title: "Live-Modus ueber lokalen Server starten",
-      detail: "Oeffne http://127.0.0.1:4173, damit WebUntis-iCal und der Dokumentenmonitor geladen werden.",
-      priority: "critical",
-      source: "System",
-      due: "jetzt",
+      "id": "webuntis-next-22839-1505215-1505218",
+      "title": "Naechster WebUntis-Termin: S+B - Q1/Q2",
+      "detail": "Morgen ab 08:00 in Ronline. Kontext: Q1/Q2.",
+      "priority": "medium",
+      "source": "WebUntis",
+      "due": "Morgen, 08:00"
     },
     {
-      id: "fallback-2",
-      title: "Orgaplan ist hinterlegt",
-      detail: "Der Orgaplan-Link ist bereits konfiguriert und steht unten im Dokumentenbereich bereit.",
-      priority: "high",
-      source: "Schulwebsite",
-      due: "heute",
+      "id": "webuntis-today",
+      "title": "Heute 5 WebUntis-Termine im Account",
+      "detail": "Erster Termin um 08:00, letzter Termin endet um 10:40.",
+      "priority": "medium",
+      "source": "WebUntis",
+      "due": "heute"
     },
+    {
+      "id": "webuntis-overlap-22237-1437729-1437732",
+      "title": "Ueberschneidung im WebUntis-Kalender",
+      "detail": "M - S2 und Pb - 8a Pu starten beide um 11:50.",
+      "priority": "critical",
+      "source": "WebUntis",
+      "due": "27.03., 11:50"
+    },
+    {
+      "id": "orgaplan-highlight-1",
+      "title": "Orgaplan: Q4: letzter Tag mit Unterricht nach Plan Q4: ACHTUNG - HEUTE AUFSPIEL...",
+      "detail": "Oberstufe: Q4: letzter Tag mit Unterricht nach Plan Q4: ACHTUNG - HEUTE AUFSPIELEN DER PRÄSENTATION! Q4: Zulassung zur Abiturprüfung nach Sonderplan, letzter Schultag Q4, Berechnungsbogen, Presse, Belehrung (Zulassungskonferenz Abitur)",
+      "priority": "high",
+      "source": "Orgaplan",
+      "due": "23.03."
+    }
   ],
-  messages: [
+  "messages": [
     {
-      id: "fallback-msg-1",
-      channel: "website",
-      channelLabel: "System",
-      sender: "Lehrer-Cockpit",
-      title: "Fallback-Ansicht aktiv",
-      snippet: "Wenn du die Datei direkt geoeffnet hast, nutze bitte die lokale Adresse mit laufendem Server.",
-      priority: "high",
-      timestamp: "17:05",
-      unread: true,
-    },
+      "id": "msg-3",
+      "channel": "website",
+      "channelLabel": "Schulwebsite",
+      "sender": "Dokumentenbereich",
+      "title": "Orgaplan 12. KW aktualisiert",
+      "snippet": "Im PDF wurden Aufsichten und der Ablauf des Studientags angepasst.",
+      "priority": "high",
+      "timestamp": "06:15",
+      "unread": true
+    }
   ],
-  schedule: [
+  "schedule": [
     {
-      id: "fallback-evt-1",
-      title: "Lokalen Server nutzen",
-      time: "http://127.0.0.1:4173",
-      dateLabel: "Jetzt",
-      detail: "Nur dort erscheinen deine echten WebUntis-Termine aus dem persoenlichen iCal.",
-      category: "Hinweis",
+      "id": "webuntis-23552-1561553",
+      "title": "G - 8a",
+      "time": "08:50 - 09:35",
+      "dateLabel": "16.03.",
+      "detail": "Ort: R220. Kontext: 8a. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
     },
+    {
+      "id": "webuntis-22914-1511356-1511359",
+      "title": "PW - Q1/Q2",
+      "time": "09:55 - 11:30",
+      "dateLabel": "16.03.",
+      "detail": "Ort: R214. Kontext: Q1/Q2. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22255-1440123-1440126",
+      "title": "M - 8a",
+      "time": "11:50 - 13:25",
+      "dateLabel": "16.03.",
+      "detail": "Ort: R220. Kontext: 8a. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22234-1436839-1436842",
+      "title": "M - Q1/Q2",
+      "time": "08:00 - 09:35",
+      "dateLabel": "17.03.",
+      "detail": "Ort: R109. Kontext: Q1/Q2. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22237-1550778",
+      "title": "M - S2",
+      "time": "10:45 - 11:30",
+      "dateLabel": "17.03.",
+      "detail": "Ort: R112. Kontext: S2. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22914-1511362",
+      "title": "PW - Q1/Q2",
+      "time": "11:50 - 12:35",
+      "dateLabel": "17.03.",
+      "detail": "Ort: R216. Kontext: Q1/Q2. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22255-1440129-1440132",
+      "title": "M - 8a",
+      "time": "08:00 - 09:35",
+      "dateLabel": "18.03.",
+      "detail": "Ort: R220. Kontext: 8a. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-23323-1548034",
+      "title": "Aufsicht - Hof1Ü",
+      "time": "09:35 - 09:55",
+      "dateLabel": "18.03.",
+      "detail": "Ort: Hof1Ü. Quelle: WebUntis-iCal.",
+      "category": "Aufsicht"
+    },
+    {
+      "id": "webuntis-22264-1441359-1441362",
+      "title": "M - Q3/Q4",
+      "time": "09:55 - 11:30",
+      "dateLabel": "18.03.",
+      "detail": "Ort: R109. Kontext: Q3/Q4. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22552-1472305",
+      "title": "Pb - 8a",
+      "time": "12:40 - 13:25",
+      "dateLabel": "18.03.",
+      "detail": "Ort: R220. Kontext: 8a. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22264-1441365",
+      "title": "M - Q3/Q4",
+      "time": "13:45 - 14:30",
+      "dateLabel": "18.03.",
+      "detail": "Ort: R109. Kontext: Q3/Q4. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22234-1436860",
+      "title": "M - Q1/Q2",
+      "time": "08:00 - 08:45",
+      "dateLabel": "Heute",
+      "detail": "Ort: R110. Kontext: Q1/Q2. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22237-1437714",
+      "title": "M - S2",
+      "time": "08:50 - 09:35",
+      "dateLabel": "Heute",
+      "detail": "Ort: R112. Kontext: S2. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-23323-1548037",
+      "title": "Aufsicht - Café1",
+      "time": "09:35 - 09:55",
+      "dateLabel": "Heute",
+      "detail": "Ort: Café1. Quelle: WebUntis-iCal.",
+      "category": "Aufsicht"
+    },
+    {
+      "id": "webuntis-23984-1570772",
+      "title": "M",
+      "time": "09:55 - 10:40",
+      "dateLabel": "Heute",
+      "detail": "Ort: R201. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    },
+    {
+      "id": "webuntis-22989-1519462",
+      "title": "Ber",
+      "time": "09:55 - 10:40",
+      "dateLabel": "Heute",
+      "detail": "Ort offen. Quelle: WebUntis-iCal.",
+      "category": "Beratung"
+    },
+    {
+      "id": "webuntis-22839-1505215-1505218",
+      "title": "S+B - Q1/Q2",
+      "time": "08:00 - 09:35",
+      "dateLabel": "Morgen",
+      "detail": "Ort: Ronline. Kontext: Q1/Q2. Quelle: WebUntis-iCal.",
+      "category": "Online"
+    },
+    {
+      "id": "webuntis-22914-1511365-1511368",
+      "title": "PW - Q1/Q2",
+      "time": "09:55 - 11:30",
+      "dateLabel": "Morgen",
+      "detail": "Ort: Ronline. Kontext: Q1/Q2. Quelle: WebUntis-iCal.",
+      "category": "Online"
+    },
+    {
+      "id": "webuntis-22839-1505221",
+      "title": "S+B - Q1/Q2",
+      "time": "13:45 - 14:30",
+      "dateLabel": "Morgen",
+      "detail": "Ort: R118. Kontext: Q1/Q2. Quelle: WebUntis-iCal.",
+      "category": "Unterricht"
+    }
   ],
-  webuntisCenter: {
-    status: "warning",
-    note: "Lokaler Fallback aktiv. Fuer Live-WebUntis bitte den Server verwenden.",
-    detail: "Der persoenliche WebUntis-iCal wird nur ueber das lokale Backend geladen.",
-    activePlan: "Mein WebUntis-Plan",
-    todayUrl: "https://hermann-ehlers-os.webuntis.com/today",
-    startUrl: "https://hermann-ehlers-os.webuntis.com",
-    currentDate: "2026-03-19",
-    currentWeekLabel: "KW 12",
-    events: [],
-    planTypes: [
-      { id: "teacher", label: "Lehrkraft" },
-      { id: "class", label: "Klasse" },
-      { id: "room", label: "Raum" },
-    ],
-    shortcutHint:
-      "Speichere WebUntis-Links fuer Lehrkraefte, Klassen oder Raeume. Im Fallback werden nur die Schnellzugriffe angezeigt.",
-  },
-  documents: [
+  "documents": [
     {
-      id: "doc-1",
-      title: "Orgaplan",
-      source: "Schulwebsite",
-      updatedAt: "konfiguriert",
-      tags: ["PDF", "Orgaplan", "Schule"],
-      summary:
-        "Direktlink zur aktuellen Orgaplan-Datei ist im Cockpit hinterlegt.",
-    },
-    {
-      id: "doc-2",
-      title: "Klassenarbeitsplan",
-      source: "PDF-Ablage",
-      updatedAt: "konfiguriert",
-      tags: ["OneDrive", "Klassenarbeiten", "Plan"],
-      summary:
-        "Der Freigabelink ist hinterlegt, der automatische Abruf braucht spaeter noch einen robusteren Export.",
-    },
-  ],
-  quickLinks: [
-    {
-      id: "schoolportal",
-      title: "Berliner Schulportal",
-      url: "https://schulportal.berlin.de",
-      kind: "Portal",
-      note: "Zentraler Einstieg fuer Berliner Schuldienste",
-    },
-    {
-      id: "webuntis",
-      title: "WebUntis",
-      url: "https://hermann-ehlers-os.webuntis.com",
-      kind: "Planung",
-      note: "Schulzugang fuer Stundenplan und Heute",
-    },
-    {
-      id: "itslearning",
-      title: "itslearning",
-      url: "https://berlin.itslearning.com",
-      kind: "Lernen",
-      note: "Kurse, Aufgaben und Kursmeldungen",
-    },
-    {
-      id: "orgaplan",
-      title: "Orgaplan",
-      url: "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf",
-      kind: "PDF",
-      note: "Aktueller Orgaplan",
-    },
-    {
-      id: "classwork",
-      title: "Klassenarbeitsplan",
-      url: "https://onedrive.live.com/:x:/g/personal/f42aa6058c6f8b05/IQARI3pnv6iKTJPiUb8rXd2FAaicK7ietHgMFsOfgye3QlA?rtime=gxP0o32C3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE",
-      kind: "Dokument",
-      note: "Geteilter Link fuer Klassenarbeiten",
-    },
-  ],
-  berlinFocus: [
-    {
-      title: "WebUntis ist livefaehig",
-      detail: "Der echte Stundenplan kommt ueber das lokale Backend und deinen persoenlichen iCal-Export.",
-    },
-    {
-      title: "Direktdatei ist nur Fallback",
-      detail: "Beim Oeffnen von index.html ohne Server erscheinen keine Live-Daten, sondern nur vorbereitete Links.",
-    },
-  ],
-  documentMonitor: [
-    {
-      id: "orgaplan",
-      title: "Orgaplan",
-      type: "PDF",
-      status: "warning",
-      changed: false,
-      checkedAt: "--:--",
-      detail: "Der Monitor arbeitet nur mit laufendem lokalen Server.",
-      url: "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf",
-    },
-  ],
-  planDigest: {
-    orgaplan: {
-      status: "warning",
-      title: "Orgaplan",
-      detail:
-        "Im Fallback wird der Orgaplan nicht live gelesen. Mit lokalem Server wird das PDF bei jedem Refresh neu ausgewertet.",
-      monthLabel: "Maerz",
-      updatedAt: "17:05",
-      highlights: [],
-      upcoming: [
-        {
-          dateLabel: "19.03.",
-          title: "FK D und GEV",
-          text:
-            "Allgemein: FK D 3. GEV, 18.30 h | Oberstufe: Q4: Deadline Notenabgabe fuer das 4. Kurshalbjahr",
-          general: "FK D 3. GEV, 18.30 h",
-          middle: "",
-          middleNotes: "",
-          upper: "Q4: Deadline Notenabgabe fuer das 4. Kurshalbjahr",
-          upperNotes: "",
-        },
-        {
-          dateLabel: "24.03.",
-          title: "Klassenrat und Praesentationen",
-          text:
-            "Mittelstufe: Klassenrat | Oberstufe: Q4 AUFSPIELEN DER PRAESENTATION fuer die 5. PK",
-          general: "",
-          middle: "Klassenrat",
-          middleNotes: "",
-          upper: "Q4 AUFSPIELEN DER PRAESENTATION fuer die 5. PK",
-          upperNotes: "",
-        },
+      "id": "doc-1",
+      "title": "Orgaplan KW 12",
+      "source": "Schulwebsite",
+      "updatedAt": "21:31",
+      "tags": [
+        "Orgaplan",
+        "Maerz",
+        "Live"
       ],
-      sourceUrl:
-        "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf",
+      "summary": "Live gelesen. Stand Quelle: Wed, 25 Feb 2026 14:29:30 GMT. 4 relevante Eintraege fuer Maerz. Allgemein 2, Mittelstufe 0, Oberstufe 3."
     },
-    classwork: {
-      status: "warning",
-      title: "Klassenarbeitsplan",
-      detail:
-        "Der Klassenarbeitsplan wird bei jedem Refresh neu versucht, OneDrive blockiert den automatischen Abruf aktuell aber noch.",
-      updatedAt: "17:05",
-      previewRows: [],
-      sourceUrl:
-        "https://onedrive.live.com/:x:/g/personal/f42aa6058c6f8b05/IQARI3pnv6iKTJPiUb8rXd2FAaicK7ietHgMFsOfgye3QlA?rtime=gxP0o32C3kg&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE",
+    {
+      "id": "doc-2",
+      "title": "Klassenarbeitsplan Sek I",
+      "source": "PDF-Ablage",
+      "updatedAt": "21:31",
+      "tags": [
+        "Klassenarbeiten",
+        "Plan",
+        "warning"
+      ],
+      "summary": "Klassenarbeitsplan wird bei jedem Refresh neu versucht, ist aber aktuell fuer den automatischen Abruf blockiert (HTTP 401)."
+    }
+  ],
+  "quickLinks": [
+    {
+      "id": "schoolportal",
+      "title": "Berliner Schulportal",
+      "url": "https://schulportal.berlin.de",
+      "kind": "Portal",
+      "note": "Zentraler Einstieg fuer Berliner Schuldienste"
     },
+    {
+      "id": "webuntis",
+      "title": "WebUntis",
+      "url": "https://hermann-ehlers-os.webuntis.com",
+      "kind": "Planung",
+      "note": "Stundenplan, Vertretung und Heute"
+    },
+    {
+      "id": "itslearning",
+      "title": "itslearning",
+      "url": "https://berlin.itslearning.com",
+      "kind": "Lernen",
+      "note": "Kurse, Aufgaben und Kursmeldungen"
+    },
+    {
+      "id": "orgaplan",
+      "title": "Orgaplan",
+      "url": "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf",
+      "kind": "PDF",
+      "note": "Aktueller Orgaplan fuer eure Schule"
+    },
+    {
+      "id": "classwork",
+      "title": "Klassenarbeitsplan",
+      "url": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?resid=F42AA6058C6F8B05!s677a2311a8bf4c8a93e251bf2b5ddd85&ithint=file%2Cxlsx&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE",
+      "kind": "Dokument",
+      "note": "Geteilter Planlink fuer Klassenarbeiten"
+    },
+    {
+      "id": "school-calendar",
+      "title": "Schulkalender",
+      "url": "https://hermann-ehlers-schule.de/events/",
+      "kind": "Website",
+      "note": "Kommende Termine direkt von der Schulwebsite"
+    },
+    {
+      "id": "school-hours",
+      "title": "Stunden- und Pausenzeiten",
+      "url": "https://hermann-ehlers-schule.de/1462-2/",
+      "kind": "Website",
+      "note": "Zeiten und Rhythmus des Schultags"
+    },
+    {
+      "id": "teacher-contact",
+      "title": "Kontakt Lehrkraefte",
+      "url": "https://hermann-ehlers-schule.de/e-mail-adressen-der-lehrkraefte/",
+      "kind": "Website",
+      "note": "Lehrkraefte-Kontakte, aktuell passwortgeschuetzt"
+    }
+  ],
+  "berlinFocus": [
+    {
+      "title": "SSO-Dienste zuerst",
+      "detail": "WebUntis und itslearning sind bereits als echte Einstiegsquellen im Cockpit hinterlegt."
+    },
+    {
+      "title": "Dokumente bringen den Mehrwert",
+      "detail": "Der konkrete Orgaplan ist schon hinterlegt, sodass wir als Naechstes Aenderungen automatisch vergleichen koennen."
+    },
+    {
+      "title": "Mail vorerst nur Portal-Logik",
+      "detail": "Die Berliner Dienstmail bleibt ohne klassischen IMAP-Weg zunaechst ein Portal-/Hinweis-Modul."
+    },
+    {
+      "title": "OneDrive-Freigabe im Blick",
+      "detail": "Der Klassenarbeitsplan ist verlinkt, braucht fuer spaetere Automatisierung aber wahrscheinlich einen robusteren Export-Link."
+    }
+  ],
+  "documentMonitor": [
+    {
+      "id": "orgaplan",
+      "title": "Orgaplan",
+      "type": "PDF",
+      "status": "tracked",
+      "changed": false,
+      "checkedAt": "21:31",
+      "detail": "Orgaplan-Monitor aktiv. Erstbeobachtung gespeichert. Quelle meldet Wed, 25 Feb 2026 14:29:30 GMT.",
+      "url": "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf"
+    },
+    {
+      "id": "classwork",
+      "title": "Klassenarbeitsplan",
+      "type": "Share-Link",
+      "status": "warning",
+      "changed": false,
+      "checkedAt": "21:31",
+      "detail": "Klassenarbeitsplan-Monitor aktiv. Automatischer Abruf derzeit blockiert (HTTP 401).",
+      "url": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?resid=F42AA6058C6F8B05!s677a2311a8bf4c8a93e251bf2b5ddd85&ithint=file%2Cxlsx&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE"
+    }
+  ],
+  "webuntisCenter": {
+    "status": "ok",
+    "note": "WebUntis laeuft live ueber deinen persoenlichen iCal-Export.",
+    "detail": "235 Termine aus deinem persoenlichen WebUntis-iCal geladen.",
+    "activePlan": "Mein WebUntis-Plan",
+    "todayUrl": "https://hermann-ehlers-os.webuntis.com/today",
+    "startUrl": "https://hermann-ehlers-os.webuntis.com",
+    "currentDate": "2026-03-19",
+    "currentWeekLabel": "KW 12",
+    "events": [
+      {
+        "id": "webuntis-23552-1561553",
+        "title": "G - 8a",
+        "detail": "Ort: R220. Kontext: 8a.",
+        "startsAt": "2026-03-16T08:50:00+01:00",
+        "endsAt": "2026-03-16T09:35:00+01:00",
+        "time": "08:50 - 09:35",
+        "dateLabel": "16.03.",
+        "weekdayLabel": "Montag",
+        "category": "Unterricht",
+        "location": "R220",
+        "description": "8a"
+      },
+      {
+        "id": "webuntis-22914-1511356-1511359",
+        "title": "PW - Q1/Q2",
+        "detail": "Ort: R214. Kontext: Q1/Q2.",
+        "startsAt": "2026-03-16T09:55:00+01:00",
+        "endsAt": "2026-03-16T11:30:00+01:00",
+        "time": "09:55 - 11:30",
+        "dateLabel": "16.03.",
+        "weekdayLabel": "Montag",
+        "category": "Unterricht",
+        "location": "R214",
+        "description": "Q1/Q2"
+      },
+      {
+        "id": "webuntis-22255-1440123-1440126",
+        "title": "M - 8a",
+        "detail": "Ort: R220. Kontext: 8a.",
+        "startsAt": "2026-03-16T11:50:00+01:00",
+        "endsAt": "2026-03-16T13:25:00+01:00",
+        "time": "11:50 - 13:25",
+        "dateLabel": "16.03.",
+        "weekdayLabel": "Montag",
+        "category": "Unterricht",
+        "location": "R220",
+        "description": "8a"
+      },
+      {
+        "id": "webuntis-22234-1436839-1436842",
+        "title": "M - Q1/Q2",
+        "detail": "Ort: R109. Kontext: Q1/Q2.",
+        "startsAt": "2026-03-17T08:00:00+01:00",
+        "endsAt": "2026-03-17T09:35:00+01:00",
+        "time": "08:00 - 09:35",
+        "dateLabel": "17.03.",
+        "weekdayLabel": "Dienstag",
+        "category": "Unterricht",
+        "location": "R109",
+        "description": "Q1/Q2"
+      },
+      {
+        "id": "webuntis-22237-1550778",
+        "title": "M - S2",
+        "detail": "Ort: R112. Kontext: S2.",
+        "startsAt": "2026-03-17T10:45:00+01:00",
+        "endsAt": "2026-03-17T11:30:00+01:00",
+        "time": "10:45 - 11:30",
+        "dateLabel": "17.03.",
+        "weekdayLabel": "Dienstag",
+        "category": "Unterricht",
+        "location": "R112",
+        "description": "S2"
+      },
+      {
+        "id": "webuntis-22914-1511362",
+        "title": "PW - Q1/Q2",
+        "detail": "Ort: R216. Kontext: Q1/Q2.",
+        "startsAt": "2026-03-17T11:50:00+01:00",
+        "endsAt": "2026-03-17T12:35:00+01:00",
+        "time": "11:50 - 12:35",
+        "dateLabel": "17.03.",
+        "weekdayLabel": "Dienstag",
+        "category": "Unterricht",
+        "location": "R216",
+        "description": "Q1/Q2"
+      },
+      {
+        "id": "webuntis-22255-1440129-1440132",
+        "title": "M - 8a",
+        "detail": "Ort: R220. Kontext: 8a.",
+        "startsAt": "2026-03-18T08:00:00+01:00",
+        "endsAt": "2026-03-18T09:35:00+01:00",
+        "time": "08:00 - 09:35",
+        "dateLabel": "18.03.",
+        "weekdayLabel": "Mittwoch",
+        "category": "Unterricht",
+        "location": "R220",
+        "description": "8a"
+      },
+      {
+        "id": "webuntis-23323-1548034",
+        "title": "Aufsicht - Hof1Ü",
+        "detail": "Ort: Hof1Ü.",
+        "startsAt": "2026-03-18T09:35:00+01:00",
+        "endsAt": "2026-03-18T09:55:00+01:00",
+        "time": "09:35 - 09:55",
+        "dateLabel": "18.03.",
+        "weekdayLabel": "Mittwoch",
+        "category": "Aufsicht",
+        "location": "Hof1Ü",
+        "description": ""
+      },
+      {
+        "id": "webuntis-22264-1441359-1441362",
+        "title": "M - Q3/Q4",
+        "detail": "Ort: R109. Kontext: Q3/Q4.",
+        "startsAt": "2026-03-18T09:55:00+01:00",
+        "endsAt": "2026-03-18T11:30:00+01:00",
+        "time": "09:55 - 11:30",
+        "dateLabel": "18.03.",
+        "weekdayLabel": "Mittwoch",
+        "category": "Unterricht",
+        "location": "R109",
+        "description": "Q3/Q4"
+      },
+      {
+        "id": "webuntis-22552-1472305",
+        "title": "Pb - 8a",
+        "detail": "Ort: R220. Kontext: 8a.",
+        "startsAt": "2026-03-18T12:40:00+01:00",
+        "endsAt": "2026-03-18T13:25:00+01:00",
+        "time": "12:40 - 13:25",
+        "dateLabel": "18.03.",
+        "weekdayLabel": "Mittwoch",
+        "category": "Unterricht",
+        "location": "R220",
+        "description": "8a"
+      },
+      {
+        "id": "webuntis-22264-1441365",
+        "title": "M - Q3/Q4",
+        "detail": "Ort: R109. Kontext: Q3/Q4.",
+        "startsAt": "2026-03-18T13:45:00+01:00",
+        "endsAt": "2026-03-18T14:30:00+01:00",
+        "time": "13:45 - 14:30",
+        "dateLabel": "18.03.",
+        "weekdayLabel": "Mittwoch",
+        "category": "Unterricht",
+        "location": "R109",
+        "description": "Q3/Q4"
+      },
+      {
+        "id": "webuntis-22234-1436860",
+        "title": "M - Q1/Q2",
+        "detail": "Ort: R110. Kontext: Q1/Q2.",
+        "startsAt": "2026-03-19T08:00:00+01:00",
+        "endsAt": "2026-03-19T08:45:00+01:00",
+        "time": "08:00 - 08:45",
+        "dateLabel": "Heute",
+        "weekdayLabel": "Donnerstag",
+        "category": "Unterricht",
+        "location": "R110",
+        "description": "Q1/Q2"
+      },
+      {
+        "id": "webuntis-22237-1437714",
+        "title": "M - S2",
+        "detail": "Ort: R112. Kontext: S2.",
+        "startsAt": "2026-03-19T08:50:00+01:00",
+        "endsAt": "2026-03-19T09:35:00+01:00",
+        "time": "08:50 - 09:35",
+        "dateLabel": "Heute",
+        "weekdayLabel": "Donnerstag",
+        "category": "Unterricht",
+        "location": "R112",
+        "description": "S2"
+      },
+      {
+        "id": "webuntis-23323-1548037",
+        "title": "Aufsicht - Café1",
+        "detail": "Ort: Café1.",
+        "startsAt": "2026-03-19T09:35:00+01:00",
+        "endsAt": "2026-03-19T09:55:00+01:00",
+        "time": "09:35 - 09:55",
+        "dateLabel": "Heute",
+        "weekdayLabel": "Donnerstag",
+        "category": "Aufsicht",
+        "location": "Café1",
+        "description": ""
+      },
+      {
+        "id": "webuntis-23984-1570772",
+        "title": "M",
+        "detail": "Ort: R201.",
+        "startsAt": "2026-03-19T09:55:00+01:00",
+        "endsAt": "2026-03-19T10:40:00+01:00",
+        "time": "09:55 - 10:40",
+        "dateLabel": "Heute",
+        "weekdayLabel": "Donnerstag",
+        "category": "Unterricht",
+        "location": "R201",
+        "description": ""
+      },
+      {
+        "id": "webuntis-22989-1519462",
+        "title": "Ber",
+        "detail": "",
+        "startsAt": "2026-03-19T09:55:00+01:00",
+        "endsAt": "2026-03-19T10:40:00+01:00",
+        "time": "09:55 - 10:40",
+        "dateLabel": "Heute",
+        "weekdayLabel": "Donnerstag",
+        "category": "Beratung",
+        "location": "",
+        "description": ""
+      },
+      {
+        "id": "webuntis-22839-1505215-1505218",
+        "title": "S+B - Q1/Q2",
+        "detail": "Ort: Ronline. Kontext: Q1/Q2.",
+        "startsAt": "2026-03-20T08:00:00+01:00",
+        "endsAt": "2026-03-20T09:35:00+01:00",
+        "time": "08:00 - 09:35",
+        "dateLabel": "Morgen",
+        "weekdayLabel": "Freitag",
+        "category": "Online",
+        "location": "Ronline",
+        "description": "Q1/Q2"
+      },
+      {
+        "id": "webuntis-22914-1511365-1511368",
+        "title": "PW - Q1/Q2",
+        "detail": "Ort: Ronline. Kontext: Q1/Q2.",
+        "startsAt": "2026-03-20T09:55:00+01:00",
+        "endsAt": "2026-03-20T11:30:00+01:00",
+        "time": "09:55 - 11:30",
+        "dateLabel": "Morgen",
+        "weekdayLabel": "Freitag",
+        "category": "Online",
+        "location": "Ronline",
+        "description": "Q1/Q2"
+      },
+      {
+        "id": "webuntis-22839-1505221",
+        "title": "S+B - Q1/Q2",
+        "detail": "Ort: R118. Kontext: Q1/Q2.",
+        "startsAt": "2026-03-20T13:45:00+01:00",
+        "endsAt": "2026-03-20T14:30:00+01:00",
+        "time": "13:45 - 14:30",
+        "dateLabel": "Morgen",
+        "weekdayLabel": "Freitag",
+        "category": "Unterricht",
+        "location": "R118",
+        "description": "Q1/Q2"
+      }
+    ],
+    "planTypes": [
+      {
+        "id": "teacher",
+        "label": "Lehrkraft"
+      },
+      {
+        "id": "class",
+        "label": "Klasse"
+      },
+      {
+        "id": "room",
+        "label": "Raum"
+      }
+    ],
+    "shortcutHint": "Speichere WebUntis-Links fuer Kolleg:innen, Klassen oder Raeume. So wird das Cockpit zur Plan-Zentrale, auch wenn die Daten noch nicht direkt synchronisiert werden."
   },
+  "planDigest": {
+    "orgaplan": {
+      "status": "ok",
+      "title": "Orgaplan",
+      "detail": "Live gelesen. Stand Quelle: Wed, 25 Feb 2026 14:29:30 GMT. 4 relevante Eintraege fuer Maerz. Allgemein 2, Mittelstufe 0, Oberstufe 3.",
+      "monthLabel": "Maerz",
+      "updatedAt": "21:31",
+      "highlights": [
+        {
+          "dateLabel": "23.03.",
+          "title": "Q4: letzter Tag mit Unterricht nach Plan Q4: ACHTUNG - HEUTE AUFSPIEL...",
+          "detail": "Oberstufe: Q4: letzter Tag mit Unterricht nach Plan Q4: ACHTUNG - HEUTE AUFSPIELEN DER PRÄSENTATION! Q4: Zulassung zur Abiturprüfung nach Sonderplan, letzter Schultag Q4, Berechnungsbogen, Presse, Belehrung (Zulassungskonferenz Abitur)"
+        },
+        {
+          "dateLabel": "25.03.",
+          "title": "Q4: 5.PK Prüfungsvorsitz am HEG",
+          "detail": "Oberstufe: Q4: 5.PK Prüfungsvorsitz am HEG"
+        },
+        {
+          "dateLabel": "26.03.",
+          "title": "3. Schulkonferenz, 19 h",
+          "detail": "Allgemein: 3. Schulkonferenz, 19 h | Oberstufe: Q4: 5.PK"
+        }
+      ],
+      "upcoming": [
+        {
+          "dateLabel": "20.03.",
+          "title": "Ramadanfest",
+          "text": "Allgemein: Ramadanfest",
+          "general": "Ramadanfest",
+          "middle": "",
+          "middleNotes": "",
+          "upper": "",
+          "upperNotes": ""
+        },
+        {
+          "dateLabel": "23.03.",
+          "title": "Q4: letzter Tag mit Unterricht nach Plan Q4: ACHTUNG - HEUTE AUFSPIEL...",
+          "text": "Oberstufe: Q4: letzter Tag mit Unterricht nach Plan Q4: ACHTUNG - HEUTE AUFSPIELEN DER PRÄSENTATION! Q4: Zulassung zur Abiturprüfung nach Sonderplan, letzter Schultag Q4, Berechnungsbogen, Presse, Belehrung (Zulassungskonferenz Abitur)",
+          "general": "",
+          "middle": "",
+          "middleNotes": "",
+          "upper": "Q4: letzter Tag mit Unterricht nach Plan Q4: ACHTUNG - HEUTE AUFSPIELEN DER PRÄSENTATION! Q4: Zulassung zur Abiturprüfung nach Sonderplan, letzter Schultag Q4, Berechnungsbogen, Presse, Belehrung",
+          "upperNotes": "Zulassungskonferenz Abitur"
+        },
+        {
+          "dateLabel": "25.03.",
+          "title": "Q4: 5.PK Prüfungsvorsitz am HEG",
+          "text": "Oberstufe: Q4: 5.PK Prüfungsvorsitz am HEG",
+          "general": "",
+          "middle": "",
+          "middleNotes": "",
+          "upper": "Q4: 5.PK Prüfungsvorsitz am HEG",
+          "upperNotes": ""
+        },
+        {
+          "dateLabel": "26.03.",
+          "title": "3. Schulkonferenz, 19 h",
+          "text": "Allgemein: 3. Schulkonferenz, 19 h | Oberstufe: Q4: 5.PK",
+          "general": "3. Schulkonferenz, 19 h",
+          "middle": "",
+          "middleNotes": "",
+          "upper": "Q4: 5.PK",
+          "upperNotes": ""
+        }
+      ],
+      "sourceUrl": "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf"
+    },
+    "classwork": {
+      "status": "warning",
+      "title": "Klassenarbeitsplan",
+      "detail": "Klassenarbeitsplan wird bei jedem Refresh neu versucht, ist aber aktuell fuer den automatischen Abruf blockiert (HTTP 401).",
+      "updatedAt": "21:31",
+      "previewRows": [],
+      "sourceUrl": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?resid=F42AA6058C6F8B05!s677a2311a8bf4c8a93e251bf2b5ddd85&ithint=file%2Cxlsx&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE"
+    }
+  }
 };
