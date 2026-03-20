@@ -9,6 +9,7 @@ from pathlib import Path
 class MailSettings:
     local_source: str
     local_mailbox: str
+    local_account: str
     host: str
     port: int
     username: str
@@ -68,6 +69,7 @@ def load_settings() -> AppSettings:
     mail_settings = MailSettings(
         local_source=os.getenv("MAIL_LOCAL_SOURCE", "").strip(),
         local_mailbox=os.getenv("MAIL_LOCAL_MAILBOX", "INBOX").strip() or "INBOX",
+        local_account=os.getenv("MAIL_LOCAL_ACCOUNT", "").strip(),
         host=os.getenv("MAIL_IMAP_HOST", "").strip(),
         port=_env_int("MAIL_IMAP_PORT", 993),
         username=os.getenv("MAIL_USERNAME", "").strip(),

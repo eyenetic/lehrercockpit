@@ -2,6 +2,7 @@
   const WEBUNTIS_SHORTCUTS_KEY = "lehrerCockpit.webuntis.shortcuts";
   const WEBUNTIS_FAVORITES_KEY = "lehrerCockpit.webuntis.favorites";
   const ACTIVE_WEBUNTIS_PLAN_KEY = "lehrerCockpit.webuntis.activePlan";
+  const AUTO_REFRESH_MS = 180000;
   const IS_LOCAL_RUNTIME =
     window.location.protocol === "file:" ||
     window.location.hostname === "localhost" ||
@@ -548,9 +549,11 @@
 
   function renderMessages() {
     const data = getData();
-    const filteredMessages = data.messages.filter((message) => {
+    const filteredMessages = data.messages
+      .filter((message) => {
       return state.selectedChannel === "all" || message.channel === state.selectedChannel;
-    });
+      })
+      .sort((left, right) => compareMessageTime(right.timestamp, left.timestamp));
 
     elements.messageList.innerHTML = filteredMessages.length
       ? filteredMessages
@@ -1195,6 +1198,9 @@
       "Frag mich nach der Woche, nach dem Orgaplan, nach Dokumenten oder nach deiner Inbox.";
     registerEvents();
     refreshDashboard();
+    window.setInterval(() => {
+      refreshDashboard();
+    }, AUTO_REFRESH_MS);
   }
 
   function buildProductionApiBases() {
@@ -1630,6 +1636,12 @@
         low: "low",
       }[priority] || ""
     );
+  }
+
+  function compareMessageTime(left, right) {
+    const [leftHour = 0, leftMinute = 0] = String(left || "00:00").split(":").map((value) => Number(value) || 0);
+    const [rightHour = 0, rightMinute = 0] = String(right || "00:00").split(":").map((value) => Number(value) || 0);
+    return leftHour * 60 + leftMinute - (rightHour * 60 + rightMinute);
   }
 
   function statusLabel(status) {

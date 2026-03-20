@@ -65,6 +65,7 @@ Schon hinterlegbar sind:
 - `CLASSWORK_PLAN_URL`
 - Mail-Variablen fuer Umgebungen, in denen IMAP erlaubt ist
 - optional `MAIL_LOCAL_SOURCE=apple_mail` fuer eine lokale Inbox-Vorschau aus Apple Mail
+- optional `MAIL_LOCAL_ACCOUNT=lehrkraft@schule.berlin.de`, um die Vorschau auf genau dieses Dienstkonto zu beschraenken
 
 Wenn `MAIL_LOCAL_SOURCE=apple_mail` gesetzt ist, versucht das Backend lokal auf dem Mac eine read-only Vorschau aus Apple Mail zu laden. Das ist fuer den lokalen Lehrer-Cockpit-Modus gedacht und ersetzt keine vollwertige Mailclient-Integration.
 

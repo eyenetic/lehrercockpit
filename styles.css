@@ -357,7 +357,7 @@ a {
 }
 
 .card {
-  padding: 18px;
+  padding: 16px;
 }
 
 .schedule-card {
@@ -377,9 +377,9 @@ a {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-top: 14px;
-  padding: 8px 10px;
-  border-radius: 16px;
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.74);
   border: 1px solid var(--line);
 }
@@ -433,13 +433,13 @@ a {
 }
 
 .segment-button {
-  min-width: 84px;
-  padding: 9px 12px;
+  min-width: 76px;
+  padding: 8px 10px;
   border: 0;
   border-radius: 10px;
   background: transparent;
   color: #475467;
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -459,14 +459,14 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
-  padding: 8px 11px;
+  min-height: 34px;
+  padding: 7px 10px;
   border-radius: 10px;
   text-decoration: none;
   background: white;
   border: 1px solid var(--line);
   color: var(--accent-strong);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
   font-weight: 700;
 }
 
@@ -719,9 +719,9 @@ a {
 }
 
 .webuntis-main-panel-full {
-  margin-top: 14px;
+  margin-top: 10px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(247, 248, 250, 0.88));
 }
 
@@ -739,13 +739,13 @@ a {
 }
 
 .webuntis-summary strong {
-  font-size: 0.98rem;
+  font-size: 0.92rem;
   letter-spacing: -0.02em;
 }
 
 .schedule-note {
   max-width: 72ch;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
 }
 
 .webuntis-plan-strip {
@@ -815,16 +815,16 @@ a {
 .webuntis-week-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .webuntis-week-column {
   min-width: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 8px;
-  padding: 10px;
-  border-radius: 16px;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.88);
 }
@@ -832,63 +832,63 @@ a {
 .webuntis-week-head {
   display: grid;
   gap: 2px;
-  padding-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid rgba(17, 24, 39, 0.06);
 }
 
 .webuntis-weekday {
   color: #667085;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .webuntis-week-head strong {
-  font-size: 0.94rem;
+  font-size: 0.82rem;
   letter-spacing: -0.02em;
 }
 
 .webuntis-week-stack {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   align-content: start;
 }
 
 .webuntis-week-event {
   display: grid;
-  gap: 4px;
-  padding: 9px 10px;
-  border-radius: 14px;
+  gap: 3px;
+  padding: 7px 8px;
+  border-radius: 12px;
   background: rgba(246, 248, 252, 0.96);
   border: 1px solid rgba(17, 24, 39, 0.06);
 }
 
 .webuntis-week-time {
   color: var(--accent-strong);
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.03em;
 }
 
 .webuntis-week-event strong {
-  font-size: 0.86rem;
-  line-height: 1.25;
+  font-size: 0.78rem;
+  line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
 .webuntis-week-meta {
   color: #667085;
-  font-size: 0.78rem;
-  line-height: 1.3;
+  font-size: 0.7rem;
+  line-height: 1.25;
 }
 
 .webuntis-week-empty {
-  padding: 12px 10px;
-  border-radius: 14px;
+  padding: 10px 8px;
+  border-radius: 12px;
   background: rgba(248, 249, 252, 0.74);
   color: #98a2b3;
-  font-size: 0.82rem;
+  font-size: 0.74rem;
   text-align: center;
 }
 

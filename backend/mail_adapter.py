@@ -174,7 +174,7 @@ def _fetch_apple_mail_sync(settings: MailSettings, now: datetime) -> MailSyncRes
 
 
 def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[str, Any]]:
-    script = _build_apple_mail_script(settings.max_messages, settings.local_mailbox)
+    script = _build_apple_mail_script(settings.max_messages, settings.local_mailbox, settings.local_account)
     result = subprocess.run(
         ["osascript", "-"],
         input=script,
@@ -188,11 +188,13 @@ def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[st
     messages = []
     for index, line in enumerate(lines, start=1):
         fields = line.split("\x1f")
-        if len(fields) != 5:
+        if len(fields) != 8:
             continue
 
-        subject, sender, read_state, received_iso, snippet = fields
+        subject, sender, read_state, received_iso, snippet, account_name, mailbox_name, recipients = fields
         received_at = _parse_local_date(received_iso, now)
+        if settings.local_account and not _matches_local_account(settings.local_account, account_name, mailbox_name, recipients):
+            continue
         messages.append(
             {
                 "id": f"apple-mail-{index}",
@@ -204,19 +206,28 @@ def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[st
                 "priority": _priority_for_message(subject, sender, snippet),
                 "timestamp": received_at.strftime("%H:%M"),
                 "unread": read_state.strip().lower() != "true",
+                "_receivedAt": received_at.isoformat(),
             }
         )
+
+    messages.sort(key=lambda item: item.get("_receivedAt", ""), reverse=True)
+    messages = messages[: settings.max_messages]
+    for message in messages:
+        message.pop("_receivedAt", None)
 
     return messages
 
 
-def _build_apple_mail_script(max_messages: int, mailbox_name: str) -> str:
+def _build_apple_mail_script(max_messages: int, mailbox_name: str, account_match: str) -> str:
     mailbox_name = mailbox_name.replace('"', "")
+    account_match = account_match.replace('"', "")
+    scan_count = min(max(max_messages * 3, 12), 24)
     return f"""
 set fieldSep to ASCII character 31
 set outputLines to {{}}
-set maxCount to {max_messages}
+set maxCount to {scan_count}
 set fallbackMailboxName to "{mailbox_name}"
+set targetAccount to "{account_match}"
 
 on twoDigits(valueNumber)
   if valueNumber < 10 then
@@ -258,11 +269,53 @@ on replaceText(findText, replaceText, sourceText)
   return sourceText
 end replaceText
 
+on containsText(sourceText, queryText)
+  if queryText is "" then return true
+  set sourceLower to do shell script "printf %s " & quoted form of sourceText & " | tr '[:upper:]' '[:lower:]'"
+  set queryLower to do shell script "printf %s " & quoted form of queryText & " | tr '[:upper:]' '[:lower:]'"
+  return sourceLower contains queryLower
+end containsText
+
 tell application "Mail"
+  set targetAccountRef to missing value
+  repeat with oneAccount in every account
+    set accountNameValue to ""
+    set addressValue to ""
+    try
+      set accountNameValue to my normalizeText(name of oneAccount as text)
+    end try
+    try
+      set AppleScript's text item delimiters to ", "
+      set addressValue to (email addresses of oneAccount as text)
+      set AppleScript's text item delimiters to linefeed
+      set addressValue to my normalizeText(addressValue)
+    end try
+    if my containsText(accountNameValue, targetAccount) or my containsText(addressValue, targetAccount) then
+      set targetAccountRef to oneAccount
+      exit repeat
+    end if
+  end repeat
+
   set mailboxRef to missing value
-  try
-    set mailboxRef to inbox
-  end try
+  if targetAccount is not "" and targetAccountRef is missing value then
+    error "Target Apple Mail account not found"
+  end if
+
+  if targetAccountRef is not missing value then
+    try
+      set mailboxRef to first mailbox of targetAccountRef whose name is fallbackMailboxName
+    end try
+    if mailboxRef is missing value then
+      try
+        set mailboxRef to first mailbox of targetAccountRef
+      end try
+    end if
+  end if
+  if mailboxRef is missing value then
+    try
+      set mailboxRef to inbox
+    end try
+  end if
   if mailboxRef is missing value then
     set mailboxRef to first mailbox whose name is fallbackMailboxName
   end if
@@ -277,10 +330,17 @@ tell application "Mail"
     set receivedValue to (year of receivedDate as text) & "-" & my monthNumber(month of receivedDate) & "-" & my twoDigits(day of receivedDate) & "T" & my twoDigits(hours of receivedDate) & ":" & my twoDigits(minutes of receivedDate) & ":" & my twoDigits(seconds of receivedDate)
     set subjectValue to my normalizeText(subject of theMessage as text)
     set senderValue to my normalizeText(sender of theMessage as text)
-    set snippetValue to my normalizeText(content of theMessage as text)
-    if (length of snippetValue) > 240 then set snippetValue to text 1 thru 240 of snippetValue
+    set snippetValue to "Lokale Vorschau aus Apple Mail"
     set readValue to (read status of theMessage) as text
-    copy (subjectValue & fieldSep & senderValue & fieldSep & readValue & fieldSep & receivedValue & fieldSep & snippetValue) to end of outputLines
+    set mailboxNameValue to ""
+    set accountNameValue to ""
+    try
+      set mailboxNameValue to my normalizeText(name of mailbox of theMessage as text)
+    end try
+    try
+      set accountNameValue to my normalizeText(name of account of mailbox of theMessage as text)
+    end try
+    copy (subjectValue & fieldSep & senderValue & fieldSep & readValue & fieldSep & receivedValue & fieldSep & snippetValue & fieldSep & accountNameValue & fieldSep & mailboxNameValue & fieldSep & "") to end of outputLines
   end repeat
 end tell
 
@@ -295,6 +355,12 @@ def _parse_local_date(raw_value: str, now: datetime) -> datetime:
         return parsed.replace(tzinfo=now.tzinfo)
     except ValueError:
         return now
+
+
+def _matches_local_account(target: str, account_name: str, mailbox_name: str, recipients: str) -> bool:
+    needle = target.strip().lower()
+    haystack = " ".join([account_name or "", mailbox_name or "", recipients or ""]).lower()
+    return needle in haystack
 
 
 def _normalize_message(message_id: str, parsed_message: Message, now: datetime) -> dict[str, Any]:
