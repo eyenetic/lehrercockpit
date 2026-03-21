@@ -718,8 +718,9 @@
   function renderWebUntisControls() {
     const center = getData().webuntisCenter;
     const buttons = [
-      { id: "day", label: "Tag" },
-      { id: "week", label: `Woche ${center.currentWeekLabel || ""}`.trim() },
+      { id: "day", label: "Heute" },
+      { id: "week", label: center.currentWeekLabel || "Diese Woche" },
+      { id: "next-week", label: nextWeekLabel(center.currentDate) },
     ];
 
     elements.webuntisViewSwitch.innerHTML = buttons
@@ -746,7 +747,7 @@
     elements.webuntisActivePlan.textContent = "Mein Stundenplan";
     elements.webuntisDetail.textContent =
       "Persoenlicher Plan ueber WebUntis-iCal. Im Cockpit kompakt, fuer Details direkt in WebUntis weiter.";
-    elements.webuntisRangeLabel.textContent = state.webuntisView === "day" ? "Tag" : center.currentWeekLabel || "Woche";
+    elements.webuntisRangeLabel.textContent = getWebUntisRangeLabel(center);
   }
 
   function renderWebUntisPicker() {
@@ -901,7 +902,7 @@
       return;
     }
 
-    if (state.webuntisView === "week") {
+    if (state.webuntisView !== "day") {
       elements.scheduleList.innerHTML = renderWeekSchedule(events, getData().webuntisCenter);
       return;
     }
@@ -911,7 +912,7 @@
   }
 
   function renderWeekSchedule(events, center) {
-    const columns = buildWeekColumns(events, center.currentDate);
+    const columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, state.webuntisView));
 
     return `
       <div class="webuntis-week-grid">
@@ -990,7 +991,7 @@
     if (state.webuntisView === "day") {
       events = events.filter((event) => isSameDay(new Date(event.startsAt), referenceDate));
     } else {
-      const weekStart = startOfWeek(referenceDate);
+      const weekStart = getWeekAnchorDate(center.currentDate, state.webuntisView);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
 
@@ -1019,8 +1020,7 @@
   }
 
   function buildWeekColumns(events, currentDate) {
-    const referenceDate = new Date(`${currentDate}T00:00:00`);
-    const weekStart = startOfWeek(referenceDate);
+    const weekStart = startOfWeek(currentDate instanceof Date ? currentDate : new Date(`${currentDate}T00:00:00`));
     const byKey = new Map();
 
     events.forEach((event) => {
@@ -1043,6 +1043,33 @@
         events: byKey.get(key) || [],
       };
     });
+  }
+
+  function getWeekAnchorDate(currentDate, view) {
+    const referenceDate = new Date(`${currentDate}T00:00:00`);
+    const weekStart = startOfWeek(referenceDate);
+    if (view === "next-week") {
+      const nextWeek = new Date(weekStart);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      return nextWeek;
+    }
+    return weekStart;
+  }
+
+  function nextWeekLabel(currentDate) {
+    const nextWeek = getWeekAnchorDate(currentDate, "next-week");
+    const weekNumber = isoWeekNumber(nextWeek);
+    return `Naechste KW ${weekNumber}`;
+  }
+
+  function getWebUntisRangeLabel(center) {
+    if (state.webuntisView === "day") {
+      return "Heute";
+    }
+    if (state.webuntisView === "next-week") {
+      return nextWeekLabel(center.currentDate);
+    }
+    return center.currentWeekLabel || "Diese Woche";
   }
 
   function bindExternalLink(element, url, label) {
@@ -1739,6 +1766,14 @@
     result.setDate(result.getDate() + diff);
     result.setHours(0, 0, 0, 0);
     return result;
+  }
+
+  function isoWeekNumber(value) {
+    const date = new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
+    const day = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
   }
 
   initialize();
