@@ -15,7 +15,7 @@ from .plan_digest import build_plan_digest
 from .webuntis_adapter import fetch_webuntis_sync
 
 
-def build_dashboard_payload(mock_path: Path, monitor_state_path: Path) -> dict[str, Any]:
+def build_dashboard_payload(mock_path: Path, monitor_state_path: Path, classwork_cache_path: Path | None = None) -> dict[str, Any]:
     payload = _load_mock_payload(mock_path)
     settings = load_settings()
     now = datetime.now().astimezone()
@@ -24,6 +24,10 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path) -> dict[s
     webuntis_sync = fetch_webuntis_sync(settings.webuntis_base_url, settings.webuntis_ical_url, now)
     document_monitor = build_document_monitor(_monitored_documents(settings), monitor_state_path, now)
     plan_digest = build_plan_digest(settings.orgaplan_pdf_url, settings.classwork_plan_url, settings.classwork_gsheets_csv_url, now)
+
+    # Overlay Playwright-scraped classwork cache if available and better than plan_digest result
+    if classwork_cache_path is not None:
+        plan_digest["classwork"] = _merge_classwork_cache(plan_digest["classwork"], classwork_cache_path)
 
     payload["generatedAt"] = now.isoformat()
     payload["teacher"]["name"] = settings.teacher_name
@@ -554,6 +558,32 @@ def _monitored_documents(settings: Any) -> list[MonitoredDocument]:
         )
 
     return documents
+
+
+def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path) -> dict[str, Any]:
+    """Overlay Playwright-scraped cache onto plan_digest classwork if the cache is richer."""
+    try:
+        if not cache_path.exists():
+            return plan_classwork
+        import json as _json
+        cached = _json.loads(cache_path.read_text(encoding="utf-8"))
+        # Only use cache if it has actual data
+        if cached.get("status") == "ok" and (cached.get("structuredRows") or cached.get("previewRows")):
+            return {
+                "status": "ok",
+                "title": cached.get("title", "Klassenarbeitsplan"),
+                "detail": cached.get("detail", ""),
+                "updatedAt": cached.get("updatedAt", plan_classwork.get("updatedAt", "")),
+                "previewRows": cached.get("previewRows", []),
+                "structuredRows": cached.get("structuredRows", []),
+                "sourceUrl": cached.get("sourceUrl", plan_classwork.get("sourceUrl", "")),
+                "hasChanges": cached.get("hasChanges", False),
+                "noChanges": cached.get("noChanges", False),
+                "scrapeMode": cached.get("scrapeMode", "playwright"),
+            }
+    except Exception as exc:
+        print(f"[dashboard] classwork cache merge failed: {exc}", flush=True)
+    return plan_classwork
 
 
 def _apply_monitor_priorities(

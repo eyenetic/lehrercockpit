@@ -193,7 +193,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                     status=HTTPStatus.INTERNAL_SERVER_ERROR,
                 )
                 return
-            payload = build_dashboard_payload(MOCK_DATA_PATH, MONITOR_STATE_PATH)
+            payload = build_dashboard_payload(MOCK_DATA_PATH, MONITOR_STATE_PATH, CLASSWORK_CACHE_PATH)
             self._send_json(payload)
             return
 
