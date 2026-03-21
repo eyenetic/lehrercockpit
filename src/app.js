@@ -34,6 +34,13 @@
     statsGrid: document.querySelector("#stats-grid"),
     quickLinkGrid: document.querySelector("#quick-link-grid"),
     berlinFocusList: document.querySelector("#berlin-focus-list"),
+    itslearningConnectCard: document.querySelector("#itslearning-connect-card"),
+    itslearningConnectStatus: document.querySelector("#itslearning-connect-status"),
+    itslearningConnectCopy: document.querySelector("#itslearning-connect-copy"),
+    itslearningConnectForm: document.querySelector("#itslearning-connect-form"),
+    itslearningUsername: document.querySelector("#itslearning-username"),
+    itslearningPassword: document.querySelector("#itslearning-password"),
+    itslearningConnectFeedback: document.querySelector("#itslearning-connect-feedback"),
     priorityList: document.querySelector("#priority-list"),
     sourceList: document.querySelector("#source-list"),
     channelFilters: document.querySelector("#channel-filters"),
@@ -460,6 +467,28 @@
           )
           .join("")
       : `<div class="empty-state">Noch keine Direktzugriffe konfiguriert.</div>`;
+  }
+
+  function renderItslearningConnector() {
+    if (!elements.itslearningConnectCard) {
+      return;
+    }
+
+    if (!IS_LOCAL_RUNTIME) {
+      elements.itslearningConnectCard.hidden = true;
+      return;
+    }
+
+    const source = getData().sources.find((item) => item.id === "itslearning");
+    elements.itslearningConnectCard.hidden = false;
+    elements.itslearningConnectStatus.className = `pill ${source?.status === "ok" ? "pill-live" : "pill-positive"}`;
+    elements.itslearningConnectStatus.textContent = source?.status === "ok" ? "verbunden" : "lokal";
+    elements.itslearningConnectCopy.textContent =
+      source?.detail ||
+      "Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner .env.local auf diesem Mac.";
+    if (!elements.itslearningUsername.value && source?.status === "ok") {
+      elements.itslearningUsername.placeholder = "Benutzername bereits lokal gespeichert";
+    }
   }
 
   function renderBerlinFocus() {
@@ -1186,6 +1215,13 @@
       event.preventDefault();
       elements.assistantAnswer.textContent = respondToAssistant(elements.assistantInput.value);
     });
+
+    if (elements.itslearningConnectForm) {
+      elements.itslearningConnectForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await saveItslearningCredentials();
+      });
+    }
   }
 
   function renderAll() {
@@ -1194,6 +1230,7 @@
     renderRuntimeBanner();
     renderBriefing();
     renderQuickLinks();
+    renderItslearningConnector();
     renderChannelFilters();
     renderMessages();
     renderWebUntisControls();
@@ -1203,7 +1240,7 @@
   }
 
   async function refreshDashboard() {
-    elements.heroNote.textContent = "Lade aktuelle Datenquellen und aktualisiere WebUntis.";
+    elements.heroNote.textContent = "Lade aktuelle Datenquellen und aktualisiere Cockpit, WebUntis und Inbox.";
     try {
       state.data = await loadDashboard();
       renderAll();
@@ -1216,6 +1253,48 @@
 
       elements.heroNote.textContent = `Daten konnten nicht geladen werden. Letzter Versuch: ${formatTime(new Date())}.`;
       elements.briefingOutput.innerHTML = `<div class="empty-state">Dashboard-Daten konnten nicht geladen werden.</div>`;
+    }
+  }
+
+  async function saveItslearningCredentials() {
+    const username = elements.itslearningUsername?.value.trim() || "";
+    const password = elements.itslearningPassword?.value.trim() || "";
+
+    if (!username || !password) {
+      elements.itslearningConnectFeedback.textContent = "Bitte Benutzername und Passwort eintragen.";
+      elements.itslearningConnectFeedback.className = "connect-feedback warning";
+      return;
+    }
+
+    elements.itslearningConnectFeedback.textContent = "Speichere lokale itslearning-Zugangsdaten ...";
+    elements.itslearningConnectFeedback.className = "connect-feedback";
+
+    try {
+      const response = await fetch("/api/local-settings/itslearning", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          baseUrl: "https://berlin.itslearning.com",
+          username,
+          password,
+          maxUpdates: 6,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail || "Lokales Speichern fehlgeschlagen.");
+      }
+
+      elements.itslearningConnectFeedback.textContent = payload.detail || "itslearning-Zugang gespeichert.";
+      elements.itslearningConnectFeedback.className = "connect-feedback success";
+      elements.itslearningPassword.value = "";
+      await refreshDashboard();
+    } catch (error) {
+      elements.itslearningConnectFeedback.textContent = error.message || "itslearning-Zugang konnte nicht gespeichert werden.";
+      elements.itslearningConnectFeedback.className = "connect-feedback warning";
     }
   }
 

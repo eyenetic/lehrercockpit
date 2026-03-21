@@ -12,7 +12,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=13" />
+    <link rel="stylesheet" href="./styles.css?v=14" />
   </head>
   <body>
     <div class="app-shell">
@@ -78,14 +78,33 @@
             <div id="quick-link-grid" class="link-grid compact-link-grid"></div>
           </article>
 
-          <article class="card compact-panel" aria-labelledby="berlin-focus-title" hidden>
+          <article class="card compact-panel" id="itslearning-connect-card" aria-labelledby="itslearning-connect-title">
             <div class="section-head section-head-compact">
               <div>
-                <p class="card-kicker">Hinweise</p>
-                <h2 id="berlin-focus-title">Heute in Berlin</h2>
+                <p class="card-kicker">itslearning</p>
+                <h2 id="itslearning-connect-title">Updates verbinden</h2>
               </div>
+              <span id="itslearning-connect-status" class="pill pill-positive">lokal</span>
             </div>
-            <div id="berlin-focus-list" class="stack-list compact-list focus-list"></div>
+            <p id="itslearning-connect-copy" class="source-detail">
+              Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner `.env.local` auf diesem Mac.
+            </p>
+            <form id="itslearning-connect-form" class="connect-form">
+              <div class="connect-grid">
+                <label class="connect-field">
+                  <span>Benutzername</span>
+                  <input id="itslearning-username" type="text" autocomplete="username" placeholder="itslearning-Benutzername" />
+                </label>
+                <label class="connect-field">
+                  <span>Passwort</span>
+                  <input id="itslearning-password" type="password" autocomplete="current-password" placeholder="itslearning-Passwort" />
+                </label>
+              </div>
+              <div class="assistant-actions">
+                <button class="primary-button" type="submit">Lokal speichern</button>
+              </div>
+            </form>
+            <div id="itslearning-connect-feedback" class="connect-feedback"></div>
           </article>
         </section>
 
@@ -248,7 +267,7 @@
       </main>
     </div>
 
-    <script src="./data/mock-dashboard.js?v=13"></script>
-    <script src="./src/app.js?v=13"></script>
+    <script src="./data/mock-dashboard.js?v=14"></script>
+    <script src="./src/app.js?v=14"></script>
   </body>
 </html>

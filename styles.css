@@ -1206,6 +1206,53 @@ a {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.connect-form {
+  margin-top: 16px;
+}
+
+.connect-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.connect-field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.connect-field input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+}
+
+.connect-field input:focus {
+  outline: 2px solid rgba(10, 132, 255, 0.12);
+  border-color: rgba(10, 132, 255, 0.3);
+}
+
+.connect-feedback {
+  margin-top: 12px;
+  min-height: 22px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.connect-feedback.success {
+  color: var(--success);
+}
+
+.connect-feedback.warning {
+  color: var(--warning);
+}
+
 .focus-list .priority-item {
   background: white;
 }
@@ -1461,6 +1508,10 @@ a {
   }
 
   .compact-link-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .connect-grid {
     grid-template-columns: 1fr;
   }
 

@@ -133,5 +133,5 @@ def _load_local_env_file() -> None:
         key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip().strip("'").strip('"')
-        if key and key not in os.environ:
+        if key:
             os.environ[key] = value
