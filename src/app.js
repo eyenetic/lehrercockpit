@@ -81,6 +81,9 @@
     orgaplanDigestDetail: document.querySelector("#orgaplan-digest-detail"),
     orgaplanUpcomingList: document.querySelector("#orgaplan-upcoming-list"),
     classworkOpenLink: document.querySelector("#classwork-open-link"),
+    classworkUploadInput: document.querySelector("#classwork-upload-input"),
+    classworkUploadLabel: document.querySelector("#classwork-upload-label"),
+    classworkUploadLabelText: document.querySelector("#classwork-upload-label-text"),
     classworkScrapeButton: document.querySelector("#classwork-scrape-button"),
     classworkScrapeButtonLabel: document.querySelector("#classwork-scrape-button .scrape-button-label"),
     classworkScrapeButtonSpinner: document.querySelector("#classwork-scrape-button .scrape-button-spinner"),
@@ -1239,6 +1242,17 @@
       await refreshDashboard();
     });
 
+    if (elements.classworkUploadInput) {
+      elements.classworkUploadInput.addEventListener("change", async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (file) {
+          await triggerClassworkUpload(file);
+          // Reset input so same file can be re-uploaded
+          event.target.value = "";
+        }
+      });
+    }
+
     if (elements.classworkScrapeButton) {
       elements.classworkScrapeButton.addEventListener("click", async () => {
         await triggerClassworkScrape();
@@ -1537,6 +1551,38 @@
     elements.classworkScrapeStatus.textContent = message;
     elements.classworkScrapeStatus.hidden = !message;
     elements.classworkScrapeStatus.dataset.type = type || "";
+  }
+
+  async function triggerClassworkUpload(file) {
+    if (!file) return;
+    const apiBase = IS_LOCAL_RUNTIME ? "" : (PRODUCTION_API_BASES[0] || "");
+    const uploadUrl = `${apiBase}/api/classwork/upload`;
+
+    const labelText = elements.classworkUploadLabelText;
+    if (labelText) labelText.textContent = "⏳ Wird verarbeitet…";
+    if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "0.6";
+    setScrapeStatus(`Datei "${file.name}" wird hochgeladen…`, "loading");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+
+      const response = await fetch(uploadUrl, { method: "POST", body: formData });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setScrapeStatus(`Upload-Fehler: ${data.detail || response.status}`, "error");
+        return;
+      }
+
+      renderClassworkScrapeResult(data);
+      setScrapeStatus(`✓ "${file.name}" eingelesen. ${data.detail || ""}`, "ok");
+    } catch (err) {
+      setScrapeStatus(`Upload fehlgeschlagen: ${err.message}`, "error");
+    } finally {
+      if (labelText) labelText.textContent = "📂 Hochladen";
+      if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "1";
+    }
   }
 
   // ── End Classwork Scraper ──────────────────────────────────────────────────

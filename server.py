@@ -218,6 +218,10 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
 
+        if parsed.path == "/api/classwork/upload":
+            self._handle_classwork_upload()
+            return
+
         if parsed.path == "/api/classwork/scrape":
             url = CLASSWORK_PLAN_URL
             if not url:
@@ -303,6 +307,42 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
             return
 
         self._send_json({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
+
+    def _handle_classwork_upload(self) -> None:
+        """Handle multipart file upload of XLS/XLSX, parse with openpyxl, save to cache."""
+        content_type = self.headers.get("Content-Type", "")
+        content_length = int(self.headers.get("Content-Length", "0") or 0)
+
+        if not content_length:
+            self._send_json({"error": "no-body", "detail": "Kein Dateiinhalt empfangen."}, status=HTTPStatus.BAD_REQUEST)
+            return
+
+        if content_length > 20 * 1024 * 1024:  # 20 MB max
+            self._send_json({"error": "too-large", "detail": "Datei zu groß (max 20 MB)."}, status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return
+
+        raw_body = self.rfile.read(content_length)
+
+        # Extract file bytes from multipart/form-data
+        file_bytes = _extract_multipart_file(raw_body, content_type)
+        if file_bytes is None:
+            # Fallback: treat entire body as raw file bytes (e.g. direct PUT)
+            file_bytes = raw_body
+
+        try:
+            result = _parse_classwork_xlsx(file_bytes)
+        except Exception as exc:
+            self._send_json(
+                {"error": "parse-failed", "detail": f"Datei konnte nicht gelesen werden: {type(exc).__name__}: {exc}"},
+                status=HTTPStatus.UNPROCESSABLE_ENTITY,
+            )
+            return
+
+        if save_cache:
+            save_cache(CLASSWORK_CACHE_PATH, result)
+
+        _broadcast_progress(100, result.get("detail", "Hochgeladen."))
+        self._send_json(result)
 
     def _handle_sse_progress(self) -> None:
         """Send Server-Sent Events for scrape progress."""
@@ -393,6 +433,101 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
         # Suppress SSE keepalive log spam
         if "/api/classwork/scrape/progress" not in str(args):
             super().log_message(fmt, *args)
+
+
+def _extract_multipart_file(body: bytes, content_type: str) -> bytes | None:
+    """Extract raw file bytes from a multipart/form-data body."""
+    import re as _re
+    boundary_match = _re.search(r"boundary=([^\s;]+)", content_type)
+    if not boundary_match:
+        return None
+    boundary = ("--" + boundary_match.group(1)).encode()
+    parts = body.split(boundary)
+    for part in parts:
+        if b"filename=" not in part:
+            continue
+        # Skip headers, grab body after double CRLF
+        sep = b"\r\n\r\n"
+        idx = part.find(sep)
+        if idx == -1:
+            sep = b"\n\n"
+            idx = part.find(sep)
+        if idx == -1:
+            continue
+        file_data = part[idx + len(sep):]
+        # Strip trailing boundary marker
+        if file_data.endswith(b"\r\n"):
+            file_data = file_data[:-2]
+        return file_data
+    return None
+
+
+def _parse_classwork_xlsx(file_bytes: bytes) -> dict:
+    """Parse XLS/XLSX bytes with openpyxl and return classwork cache dict."""
+    from io import BytesIO as _BytesIO
+    from datetime import datetime as _dt
+    import hashlib as _hashlib
+
+    now = _dt.now()
+
+    try:
+        from openpyxl import load_workbook as _load_wb
+        wb = _load_wb(_BytesIO(file_bytes), read_only=True, data_only=True)
+    except Exception:
+        # Try as CSV fallback
+        import csv as _csv
+        text = file_bytes.decode("utf-8", errors="replace")
+        reader = _csv.reader(text.splitlines())
+        all_rows = [r for r in reader if any(c.strip() for c in r)]
+        if not all_rows:
+            raise ValueError("Datei ist leer oder kein lesbares Format.")
+        header = [c.strip() for c in all_rows[0]]
+        structured = [{header[i]: (row[i].strip() if i < len(row) else "") for i in range(len(header))} for row in all_rows[1:] if any(c.strip() for c in row)]
+        preview = [" | ".join(c.strip() for c in row[:6] if c.strip()) for row in all_rows[:9]]
+        return {
+            "status": "ok", "title": "Klassenarbeitsplan",
+            "detail": f"CSV hochgeladen. {len(structured)} Eintraege gelesen.",
+            "updatedAt": now.strftime("%H:%M"), "scrapedAt": now.isoformat(),
+            "previewRows": preview, "structuredRows": structured[:80],
+            "sourceUrl": "", "scrapeMode": "upload",
+            "dataHash": _hashlib.sha256(file_bytes).hexdigest()[:16],
+            "hasChanges": False, "noChanges": False,
+        }
+
+    sheet = wb[wb.sheetnames[0]]
+    all_rows: list[list[str]] = []
+    for row in sheet.iter_rows(values_only=True):
+        values = [str(v).strip() if v is not None else "" for v in row]
+        if any(v for v in values):
+            all_rows.append(values)
+        if len(all_rows) >= 80:
+            break
+    wb.close()
+
+    if not all_rows:
+        raise ValueError("Tabelle ist leer.")
+
+    header = all_rows[0]
+    structured = []
+    for row in all_rows[1:]:
+        if not any(v for v in row):
+            continue
+        entry: dict = {}
+        for i, col in enumerate(header):
+            entry[col if col else f"Spalte{i+1}"] = row[i] if i < len(row) else ""
+        structured.append(entry)
+
+    preview = [" | ".join(v for v in row[:6] if v) for row in all_rows[:9] if any(row)]
+
+    return {
+        "status": "ok", "title": "Klassenarbeitsplan",
+        "detail": f"Excel-Datei hochgeladen. {len(structured)} Eintraege gelesen.",
+        "updatedAt": now.strftime("%H:%M"), "scrapedAt": now.isoformat(),
+        "previewRows": preview, "structuredRows": structured[:80],
+        "sourceUrl": "", "scrapeMode": "upload",
+        "dataHash": _hashlib.sha256(file_bytes).hexdigest()[:16],
+        "hasChanges": False, "noChanges": False,
+    }
 
 
 def run() -> None:
