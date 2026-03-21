@@ -323,13 +323,6 @@ window.LEHRER_COCKPIT_FALLBACK_DATA = {
       "note": "Aktueller Orgaplan fuer eure Schule"
     },
     {
-      "id": "classwork",
-      "title": "Klassenarbeitsplan",
-      "url": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?resid=F42AA6058C6F8B05!s677a2311a8bf4c8a93e251bf2b5ddd85&ithint=file%2Cxlsx&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE",
-      "kind": "Dokument",
-      "note": "Geteilter Planlink fuer Klassenarbeiten"
-    },
-    {
       "id": "school-calendar",
       "title": "Schulkalender",
       "url": "https://hermann-ehlers-schule.de/events/",
@@ -364,10 +357,6 @@ window.LEHRER_COCKPIT_FALLBACK_DATA = {
       "title": "Mail vorerst nur Portal-Logik",
       "detail": "Die Berliner Dienstmail bleibt ohne klassischen IMAP-Weg zunaechst ein Portal-/Hinweis-Modul."
     },
-    {
-      "title": "OneDrive-Freigabe im Blick",
-      "detail": "Der Klassenarbeitsplan ist verlinkt, braucht fuer spaetere Automatisierung aber wahrscheinlich einen robusteren Export-Link."
-    }
   ],
   "documentMonitor": [
     {
@@ -380,16 +369,6 @@ window.LEHRER_COCKPIT_FALLBACK_DATA = {
       "detail": "Orgaplan-Monitor aktiv. Erstbeobachtung gespeichert. Quelle meldet Wed, 25 Feb 2026 14:29:30 GMT.",
       "url": "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf"
     },
-    {
-      "id": "classwork",
-      "title": "Klassenarbeitsplan",
-      "type": "Share-Link",
-      "status": "warning",
-      "changed": false,
-      "checkedAt": "21:31",
-      "detail": "Klassenarbeitsplan-Monitor aktiv. Automatischer Abruf derzeit blockiert (HTTP 401).",
-      "url": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?resid=F42AA6058C6F8B05!s677a2311a8bf4c8a93e251bf2b5ddd85&ithint=file%2Cxlsx&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE"
-    }
   ],
   "webuntisCenter": {
     "status": "ok",
@@ -734,12 +713,13 @@ window.LEHRER_COCKPIT_FALLBACK_DATA = {
       "sourceUrl": "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf"
     },
     "classwork": {
-      "status": "warning",
+      "status": "pending",
       "title": "Klassenarbeitsplan",
-      "detail": "Klassenarbeitsplan wird bei jedem Refresh neu versucht, ist aber aktuell fuer den automatischen Abruf blockiert (HTTP 401).",
-      "updatedAt": "21:31",
+      "detail": "Noch kein Upload. Klicke auf '📂 Hochladen', um eine XLS/XLSX-Datei einzulesen.",
+      "updatedAt": "--:--",
       "previewRows": [],
-      "sourceUrl": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?resid=F42AA6058C6F8B05!s677a2311a8bf4c8a93e251bf2b5ddd85&ithint=file%2Cxlsx&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE"
+      "structuredRows": [],
+      "sourceUrl": ""
     }
   }
 };

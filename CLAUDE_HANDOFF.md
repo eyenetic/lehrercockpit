@@ -30,14 +30,15 @@ Dann im Browser: `http://127.0.0.1:8080`
 
 ## Klassenarbeitsplan — Workflow
 
-### Datenfluss (Prioritaetskette)
+### Datenfluss
 
 1. **XLS/XLSX Upload** via `POST /api/classwork/upload` → gespeichert in `data/classwork-cache.json`
    - Alle Sheets (11 Monate) werden gelesen
    - Upload-Zeitstempel wird angezeigt ("Stand: TT.MM.JJJJ, HH:MM Uhr")
-2. **Google Sheets CSV** (live, oeffentlich, kein Login) — `CLASSWORK_GSHEETS_CSV_URL`
-   - Wird in `build_plan_digest()` gerufen, wenn kein Upload vorliegt
-3. **`data/mock-dashboard.json`** Snapshot (immer im Repo, Fallback fuer Render-Kaltstart)
+2. **`data/mock-dashboard.json`** Snapshot (immer im Repo, Fallback fuer Render-Kaltstart)
+
+> **Hinweis:** OneDrive-Link-Monitoring und Google Sheets CSV-Anbindung wurden entfernt.
+> Die einzige Live-Quelle ist jetzt der manuelle XLS/XLSX/CSV-Upload.
 
 ### UI-Bedienung
 
@@ -48,7 +49,7 @@ Dann im Browser: `http://127.0.0.1:8080`
 
 ### Render Free Tier Hinweis
 
-Render Free Tier setzt den Disk nach 15 Min Inaktivitaet zurueck → Upload-Daten weg. Google Sheets CSV (13 Zeilen) wird immer automatisch geladen.
+Render Free Tier setzt den Disk nach 15 Min Inaktivitaet zurueck → Upload-Daten weg.
 
 ## API-Endpunkte
 
@@ -75,8 +76,7 @@ Render Free Tier setzt den Disk nach 15 Min Inaktivitaet zurueck → Upload-Date
 - **Start:** `python3 server.py`
 - **PORT:** aus `$PORT` Env-Variable
 - **CORS:** `*`
-- **Env-Variablen auf Render setzen:**
-  - `CLASSWORK_GSHEETS_CSV_URL=https://docs.google.com/spreadsheets/d/e/2PACX-1vSbtq5XRitB38-o_yPg-IvKGRHEcjFkcWZSFsdtHPb_NeDfEYUdLdKLcmBexLfH4h6jX-ZnUPjHGEBg/pub?output=csv`
+- **Env-Variablen auf Render setzen:** (keine Pflicht-Variablen mehr fuer Klassenarbeitsplan)
 
 ### Dockerfile (Render Build)
 
@@ -103,7 +103,6 @@ Kein Playwright, keine System-Deps mehr — Build schlaegt nicht mehr fehl.
 - `WEBUNTIS_BASE_URL=https://hermann-ehlers-os.webuntis.com`
 - `ITSLEARNING_BASE_URL=https://berlin.itslearning.com`
 - `ORGAPLAN_PDF_URL=https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf`
-- `CLASSWORK_GSHEETS_CSV_URL=https://docs.google.com/spreadsheets/d/e/2PACX-1vSbtq5XRitB38-o_yPg-IvKGRHEcjFkcWZSFsdtHPb_NeDfEYUdLdKLcmBexLfH4h6jX-ZnUPjHGEBg/pub?output=csv`
 
 ## Bekannte Einschraenkungen
 
@@ -139,3 +138,4 @@ Kein Playwright, keine System-Deps mehr — Build schlaegt nicht mehr fehl.
 | `83e47bd` | Upload-Zeitstempel anzeigen (Stand: TT.MM.JJJJ, HH:MM Uhr) |
 | `2520fb6` | Empty-Cache-Placeholder-Text aktualisiert |
 | `f476cfd` | **Dockerfile ohne Playwright** — Build-Fehler auf Render behoben |
+| *(heute)* | **OneDrive + Google Sheets Verbindungen entfernt** — nur Upload-Workflow |

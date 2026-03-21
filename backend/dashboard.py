@@ -23,14 +23,10 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path, classwork
     itslearning_sync = fetch_itslearning_sync(settings.itslearning, now)
     webuntis_sync = fetch_webuntis_sync(settings.webuntis_base_url, settings.webuntis_ical_url, now)
     document_monitor = build_document_monitor(_monitored_documents(settings), monitor_state_path, now)
-    plan_digest = build_plan_digest(settings.orgaplan_pdf_url, settings.classwork_plan_url, settings.classwork_gsheets_csv_url, now)
+    plan_digest = build_plan_digest(settings.orgaplan_pdf_url, now)
 
-    # Overlay classwork data using priority chain:
-    # 1. Google Sheets CSV (live, via plan_digest) — if already ok, keep it
-    # 2. Playwright cache (data/classwork-cache.json) — if plan_digest blocked
-    # 3. mock-dashboard.json snapshot — if no cache either (e.g. Render cold start)
     if classwork_cache_path is not None:
-        plan_digest["classwork"] = _merge_classwork_cache(plan_digest["classwork"], classwork_cache_path, mock_path)
+        plan_digest["classwork"] = _merge_classwork_cache({}, classwork_cache_path, mock_path)
 
     payload["generatedAt"] = now.isoformat()
     payload["teacher"]["name"] = settings.teacher_name
@@ -180,13 +176,6 @@ def _apply_source_configuration(existing_sources: list[dict[str, Any]], settings
             updated["nextStep"] = "Text aus dem Orgaplan extrahieren und Termine/Aufsichten taggen"
             updated["detail"] = "Ein konkreter Orgaplan-PDF-Link ist fuer spaetere Verarbeitung hinterlegt."
 
-        if source["id"] == "pdf" and settings.classwork_plan_url:
-            updated["status"] = "ok"
-            updated["lastSync"] = "konfiguriert"
-            updated["cadence"] = "naechster Schritt: XLSX-/Share-Link-Pruefung"
-            updated["nextStep"] = "Freigabelink oder Export fuer den Klassenarbeitsplan in ein robustes Abrufformat ueberfuehren"
-            updated["detail"] = "Klassenarbeitsplan-Link hinterlegt. OneDrive kann fuer automatisierte Abrufe zusaetzliche Freigaben verlangen."
-
         configured_sources.append(updated)
 
     return configured_sources
@@ -201,13 +190,6 @@ def _apply_document_configuration(existing_documents: list[dict[str, Any]], sett
             updated["summary"] = (
                 "Konkreter Orgaplan-PDF-Link hinterlegt und bereit fuer spaetere Aenderungserkennung: "
                 f"{settings.orgaplan_pdf_url}"
-            )
-            updated["updatedAt"] = "konfiguriert"
-
-        if document["id"] == "doc-2" and settings.classwork_plan_url:
-            updated["summary"] = (
-                "Konkreter Klassenarbeitsplan-Link hinterlegt. Der aktuelle OneDrive-Link liefert fuer automatisierte Abrufe "
-                f"noch keinen direkten Dateizugriff: {settings.classwork_plan_url}"
             )
             updated["updatedAt"] = "konfiguriert"
 
@@ -297,13 +279,6 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
         ("webuntis", "WebUntis", settings.webuntis_base_url, "Planung", "Stundenplan, Vertretung und Heute"),
         ("itslearning", "itslearning", settings.itslearning_base_url, "Lernen", "Updates und Kursmeldungen"),
         ("orgaplan", "Orgaplan", settings.orgaplan_pdf_url, "PDF", "Aktueller Orgaplan fuer eure Schule"),
-        (
-            "classwork",
-            "Klassenarbeitsplan",
-            settings.classwork_plan_url,
-            "Dokument",
-            "Geteilter Planlink fuer Klassenarbeiten",
-        ),
     ]
 
     for link_id, title, url, kind, note in optional_links:
@@ -524,14 +499,6 @@ def _build_berlin_focus(settings: Any) -> list[dict[str, str]]:
     if settings.orgaplan_pdf_url:
         focus_items[1]["detail"] = "Der konkrete Orgaplan ist schon hinterlegt, sodass wir als Naechstes Aenderungen automatisch vergleichen koennen."
 
-    if settings.classwork_plan_url:
-        focus_items.append(
-            {
-                "title": "OneDrive-Freigabe im Blick",
-                "detail": "Der Klassenarbeitsplan ist verlinkt, braucht fuer spaetere Automatisierung aber wahrscheinlich einen robusteren Export-Link.",
-            }
-        )
-
     return focus_items
 
 
@@ -546,17 +513,6 @@ def _monitored_documents(settings: Any) -> list[MonitoredDocument]:
                 url=settings.orgaplan_pdf_url,
                 type="PDF",
                 note="Orgaplan-Monitor aktiv.",
-            )
-        )
-
-    if settings.classwork_plan_url:
-        documents.append(
-            MonitoredDocument(
-                id="classwork",
-                title="Klassenarbeitsplan",
-                url=settings.classwork_plan_url,
-                type="Share-Link",
-                note="Klassenarbeitsplan-Monitor aktiv.",
             )
         )
 
