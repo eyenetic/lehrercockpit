@@ -494,36 +494,53 @@ def _parse_classwork_xlsx(file_bytes: bytes) -> dict:
             "hasChanges": False, "noChanges": False,
         }
 
-    sheet = wb[wb.sheetnames[0]]
-    all_rows: list[list[str]] = []
-    for row in sheet.iter_rows(values_only=True):
-        values = [str(v).strip() if v is not None else "" for v in row]
-        if any(v for v in values):
-            all_rows.append(values)
-        if len(all_rows) >= 80:
-            break
+    def _clean_header(value: str) -> str:
+        """Normalize cell header: replace newlines/extra spaces with single space."""
+        import re as _re
+        return _re.sub(r"[\r\n]+", " ", str(value)).strip()
+
+    all_structured: list[dict] = []
+    preview_rows: list[str] = []
+    total_sheets = len(wb.sheetnames)
+
+    for sheet_name in wb.sheetnames:
+        sheet = wb[sheet_name]
+        raw_rows: list[list[str]] = []
+        for row in sheet.iter_rows(values_only=True):
+            values = [str(v).strip() if v is not None else "" for v in row]
+            if any(v for v in values):
+                raw_rows.append(values)
+            if len(raw_rows) >= 60:
+                break
+
+        if not raw_rows:
+            continue
+
+        header = [_clean_header(col) if col else f"Spalte{i+1}" for i, col in enumerate(raw_rows[0])]
+
+        for row in raw_rows[1:]:
+            if not any(v for v in row):
+                continue
+            entry: dict = {"_sheet": sheet_name}
+            for i, col in enumerate(header):
+                entry[col] = row[i] if i < len(row) else ""
+            all_structured.append(entry)
+
+        # Build preview from first sheet
+        if not preview_rows:
+            preview_rows = [" | ".join(v for v in row[:6] if v) for row in raw_rows[:9] if any(row)]
+
     wb.close()
 
-    if not all_rows:
-        raise ValueError("Tabelle ist leer.")
+    if not all_structured:
+        raise ValueError("Tabelle ist leer oder kein lesbares Format.")
 
-    header = all_rows[0]
-    structured = []
-    for row in all_rows[1:]:
-        if not any(v for v in row):
-            continue
-        entry: dict = {}
-        for i, col in enumerate(header):
-            entry[col if col else f"Spalte{i+1}"] = row[i] if i < len(row) else ""
-        structured.append(entry)
-
-    preview = [" | ".join(v for v in row[:6] if v) for row in all_rows[:9] if any(row)]
-
+    total_entries = len(all_structured)
     return {
         "status": "ok", "title": "Klassenarbeitsplan",
-        "detail": f"Excel-Datei hochgeladen. {len(structured)} Eintraege gelesen.",
+        "detail": f"Excel-Datei hochgeladen. {total_entries} Eintraege aus {total_sheets} Tabellenblättern gelesen.",
         "updatedAt": now.strftime("%H:%M"), "scrapedAt": now.isoformat(),
-        "previewRows": preview, "structuredRows": structured[:80],
+        "previewRows": preview_rows, "structuredRows": all_structured[:200],
         "sourceUrl": "", "scrapeMode": "upload",
         "dataHash": _hashlib.sha256(file_bytes).hexdigest()[:16],
         "hasChanges": False, "noChanges": False,
