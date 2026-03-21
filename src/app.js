@@ -669,7 +669,7 @@
     const classwork = digest.classwork;
 
     bindExternalLink(elements.orgaplanOpenLink, orgaplan.sourceUrl, "PDF oeffnen");
-    bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Datei oeffnen");
+    bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Plan online im Viewer öffnen");
 
     elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
     elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
@@ -1531,6 +1531,7 @@
 
     if (data.sourceUrl && elements.classworkOpenLink) {
       elements.classworkOpenLink.href = data.sourceUrl;
+      elements.classworkOpenLink.textContent = "Plan online im Viewer öffnen";
       elements.classworkOpenLink.hidden = false;
     }
   }
