@@ -1374,6 +1374,21 @@ a {
   color: var(--accent-strong);
 }
 
+.classwork-month-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  margin-top: 8px;
+}
+
+.classwork-month-tabs .segment-button {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
 .classwork-table-container {
   margin-top: 12px;
   border-radius: var(--radius-md);

@@ -22,6 +22,7 @@
     favorites: loadWebUntisFavorites(),
     activeShortcutId: "personal",
     activeFinderEntityId: null,
+    classworkActiveMonth: null,
   };
 
   const elements = {
@@ -90,6 +91,7 @@
     classworkScrapeStatus: document.querySelector("#classwork-scrape-status"),
     classworkDigestDetail: document.querySelector("#classwork-digest-detail"),
     classworkTableContainer: document.querySelector("#classwork-table-container"),
+    classworkMonthTabs: document.querySelector("#classwork-month-tabs"),
     classworkTable: document.querySelector("#classwork-table"),
     classworkPreviewList: document.querySelector("#classwork-preview-list"),
     documentList: document.querySelector("#document-list"),
@@ -683,9 +685,10 @@
       : `<div class="empty-state">Noch keine Orgaplan-Highlights erkannt.</div>`;
 
     if (classwork.structuredRows && classwork.structuredRows.length && elements.classworkTableContainer && elements.classworkTable) {
+      _lastClassworkRows = classwork.structuredRows;
       elements.classworkTableContainer.hidden = false;
       elements.classworkPreviewList.hidden = true;
-      elements.classworkTable.innerHTML = renderClassworkTable(classwork.structuredRows);
+      elements.classworkTable.innerHTML = renderClassworkTable(classwork.structuredRows, state.classworkActiveMonth);
     } else if (classwork.previewRows && classwork.previewRows.length) {
       if (elements.classworkTableContainer) elements.classworkTableContainer.hidden = true;
       if (elements.classworkPreviewList) elements.classworkPreviewList.hidden = false;
@@ -699,9 +702,60 @@
     }
   }
 
-  function renderClassworkTable(rows) {
-    if (!rows.length) return "";
-    const headers = Object.keys(rows[0]);
+  function renderClassworkTable(allRows, activeMonth) {
+    if (!allRows.length) return "";
+
+    // Detect if rows have a _sheet (multi-month) structure
+    const hasSheets = allRows.some((r) => r._sheet);
+    const months = hasSheets
+      ? [...new Set(allRows.map((r) => r._sheet).filter(Boolean))]
+      : [];
+
+    // Auto-select current or first month
+    if (hasSheets && !activeMonth) {
+      const now = new Date();
+      const monthName = now.toLocaleDateString("en-US", { month: "long" });
+      const yearSuffix = now.getFullYear().toString();
+      const currentSheet = months.find(
+        (m) => m.toLowerCase().includes(monthName.toLowerCase()) && m.includes(yearSuffix)
+      );
+      activeMonth = currentSheet || months[0];
+    }
+
+    // Render month tabs
+    if (elements.classworkMonthTabs) {
+      if (months.length > 1) {
+        elements.classworkMonthTabs.hidden = false;
+        elements.classworkMonthTabs.innerHTML = months
+          .map(
+            (m) =>
+              `<button class="segment-button ${m === activeMonth ? "active" : ""}" type="button" data-classwork-month="${escapeHtml(m)}">${escapeHtml(m)}</button>`
+          )
+          .join("");
+        elements.classworkMonthTabs.querySelectorAll("[data-classwork-month]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            state.classworkActiveMonth = btn.dataset.classworkMonth;
+            const cached = _lastClassworkRows;
+            if (cached && elements.classworkTable) {
+              elements.classworkTable.innerHTML = renderClassworkTable(cached, state.classworkActiveMonth);
+            }
+          });
+        });
+      } else {
+        elements.classworkMonthTabs.hidden = true;
+        elements.classworkMonthTabs.innerHTML = "";
+      }
+    }
+
+    // Filter rows to active month
+    const rows = hasSheets ? allRows.filter((r) => r._sheet === activeMonth) : allRows;
+
+    // Build headers: exclude _sheet, exclude columns that are empty for all filtered rows
+    const allKeys = rows.length ? Object.keys(rows[0]).filter((k) => k !== "_sheet") : [];
+    const headers = allKeys.filter((h) => rows.some((r) => String(r[h] || "").trim()));
+
+    if (!headers.length) return `<tr><td colspan="2" class="empty-state">Keine Eintraege fuer diesen Monat.</td></tr>`;
+
     const thead = `<thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>`;
     const tbody = `<tbody>${rows
       .map(
@@ -711,6 +765,9 @@
       .join("")}</tbody>`;
     return thead + tbody;
   }
+
+  // Cache for month-tab switching
+  let _lastClassworkRows = null;
 
   function escapeHtml(str) {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -1518,9 +1575,11 @@
     }
 
     if (rows.length && elements.classworkTableContainer && elements.classworkTable) {
+      _lastClassworkRows = rows;
+      state.classworkActiveMonth = null;
       elements.classworkTableContainer.hidden = false;
       if (elements.classworkPreviewList) elements.classworkPreviewList.hidden = true;
-      elements.classworkTable.innerHTML = renderClassworkTable(rows);
+      elements.classworkTable.innerHTML = renderClassworkTable(rows, null);
     } else if (preview.length && elements.classworkPreviewList) {
       if (elements.classworkTableContainer) elements.classworkTableContainer.hidden = true;
       elements.classworkPreviewList.hidden = false;
