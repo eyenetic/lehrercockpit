@@ -830,11 +830,14 @@
   }
 
   function summarizeClassworkDigest(classwork) {
+    const ts = formatUploadTimestamp(classwork.scrapedAt);
+    const tsLabel = ts ? ` — ${ts}` : "";
     if (classwork.status === "ok" && classwork.structuredRows?.length) {
-      return `Live aus Google Sheets gelesen. ${classwork.structuredRows.length} Eintraege werden als Tabelle angezeigt.`;
+      const mode = classwork.scrapeMode === "upload" ? "Hochgeladen" : "Live aus Google Sheets";
+      return `${mode}. ${classwork.structuredRows.length} Eintraege in der Tabelle.${tsLabel}`;
     }
     if (classwork.status === "ok" && classwork.previewRows?.length) {
-      return "Live gelesen. Vorschau fuer die ersten relevanten Zeilen ist unten sichtbar.";
+      return `Live gelesen. Vorschau der ersten Zeilen sichtbar.${tsLabel}`;
     }
     return truncateText(classwork.detail || "Klassenarbeitsplan ist aktuell nicht automatisch auslesbar.", 140);
   }
@@ -1497,13 +1500,26 @@
     elements.classworkUploadStatus.dataset.type = type || "";
   }
 
+  function formatUploadTimestamp(isoString) {
+    if (!isoString) return null;
+    try {
+      const d = new Date(isoString);
+      const date = d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const time = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+      return `Stand: ${date}, ${time} Uhr`;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function renderClassworkData(data) {
     const rows = data.structuredRows || [];
     const preview = data.previewRows || [];
     const detail = data.detail || "";
+    const ts = formatUploadTimestamp(data.scrapedAt);
 
     if (elements.classworkDigestDetail) {
-      elements.classworkDigestDetail.textContent = detail;
+      elements.classworkDigestDetail.textContent = ts ? `${detail} — ${ts}` : detail;
     }
 
     if (rows.length && elements.classworkTableContainer && elements.classworkTable) {
