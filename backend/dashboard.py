@@ -26,8 +26,9 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path, classwork
     plan_digest = build_plan_digest(settings.orgaplan_pdf_url, settings.classwork_plan_url, settings.classwork_gsheets_csv_url, now)
 
     # Overlay Playwright-scraped classwork cache if available and better than plan_digest result
+    # Falls back to mock-dashboard.json snapshot when Playwright cache is absent (e.g. Render cold start)
     if classwork_cache_path is not None:
-        plan_digest["classwork"] = _merge_classwork_cache(plan_digest["classwork"], classwork_cache_path)
+        plan_digest["classwork"] = _merge_classwork_cache(plan_digest["classwork"], classwork_cache_path, mock_path)
 
     payload["generatedAt"] = now.isoformat()
     payload["teacher"]["name"] = settings.teacher_name
@@ -560,29 +561,53 @@ def _monitored_documents(settings: Any) -> list[MonitoredDocument]:
     return documents
 
 
-def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path) -> dict[str, Any]:
-    """Overlay Playwright-scraped cache onto plan_digest classwork if the cache is richer."""
+def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path, mock_path: Path | None = None) -> dict[str, Any]:
+    """Overlay Playwright-scraped cache (or mock-dashboard snapshot) onto plan_digest classwork.
+
+    Priority:
+    1. data/classwork-cache.json  — written by Playwright scraper (local/Render after first scrape)
+    2. data/mock-dashboard.json   — embedded snapshot, always present in the repo
+    3. plan_classwork             — live plan_digest result (often blocked by HTTP 4xx on OneDrive)
+    """
+    import json as _json
+
+    def _is_good(data: dict) -> bool:
+        return data.get("status") == "ok" and bool(data.get("structuredRows") or data.get("previewRows"))
+
+    def _shape(cached: dict) -> dict:
+        return {
+            "status": "ok",
+            "title": cached.get("title", "Klassenarbeitsplan"),
+            "detail": cached.get("detail", ""),
+            "updatedAt": cached.get("updatedAt", plan_classwork.get("updatedAt", "")),
+            "previewRows": cached.get("previewRows", []),
+            "structuredRows": cached.get("structuredRows", []),
+            "sourceUrl": cached.get("sourceUrl", plan_classwork.get("sourceUrl", "")),
+            "hasChanges": cached.get("hasChanges", False),
+            "noChanges": cached.get("noChanges", False),
+            "scrapeMode": cached.get("scrapeMode", "playwright"),
+        }
+
+    # 1. Playwright cache (local or Render after scrape)
     try:
-        if not cache_path.exists():
-            return plan_classwork
-        import json as _json
-        cached = _json.loads(cache_path.read_text(encoding="utf-8"))
-        # Only use cache if it has actual data
-        if cached.get("status") == "ok" and (cached.get("structuredRows") or cached.get("previewRows")):
-            return {
-                "status": "ok",
-                "title": cached.get("title", "Klassenarbeitsplan"),
-                "detail": cached.get("detail", ""),
-                "updatedAt": cached.get("updatedAt", plan_classwork.get("updatedAt", "")),
-                "previewRows": cached.get("previewRows", []),
-                "structuredRows": cached.get("structuredRows", []),
-                "sourceUrl": cached.get("sourceUrl", plan_classwork.get("sourceUrl", "")),
-                "hasChanges": cached.get("hasChanges", False),
-                "noChanges": cached.get("noChanges", False),
-                "scrapeMode": cached.get("scrapeMode", "playwright"),
-            }
+        if cache_path.exists():
+            cached = _json.loads(cache_path.read_text(encoding="utf-8"))
+            if _is_good(cached):
+                return _shape(cached)
     except Exception as exc:
-        print(f"[dashboard] classwork cache merge failed: {exc}", flush=True)
+        print(f"[dashboard] classwork cache read failed: {exc}", flush=True)
+
+    # 2. Embedded snapshot from mock-dashboard.json (always in repo)
+    if mock_path is not None:
+        try:
+            mock_data = _json.loads(mock_path.read_text(encoding="utf-8"))
+            mock_cw = mock_data.get("planDigest", {}).get("classwork", {})
+            if _is_good(mock_cw):
+                print("[dashboard] classwork: using mock-dashboard.json snapshot as fallback", flush=True)
+                return _shape(mock_cw)
+        except Exception as exc:
+            print(f"[dashboard] classwork mock fallback failed: {exc}", flush=True)
+
     return plan_classwork
 
 
