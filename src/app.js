@@ -2,6 +2,7 @@
   const WEBUNTIS_SHORTCUTS_KEY = "lehrerCockpit.webuntis.shortcuts";
   const WEBUNTIS_FAVORITES_KEY = "lehrerCockpit.webuntis.favorites";
   const ACTIVE_WEBUNTIS_PLAN_KEY = "lehrerCockpit.webuntis.activePlan";
+  const THEME_KEY = "lehrerCockpit.theme";
   const AUTO_REFRESH_MS = 180000;
   const IS_LOCAL_RUNTIME =
     window.location.protocol === "file:" ||
@@ -26,6 +27,7 @@
     classworkUploadFeedbackKind: "",
     classworkSelectedClass: "",
     classworkView: "list",
+    theme: loadStoredTheme(),
   };
 
   const elements = {
@@ -33,6 +35,8 @@
     briefingOutput: document.querySelector("#briefing-output"),
     heroNote: document.querySelector("#hero-note"),
     runtimeBanner: document.querySelector("#runtime-banner"),
+    themeToggle: document.querySelector("#theme-toggle"),
+    themeToggleLabel: document.querySelector(".theme-toggle-label"),
     navLinks: Array.from(document.querySelectorAll("[data-section-target]")),
     viewSections: Array.from(document.querySelectorAll("[data-view-section]")),
     workspaceEyebrow: document.querySelector("#workspace-eyebrow"),
@@ -85,12 +89,14 @@
     orgaplanDigestDetail: document.querySelector("#orgaplan-digest-detail"),
     orgaplanUpcomingList: document.querySelector("#orgaplan-upcoming-list"),
     classworkOpenLink: document.querySelector("#classwork-open-link"),
+    classworkUploadInput: document.querySelector("#classwork-upload-input"),
+    classworkBrowserFetchButton: document.querySelector("#classwork-browser-fetch-button"),
+    classworkUploadStatus: document.querySelector("#classwork-upload-status"),
     classworkDigestDetail: document.querySelector("#classwork-digest-detail"),
     classworkClassFilter: document.querySelector("#classwork-class-filter"),
     classworkViewSwitch: document.querySelector("#classwork-view-switch"),
     classworkPreviewList: document.querySelector("#classwork-preview-list"),
     classworkUploadButton: document.querySelector("#classwork-upload-button"),
-    classworkUploadInput: document.querySelector("#classwork-upload-input"),
     classworkUploadFeedback: document.querySelector("#classwork-upload-feedback"),
     documentList: document.querySelector("#document-list"),
     documentSearch: document.querySelector("#document-search"),
@@ -273,6 +279,18 @@
     elements.workspaceEyebrow.textContent = data.workspace.eyebrow;
     elements.workspaceTitle.textContent = data.workspace.title;
     elements.workspaceDescription.textContent = data.workspace.description;
+  }
+
+  function applyTheme() {
+    document.documentElement.dataset.theme = state.theme;
+    if (elements.themeToggle) {
+      const isDark = state.theme === "dark";
+      elements.themeToggle.setAttribute("aria-pressed", String(isDark));
+      elements.themeToggle.classList.toggle("is-dark", isDark);
+      if (elements.themeToggleLabel) {
+        elements.themeToggleLabel.textContent = isDark ? "Dunkles Theme" : "Helles Theme";
+      }
+    }
   }
 
   function renderSectionFocus() {
@@ -469,7 +487,6 @@
     if (nextEntry) {
       return `${nextEntry.classLabel}: ${nextEntry.dateLabel} ${nextEntry.title}`;
     }
-
     return classwork.previewRows?.[0] || classwork.detail || "";
   }
 
@@ -675,7 +692,7 @@
     const entries = classwork.entries || [];
 
     bindExternalLink(elements.orgaplanOpenLink, orgaplan.sourceUrl, "PDF oeffnen");
-    bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Datei oeffnen");
+    bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Plan online im Viewer öffnen");
 
     elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
     elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
@@ -1486,6 +1503,14 @@
       });
     }
 
+    if (elements.themeToggle) {
+      elements.themeToggle.addEventListener("click", () => {
+        state.theme = state.theme === "dark" ? "light" : "dark";
+        localStorage.setItem(THEME_KEY, state.theme);
+        applyTheme();
+      });
+    }
+
     if (elements.classworkUploadButton && elements.classworkUploadInput) {
       elements.classworkUploadButton.addEventListener("click", () => {
         elements.classworkUploadInput.click();
@@ -1497,6 +1522,12 @@
           await uploadClassworkFile(file);
         }
         event.target.value = "";
+      });
+    }
+
+    if (elements.classworkBrowserFetchButton) {
+      elements.classworkBrowserFetchButton.addEventListener("click", async () => {
+        await triggerClassworkBrowserFetch();
       });
     }
 
@@ -1623,16 +1654,168 @@
     }
   }
 
+  async function triggerClassworkBrowserFetch() {
+    if (!IS_LOCAL_RUNTIME) {
+      setUploadStatus(
+        "Online-Abruf ist nur lokal verfuegbar, nicht auf dem gehosteten Server.",
+        "warning"
+      );
+      return;
+    }
+
+    setUploadStatus("⏳ Browser-Abruf laeuft … Bitte warten (ca. 20–30 s).", "loading");
+
+    try {
+      const response = await fetch("/api/classwork/browser-fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: "" }),
+      });
+
+      const payload = await response.json();
+
+      if (payload.status === "login_required") {
+        setUploadStatus(
+          "🔐 Bitte zuerst im Browser bei Microsoft einloggen – dann erneut versuchen.",
+          "warning"
+        );
+        return;
+      }
+
+      if (payload.status === "error") {
+        setUploadStatus(
+          `⚠️ Beta-Abruf fehlgeschlagen: ${payload.detail || "Unbekannter Fehler"}`,
+          "warning"
+        );
+        return;
+      }
+
+      if (payload.status === "ok") {
+        setUploadStatus(
+          `✓ ${payload.detail || "Daten erfolgreich geladen."}`,
+          "ok"
+        );
+        await refreshDashboard();
+        await loadClassworkCache();
+      }
+    } catch (error) {
+      setUploadStatus(
+        `⚠️ Verbindungsfehler: ${error.message || "Server nicht erreichbar."}`,
+        "warning"
+      );
+    }
+  }
+
   function initialize() {
     normalizeLocalWebUntisState();
+    applyTheme();
     elements.assistantAnswer.textContent =
       "Frag mich nach der Woche, nach dem Orgaplan, nach Dokumenten oder nach deiner Inbox.";
     registerEvents();
-    refreshDashboard();
+    refreshDashboard().then(() => loadClassworkCache());
     window.setInterval(() => {
-      refreshDashboard();
+      refreshDashboard().then(() => loadClassworkCache());
     }, AUTO_REFRESH_MS);
   }
+
+  function loadStoredTheme() {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "dark" || stored === "light") {
+      return stored;
+    }
+    return "light";
+  }
+
+  async function loadClassworkCache() {
+    const apiBase = IS_LOCAL_RUNTIME ? "" : getBackendApiBase();
+    if (!apiBase && !IS_LOCAL_RUNTIME) return;
+    try {
+      const resp = await fetch(`${apiBase}/api/classwork`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const hasRows = (data.entries && data.entries.length > 0) ||
+                      (data.previewRows && data.previewRows.length > 0);
+      if (data.status === "ok" && hasRows) {
+        renderClassworkData(data);
+        if (data.hasChanges) {
+          setUploadStatus(`⚡ Neue Änderungen! ${data.detail}`, "ok");
+        } else {
+          setUploadStatus(`✓ Gespeicherter Plan geladen. ${data.detail || ""}`, "ok");
+        }
+      }
+      // If cache is empty/warning, silently ignore — dashboard data from /api/dashboard is sufficient
+    } catch (_err) {
+      // Silently ignore — backend may not be available
+    }
+  }
+
+  // ── Classwork Upload ───────────────────────────────────────────────────────
+
+  function setUploadStatus(message, type) {
+    if (!elements.classworkUploadStatus) return;
+    elements.classworkUploadStatus.textContent = message;
+    elements.classworkUploadStatus.hidden = !message;
+    elements.classworkUploadStatus.dataset.type = type || "";
+  }
+
+  function formatUploadTimestamp(isoString) {
+    if (!isoString) return null;
+    try {
+      const d = new Date(isoString);
+      const date = d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+      const time = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+      return `Stand: ${date}, ${time} Uhr`;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function renderClassworkData(data) {
+    if (!state.data) {
+      return;
+    }
+
+    state.data.planDigest = state.data.planDigest || {};
+    state.data.planDigest.classwork = {
+      ...(state.data.planDigest.classwork || {}),
+      ...data,
+    };
+    renderPlanDigest();
+  }
+
+  async function triggerClassworkUpload(file) {
+    if (!file) return;
+    const apiBase = getBackendApiBase();
+    const uploadUrl = `${apiBase}/api/classwork/upload`;
+
+    const labelText = elements.classworkUploadLabelText;
+    if (labelText) labelText.textContent = "⏳ Wird verarbeitet…";
+    if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "0.6";
+    setUploadStatus(`Datei "${file.name}" wird hochgeladen…`, "loading");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+
+      const response = await fetch(uploadUrl, { method: "POST", body: formData });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setUploadStatus(`Upload-Fehler: ${data.detail || response.status}`, "error");
+        return;
+      }
+
+      renderClassworkData(data);
+      setUploadStatus(`✓ "${file.name}" eingelesen. ${data.detail || ""}`, "ok");
+    } catch (err) {
+      setUploadStatus(`Upload fehlgeschlagen: ${err.message}`, "error");
+    } finally {
+      if (labelText) labelText.textContent = "📂 Hochladen";
+      if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "1";
+    }
+  }
+
+  // ── End Classwork Upload ───────────────────────────────────────────────────
 
   function buildProductionApiBases() {
     const bases = [];
@@ -1656,6 +1839,19 @@
     });
 
     return bases.filter((entry, index, items) => items.indexOf(entry) === index);
+  }
+
+  /**
+   * Return the base URL for backend API POST calls (scrape, upload, settings).
+   * Uses the explicitly configured backend URL (Render) rather than window.location.origin
+   * (which would be the Netlify frontend and has no API endpoints).
+   */
+  function getBackendApiBase() {
+    if (IS_LOCAL_RUNTIME) return "";
+    const configured = (window.BACKEND_API_URL || window.LEHRER_COCKPIT_API_URL || "").trim();
+    if (configured) return configured;
+    // Last resort: try same origin (works when frontend and backend are co-hosted)
+    return window.location.protocol !== "file:" ? window.location.origin : "";
   }
 
   function loadSavedShortcuts() {

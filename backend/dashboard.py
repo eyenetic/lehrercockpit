@@ -15,7 +15,7 @@ from .plan_digest import build_plan_digest
 from .webuntis_adapter import fetch_webuntis_sync
 
 
-def build_dashboard_payload(mock_path: Path, monitor_state_path: Path) -> dict[str, Any]:
+def build_dashboard_payload(mock_path: Path, monitor_state_path: Path, classwork_cache_path: Path | None = None) -> dict[str, Any]:
     payload = _load_mock_payload(mock_path)
     settings = load_settings()
     now = datetime.now().astimezone()
@@ -178,13 +178,6 @@ def _apply_source_configuration(existing_sources: list[dict[str, Any]], settings
             updated["nextStep"] = "Text aus dem Orgaplan extrahieren und Termine/Aufsichten taggen"
             updated["detail"] = "Ein konkreter Orgaplan-PDF-Link ist fuer spaetere Verarbeitung hinterlegt."
 
-        if source["id"] == "pdf" and settings.classwork_plan_url:
-            updated["status"] = "ok"
-            updated["lastSync"] = "konfiguriert"
-            updated["cadence"] = "naechster Schritt: XLSX-/Share-Link-Pruefung"
-            updated["nextStep"] = "Freigabelink oder Export fuer den Klassenarbeitsplan in ein robustes Abrufformat ueberfuehren"
-            updated["detail"] = "Klassenarbeitsplan-Link hinterlegt. OneDrive kann fuer automatisierte Abrufe zusaetzliche Freigaben verlangen."
-
         configured_sources.append(updated)
 
     return configured_sources
@@ -199,13 +192,6 @@ def _apply_document_configuration(existing_documents: list[dict[str, Any]], sett
             updated["summary"] = (
                 "Konkreter Orgaplan-PDF-Link hinterlegt und bereit fuer spaetere Aenderungserkennung: "
                 f"{settings.orgaplan_pdf_url}"
-            )
-            updated["updatedAt"] = "konfiguriert"
-
-        if document["id"] == "doc-2" and settings.classwork_plan_url:
-            updated["summary"] = (
-                "Konkreter Klassenarbeitsplan-Link hinterlegt. Der aktuelle OneDrive-Link liefert fuer automatisierte Abrufe "
-                f"noch keinen direkten Dateizugriff: {settings.classwork_plan_url}"
             )
             updated["updatedAt"] = "konfiguriert"
 
@@ -308,13 +294,6 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
         ("webuntis", "WebUntis", settings.webuntis_base_url, "Planung", "Stundenplan, Vertretung und Heute"),
         ("itslearning", "itslearning", settings.itslearning_base_url, "Lernen", "Updates und Kursmeldungen"),
         ("orgaplan", "Orgaplan", settings.orgaplan_pdf_url, "PDF", "Aktueller Orgaplan fuer eure Schule"),
-        (
-            "classwork",
-            "Klassenarbeitsplan",
-            settings.classwork_plan_url,
-            "Dokument",
-            "Geteilter Planlink fuer Klassenarbeiten",
-        ),
     ]
 
     for link_id, title, url, kind, note in optional_links:
@@ -535,14 +514,6 @@ def _build_berlin_focus(settings: Any) -> list[dict[str, str]]:
     if settings.orgaplan_pdf_url:
         focus_items[1]["detail"] = "Der konkrete Orgaplan ist schon hinterlegt, sodass wir als Naechstes Aenderungen automatisch vergleichen koennen."
 
-    if settings.classwork_plan_url:
-        focus_items.append(
-            {
-                "title": "OneDrive-Freigabe im Blick",
-                "detail": "Der Klassenarbeitsplan ist verlinkt, braucht fuer spaetere Automatisierung aber wahrscheinlich einen robusteren Export-Link.",
-            }
-        )
-
     return focus_items
 
 
@@ -560,18 +531,61 @@ def _monitored_documents(settings: Any) -> list[MonitoredDocument]:
             )
         )
 
-    if settings.classwork_plan_url:
-        documents.append(
-            MonitoredDocument(
-                id="classwork",
-                title="Klassenarbeitsplan",
-                url=settings.classwork_plan_url,
-                type="Share-Link",
-                note="Klassenarbeitsplan-Monitor aktiv.",
-            )
-        )
-
     return documents
+
+
+def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path, mock_path: Path | None = None) -> dict[str, Any]:
+    """Overlay Playwright-scraped cache (or mock-dashboard snapshot) onto plan_digest classwork.
+
+    Priority:
+    1. data/classwork-cache.json  — written by Playwright scraper (local/Render after first scrape)
+    2. data/mock-dashboard.json   — embedded snapshot, always present in the repo
+    3. plan_classwork             — live plan_digest result (often blocked by HTTP 4xx on OneDrive)
+    """
+    import json as _json
+
+    def _is_good(data: dict) -> bool:
+        return data.get("status") == "ok" and bool(data.get("structuredRows") or data.get("previewRows"))
+
+    # If plan_digest already has live data (e.g. Google Sheets CSV), keep it — no override needed
+    if _is_good(plan_classwork):
+        return plan_classwork
+
+    def _shape(cached: dict) -> dict:
+        return {
+            "status": "ok",
+            "title": cached.get("title", "Klassenarbeitsplan"),
+            "detail": cached.get("detail", ""),
+            "updatedAt": cached.get("updatedAt", plan_classwork.get("updatedAt", "")),
+            "previewRows": cached.get("previewRows", []),
+            "structuredRows": cached.get("structuredRows", []),
+            "sourceUrl": cached.get("sourceUrl", plan_classwork.get("sourceUrl", "")),
+            "hasChanges": cached.get("hasChanges", False),
+            "noChanges": cached.get("noChanges", False),
+            "scrapeMode": cached.get("scrapeMode", "playwright"),
+        }
+
+    # 1. Playwright cache (local or Render after scrape)
+    try:
+        if cache_path.exists():
+            cached = _json.loads(cache_path.read_text(encoding="utf-8"))
+            if _is_good(cached):
+                return _shape(cached)
+    except Exception as exc:
+        print(f"[dashboard] classwork cache read failed: {exc}", flush=True)
+
+    # 2. Embedded snapshot from mock-dashboard.json (always in repo)
+    if mock_path is not None:
+        try:
+            mock_data = _json.loads(mock_path.read_text(encoding="utf-8"))
+            mock_cw = mock_data.get("planDigest", {}).get("classwork", {})
+            if _is_good(mock_cw):
+                print("[dashboard] classwork: using mock-dashboard.json snapshot as fallback", flush=True)
+                return _shape(mock_cw)
+        except Exception as exc:
+            print(f"[dashboard] classwork mock fallback failed: {exc}", flush=True)
+
+    return plan_classwork
 
 
 def _apply_monitor_priorities(

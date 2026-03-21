@@ -40,6 +40,8 @@ Thumbs.db
 *.db
 .cache/
 data/document-monitor-state.json
+data/classwork-cache.json
+data/playwright-classwork-profile/
 
 # Project-specific
 *.zip

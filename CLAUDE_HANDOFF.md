@@ -11,27 +11,91 @@ Ein lokales Lehrer-Cockpit fuer den Berliner Schulalltag, das mehrere Quellen an
 - Klassenarbeitsplan
 - spaeter weitere Dokumente, ggf. Berliner Kommunikationsdienste
 
-## Starten
+## Starten (lokal)
 
 ```bash
 python3 server.py
 ```
 
-Dann im Browser:
+Dann im Browser: `http://127.0.0.1:8080`
 
-```text
-http://127.0.0.1:4173
-```
+## Aktueller Stand (2026-03-21)
 
-## Aktueller Stand
-
-- Lokale Python-App ohne externe Dependencies
+- Lokale Python-App ohne externe Dependencies (ausser openpyxl, pypdf)
 - Frontend in `index.html`, `styles.css`, `src/app.js`
-- API in `server.py`
+- API in `server.py` (lokal) + `server_test.py` (Render, delegiert an server.py)
 - Dashboard-Zusammenbau in `backend/dashboard.py`
 - Dokumentenmonitor in `backend/document_monitor.py`
-- Mailadapter in `backend/mail_adapter.py`
 - Konfiguration ueber `.env.local`
+
+## Klassenarbeitsplan — Workflow
+
+### Datenfluss
+
+1. **XLS/XLSX Upload** via `POST /api/classwork/upload` → gespeichert in `data/classwork-cache.json`
+   - Alle Sheets (11 Monate) werden gelesen
+   - Upload-Zeitstempel wird angezeigt ("Stand: TT.MM.JJJJ, HH:MM Uhr")
+2. **`data/mock-dashboard.json`** Snapshot (immer im Repo, Fallback fuer Render-Kaltstart)
+
+> **Hinweis:** OneDrive-Link-Monitoring und Google Sheets CSV-Anbindung wurden entfernt.
+> Die einzige Live-Quelle ist jetzt der manuelle XLS/XLSX/CSV-Upload.
+
+### UI-Bedienung
+
+- **"📂 Hochladen"** Button im Klassenarbeitsplan-Bereich → XLS/XLSX/CSV auswaehlen
+- Tabelle erscheint sofort mit Monats-Tab-Selektor (autom. aktueller Monat)
+- Upload-Zeitstempel unterm Tabellenkopf
+- Daten bleiben bis zum naechsten Render-Kaltstart erhalten
+
+### Render Free Tier Hinweis
+
+Render Free Tier setzt den Disk nach 15 Min Inaktivitaet zurueck → Upload-Daten weg.
+
+## API-Endpunkte
+
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| GET | `/api/health` | Healthcheck |
+| GET | `/api/dashboard` | Dashboard-Payload (inkl. Klassenarbeitsplan) |
+| GET | `/api/classwork` | Persistierter Upload-Cache (`data/classwork-cache.json`) |
+| POST | `/api/classwork/upload` | XLS/XLSX/CSV hochladen, alle Sheets parsen, Cache speichern |
+| POST | `/api/local-settings/itslearning` | itslearning-Zugangsdaten lokal speichern |
+
+## Deployment
+
+### Netlify Frontend (Primary)
+
+- **URL:** `https://dainty-empanada-5ab04b.netlify.app` — Live ✅
+- **Auto-Deploy:** Jeder Push auf `main` → Netlify deployt automatisch
+- **API-URL:** `window.BACKEND_API_URL = "https://lehrercockpit.onrender.com"` (in `index.html`)
+
+### Render Backend (Primary)
+
+- **URL:** `https://lehrercockpit.onrender.com` — Live ✅
+- **Build:** Docker (`Dockerfile`) — sauber, kein Playwright mehr
+- **Start:** `python3 server.py`
+- **PORT:** aus `$PORT` Env-Variable
+- **CORS:** `*`
+- **Env-Variablen auf Render setzen:** (keine Pflicht-Variablen mehr fuer Klassenarbeitsplan)
+
+### Dockerfile (Render Build)
+
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+RUN mkdir -p data
+EXPOSE 8080
+CMD ["python3", "server.py"]
+```
+
+Kein Playwright, keine System-Deps mehr — Build schlaegt nicht mehr fehl.
+
+### GitHub Repo
+
+- **URL:** `https://github.com/eyenetic/lehrercockpit` (branch: `main`)
 
 ## Bereits konfigurierte echte Quellen
 
@@ -39,117 +103,39 @@ http://127.0.0.1:4173
 - `WEBUNTIS_BASE_URL=https://hermann-ehlers-os.webuntis.com`
 - `ITSLEARNING_BASE_URL=https://berlin.itslearning.com`
 - `ORGAPLAN_PDF_URL=https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf`
-- `CLASSWORK_PLAN_URL=<OneDrive-Link>`
-
-## Was funktioniert
-
-- Berlin-Quick-Links im UI
-- Berliner Fokus-/Kontextkarten im UI
-- Quellenstatus fuer die realen URLs
-- Dokumentenmonitor mit lokalem Zustand in `data/document-monitor-state.json`
-- Orgaplan wird erfolgreich beobachtet und als `tracked` gemeldet
-- Klassenarbeitsplan ist verlinkt, aber automatischer Abruf ist durch OneDrive blockiert
 
 ## Bekannte Einschraenkungen
 
-- Berliner Dienstmail derzeit nicht sinnvoll per IMAP integrierbar; im Projekt nur vorbereitet
-- WebUntis ist als Quelle konfiguriert, aber noch ohne Session-/Datenabruf
-- itslearning ist als Quelle konfiguriert, aber noch ohne Session-/Datenabruf
-- OneDrive-Link fuer Klassenarbeitsplan liefert fuer automatisierte Abrufe aktuell keine robuste offene Datei
+- Berliner Dienstmail derzeit nicht sinnvoll per IMAP integrierbar
+- WebUntis ist konfiguriert, aber noch ohne iCal-Anbindung
+- itslearning ist konfiguriert, aber noch ohne Credentials
+- Render Free Tier: Disk nach 15 Min Inaktivitaet zurueck → Upload-Daten weg
 
 ## Beste naechste Schritte
 
-1. WebUntis-Session oder offiziellen Abrufweg pruefen und `Heute`/Vertretungen real befuellen
-2. itslearning-Ansichten identifizieren und read-only anbinden
-3. Orgaplan-Aenderungserkennung im UI noch aggressiver hervorheben
-4. Klassenarbeitsplan auf besseren Export-/Direktlink umstellen
-5. Weitere Schul-PDFs oder Rundschreiben in den Dokumentenmonitor aufnehmen
+1. **WebUntis iCal verbinden**: `WEBUNTIS_ICAL_URL` in `.env.local` → live Stundenplan sofort
+2. **itslearning**: `ITSLEARNING_USERNAME` + `ITSLEARNING_PASSWORD` in `.env.local`
+3. **Render Persistent Disk** (Starter-Plan $7/mo) → Upload-Daten ueberleben Kaltstarts
+4. **Orgaplan-Aenderungserkennung** im UI aggressiver hervorheben (Badge auf Nav-Item)
+5. **Weitere Schul-PDFs** in den Dokumentenmonitor aufnehmen
 
-## Deployment Status (Stand: 2026-03-19)
-
-### Netlify Frontend (Primary)
-
-- **URL:** `https://dainty-empanada-5ab04b.netlify.app` — Live ✅
-- **Hosting:** Statisches Hosting (kein Build-Step, kostenlos, kein Team-Membership nötig)
-- **Config:** `netlify.toml` + `.netlifyignore`
-- **API-URL in `index.html`:** `window.RAILWAY_API_URL = "https://lehrercockpit.onrender.com"`
-
-### Render Backend (Primary)
-
-- **URL:** `https://lehrercockpit.onrender.com` — Live ✅
-- **Hinweis:** Render Free Tier — 30s Kaltstart nach 15min Inaktivität
-- **Start-Befehl:** `python3 server_test.py`
-- **PORT:** aus `$PORT` Env-Variable
-- **CORS:** `CORS_ORIGIN` Env-Variable (Default: `*`)
-
-### Railway Backend (Legacy)
-
-- **URL:** `https://lehrercockpit-production.up.railway.app` — Nicht mehr primärer Hoster
-- **Hinweis:** Railway wird nicht mehr als primärer Backend-Hoster verwendet. Render ist jetzt der primäre Hoster.
-- **Config:** `railway.json` + `Procfile` (noch im Repo, aber nicht aktiv genutzt)
-
-### Vercel Frontend (Legacy)
-
-- **URL:** `https://lehrercockpit.vercel.app` — Nicht mehr primärer Hoster
-- **Hinweis:** Vercel wird nicht mehr als primärer Frontend-Hoster verwendet. Netlify ist jetzt der primäre Hoster.
-- **Config:** `vercel.json` + `.vercelignore` (noch im Repo, aber nicht aktiv genutzt)
-
-### GitHub Repo
-
-- **URL:** `https://github.com/eyenetic/lehrercockpit` (branch: `main`)
-- **Git-Committer:** `eyenetic@users.noreply.github.com`
-
-### Wichtige Hinweise
-
-- **Primäres Frontend:** Netlify (`https://dainty-empanada-5ab04b.netlify.app`)
-- `server_test.py` ist der Railway-Produktionsserver; `server.py` ist fuer lokale Entwicklung
-- Lokaler Dev-Server: `python3 server.py` → `http://localhost:4173`
-- CORS ist auf `*` gesetzt, sodass sowohl Netlify als auch Vercel als Origins erlaubt sind
-
----
-
-## Arifs Beiträge (arifulu) — Stand 2026-03-19
-
-### Git-Identität
-
-- **GitHub:** `arifulu`
-- **Email:** `arifulu@users.noreply.github.com`
-- **Rolle:** Collaborator am `eyenetic/lehrercockpit`-Repository
-
-### Commit-Übersicht (8 Commits am 2026-03-19)
+## Commit-Historie — Session 2026-03-21
 
 | Commit | Beschreibung |
 |--------|-------------|
-| `e617ac1` | Initial import of Lehrer-Cockpit — Erstimport des gesamten Projekts |
-| `aa4eae6` | Merge remote main into local Lehrer-Cockpit state |
-| `d33fff2` | Add live WebUntis hub and Orgaplan digest — Neue Module + Frontend-Erweiterungen |
-| `8c40389` | Merge remote-tracking branch 'origin/main' |
-| `d724e90` | Configure deploy targets for Vercel and Railway |
-| `cdae5e5` | Merge remote-tracking branch 'origin/main' |
-| `e8c9e5d` | Publish fresh WebUntis snapshot fallback |
-| `2f7dcc4` | Re-enable Netlify auto deploys — `ignore = "exit 1"` aus `netlify.toml` entfernt |
-
-### Was Arif implementiert/geändert hat
-
-#### Neue Dateien (Added)
-- **`backend/plan_digest.py`** — Neues Modul für Orgaplan-Digest-Funktionalität (PDF-Parsing und Zusammenfassung)
-- **`backend/webuntis_adapter.py`** — Neuer WebUntis-Adapter für Stundenplan- und Vertretungsdaten
-- **`data/mock-dashboard.js`** — JavaScript-basierter Fallback-Snapshot mit aktuellen WebUntis-Daten
-- **`requirements.txt`** — Python-Dependencies für das Backend
-
-#### Geänderte Dateien (Modified)
-- **`netlify.toml`** — Netlify Auto-Deploy Blocker entfernt (`ignore = "exit 1"` entfernt), damit Pushes automatisch deployt werden
-- **`data/mock-dashboard.json`** — Aktualisierter Fallback-Snapshot mit frischen WebUntis-Daten
-- **`index.html`** — Frontend-Erweiterungen für WebUntis-Hub-Anzeige und Deploy-Target-Konfiguration
-- **`src/app.js`** — JavaScript-Logik für WebUntis-Daten-Rendering im Dashboard
-- **`styles.css`** — Styling-Anpassungen für neue UI-Komponenten
-- **`backend/config.py`** — Konfiguration um WebUntis- und Orgaplan-Parameter erweitert
-- **`backend/dashboard.py`** — Dashboard-Zusammenbau um neue Datenquellen erweitert
-- **`config/mail.env.example`** — Beispiel-Konfiguration aktualisiert
-- **`README.md`** — Dokumentation aktualisiert
-- **`Procfile`** — Railway-Startbefehl angepasst
-- **`railway.json`** — Railway-Deploy-Konfiguration angepasst
-
-### Zusammenfassung
-
-Arif hat das Projekt initial importiert, die WebUntis-Integration (`webuntis_adapter.py`) und den Orgaplan-Digest (`plan_digest.py`) als neue Backend-Module hinzugefügt, einen aktuellen Fallback-Snapshot erstellt, und die Deployment-Pipeline für Netlify, Vercel und Railway konfiguriert. Sein letzter Commit hat die Netlify-Auto-Deploys wieder aktiviert, sodass jeder Push auf `main` automatisch live geht.
+| `5705c29` | Wire Playwright cache into /api/dashboard planDigest |
+| `329cfa6` | Upgrade server_test.py; embed classwork in mock-dashboard.json |
+| `ffb1597` | Fix Render: mock-dashboard.json fallback when cache absent |
+| `f8f58f3` | Google Sheets CSV als primaere Live-Quelle |
+| `acbfdb6` | XLS/XLSX/CSV Upload-Endpoint + UI-Button |
+| `28b0702` | Fix 404: getBackendApiBase() fuer alle API POST-Calls |
+| `f09fc54` | "Plan online im Viewer öffnen" Label |
+| `aea3101` | Alle 11 Excel-Sheets lesen; Zeilenumbrueche in Headers cleanens |
+| `53614aa` | Monats-Tab-Selektor; leere Spalten ausblenden |
+| `148c6c4` | CLAUDE_HANDOFF.md aktualisiert |
+| `4b01b0f` | Fix: leeren Playwright-Cache nicht ueber Dashboard-Daten schreiben |
+| `37b72d4` | **Playwright komplett entfernt** — reiner Upload-Workflow |
+| `83e47bd` | Upload-Zeitstempel anzeigen (Stand: TT.MM.JJJJ, HH:MM Uhr) |
+| `2520fb6` | Empty-Cache-Placeholder-Text aktualisiert |
+| `f476cfd` | **Dockerfile ohne Playwright** — Build-Fehler auf Render behoben |
+| *(heute)* | **OneDrive + Google Sheets Verbindungen entfernt** — nur Upload-Workflow |

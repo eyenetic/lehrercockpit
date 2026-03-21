@@ -364,8 +364,6 @@ def _class_sort_key(value: str) -> tuple[int, str]:
     if qmatch:
         return 100, qmatch.group(1)
     return 999, value.upper()
-
-
 def _download_document(url: str) -> DownloadResult:
     request = Request(url, headers={"User-Agent": "LehrerCockpit/1.0"})
 

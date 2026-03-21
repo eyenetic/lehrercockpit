@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lehrer-Cockpit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+    />
     <script>
       window.BACKEND_API_URL = "https://lehrercockpit.onrender.com";
       window.LEHRER_COCKPIT_API_URL = "https://lehrercockpit.onrender.com";
@@ -12,7 +18,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=20" />
+    <link rel="stylesheet" href="./styles.css?v=21" />
   </head>
   <body>
     <div class="app-shell">
@@ -36,6 +42,16 @@
           <button class="nav-link" type="button" data-section-target="access">Zugaenge</button>
           <button class="nav-link" type="button" data-section-target="assistant">Assistenz</button>
         </nav>
+
+        <div class="sidebar-theme">
+          <p class="card-kicker">Darstellung</p>
+          <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">
+            <span id="theme-label" class="theme-toggle-label">Dark Mode</span>
+            <span class="toggle-track" aria-hidden="true">
+              <span class="toggle-thumb"></span>
+            </span>
+          </button>
+        </div>
       </aside>
 
       <main class="app-main">
@@ -167,8 +183,11 @@
                     <p class="card-kicker">Klassenarbeitsplan</p>
                     <h2 id="classwork-digest-title">Klassenansicht</h2>
                   </div>
-                  <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer">Datei oeffnen</a>
+                  <div class="classwork-actions">
+                    <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>Plan oeffnen</a>
+                  </div>
                 </div>
+                <p id="classwork-upload-status" class="scrape-status-text" hidden></p>
                 <p id="classwork-digest-detail" class="source-detail"></p>
                 <div class="classwork-controls">
                   <label class="classwork-select-field" for="classwork-class-filter">
@@ -179,7 +198,16 @@
                 </div>
                 <div class="classwork-actions">
                   <button id="classwork-upload-button" class="secondary-link" type="button">Lokale XLSX importieren</button>
-                  <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm" hidden />
+                  <button
+                    id="classwork-browser-fetch-button"
+                    class="scrape-button"
+                    type="button"
+                    title="Lokale Beta-Komfortfunktion: liest den Plan ueber den Browser"
+                  >
+                    Online abrufen
+                    <span class="pill pill-attention" style="margin-left:6px;font-size:0.65rem;vertical-align:middle;">Beta</span>
+                  </button>
+                  <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
                 </div>
                 <p id="classwork-upload-feedback" class="connect-feedback"></p>
                 <div id="classwork-preview-list" class="stack-list compact-list"></div>
@@ -283,6 +311,6 @@
     </div>
 
     <script src="./data/mock-dashboard.js?v=15"></script>
-    <script src="./src/app.js?v=20"></script>
+    <script src="./src/app.js?v=21"></script>
   </body>
 </html>
