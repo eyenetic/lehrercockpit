@@ -117,17 +117,24 @@ def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
             "sourceUrl": "",
+            "embedUrl": "",
         }
+
+    embed_url = _build_onedrive_embed_url(url)
 
     download = _download_document(url)
     if not download.reachable:
+        fallback_detail = _blocked_detail("Klassenarbeitsplan", download)
+        if embed_url:
+            fallback_detail = "Automatischer Abruf blockiert. Die Excel-Datei wird unten als eingebettete Vorschau angezeigt."
         return {
-            "status": "warning" if download.status_code else "error",
+            "status": "ok" if embed_url else ("warning" if download.status_code else "error"),
             "title": "Klassenarbeitsplan",
-            "detail": _blocked_detail("Klassenarbeitsplan", download),
+            "detail": fallback_detail,
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
             "sourceUrl": url,
+            "embedUrl": embed_url,
         }
 
     try:
@@ -149,16 +156,36 @@ def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": rows,
             "sourceUrl": url,
+            "embedUrl": embed_url,
         }
     except Exception as exc:
         return {
-            "status": "warning",
+            "status": "ok" if embed_url else "warning",
             "title": "Klassenarbeitsplan",
-            "detail": f"Datei erreichbar, aber noch nicht auswertbar: {type(exc).__name__}.",
+            "detail": f"Datei erreichbar, aber nicht als Tabelle auswertbar. {'Vorschau wird eingebettet angezeigt.' if embed_url else f'{type(exc).__name__}.'}",
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
             "sourceUrl": url,
+            "embedUrl": embed_url,
         }
+
+
+def _build_onedrive_embed_url(url: str) -> str:
+    """Convert a OneDrive sharing URL to an embeddable Excel Online viewer URL."""
+    if not url:
+        return ""
+
+    if "onedrive.live.com" in url and "/:x:/" in url:
+        return url.split("?")[0] + "?action=embedview&wdAllowInteractivity=True&wdHideGridlines=True&wdHideHeaders=False"
+
+    if "1drv.ms" in url:
+        return url.split("?")[0] + "?action=embedview"
+
+    if "sharepoint.com" in url or "onedrive.live.com" in url:
+        base = url.split("?")[0]
+        return base + "?action=embedview&wdAllowInteractivity=True"
+
+    return ""
 
 
 def _download_document(url: str) -> DownloadResult:

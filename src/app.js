@@ -83,6 +83,8 @@
     classworkOpenLink: document.querySelector("#classwork-open-link"),
     classworkDigestDetail: document.querySelector("#classwork-digest-detail"),
     classworkPreviewList: document.querySelector("#classwork-preview-list"),
+    classworkEmbedContainer: document.querySelector("#classwork-embed-container"),
+    classworkEmbedFrame: document.querySelector("#classwork-embed-frame"),
     documentList: document.querySelector("#document-list"),
     documentSearch: document.querySelector("#document-search"),
     assistantForm: document.querySelector("#assistant-form"),
@@ -176,6 +178,7 @@
         updatedAt: formatTime(now),
         previewRows: [],
         sourceUrl: "",
+        embedUrl: "",
       },
     };
 
@@ -242,6 +245,7 @@
             updatedAt: formatTime(new Date()),
             previewRows: [],
             sourceUrl: "",
+            embedUrl: "",
           },
         },
         workspace: {
@@ -676,7 +680,20 @@
             `
           )
           .join("")
-      : `<div class="empty-state">Der Klassenarbeitsplan ist verlinkt, aber aktuell noch nicht automatisch auslesbar.</div>`;
+      : "";
+
+    if (classwork.embedUrl && elements.classworkEmbedContainer && elements.classworkEmbedFrame) {
+      elements.classworkEmbedFrame.src = classwork.embedUrl;
+      elements.classworkEmbedContainer.hidden = false;
+      if (!classwork.previewRows.length) {
+        elements.classworkPreviewList.innerHTML = "";
+      }
+    } else if (elements.classworkEmbedContainer) {
+      elements.classworkEmbedContainer.hidden = true;
+      if (!classwork.previewRows.length) {
+        elements.classworkPreviewList.innerHTML = `<div class="empty-state">Der Klassenarbeitsplan ist verlinkt, aber aktuell noch nicht automatisch auslesbar.</div>`;
+      }
+    }
   }
 
   function renderOrgaplanItem(item) {
@@ -739,8 +756,14 @@
   }
 
   function summarizeClassworkDigest(classwork) {
-    if (classwork.status === "ok") {
+    if (classwork.status === "ok" && classwork.previewRows?.length) {
       return "Live gelesen. Vorschau fuer die ersten relevanten Zeilen ist unten sichtbar.";
+    }
+    if (classwork.status === "ok" && classwork.embedUrl) {
+      return "Excel-Vorschau wird unten eingebettet angezeigt.";
+    }
+    if (classwork.embedUrl) {
+      return truncateText(classwork.detail || "Automatischer Abruf blockiert. Excel-Vorschau unten eingebettet.", 140);
     }
     return truncateText(classwork.detail || "Klassenarbeitsplan ist aktuell nicht automatisch auslesbar.", 140);
   }
