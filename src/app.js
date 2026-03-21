@@ -1396,9 +1396,31 @@
       "Frag mich nach der Woche, nach dem Orgaplan, nach Dokumenten oder nach deiner Inbox.";
     registerEvents();
     refreshDashboard();
+    loadClassworkCache();
     window.setInterval(() => {
       refreshDashboard();
     }, AUTO_REFRESH_MS);
+  }
+
+  async function loadClassworkCache() {
+    const apiBase = IS_LOCAL_RUNTIME ? "" : (PRODUCTION_API_BASES[0] || "");
+    if (!apiBase && !IS_LOCAL_RUNTIME) return;
+    try {
+      const resp = await fetch(`${apiBase}/api/classwork`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.status === "ok" || data.status === "warning") {
+        renderClassworkScrapeResult(data);
+        if (data.hasChanges) {
+          setScrapeStatus(`⚡ Neue Änderungen! ${data.detail}`, "ok");
+        } else if (data.status === "ok") {
+          const age = data.cacheAgeMinutes != null ? ` (vor ${Math.round(data.cacheAgeMinutes)} Min)` : "";
+          setScrapeStatus(`✓ Letzte Daten${age}: ${data.detail}`, "ok");
+        }
+      }
+    } catch (_err) {
+      // Silently ignore — backend may not be available
+    }
   }
 
   // ── Classwork Scraper ──────────────────────────────────────────────────────
