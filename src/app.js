@@ -85,10 +85,7 @@
     classworkUploadInput: document.querySelector("#classwork-upload-input"),
     classworkUploadLabel: document.querySelector("#classwork-upload-label"),
     classworkUploadLabelText: document.querySelector("#classwork-upload-label-text"),
-    classworkScrapeButton: document.querySelector("#classwork-scrape-button"),
-    classworkScrapeButtonLabel: document.querySelector("#classwork-scrape-button .scrape-button-label"),
-    classworkScrapeButtonSpinner: document.querySelector("#classwork-scrape-button .scrape-button-spinner"),
-    classworkScrapeStatus: document.querySelector("#classwork-scrape-status"),
+    classworkUploadStatus: document.querySelector("#classwork-upload-status"),
     classworkDigestDetail: document.querySelector("#classwork-digest-detail"),
     classworkTableContainer: document.querySelector("#classwork-table-container"),
     classworkMonthTabs: document.querySelector("#classwork-month-tabs"),
@@ -1304,15 +1301,8 @@
         const file = event.target.files && event.target.files[0];
         if (file) {
           await triggerClassworkUpload(file);
-          // Reset input so same file can be re-uploaded
           event.target.value = "";
         }
-      });
-    }
-
-    if (elements.classworkScrapeButton) {
-      elements.classworkScrapeButton.addEventListener("click", async () => {
-        await triggerClassworkScrape();
       });
     }
 
@@ -1485,12 +1475,11 @@
       const hasRows = (data.structuredRows && data.structuredRows.length > 0) ||
                       (data.previewRows && data.previewRows.length > 0);
       if (data.status === "ok" && hasRows) {
-        renderClassworkScrapeResult(data);
+        renderClassworkData(data);
         if (data.hasChanges) {
-          setScrapeStatus(`⚡ Neue Änderungen! ${data.detail}`, "ok");
+          setUploadStatus(`⚡ Neue Änderungen! ${data.detail}`, "ok");
         } else {
-          const age = data.cacheAgeMinutes != null ? ` (vor ${Math.round(data.cacheAgeMinutes)} Min)` : "";
-          setScrapeStatus(`✓ Letzte Daten${age}: ${data.detail}`, "ok");
+          setUploadStatus(`✓ Gespeicherter Plan geladen. ${data.detail || ""}`, "ok");
         }
       }
       // If cache is empty/warning, silently ignore — dashboard data from /api/dashboard is sufficient
@@ -1499,82 +1488,20 @@
     }
   }
 
-  // ── Classwork Scraper ──────────────────────────────────────────────────────
+  // ── Classwork Upload ───────────────────────────────────────────────────────
 
-  async function triggerClassworkScrape() {
-    if (!elements.classworkScrapeButton) return;
-
-    const apiBase = getBackendApiBase();
-    const scrapeUrl = `${apiBase}/api/classwork/scrape`;
-    const pollUrl = `${apiBase}/api/classwork`;
-
-    setScrapeButtonLoading(true);
-    setScrapeStatus("Scrape wird gestartet…", "loading");
-
-    try {
-      const response = await fetch(scrapeUrl, { method: "POST" });
-
-      if (response.status === 202) {
-        // Accepted — scrape running in background, start polling
-        setScrapeStatus("Scrape läuft. Daten werden geladen…", "loading");
-        await pollClassworkResult(pollUrl);
-      } else if (response.status === 200) {
-        // Synchronous result (busy/cache)
-        const data = await response.json();
-        renderClassworkScrapeResult(data);
-        setScrapeButtonLoading(false);
-      } else {
-        const err = await response.json().catch(() => ({}));
-        setScrapeStatus(`Fehler: ${err.detail || response.status}`, "error");
-        setScrapeButtonLoading(false);
-      }
-    } catch (err) {
-      setScrapeStatus(`Netzwerkfehler: ${err.message}`, "error");
-      setScrapeButtonLoading(false);
-    }
+  function setUploadStatus(message, type) {
+    if (!elements.classworkUploadStatus) return;
+    elements.classworkUploadStatus.textContent = message;
+    elements.classworkUploadStatus.hidden = !message;
+    elements.classworkUploadStatus.dataset.type = type || "";
   }
 
-  async function pollClassworkResult(pollUrl, maxAttempts = 20, intervalMs = 3000) {
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-      try {
-        const response = await fetch(pollUrl);
-        if (!response.ok) continue;
-        const data = await response.json();
-
-        if (data.scrapeInProgress) {
-          const elapsed = ((i + 1) * intervalMs / 1000).toFixed(0);
-          setScrapeStatus(`Scrape läuft noch… (${elapsed}s)`, "loading");
-          continue;
-        }
-
-        renderClassworkScrapeResult(data);
-        setScrapeButtonLoading(false);
-        return;
-      } catch (_err) {
-        // continue polling
-      }
-    }
-    setScrapeStatus("Timeout — Scrape dauert zu lang. Bitte erneut versuchen.", "error");
-    setScrapeButtonLoading(false);
-  }
-
-  function renderClassworkScrapeResult(data) {
-    const status = data.status || "warning";
+  function renderClassworkData(data) {
     const rows = data.structuredRows || [];
     const preview = data.previewRows || [];
     const detail = data.detail || "";
-    const scrapedAt = data.scrapedAt ? new Date(data.scrapedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "";
 
-    if (status === "ok" && rows.length) {
-      setScrapeStatus(`✓ ${rows.length} Einträge geladen${scrapedAt ? ` (${scrapedAt})` : ""}.`, "ok");
-    } else if (status === "ok" && preview.length) {
-      setScrapeStatus(`✓ Vorschau geladen${scrapedAt ? ` (${scrapedAt})` : ""}.`, "ok");
-    } else {
-      setScrapeStatus(truncateText(detail || "Keine Daten. Mögliche Ursache: Microsoft-Login nötig.", 120), "warning");
-    }
-
-    // Update the digest display
     if (elements.classworkDigestDetail) {
       elements.classworkDigestDetail.textContent = detail;
     }
@@ -1600,24 +1527,6 @@
     }
   }
 
-  function setScrapeButtonLoading(loading) {
-    if (!elements.classworkScrapeButton) return;
-    elements.classworkScrapeButton.disabled = loading;
-    if (elements.classworkScrapeButtonLabel) {
-      elements.classworkScrapeButtonLabel.textContent = loading ? "Lädt…" : "Jetzt abrufen";
-    }
-    if (elements.classworkScrapeButtonSpinner) {
-      elements.classworkScrapeButtonSpinner.hidden = !loading;
-    }
-  }
-
-  function setScrapeStatus(message, type) {
-    if (!elements.classworkScrapeStatus) return;
-    elements.classworkScrapeStatus.textContent = message;
-    elements.classworkScrapeStatus.hidden = !message;
-    elements.classworkScrapeStatus.dataset.type = type || "";
-  }
-
   async function triggerClassworkUpload(file) {
     if (!file) return;
     const apiBase = getBackendApiBase();
@@ -1626,7 +1535,7 @@
     const labelText = elements.classworkUploadLabelText;
     if (labelText) labelText.textContent = "⏳ Wird verarbeitet…";
     if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "0.6";
-    setScrapeStatus(`Datei "${file.name}" wird hochgeladen…`, "loading");
+    setUploadStatus(`Datei "${file.name}" wird hochgeladen…`, "loading");
 
     try {
       const formData = new FormData();
@@ -1636,21 +1545,21 @@
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setScrapeStatus(`Upload-Fehler: ${data.detail || response.status}`, "error");
+        setUploadStatus(`Upload-Fehler: ${data.detail || response.status}`, "error");
         return;
       }
 
-      renderClassworkScrapeResult(data);
-      setScrapeStatus(`✓ "${file.name}" eingelesen. ${data.detail || ""}`, "ok");
+      renderClassworkData(data);
+      setUploadStatus(`✓ "${file.name}" eingelesen. ${data.detail || ""}`, "ok");
     } catch (err) {
-      setScrapeStatus(`Upload fehlgeschlagen: ${err.message}`, "error");
+      setUploadStatus(`Upload fehlgeschlagen: ${err.message}`, "error");
     } finally {
       if (labelText) labelText.textContent = "📂 Hochladen";
       if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "1";
     }
   }
 
-  // ── End Classwork Scraper ──────────────────────────────────────────────────
+  // ── End Classwork Upload ───────────────────────────────────────────────────
 
   function buildProductionApiBases() {
     const bases = [];
