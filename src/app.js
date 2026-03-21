@@ -1480,15 +1480,20 @@
       const resp = await fetch(`${apiBase}/api/classwork`);
       if (!resp.ok) return;
       const data = await resp.json();
-      if (data.status === "ok" || data.status === "warning") {
+      // Only update the UI if the Playwright cache actually has data
+      // (avoids overwriting good Google Sheets data with a stale/empty warning)
+      const hasRows = (data.structuredRows && data.structuredRows.length > 0) ||
+                      (data.previewRows && data.previewRows.length > 0);
+      if (data.status === "ok" && hasRows) {
         renderClassworkScrapeResult(data);
         if (data.hasChanges) {
           setScrapeStatus(`⚡ Neue Änderungen! ${data.detail}`, "ok");
-        } else if (data.status === "ok") {
+        } else {
           const age = data.cacheAgeMinutes != null ? ` (vor ${Math.round(data.cacheAgeMinutes)} Min)` : "";
           setScrapeStatus(`✓ Letzte Daten${age}: ${data.detail}`, "ok");
         }
       }
+      // If cache is empty/warning, silently ignore — dashboard data from /api/dashboard is sufficient
     } catch (_err) {
       // Silently ignore — backend may not be available
     }
