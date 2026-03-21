@@ -40,6 +40,7 @@ Thumbs.db
 *.db
 .cache/
 data/document-monitor-state.json
+data/classwork-cache.json
 
 # Project-specific
 *.zip

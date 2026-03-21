@@ -81,6 +81,10 @@
     orgaplanDigestDetail: document.querySelector("#orgaplan-digest-detail"),
     orgaplanUpcomingList: document.querySelector("#orgaplan-upcoming-list"),
     classworkOpenLink: document.querySelector("#classwork-open-link"),
+    classworkScrapeButton: document.querySelector("#classwork-scrape-button"),
+    classworkScrapeButtonLabel: document.querySelector("#classwork-scrape-button .scrape-button-label"),
+    classworkScrapeButtonSpinner: document.querySelector("#classwork-scrape-button .scrape-button-spinner"),
+    classworkScrapeStatus: document.querySelector("#classwork-scrape-status"),
     classworkDigestDetail: document.querySelector("#classwork-digest-detail"),
     classworkTableContainer: document.querySelector("#classwork-table-container"),
     classworkTable: document.querySelector("#classwork-table"),
@@ -1235,6 +1239,12 @@
       await refreshDashboard();
     });
 
+    if (elements.classworkScrapeButton) {
+      elements.classworkScrapeButton.addEventListener("click", async () => {
+        await triggerClassworkScrape();
+      });
+    }
+
     elements.navLinks.forEach((button) => {
       button.addEventListener("click", () => {
         state.activeSection = button.dataset.sectionTarget || "overview";
@@ -1390,6 +1400,124 @@
       refreshDashboard();
     }, AUTO_REFRESH_MS);
   }
+
+  // ── Classwork Scraper ──────────────────────────────────────────────────────
+
+  async function triggerClassworkScrape() {
+    if (!elements.classworkScrapeButton) return;
+
+    const apiBase = IS_LOCAL_RUNTIME ? "" : (PRODUCTION_API_BASES[0] || "");
+    const scrapeUrl = `${apiBase}/api/classwork/scrape`;
+    const pollUrl = `${apiBase}/api/classwork`;
+
+    setScrapeButtonLoading(true);
+    setScrapeStatus("Scrape wird gestartet…", "loading");
+
+    try {
+      const response = await fetch(scrapeUrl, { method: "POST" });
+
+      if (response.status === 202) {
+        // Accepted — scrape running in background, start polling
+        setScrapeStatus("Scrape läuft. Daten werden geladen…", "loading");
+        await pollClassworkResult(pollUrl);
+      } else if (response.status === 200) {
+        // Synchronous result (busy/cache)
+        const data = await response.json();
+        renderClassworkScrapeResult(data);
+        setScrapeButtonLoading(false);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        setScrapeStatus(`Fehler: ${err.detail || response.status}`, "error");
+        setScrapeButtonLoading(false);
+      }
+    } catch (err) {
+      setScrapeStatus(`Netzwerkfehler: ${err.message}`, "error");
+      setScrapeButtonLoading(false);
+    }
+  }
+
+  async function pollClassworkResult(pollUrl, maxAttempts = 20, intervalMs = 3000) {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      try {
+        const response = await fetch(pollUrl);
+        if (!response.ok) continue;
+        const data = await response.json();
+
+        if (data.scrapeInProgress) {
+          const elapsed = ((i + 1) * intervalMs / 1000).toFixed(0);
+          setScrapeStatus(`Scrape läuft noch… (${elapsed}s)`, "loading");
+          continue;
+        }
+
+        renderClassworkScrapeResult(data);
+        setScrapeButtonLoading(false);
+        return;
+      } catch (_err) {
+        // continue polling
+      }
+    }
+    setScrapeStatus("Timeout — Scrape dauert zu lang. Bitte erneut versuchen.", "error");
+    setScrapeButtonLoading(false);
+  }
+
+  function renderClassworkScrapeResult(data) {
+    const status = data.status || "warning";
+    const rows = data.structuredRows || [];
+    const preview = data.previewRows || [];
+    const detail = data.detail || "";
+    const scrapedAt = data.scrapedAt ? new Date(data.scrapedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "";
+
+    if (status === "ok" && rows.length) {
+      setScrapeStatus(`✓ ${rows.length} Einträge geladen${scrapedAt ? ` (${scrapedAt})` : ""}.`, "ok");
+    } else if (status === "ok" && preview.length) {
+      setScrapeStatus(`✓ Vorschau geladen${scrapedAt ? ` (${scrapedAt})` : ""}.`, "ok");
+    } else {
+      setScrapeStatus(truncateText(detail || "Keine Daten. Mögliche Ursache: Microsoft-Login nötig.", 120), "warning");
+    }
+
+    // Update the digest display
+    if (elements.classworkDigestDetail) {
+      elements.classworkDigestDetail.textContent = detail;
+    }
+
+    if (rows.length && elements.classworkTableContainer && elements.classworkTable) {
+      elements.classworkTableContainer.hidden = false;
+      if (elements.classworkPreviewList) elements.classworkPreviewList.hidden = true;
+      elements.classworkTable.innerHTML = renderClassworkTable(rows);
+    } else if (preview.length && elements.classworkPreviewList) {
+      if (elements.classworkTableContainer) elements.classworkTableContainer.hidden = true;
+      elements.classworkPreviewList.hidden = false;
+      elements.classworkPreviewList.innerHTML = preview
+        .map((row) => `<article class="priority-item"><p class="priority-copy">${row}</p></article>`)
+        .join("");
+    }
+
+    if (data.sourceUrl && elements.classworkOpenLink) {
+      elements.classworkOpenLink.href = data.sourceUrl;
+      elements.classworkOpenLink.hidden = false;
+    }
+  }
+
+  function setScrapeButtonLoading(loading) {
+    if (!elements.classworkScrapeButton) return;
+    elements.classworkScrapeButton.disabled = loading;
+    if (elements.classworkScrapeButtonLabel) {
+      elements.classworkScrapeButtonLabel.textContent = loading ? "Lädt…" : "Jetzt abrufen";
+    }
+    if (elements.classworkScrapeButtonSpinner) {
+      elements.classworkScrapeButtonSpinner.hidden = !loading;
+    }
+  }
+
+  function setScrapeStatus(message, type) {
+    if (!elements.classworkScrapeStatus) return;
+    elements.classworkScrapeStatus.textContent = message;
+    elements.classworkScrapeStatus.hidden = !message;
+    elements.classworkScrapeStatus.dataset.type = type || "";
+  }
+
+  // ── End Classwork Scraper ──────────────────────────────────────────────────
 
   function buildProductionApiBases() {
     const bases = [];

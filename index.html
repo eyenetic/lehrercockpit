@@ -167,8 +167,15 @@
                     <p class="card-kicker">Klassenarbeitsplan</p>
                     <h2 id="classwork-digest-title">Eintraege</h2>
                   </div>
-                  <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer">Datei oeffnen</a>
+                  <div class="classwork-actions">
+                    <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>Datei oeffnen</a>
+                    <button id="classwork-scrape-button" class="scrape-button" type="button" title="Daten jetzt von OneDrive abrufen">
+                      <span class="scrape-button-label">Jetzt abrufen</span>
+                      <span class="scrape-button-spinner" hidden aria-hidden="true"></span>
+                    </button>
+                  </div>
                 </div>
+                <p id="classwork-scrape-status" class="scrape-status-text" hidden></p>
                 <p id="classwork-digest-detail" class="source-detail"></p>
                 <div id="classwork-table-container" class="classwork-table-container" hidden>
                   <table id="classwork-table" class="classwork-table"></table>

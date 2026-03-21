@@ -1293,6 +1293,87 @@ a {
   background: var(--panel-soft);
 }
 
+/* Classwork scrape button */
+.classwork-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scrape-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.scrape-button:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+
+.scrape-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.scrape-button-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.scrape-status-text {
+  font-size: 0.78rem;
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  color: var(--muted);
+}
+
+.scrape-status-text[data-type="ok"] {
+  border-color: var(--success-soft);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.scrape-status-text[data-type="error"] {
+  border-color: var(--danger-soft);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.scrape-status-text[data-type="warning"] {
+  border-color: var(--warning-soft);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.scrape-status-text[data-type="loading"] {
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .classwork-table-container {
   margin-top: 12px;
   border-radius: var(--radius-md);
