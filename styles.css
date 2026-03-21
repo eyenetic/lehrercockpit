@@ -834,28 +834,89 @@ a {
   line-height: 1.35;
 }
 
-.webuntis-week-grid {
+.webuntis-agenda {
+  display: grid;
+  gap: 10px;
+}
+
+.webuntis-week-board {
+  display: grid;
+  gap: 10px;
+}
+
+.webuntis-agenda-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px 2px;
+  color: #667085;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.webuntis-week-columns {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .webuntis-week-column {
-  min-width: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 6px;
-  padding: 8px;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.88);
 }
 
-.webuntis-week-head {
+.webuntis-week-column-head {
   display: grid;
   gap: 2px;
-  padding-bottom: 4px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(17, 24, 39, 0.06);
+}
+
+.webuntis-week-column-head strong {
+  font-size: 0.86rem;
+  letter-spacing: -0.02em;
+}
+
+.webuntis-week-column-items {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.webuntis-agenda-group {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.webuntis-agenda-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.06);
+  color: #667085;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.webuntis-agenda-items {
+  display: grid;
+  gap: 6px;
 }
 
 .webuntis-weekday {
@@ -866,24 +927,15 @@ a {
   text-transform: uppercase;
 }
 
-.webuntis-week-head strong {
-  font-size: 0.82rem;
-  letter-spacing: -0.02em;
-}
-
-.webuntis-week-stack {
-  display: grid;
-  gap: 6px;
-  align-content: start;
-}
-
 .webuntis-week-event {
   display: grid;
-  gap: 3px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px;
   padding: 7px 8px;
   border-radius: 12px;
   background: rgba(246, 248, 252, 0.96);
   border: 1px solid rgba(17, 24, 39, 0.06);
+  align-items: start;
 }
 
 .webuntis-week-time {
@@ -891,6 +943,11 @@ a {
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.03em;
+}
+
+.webuntis-week-copy {
+  display: grid;
+  gap: 2px;
 }
 
 .webuntis-week-event strong {
@@ -1286,6 +1343,45 @@ a {
   margin-top: 16px;
 }
 
+.classwork-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 2px;
+}
+
+.classwork-controls {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.classwork-select-field {
+  display: grid;
+  gap: 8px;
+}
+
+.classwork-select-field span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.classwork-select-field select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+  padding: 12px 14px;
+  appearance: none;
+}
+
+.classwork-view-switch {
+  display: flex;
+  gap: 8px;
+}
+
 .plan-digest-card {
   padding: 16px;
   border-radius: var(--radius-md);
@@ -1331,6 +1427,79 @@ a {
   color: var(--accent-strong);
   font-weight: 700;
   font-size: 0.9rem;
+}
+
+.classwork-entry {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(248, 249, 252, 0.9);
+}
+
+.classwork-entry-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.classwork-entry-top p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.classwork-entry-title {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.classwork-calendar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.classwork-day {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(248, 249, 252, 0.9);
+}
+
+.classwork-day-head {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.06);
+}
+
+.classwork-day-head strong {
+  font-size: 0.92rem;
+}
+
+.classwork-day-items {
+  display: grid;
+  gap: 8px;
+}
+
+.classwork-calendar-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid rgba(17, 24, 39, 0.06);
+}
+
+.classwork-calendar-item strong {
+  font-size: 0.84rem;
+  line-height: 1.35;
 }
 
 .webuntis-preview-card {
@@ -1541,10 +1710,6 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .webuntis-week-grid {
-    grid-template-columns: 1fr;
-  }
-
   .orgaplan-entry,
   .orgaplan-row {
     grid-template-columns: 1fr;
@@ -1585,5 +1750,15 @@ a {
 
   .picker-star {
     justify-self: end;
+  }
+
+  .webuntis-week-event {
+    grid-template-columns: 1fr;
+  }
+
+  .webuntis-week-columns {
+    grid-template-columns: repeat(5, minmax(160px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
 }

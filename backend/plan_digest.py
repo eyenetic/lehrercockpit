@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from io import BytesIO
+from pathlib import Path
 import re
 import ssl
 from typing import Any
@@ -29,6 +30,15 @@ GERMAN_MONTHS = {
     12: "Dezember",
 }
 
+GERMAN_MONTH_LOOKUP = {label.lower(): number for number, label in GERMAN_MONTHS.items()}
+
+CLASSWORK_KEYWORDS = (
+    "LEK",
+    "KA",
+    "KLA",
+    "VERA",
+)
+
 
 @dataclass
 class DownloadResult:
@@ -41,10 +51,10 @@ class DownloadResult:
     error: str
 
 
-def build_plan_digest(orgaplan_url: str, classwork_url: str, now: datetime) -> dict[str, Any]:
+def build_plan_digest(orgaplan_url: str, classwork_url: str, classwork_local_path: str, now: datetime) -> dict[str, Any]:
     return {
         "orgaplan": _build_orgaplan_digest(orgaplan_url, now),
-        "classwork": _build_classwork_digest(classwork_url, now),
+        "classwork": _build_classwork_digest(classwork_url, classwork_local_path, now),
     }
 
 
@@ -108,7 +118,29 @@ def _build_orgaplan_digest(url: str, now: datetime) -> dict[str, Any]:
         }
 
 
-def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
+def _build_classwork_digest(url: str, local_path: str, now: datetime) -> dict[str, Any]:
+    local_file = Path(local_path) if local_path else None
+    if local_file and local_file.exists():
+        try:
+            return _read_classwork_workbook(
+                local_file.read_bytes(),
+                now,
+                detail="Lokale XLSX-Datei importiert und fuer das Cockpit vorbereitet.",
+                source_url=url,
+            )
+        except Exception as exc:
+            return {
+                "status": "warning",
+                "title": "Klassenarbeitsplan",
+                "detail": f"Lokale Datei gefunden, aber noch nicht auswertbar: {type(exc).__name__}.",
+                "updatedAt": now.strftime("%H:%M"),
+                "previewRows": [],
+                "classes": [],
+                "entries": [],
+                "defaultClass": "",
+                "sourceUrl": url,
+            }
+
     if not url:
         return {
             "status": "warning",
@@ -116,6 +148,9 @@ def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
             "detail": "Noch kein Link fuer den Klassenarbeitsplan hinterlegt.",
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
+            "classes": [],
+            "entries": [],
+            "defaultClass": "",
             "sourceUrl": "",
         }
 
@@ -127,29 +162,19 @@ def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
             "detail": _blocked_detail("Klassenarbeitsplan", download),
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
+            "classes": [],
+            "entries": [],
+            "defaultClass": "",
             "sourceUrl": url,
         }
 
     try:
-        workbook = load_workbook(BytesIO(download.data), read_only=True, data_only=True)
-        sheet = workbook[workbook.sheetnames[0]]
-        rows = []
-        for row in sheet.iter_rows(values_only=True):
-            values = [str(value).strip() for value in row if value not in (None, "")]
-            if not values:
-                continue
-            rows.append(" | ".join(values[:6]))
-            if len(rows) >= 6:
-                break
-
-        return {
-            "status": "ok",
-            "title": "Klassenarbeitsplan",
-            "detail": "Excel-Datei wurde live gelesen und fuer das Cockpit vorbereitet.",
-            "updatedAt": now.strftime("%H:%M"),
-            "previewRows": rows,
-            "sourceUrl": url,
-        }
+        return _read_classwork_workbook(
+            download.data,
+            now,
+            detail="Excel-Datei wurde live gelesen und fuer das Cockpit vorbereitet.",
+            source_url=url,
+        )
     except Exception as exc:
         return {
             "status": "warning",
@@ -157,8 +182,188 @@ def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
             "detail": f"Datei erreichbar, aber noch nicht auswertbar: {type(exc).__name__}.",
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
+            "classes": [],
+            "entries": [],
+            "defaultClass": "",
             "sourceUrl": url,
         }
+
+
+def _read_classwork_workbook(data: bytes, now: datetime, *, detail: str, source_url: str) -> dict[str, Any]:
+    workbook = load_workbook(BytesIO(data), read_only=True, data_only=True)
+    all_entries: list[dict[str, Any]] = []
+
+    for sheet_name in workbook.sheetnames:
+        sheet = workbook[sheet_name]
+        all_entries.extend(_extract_classwork_entries(sheet, sheet_name))
+
+    all_entries.sort(key=lambda entry: (entry["date"], _class_sort_key(entry["classLabel"]), entry["title"]))
+    upcoming_entries = [entry for entry in all_entries if entry["date"] >= now.date()]
+    relevant_entries = upcoming_entries or all_entries
+
+    classes = sorted({entry["classLabel"] for entry in relevant_entries}, key=_class_sort_key)
+    default_class = classes[0] if classes else ""
+    preview_rows = [
+        f"{entry['classLabel']} | {entry['dateLabel']} | {entry['title']}"
+        for entry in relevant_entries[:8]
+    ]
+
+    resolved_detail = detail
+    if relevant_entries:
+        resolved_detail = (
+            f"{detail} {len(relevant_entries)} relevante Eintraege fuer {len(classes)} Klassen erkannt."
+        )
+    else:
+        resolved_detail = f"{detail} Es wurden noch keine relevanten Klassenarbeits-Eintraege erkannt."
+
+    return {
+        "status": "ok" if relevant_entries else "warning",
+        "title": "Klassenarbeitsplan",
+        "detail": resolved_detail,
+        "updatedAt": now.strftime("%H:%M"),
+        "previewRows": preview_rows,
+        "classes": classes,
+        "entries": [_serialize_classwork_entry(entry) for entry in relevant_entries[:160]],
+        "defaultClass": default_class,
+        "sourceUrl": source_url,
+    }
+
+
+def _extract_classwork_entries(sheet: Any, sheet_name: str) -> list[dict[str, Any]]:
+    month_year = _sheet_month_year(sheet_name)
+    if not month_year:
+        return []
+
+    month, year = month_year
+    header_dates: dict[int, date] = {}
+    for column in range(2, sheet.max_column + 1):
+        raw_header = _normalize_cell(sheet.cell(row=1, column=column).value)
+        parsed_date = _header_date(raw_header, month, year)
+        if parsed_date:
+            header_dates[column] = parsed_date
+
+    entries: list[dict[str, Any]] = []
+    for row in range(2, sheet.max_row + 1):
+        class_label = _normalize_class_label(sheet.cell(row=row, column=1).value)
+        if not class_label:
+            continue
+
+        for column, entry_date in header_dates.items():
+            raw_value = _normalize_cell(sheet.cell(row=row, column=column).value)
+            if not raw_value or not _is_relevant_classwork_cell(raw_value):
+                continue
+
+            entries.append(
+                {
+                    "classLabel": class_label,
+                    "date": entry_date,
+                    "dateLabel": entry_date.strftime("%d.%m."),
+                    "title": raw_value,
+                    "kind": _classwork_kind(raw_value),
+                }
+            )
+
+    return entries
+
+
+def _sheet_month_year(sheet_name: str) -> tuple[int, int] | None:
+    match = re.match(r"^\s*([A-Za-zÄÖÜäöü]+)\s+(\d{4})\s*$", str(sheet_name))
+    if not match:
+        return None
+
+    month_name = _ascii_month(match.group(1)).lower()
+    month = GERMAN_MONTH_LOOKUP.get(month_name)
+    if not month:
+        return None
+
+    return month, int(match.group(2))
+
+
+def _header_date(raw_header: str, month: int, year: int) -> date | None:
+    match = re.search(r"(\d{2})\.(\d{2})", raw_header)
+    if not match:
+        return None
+
+    day = int(match.group(1))
+    header_month = int(match.group(2))
+    if header_month != month:
+        month = header_month
+
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
+def _normalize_cell(value: Any) -> str:
+    if value in (None, ""):
+        return ""
+    return re.sub(r"\s+", " ", str(value).replace("\n", " ")).strip()
+
+
+def _normalize_class_label(value: Any) -> str:
+    label = _normalize_cell(value)
+    if not label:
+        return ""
+    if re.match(r"^\d{1,2}[a-zA-Z]$", label):
+        return label.upper()
+    if re.match(r"^Q\d(?:/\d)?$", label, re.IGNORECASE):
+        return label.upper()
+    return ""
+
+
+def _is_relevant_classwork_cell(value: str) -> bool:
+    upper = value.upper()
+    return any(keyword in upper for keyword in CLASSWORK_KEYWORDS)
+
+
+def _classwork_kind(value: str) -> str:
+    upper = value.upper()
+    if "VERA" in upper:
+        return "VERA"
+    if "LEK" in upper:
+        return "LEK"
+    if "KLA" in upper:
+        return "Klausur"
+    if "KA" in upper:
+        return "Klassenarbeit"
+    return "Eintrag"
+
+
+def _serialize_classwork_entry(entry: dict[str, Any]) -> dict[str, str]:
+    return {
+        "classLabel": entry["classLabel"],
+        "dateLabel": entry["dateLabel"],
+        "weekdayLabel": entry["date"].strftime("%A"),
+        "title": entry["title"],
+        "kind": entry["kind"],
+        "summary": _classwork_summary(entry["title"], entry["kind"]),
+        "isoDate": entry["date"].isoformat(),
+    }
+
+
+def _classwork_summary(value: str, kind: str) -> str:
+    clean = re.sub(r"\s+", " ", value).strip()
+    clean = re.sub(r"^\d+\.\s*", "", clean)
+    clean = re.sub(r"\bKA\b", "Klassenarbeit", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\bKLA\b", "Klausur", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\bmdl\.\s*", "muendlich ", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"\s+", " ", clean).strip(" -")
+
+    if clean.upper().startswith(kind.upper()):
+        return clean
+
+    return f"{kind}: {clean}"
+
+
+def _class_sort_key(value: str) -> tuple[int, str]:
+    match = re.match(r"^(\d{1,2})([A-Z])$", value.upper())
+    if match:
+        return int(match.group(1)), match.group(2)
+    qmatch = re.match(r"^Q(\d(?:/\d)?)$", value.upper())
+    if qmatch:
+        return 100, qmatch.group(1)
+    return 999, value.upper()
 
 
 def _download_document(url: str) -> DownloadResult:

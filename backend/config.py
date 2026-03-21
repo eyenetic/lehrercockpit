@@ -58,6 +58,7 @@ class AppSettings:
     webuntis_ical_url: str
     orgaplan_pdf_url: str
     classwork_plan_url: str
+    classwork_plan_local_path: str
 
     @property
     def itslearning_base_url(self) -> str:
@@ -85,6 +86,7 @@ def _env_int(name: str, default: int) -> int:
 
 def load_settings() -> AppSettings:
     _load_local_env_file()
+    project_root = Path(__file__).resolve().parent.parent
 
     mail_settings = MailSettings(
         local_source=os.getenv("MAIL_LOCAL_SOURCE", "").strip(),
@@ -115,6 +117,10 @@ def load_settings() -> AppSettings:
         webuntis_ical_url=os.getenv("WEBUNTIS_ICAL_URL", "").strip(),
         orgaplan_pdf_url=os.getenv("ORGAPLAN_PDF_URL", "").strip(),
         classwork_plan_url=os.getenv("CLASSWORK_PLAN_URL", "").strip(),
+        classwork_plan_local_path=os.getenv(
+            "CLASSWORK_PLAN_LOCAL_PATH",
+            str(project_root / "data" / "classwork-plan-local.xlsx"),
+        ).strip(),
     )
 
 

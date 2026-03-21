@@ -9,10 +9,11 @@ from urllib.parse import urlparse
 
 try:
     from backend.dashboard import build_dashboard_payload
-    from backend.local_settings import save_itslearning_settings
+    from backend.local_settings import save_classwork_file, save_itslearning_settings
     _DASHBOARD_IMPORT_ERROR: Exception | None = None
 except Exception as _exc:
     build_dashboard_payload = None  # type: ignore[assignment]
+    save_classwork_file = None  # type: ignore[assignment]
     save_itslearning_settings = None  # type: ignore[assignment]
     _DASHBOARD_IMPORT_ERROR = _exc
     import traceback
@@ -23,6 +24,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 MOCK_DATA_PATH = PROJECT_ROOT / "data" / "mock-dashboard.json"
 MONITOR_STATE_PATH = PROJECT_ROOT / "data" / "document-monitor-state.json"
 ENV_FILE_PATH = PROJECT_ROOT / ".env.local"
+CLASSWORK_LOCAL_PATH = PROJECT_ROOT / "data" / "classwork-plan-local.xlsx"
 
 
 CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "*")
@@ -105,6 +107,47 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                     "detail": "itslearning-Zugang lokal gespeichert. Das Cockpit laedt die Updates jetzt neu.",
                     "username": username,
                     "baseUrl": base_url,
+                }
+            )
+            return
+
+        if parsed.path == "/api/local-settings/classwork-upload":
+            if not self._is_local_request():
+                self._send_json({"error": "local-only"}, status=HTTPStatus.FORBIDDEN)
+                return
+
+            if _DASHBOARD_IMPORT_ERROR is not None or save_classwork_file is None:
+                self._send_json(
+                    {"error": "settings module failed to import", "detail": str(_DASHBOARD_IMPORT_ERROR)},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+                return
+
+            payload = self._read_json_body()
+            filename = str(payload.get("filename", "")).strip()
+            content_base64 = str(payload.get("contentBase64", "")).strip()
+
+            if not filename or not content_base64:
+                self._send_json(
+                    {"error": "validation", "detail": "Bitte eine XLSX-Datei auswaehlen."},
+                    status=HTTPStatus.BAD_REQUEST,
+                )
+                return
+
+            try:
+                save_classwork_file(CLASSWORK_LOCAL_PATH, filename=filename, content_base64=content_base64)
+            except Exception as exc:
+                self._send_json(
+                    {"error": "save-failed", "detail": f"{type(exc).__name__}: {exc}"},
+                    status=HTTPStatus.BAD_REQUEST,
+                )
+                return
+
+            self._send_json(
+                {
+                    "status": "ok",
+                    "detail": "Klassenarbeitsplan lokal importiert. Das Cockpit liest die Datei jetzt neu ein.",
+                    "path": str(CLASSWORK_LOCAL_PATH),
                 }
             )
             return

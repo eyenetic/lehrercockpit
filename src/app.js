@@ -22,6 +22,10 @@
     favorites: loadWebUntisFavorites(),
     activeShortcutId: "personal",
     activeFinderEntityId: null,
+    classworkUploadFeedback: "",
+    classworkUploadFeedbackKind: "",
+    classworkSelectedClass: "",
+    classworkView: "list",
   };
 
   const elements = {
@@ -82,7 +86,12 @@
     orgaplanUpcomingList: document.querySelector("#orgaplan-upcoming-list"),
     classworkOpenLink: document.querySelector("#classwork-open-link"),
     classworkDigestDetail: document.querySelector("#classwork-digest-detail"),
+    classworkClassFilter: document.querySelector("#classwork-class-filter"),
+    classworkViewSwitch: document.querySelector("#classwork-view-switch"),
     classworkPreviewList: document.querySelector("#classwork-preview-list"),
+    classworkUploadButton: document.querySelector("#classwork-upload-button"),
+    classworkUploadInput: document.querySelector("#classwork-upload-input"),
+    classworkUploadFeedback: document.querySelector("#classwork-upload-feedback"),
     documentList: document.querySelector("#document-list"),
     documentSearch: document.querySelector("#document-search"),
     assistantForm: document.querySelector("#assistant-form"),
@@ -175,6 +184,9 @@
         detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
         updatedAt: formatTime(now),
         previewRows: [],
+        classes: [],
+        entries: [],
+        defaultClass: "",
         sourceUrl: "",
       },
     };
@@ -241,6 +253,9 @@
             detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
             updatedAt: formatTime(new Date()),
             previewRows: [],
+            classes: [],
+            entries: [],
+            defaultClass: "",
             sourceUrl: "",
           },
         },
@@ -450,6 +465,11 @@
       return "";
     }
 
+    const nextEntry = (classwork.entries || [])[0];
+    if (nextEntry) {
+      return `${nextEntry.classLabel}: ${nextEntry.dateLabel} ${nextEntry.title}`;
+    }
+
     return classwork.previewRows?.[0] || classwork.detail || "";
   }
 
@@ -651,12 +671,19 @@
     const digest = getData().planDigest;
     const orgaplan = digest.orgaplan;
     const classwork = digest.classwork;
+    const classes = classwork.classes || [];
+    const entries = classwork.entries || [];
 
     bindExternalLink(elements.orgaplanOpenLink, orgaplan.sourceUrl, "PDF oeffnen");
     bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Datei oeffnen");
 
     elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
     elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
+    elements.classworkUploadFeedback.textContent = state.classworkUploadFeedback;
+    elements.classworkUploadFeedback.className = `connect-feedback${state.classworkUploadFeedbackKind ? ` ${state.classworkUploadFeedbackKind}` : ""}`;
+
+    renderClassworkSelector(classes, classwork.defaultClass || "");
+    renderClassworkViewSwitch();
 
     const orgaplanItems = orgaplan.upcoming.length ? orgaplan.upcoming : orgaplan.highlights;
 
@@ -666,17 +693,152 @@
           .join("")
       : `<div class="empty-state">Noch keine Orgaplan-Highlights erkannt.</div>`;
 
-    elements.classworkPreviewList.innerHTML = classwork.previewRows.length
-      ? classwork.previewRows
+    const activeClass = getActiveClassworkClass(classes, classwork.defaultClass || "");
+    const classEntries = entries
+      .filter((entry) => entry.classLabel === activeClass)
+      .sort((left, right) => (left.isoDate || "").localeCompare(right.isoDate || ""));
+
+    elements.classworkPreviewList.innerHTML = classEntries.length
+      ? state.classworkView === "calendar"
+        ? renderClassworkCalendar(classEntries)
+        : renderClassworkList(classEntries)
+      : classwork.previewRows.length
+        ? classwork.previewRows
+            .map(
+              (row) => `
+                <article class="priority-item">
+                  <p class="priority-copy">${row}</p>
+                </article>
+              `
+            )
+            .join("")
+        : `<div class="empty-state">Noch keine Klassenarbeiten fuer diese Klasse erkannt.</div>`;
+  }
+
+  function renderClassworkSelector(classes, defaultClass) {
+    if (!elements.classworkClassFilter) {
+      return;
+    }
+
+    const activeClass = getActiveClassworkClass(classes, defaultClass);
+    elements.classworkClassFilter.disabled = !classes.length;
+
+    if (!classes.length) {
+      elements.classworkClassFilter.innerHTML = `<option value="">Keine Klasse erkannt</option>`;
+      return;
+    }
+
+    elements.classworkClassFilter.innerHTML = classes
+      .map(
+        (classLabel) => `
+          <option value="${classLabel}" ${classLabel === activeClass ? "selected" : ""}>${classLabel}</option>
+        `
+      )
+      .join("");
+  }
+
+  function getActiveClassworkClass(classes, defaultClass) {
+    if (!classes.length) {
+      state.classworkSelectedClass = "";
+      return "";
+    }
+
+    if (state.classworkSelectedClass && classes.includes(state.classworkSelectedClass)) {
+      return state.classworkSelectedClass;
+    }
+
+    state.classworkSelectedClass = defaultClass && classes.includes(defaultClass) ? defaultClass : classes[0];
+    return state.classworkSelectedClass;
+  }
+
+  function renderClassworkViewSwitch() {
+    if (!elements.classworkViewSwitch) {
+      return;
+    }
+
+    const options = [
+      { id: "list", label: "Liste" },
+      { id: "calendar", label: "Kalender" },
+    ];
+
+    elements.classworkViewSwitch.innerHTML = options
+      .map(
+        (option) => `
+          <button class="filter-button ${state.classworkView === option.id ? "active" : ""}" type="button" data-classwork-view="${option.id}">
+            ${option.label}
+          </button>
+        `
+      )
+      .join("");
+
+    elements.classworkViewSwitch.querySelectorAll("[data-classwork-view]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.classworkView = button.dataset.classworkView;
+        renderPlanDigest();
+      });
+    });
+  }
+
+  function renderClassworkList(entries) {
+    return entries
+      .map(
+        (entry) => `
+          <article class="classwork-entry">
+            <div class="classwork-entry-top">
+              <div>
+                <strong>${entry.dateLabel}</strong>
+                <p>${weekdayLabel(entry.weekdayLabel)}</p>
+              </div>
+              <span class="meta-tag low">${entry.kind}</span>
+            </div>
+            <p class="classwork-entry-title">${entry.summary || entry.title}</p>
+            <div class="meta-row">
+              <span class="meta-tag">${entry.classLabel}</span>
+            </div>
+          </article>
+        `
+      )
+      .join("");
+  }
+
+  function renderClassworkCalendar(entries) {
+    const grouped = new Map();
+    entries.forEach((entry) => {
+      const key = entry.isoDate;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key).push(entry);
+    });
+
+    return `
+      <div class="classwork-calendar">
+        ${Array.from(grouped.entries())
           .map(
-            (row) => `
-              <article class="priority-item">
-                <p class="priority-copy">${row}</p>
-              </article>
+            ([isoDate, dayEntries]) => `
+              <section class="classwork-day">
+                <div class="classwork-day-head">
+                  <span class="webuntis-weekday">${weekdayLabel(dayEntries[0].weekdayLabel)}</span>
+                  <strong>${dayEntries[0].dateLabel}</strong>
+                </div>
+                <div class="classwork-day-items">
+                  ${dayEntries
+                    .map(
+                      (entry) => `
+                        <article class="classwork-calendar-item">
+                          <span class="meta-tag low">${entry.kind}</span>
+                          <strong>${entry.summary || entry.title}</strong>
+                        </article>
+                      `
+                    )
+                    .join("")}
+                </div>
+              </section>
             `
           )
-          .join("")
-      : `<div class="empty-state">Der Klassenarbeitsplan ist verlinkt, aber aktuell noch nicht automatisch auslesbar.</div>`;
+          .join("")}
+      </div>
+    `;
   }
 
   function renderOrgaplanItem(item) {
@@ -733,16 +895,30 @@
   }
 
   function summarizeOrgaplanDigest(orgaplan) {
-    const detail = orgaplan.detail || "";
-    const month = orgaplan.monthLabel ? `${orgaplan.monthLabel}: ` : "";
-    return truncateText(`${month}${detail}`, 160);
+    const count = (orgaplan.upcoming || []).length || (orgaplan.highlights || []).length;
+    const month = orgaplan.monthLabel || "diesem Monat";
+    return `${count} relevante Hinweise fuer ${month}. Die naechsten Eintraege stehen unten kompakt im Cockpit.`;
   }
 
   function summarizeClassworkDigest(classwork) {
     if (classwork.status === "ok") {
-      return "Live gelesen. Vorschau fuer die ersten relevanten Zeilen ist unten sichtbar.";
+      const classCount = (classwork.classes || []).length;
+      const entryCount = (classwork.entries || []).length;
+      return `Lokale Datei aktiv. ${entryCount} Eintraege fuer ${classCount} Klassen erkannt.`;
     }
     return truncateText(classwork.detail || "Klassenarbeitsplan ist aktuell nicht automatisch auslesbar.", 140);
+  }
+
+  function weekdayLabel(value) {
+    const token = String(value || "").toLowerCase();
+    if (token.startsWith("mon")) return "Montag";
+    if (token.startsWith("tue")) return "Dienstag";
+    if (token.startsWith("wed")) return "Mittwoch";
+    if (token.startsWith("thu")) return "Donnerstag";
+    if (token.startsWith("fri")) return "Freitag";
+    if (token.startsWith("sat")) return "Samstag";
+    if (token.startsWith("sun")) return "Sonntag";
+    return value || "";
   }
 
   function truncateText(value, maxLength) {
@@ -769,7 +945,7 @@
                 <div class="document-top">
                   <div>
                     <strong>${entry.title}</strong>
-                    <p class="message-snippet">${entry.source} - ${entry.updatedAt}</p>
+                    <p class="message-snippet">${entry.source} - Stand ${entry.updatedAt}</p>
                   </div>
                   <span class="meta-tag low">bereit</span>
                 </div>
@@ -817,6 +993,8 @@
     elements.webuntisDetail.textContent =
       "Persoenlicher Plan ueber WebUntis-iCal. Im Cockpit kompakt, fuer Details direkt in WebUntis weiter.";
     elements.webuntisRangeLabel.textContent = getWebUntisRangeLabel(center);
+    elements.webuntisPlanStrip.hidden = true;
+    elements.webuntisPlanStrip.innerHTML = "";
   }
 
   function renderWebUntisPicker() {
@@ -977,34 +1155,69 @@
     }
 
     const grouped = groupEventsByDay(events);
-    elements.scheduleList.innerHTML = grouped.map((group) => renderDayGroup(group)).join("");
+    elements.scheduleList.innerHTML = renderAgendaGroups(grouped, "Heute");
   }
 
   function renderWeekSchedule(events, center) {
     const columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, state.webuntisView));
-
     return `
-      <div class="webuntis-week-grid">
-        ${columns
-          .map(
-            (column) => `
-              <section class="webuntis-week-column">
-                <div class="webuntis-week-head">
-                  <span class="webuntis-weekday">${column.weekday}</span>
-                  <strong>${column.date}</strong>
-                </div>
-                <div class="webuntis-week-stack">
-                  ${
-                    column.events.length
-                      ? column.events.map((event) => renderWeekEvent(event)).join("")
-                      : `<div class="webuntis-week-empty">frei</div>`
-                  }
-                </div>
-              </section>
-            `
-          )
-          .join("")}
+      <div class="webuntis-week-board">
+        <div class="webuntis-agenda-head">
+          <strong>${getWebUntisRangeLabel(center)}</strong>
+          <span>${columns.reduce((sum, column) => sum + column.events.length, 0)} Eintraege</span>
+        </div>
+        <div class="webuntis-week-columns">
+          ${columns
+            .map(
+              (column) => `
+                <section class="webuntis-week-column">
+                  <div class="webuntis-week-column-head">
+                    <span class="webuntis-weekday">${column.weekday}</span>
+                    <strong>${column.date}</strong>
+                  </div>
+                  <div class="webuntis-week-column-items">
+                    ${
+                      column.events.length
+                        ? column.events.map((event) => renderWeekEvent(event)).join("")
+                        : `<div class="webuntis-week-empty">Keine Termine</div>`
+                    }
+                  </div>
+                </section>
+              `
+            )
+            .join("")}
+        </div>
       </div>
+    `;
+  }
+
+  function renderAgendaGroups(groups, label) {
+    return `
+      <div class="webuntis-agenda">
+        <div class="webuntis-agenda-head">
+          <strong>${label}</strong>
+          <span>${groups.reduce((sum, group) => sum + group.events.length, 0)} Eintraege</span>
+        </div>
+        ${groups.map((group) => renderAgendaGroup(group)).join("")}
+      </div>
+    `;
+  }
+
+  function renderAgendaGroup(group) {
+    return `
+      <section class="webuntis-agenda-group">
+        <div class="webuntis-agenda-label">
+          <span>${group.label}</span>
+          <span>${group.events.length ? `${group.events.length} Termine` : "frei"}</span>
+        </div>
+        <div class="webuntis-agenda-items">
+          ${
+            group.events.length
+              ? group.events.map((event) => renderWeekEvent(event)).join("")
+              : `<div class="webuntis-week-empty">Keine Termine</div>`
+          }
+        </div>
+      </section>
     `;
   }
 
@@ -1041,9 +1254,11 @@
     return `
       <article class="webuntis-week-event">
         <div class="webuntis-week-time">${event.time.replace(" - ", "–")}</div>
-        <strong>${event.title}</strong>
-        ${event.location ? `<div class="webuntis-week-meta">${event.location}</div>` : ""}
-        ${event.description ? `<div class="webuntis-week-meta">${event.description}</div>` : ""}
+        <div class="webuntis-week-copy">
+          <strong>${event.title}</strong>
+          ${event.location ? `<div class="webuntis-week-meta">${event.location}</div>` : ""}
+          ${event.description ? `<div class="webuntis-week-meta">${event.description}</div>` : ""}
+        </div>
       </article>
     `;
   }
@@ -1270,6 +1485,27 @@
         await saveItslearningCredentials();
       });
     }
+
+    if (elements.classworkUploadButton && elements.classworkUploadInput) {
+      elements.classworkUploadButton.addEventListener("click", () => {
+        elements.classworkUploadInput.click();
+      });
+
+      elements.classworkUploadInput.addEventListener("change", async (event) => {
+        const [file] = event.target.files || [];
+        if (file) {
+          await uploadClassworkFile(file);
+        }
+        event.target.value = "";
+      });
+    }
+
+    if (elements.classworkClassFilter) {
+      elements.classworkClassFilter.addEventListener("change", (event) => {
+        state.classworkSelectedClass = event.target.value;
+        renderPlanDigest();
+      });
+    }
   }
 
   function renderAll() {
@@ -1344,6 +1580,46 @@
     } catch (error) {
       elements.itslearningConnectFeedback.textContent = error.message || "itslearning-Zugang konnte nicht gespeichert werden.";
       elements.itslearningConnectFeedback.className = "connect-feedback warning";
+    }
+  }
+
+  async function uploadClassworkFile(file) {
+    if (!file.name.toLowerCase().match(/\.(xlsx|xlsm)$/)) {
+      state.classworkUploadFeedback = "Bitte eine XLSX- oder XLSM-Datei auswaehlen.";
+      state.classworkUploadFeedbackKind = "warning";
+      renderPlanDigest();
+      return;
+    }
+
+    state.classworkUploadFeedback = "Importiere Klassenarbeitsplan lokal ...";
+    state.classworkUploadFeedbackKind = "";
+    renderPlanDigest();
+
+    try {
+      const contentBase64 = await fileToBase64(file);
+      const response = await fetch("/api/local-settings/classwork-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentBase64,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail || "Lokaler Import fehlgeschlagen.");
+      }
+
+      state.classworkUploadFeedback = payload.detail || "Klassenarbeitsplan importiert.";
+      state.classworkUploadFeedbackKind = "success";
+      await refreshDashboard();
+    } catch (error) {
+      state.classworkUploadFeedback = error.message || "Klassenarbeitsplan konnte nicht importiert werden.";
+      state.classworkUploadFeedbackKind = "warning";
+      renderPlanDigest();
     }
   }
 
@@ -1880,7 +2156,19 @@
   }
 
   function weekdayLabel(value) {
-    return value.toLocaleDateString("de-DE", { weekday: "long" });
+    if (value instanceof Date) {
+      return value.toLocaleDateString("de-DE", { weekday: "long" });
+    }
+
+    const token = String(value || "").toLowerCase();
+    if (token.startsWith("mon")) return "Montag";
+    if (token.startsWith("tue")) return "Dienstag";
+    if (token.startsWith("wed")) return "Mittwoch";
+    if (token.startsWith("thu")) return "Donnerstag";
+    if (token.startsWith("fri")) return "Freitag";
+    if (token.startsWith("sat")) return "Samstag";
+    if (token.startsWith("sun")) return "Sonntag";
+    return value || "";
   }
 
   function isSameDay(a, b) {
@@ -1902,6 +2190,19 @@
     date.setUTCDate(date.getUTCDate() + 4 - day);
     const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
     return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const [, base64 = ""] = result.split(",", 2);
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error("Datei konnte lokal nicht gelesen werden."));
+      reader.readAsDataURL(file);
+    });
   }
 
   initialize();

@@ -23,7 +23,12 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path) -> dict[s
     itslearning_sync = fetch_itslearning_sync(settings.itslearning, now)
     webuntis_sync = fetch_webuntis_sync(settings.webuntis_base_url, settings.webuntis_ical_url, now)
     document_monitor = build_document_monitor(_monitored_documents(settings), monitor_state_path, now)
-    plan_digest = build_plan_digest(settings.orgaplan_pdf_url, settings.classwork_plan_url, now)
+    plan_digest = build_plan_digest(
+        settings.orgaplan_pdf_url,
+        settings.classwork_plan_url,
+        settings.classwork_plan_local_path,
+        now,
+    )
 
     payload["generatedAt"] = now.isoformat()
     payload["teacher"]["name"] = settings.teacher_name
@@ -218,12 +223,25 @@ def _apply_plan_digest_documents(existing_documents: list[dict[str, Any]], plan_
         updated = dict(document)
 
         if document["id"] == "doc-1":
-            updated["summary"] = orgaplan["detail"]
+            orga_count = len(orgaplan.get("upcoming", []))
+            updated["summary"] = (
+                f"{orga_count} relevante Hinweise fuer {orgaplan['monthLabel']}. "
+                "Die naechsten Punkte stehen unten kompakt im Cockpit."
+            )
             updated["updatedAt"] = orgaplan["updatedAt"]
             updated["tags"] = ["Orgaplan", orgaplan["monthLabel"], "Live"]
 
         if document["id"] == "doc-2":
-            updated["summary"] = classwork["detail"]
+            class_count = len(classwork.get("classes", []))
+            entry_count = len(classwork.get("entries", []))
+            next_entry = classwork.get("entries", [{}])[0] if classwork.get("entries") else {}
+            if next_entry:
+                updated["summary"] = (
+                    f"{entry_count} Eintraege fuer {class_count} Klassen. "
+                    f"Naechster Termin: {next_entry.get('classLabel', '')} am {next_entry.get('dateLabel', '')}."
+                )
+            else:
+                updated["summary"] = classwork["detail"]
             updated["updatedAt"] = classwork["updatedAt"]
             updated["tags"] = ["Klassenarbeiten", "Plan", classwork["status"]]
 

@@ -12,7 +12,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=15" />
+    <link rel="stylesheet" href="./styles.css?v=20" />
   </head>
   <body>
     <div class="app-shell">
@@ -165,11 +165,23 @@
                 <div class="sidebar-head">
                   <div>
                     <p class="card-kicker">Klassenarbeitsplan</p>
-                    <h2 id="classwork-digest-title">Sync-Status</h2>
+                    <h2 id="classwork-digest-title">Klassenansicht</h2>
                   </div>
                   <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer">Datei oeffnen</a>
                 </div>
                 <p id="classwork-digest-detail" class="source-detail"></p>
+                <div class="classwork-controls">
+                  <label class="classwork-select-field" for="classwork-class-filter">
+                    <span>Klasse</span>
+                    <select id="classwork-class-filter"></select>
+                  </label>
+                  <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
+                </div>
+                <div class="classwork-actions">
+                  <button id="classwork-upload-button" class="secondary-link" type="button">Lokale XLSX importieren</button>
+                  <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm" hidden />
+                </div>
+                <p id="classwork-upload-feedback" class="connect-feedback"></p>
                 <div id="classwork-preview-list" class="stack-list compact-list"></div>
               </section>
             </div>
@@ -271,6 +283,6 @@
     </div>
 
     <script src="./data/mock-dashboard.js?v=15"></script>
-    <script src="./src/app.js?v=15"></script>
+    <script src="./src/app.js?v=20"></script>
   </body>
 </html>

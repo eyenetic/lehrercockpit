@@ -369,14 +369,19 @@ class _UpdateBlockParser(HTMLParser):
 
 def _extract_updates(html: str, base_url: str, max_updates: int, now: datetime) -> list[dict[str, Any]]:
     dashboard_updates = _extract_dashboard_updates(html, base_url, max_updates)
-    if dashboard_updates:
-        return dashboard_updates
 
     parser = _UpdateBlockParser()
     parser.feed(html)
 
     seen: set[str] = set()
     messages: list[dict[str, Any]] = []
+    for message in dashboard_updates:
+        dedupe_key = f"{message['title']}|{message['snippet'][:80]}"
+        if dedupe_key in seen:
+          continue
+        seen.add(dedupe_key)
+        messages.append(message)
+
     for index, block in enumerate(parser.blocks, start=1):
         title = _compact(block["title"])
         text = _compact(block["text"])
@@ -401,7 +406,7 @@ def _extract_updates(html: str, base_url: str, max_updates: int, now: datetime) 
 
         messages.append(
             {
-                "id": f"itslearning-{index}",
+                "id": f"itslearning-{len(messages) + 1}",
                 "channel": "itslearning",
                 "channelLabel": "itslearning",
                 "sender": "itslearning",

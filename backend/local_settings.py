@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
 
@@ -26,6 +27,23 @@ def save_itslearning_settings(
         "ITSLEARNING_MAX_UPDATES": str(max(1, min(max_updates, 12))),
     }
     _upsert_env_values(env_path, updates)
+
+
+def save_classwork_file(target_path: Path, *, filename: str, content_base64: str) -> None:
+    normalized_name = filename.strip().lower()
+    if not normalized_name.endswith((".xlsx", ".xlsm")):
+        raise ValueError("Bitte eine XLSX- oder XLSM-Datei auswaehlen.")
+
+    try:
+        file_bytes = base64.b64decode(content_base64, validate=True)
+    except Exception as exc:
+        raise ValueError("Dateiinhalt konnte nicht gelesen werden.") from exc
+
+    if not file_bytes:
+        raise ValueError("Die ausgewaehlte Datei ist leer.")
+
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_bytes(file_bytes)
 
 
 def _upsert_env_values(env_path: Path, updates: dict[str, str]) -> None:
