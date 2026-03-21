@@ -1417,7 +1417,7 @@
   }
 
   async function loadClassworkCache() {
-    const apiBase = IS_LOCAL_RUNTIME ? "" : (PRODUCTION_API_BASES[0] || "");
+    const apiBase = IS_LOCAL_RUNTIME ? "" : getBackendApiBase();
     if (!apiBase && !IS_LOCAL_RUNTIME) return;
     try {
       const resp = await fetch(`${apiBase}/api/classwork`);
@@ -1442,7 +1442,7 @@
   async function triggerClassworkScrape() {
     if (!elements.classworkScrapeButton) return;
 
-    const apiBase = IS_LOCAL_RUNTIME ? "" : (PRODUCTION_API_BASES[0] || "");
+    const apiBase = getBackendApiBase();
     const scrapeUrl = `${apiBase}/api/classwork/scrape`;
     const pollUrl = `${apiBase}/api/classwork`;
 
@@ -1555,7 +1555,7 @@
 
   async function triggerClassworkUpload(file) {
     if (!file) return;
-    const apiBase = IS_LOCAL_RUNTIME ? "" : (PRODUCTION_API_BASES[0] || "");
+    const apiBase = getBackendApiBase();
     const uploadUrl = `${apiBase}/api/classwork/upload`;
 
     const labelText = elements.classworkUploadLabelText;
@@ -1609,6 +1609,19 @@
     });
 
     return bases.filter((entry, index, items) => items.indexOf(entry) === index);
+  }
+
+  /**
+   * Return the base URL for backend API POST calls (scrape, upload, settings).
+   * Uses the explicitly configured backend URL (Render) rather than window.location.origin
+   * (which would be the Netlify frontend and has no API endpoints).
+   */
+  function getBackendApiBase() {
+    if (IS_LOCAL_RUNTIME) return "";
+    const configured = (window.BACKEND_API_URL || window.LEHRER_COCKPIT_API_URL || "").trim();
+    if (configured) return configured;
+    // Last resort: try same origin (works when frontend and backend are co-hosted)
+    return window.location.protocol !== "file:" ? window.location.origin : "";
   }
 
   function loadSavedShortcuts() {
