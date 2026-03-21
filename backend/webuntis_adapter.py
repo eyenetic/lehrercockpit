@@ -217,7 +217,7 @@ def _decode_ical_text(value: str) -> str:
 
 def _visible_events(events: list[WebUntisEvent], now: datetime) -> list[WebUntisEvent]:
     week_start = _start_of_week(now)
-    week_end = week_start + timedelta(days=7)
+    week_end = week_start + timedelta(days=14)
     visible = [event for event in events if week_start <= event.start < week_end]
     if visible:
         return visible

@@ -10,6 +10,7 @@
   const PRODUCTION_API_BASES = buildProductionApiBases();
 
   const state = {
+    activeSection: "overview",
     selectedChannel: "all",
     documentSearch: "",
     webuntisView: "week",
@@ -28,6 +29,8 @@
     briefingOutput: document.querySelector("#briefing-output"),
     heroNote: document.querySelector("#hero-note"),
     runtimeBanner: document.querySelector("#runtime-banner"),
+    navLinks: Array.from(document.querySelectorAll("[data-section-target]")),
+    viewSections: Array.from(document.querySelectorAll("[data-view-section]")),
     workspaceEyebrow: document.querySelector("#workspace-eyebrow"),
     workspaceTitle: document.querySelector("#workspace-title"),
     workspaceDescription: document.querySelector("#workspace-description"),
@@ -255,6 +258,19 @@
     elements.workspaceEyebrow.textContent = data.workspace.eyebrow;
     elements.workspaceTitle.textContent = data.workspace.title;
     elements.workspaceDescription.textContent = data.workspace.description;
+  }
+
+  function renderSectionFocus() {
+    const active = state.activeSection || "overview";
+
+    elements.navLinks.forEach((button) => {
+      button.classList.toggle("active", button.dataset.sectionTarget === active);
+    });
+
+    elements.viewSections.forEach((section) => {
+      const sectionId = section.dataset.viewSection;
+      section.hidden = active !== "overview" && sectionId !== active;
+    });
   }
 
   function renderMeta() {
@@ -639,8 +655,8 @@
     bindExternalLink(elements.orgaplanOpenLink, orgaplan.sourceUrl, "PDF oeffnen");
     bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Datei oeffnen");
 
-    elements.orgaplanDigestDetail.textContent = orgaplan.detail;
-    elements.classworkDigestDetail.textContent = classwork.detail;
+    elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
+    elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
 
     const orgaplanItems = orgaplan.upcoming.length ? orgaplan.upcoming : orgaplan.highlights;
 
@@ -684,14 +700,17 @@
 
     return `
       <article class="orgaplan-entry">
-        <div class="orgaplan-entry-date">${item.dateLabel}</div>
+        <div class="orgaplan-entry-head">
+          <strong class="orgaplan-entry-date">${item.dateLabel}</strong>
+          <span class="meta-tag low">${item.title || "Orgaplan"}</span>
+        </div>
         <div class="orgaplan-entry-copy">
           ${sections
             .map(
               (section) => `
                 <div class="orgaplan-row">
                   <span class="orgaplan-label">${section.label}</span>
-                  <p>${section.value}</p>
+                  <p>${truncateText(section.value, 220)}</p>
                 </div>
               `
             )
@@ -711,6 +730,27 @@
     }
 
     return primary || notes;
+  }
+
+  function summarizeOrgaplanDigest(orgaplan) {
+    const detail = orgaplan.detail || "";
+    const month = orgaplan.monthLabel ? `${orgaplan.monthLabel}: ` : "";
+    return truncateText(`${month}${detail}`, 160);
+  }
+
+  function summarizeClassworkDigest(classwork) {
+    if (classwork.status === "ok") {
+      return "Live gelesen. Vorschau fuer die ersten relevanten Zeilen ist unten sichtbar.";
+    }
+    return truncateText(classwork.detail || "Klassenarbeitsplan ist aktuell nicht automatisch auslesbar.", 140);
+  }
+
+  function truncateText(value, maxLength) {
+    const clean = String(value || "").replace(/\s+/g, " ").trim();
+    if (clean.length <= maxLength) {
+      return clean;
+    }
+    return `${clean.slice(0, maxLength - 1).trimEnd()}…`;
   }
 
   function renderDocuments() {
@@ -1162,6 +1202,14 @@
       await refreshDashboard();
     });
 
+    elements.navLinks.forEach((button) => {
+      button.addEventListener("click", () => {
+        state.activeSection = button.dataset.sectionTarget || "overview";
+        renderSectionFocus();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
     elements.documentSearch.addEventListener("input", (event) => {
       state.documentSearch = event.target.value;
       renderDocuments();
@@ -1228,6 +1276,7 @@
     renderWorkspace();
     renderMeta();
     renderRuntimeBanner();
+    renderSectionFocus();
     renderBriefing();
     renderQuickLinks();
     renderItslearningConnector();

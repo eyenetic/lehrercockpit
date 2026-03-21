@@ -12,7 +12,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=14" />
+    <link rel="stylesheet" href="./styles.css?v=15" />
   </head>
   <body>
     <div class="app-shell">
@@ -29,11 +29,12 @@
         <div class="runtime-banner" id="runtime-banner" hidden></div>
 
         <nav class="sidebar-nav" aria-label="Bereiche">
-          <a class="nav-link" href="#overview">Heute</a>
-          <a class="nav-link" href="#access-section">Zugaenge</a>
-          <a class="nav-link" href="#schedule-section">Stundenplan</a>
-          <a class="nav-link" href="#inbox-section">Inbox</a>
-          <a class="nav-link" href="#documents-section">Dokumente</a>
+          <button class="nav-link active" type="button" data-section-target="overview">Heute</button>
+          <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
+          <button class="nav-link" type="button" data-section-target="inbox">Inbox</button>
+          <button class="nav-link" type="button" data-section-target="documents">Dokumente</button>
+          <button class="nav-link" type="button" data-section-target="access">Zugaenge</button>
+          <button class="nav-link" type="button" data-section-target="assistant">Assistenz</button>
         </nav>
       </aside>
 
@@ -52,7 +53,7 @@
           </div>
         </header>
 
-        <section class="overview-grid">
+        <section class="overview-grid" data-view-section="overview">
           <section class="card briefing-card" aria-labelledby="briefing-title">
             <div class="section-head">
               <div>
@@ -67,48 +68,7 @@
           <section class="stats-grid" id="stats-grid" aria-label="Kennzahlen" hidden></section>
         </section>
 
-        <section class="content-grid compact-grid" id="access-section">
-          <article class="card compact-panel" aria-labelledby="quicklinks-title">
-            <div class="section-head section-head-compact">
-              <div>
-                <p class="card-kicker">Direktzugriff</p>
-                <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
-              </div>
-            </div>
-            <div id="quick-link-grid" class="link-grid compact-link-grid"></div>
-          </article>
-
-          <article class="card compact-panel" id="itslearning-connect-card" aria-labelledby="itslearning-connect-title">
-            <div class="section-head section-head-compact">
-              <div>
-                <p class="card-kicker">itslearning</p>
-                <h2 id="itslearning-connect-title">Updates verbinden</h2>
-              </div>
-              <span id="itslearning-connect-status" class="pill pill-positive">lokal</span>
-            </div>
-            <p id="itslearning-connect-copy" class="source-detail">
-              Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner `.env.local` auf diesem Mac.
-            </p>
-            <form id="itslearning-connect-form" class="connect-form">
-              <div class="connect-grid">
-                <label class="connect-field">
-                  <span>Benutzername</span>
-                  <input id="itslearning-username" type="text" autocomplete="username" placeholder="itslearning-Benutzername" />
-                </label>
-                <label class="connect-field">
-                  <span>Passwort</span>
-                  <input id="itslearning-password" type="password" autocomplete="current-password" placeholder="itslearning-Passwort" />
-                </label>
-              </div>
-              <div class="assistant-actions">
-                <button class="primary-button" type="submit">Lokal speichern</button>
-              </div>
-            </form>
-            <div id="itslearning-connect-feedback" class="connect-feedback"></div>
-          </article>
-        </section>
-
-        <section class="content-grid primary-grid">
+        <section class="content-grid primary-grid" data-view-section="schedule">
           <article class="card" aria-labelledby="priorities-title" hidden>
             <div class="section-head">
               <div>
@@ -158,7 +118,7 @@
           </article>
         </section>
 
-        <section class="content-grid secondary-grid">
+        <section class="content-grid single-grid" data-view-section="inbox">
           <article class="card" id="inbox-section" aria-labelledby="inbox-title">
             <div class="section-head section-head-wrap">
               <div>
@@ -169,7 +129,9 @@
             </div>
             <div id="message-list" class="stack-list"></div>
           </article>
+        </section>
 
+        <section class="content-grid single-grid" data-view-section="documents">
           <article class="card" id="documents-section" aria-labelledby="docs-title">
             <div class="section-head section-head-wrap">
               <div>
@@ -239,7 +201,7 @@
           </article>
         </section>
 
-        <section class="assistant-row">
+        <section class="assistant-row" data-view-section="assistant">
           <article class="card assistant-card" aria-labelledby="assistant-title">
             <div class="section-head">
               <div>
@@ -264,10 +226,51 @@
             <div id="assistant-answer" class="assistant-answer"></div>
           </article>
         </section>
+
+        <section class="content-grid compact-grid" id="access-section" data-view-section="access">
+          <article class="card compact-panel" aria-labelledby="quicklinks-title">
+            <div class="section-head section-head-compact">
+              <div>
+                <p class="card-kicker">Direktzugriff</p>
+                <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
+              </div>
+            </div>
+            <div id="quick-link-grid" class="link-grid compact-link-grid"></div>
+          </article>
+
+          <article class="card compact-panel" id="itslearning-connect-card" aria-labelledby="itslearning-connect-title">
+            <div class="section-head section-head-compact">
+              <div>
+                <p class="card-kicker">itslearning</p>
+                <h2 id="itslearning-connect-title">Updates verbinden</h2>
+              </div>
+              <span id="itslearning-connect-status" class="pill pill-positive">lokal</span>
+            </div>
+            <p id="itslearning-connect-copy" class="source-detail">
+              Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner `.env.local` auf diesem Mac.
+            </p>
+            <form id="itslearning-connect-form" class="connect-form">
+              <div class="connect-grid">
+                <label class="connect-field">
+                  <span>Benutzername</span>
+                  <input id="itslearning-username" type="text" autocomplete="username" placeholder="itslearning-Benutzername" />
+                </label>
+                <label class="connect-field">
+                  <span>Passwort</span>
+                  <input id="itslearning-password" type="password" autocomplete="current-password" placeholder="itslearning-Passwort" />
+                </label>
+              </div>
+              <div class="assistant-actions">
+                <button class="primary-button" type="submit">Lokal speichern</button>
+              </div>
+            </form>
+            <div id="itslearning-connect-feedback" class="connect-feedback"></div>
+          </article>
+        </section>
       </main>
     </div>
 
-    <script src="./data/mock-dashboard.js?v=14"></script>
-    <script src="./src/app.js?v=14"></script>
+    <script src="./data/mock-dashboard.js?v=15"></script>
+    <script src="./src/app.js?v=15"></script>
   </body>
 </html>
