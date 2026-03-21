@@ -1,4 +1,4 @@
-"""Persistent JSON cache for scraped Klassenarbeitsplan data."""
+"""Persistent JSON cache for scraped Klassenarbeitsplan data with diff support."""
 from __future__ import annotations
 
 import json
@@ -15,8 +15,7 @@ def load_cache(cache_path: Path) -> dict[str, Any]:
     """Load cached classwork data from disk, or return empty placeholder."""
     try:
         if cache_path.exists():
-            data = json.loads(cache_path.read_text(encoding="utf-8"))
-            return data
+            return json.loads(cache_path.read_text(encoding="utf-8"))
     except Exception:
         pass
     return _empty_cache()
@@ -34,13 +33,23 @@ def save_cache(cache_path: Path, result: dict[str, Any]) -> None:
             print(f"[classwork_cache] Failed to save cache: {exc}")
 
 
+def get_previous_hash(cache_path: Path) -> str:
+    """Return the dataHash of the last cached result, or empty string."""
+    try:
+        if cache_path.exists():
+            data = json.loads(cache_path.read_text(encoding="utf-8"))
+            return data.get("dataHash", "")
+    except Exception:
+        pass
+    return ""
+
+
 def cache_age_minutes(cache_path: Path) -> float | None:
     """Return how many minutes ago the cache was last written, or None if missing."""
     try:
         if cache_path.exists():
             mtime = cache_path.stat().st_mtime
-            age = (datetime.now().timestamp() - mtime) / 60
-            return age
+            return (datetime.now().timestamp() - mtime) / 60
     except Exception:
         pass
     return None
@@ -57,4 +66,7 @@ def _empty_cache() -> dict[str, Any]:
         "structuredRows": [],
         "sourceUrl": "",
         "scrapeMode": "playwright",
+        "dataHash": "",
+        "hasChanges": False,
+        "noChanges": False,
     }
