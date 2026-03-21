@@ -25,8 +25,10 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path, classwork
     document_monitor = build_document_monitor(_monitored_documents(settings), monitor_state_path, now)
     plan_digest = build_plan_digest(settings.orgaplan_pdf_url, settings.classwork_plan_url, settings.classwork_gsheets_csv_url, now)
 
-    # Overlay Playwright-scraped classwork cache if available and better than plan_digest result
-    # Falls back to mock-dashboard.json snapshot when Playwright cache is absent (e.g. Render cold start)
+    # Overlay classwork data using priority chain:
+    # 1. Google Sheets CSV (live, via plan_digest) — if already ok, keep it
+    # 2. Playwright cache (data/classwork-cache.json) — if plan_digest blocked
+    # 3. mock-dashboard.json snapshot — if no cache either (e.g. Render cold start)
     if classwork_cache_path is not None:
         plan_digest["classwork"] = _merge_classwork_cache(plan_digest["classwork"], classwork_cache_path, mock_path)
 
@@ -573,6 +575,10 @@ def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path, moc
 
     def _is_good(data: dict) -> bool:
         return data.get("status") == "ok" and bool(data.get("structuredRows") or data.get("previewRows"))
+
+    # If plan_digest already has live data (e.g. Google Sheets CSV), keep it — no override needed
+    if _is_good(plan_classwork):
+        return plan_classwork
 
     def _shape(cached: dict) -> dict:
         return {
