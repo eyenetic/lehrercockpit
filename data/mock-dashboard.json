@@ -283,14 +283,14 @@
     {
       "id": "doc-2",
       "title": "Klassenarbeitsplan Sek I",
-      "source": "PDF-Ablage",
+      "source": "OneDrive",
       "updatedAt": "21:31",
       "tags": [
         "Klassenarbeiten",
         "Plan",
-        "warning"
+        "Live"
       ],
-      "summary": "Klassenarbeitsplan wird bei jedem Refresh neu versucht, ist aber aktuell fuer den automatischen Abruf blockiert (HTTP 401)."
+      "summary": "Excel-Datei als Vorschau eingebettet. Direkter Abruf blockiert, aber Datei direkt im Cockpit sichtbar."
     }
   ],
   "quickLinks": [
