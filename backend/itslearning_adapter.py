@@ -4,11 +4,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from html import unescape
 from html.parser import HTMLParser
+import json
+import socket
+import ssl
 import re
 from typing import Any
 from urllib.parse import urlencode, urljoin
-from urllib.request import HTTPCookieProcessor, Request, build_opener
 import http.cookiejar
+from urllib.error import URLError
+from urllib.request import HTTPCookieProcessor, HTTPSHandler, Request, build_opener
 
 from .config import ItslearningSettings
 
@@ -60,39 +64,7 @@ def fetch_itslearning_sync(settings: ItslearningSettings, now: datetime) -> Itsl
         )
 
     try:
-        opener = _build_opener()
-        login_html = _read_text(opener, settings.base_url)
-        form_state = _extract_login_form_state(login_html)
-
-        payload = {
-            "__EVENTTARGET": "__Page",
-            "__EVENTARGUMENT": "NativeLoginButtonClicked",
-            "__VIEWSTATE": form_state.get("__VIEWSTATE", ""),
-            "__VIEWSTATEGENERATOR": form_state.get("__VIEWSTATEGENERATOR", ""),
-            "__EVENTVALIDATION": form_state.get("__EVENTVALIDATION", ""),
-            "ctl00$ContentPlaceHolder1$Username": settings.username,
-            "ctl00$ContentPlaceHolder1$Password": settings.password,
-            "ctl00$ContentPlaceHolder1$ChromebookApp": "false",
-            "ctl00$ContentPlaceHolder1$showNativeLoginValueField": "true",
-        }
-
-        login_result = _post_form(opener, settings.base_url, payload)
-        if _looks_like_login_page(login_result):
-            raise RuntimeError("Anmeldung wurde nicht bestaetigt")
-
-        updates_html = ""
-        for candidate in _candidate_urls(settings.base_url):
-            candidate_html = _read_text(opener, candidate)
-            if _looks_like_login_page(candidate_html):
-                continue
-            updates_html = candidate_html
-            if _contains_update_markers(candidate_html):
-                break
-
-        if not updates_html:
-            updates_html = login_result
-
-        messages = _extract_updates(updates_html, settings.base_url, settings.max_updates, now)
+        messages = _fetch_updates_with_retry(settings, now)
         if not messages:
             return ItslearningSyncResult(
                 source={
@@ -148,8 +120,8 @@ def fetch_itslearning_sync(settings: ItslearningSettings, now: datetime) -> Itsl
                 "status": "error",
                 "cadence": "lokal bei Reload",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "Zugangsdaten pruefen oder Seite nach erfolgreichem Login einmal im Browser aufrufen",
-                "detail": f"itslearning-Login fehlgeschlagen: {type(exc).__name__}.",
+                "nextStep": _error_next_step(exc),
+                "detail": _error_detail(exc),
             },
             messages=[],
             priorities=[],
@@ -158,9 +130,59 @@ def fetch_itslearning_sync(settings: ItslearningSettings, now: datetime) -> Itsl
         )
 
 
-def _build_opener():
+def _fetch_updates_with_retry(settings: ItslearningSettings, now: datetime) -> list[dict[str, Any]]:
+    try:
+        return _fetch_updates(settings, now, verify_ssl=True)
+    except URLError as exc:
+        reason = getattr(exc, "reason", None)
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            return _fetch_updates(settings, now, verify_ssl=False)
+        raise
+
+
+def _fetch_updates(settings: ItslearningSettings, now: datetime, *, verify_ssl: bool) -> list[dict[str, Any]]:
+    opener = _build_opener(verify_ssl=verify_ssl)
+    login_html = _read_text(opener, settings.base_url)
+    form_state = _extract_login_form_state(login_html)
+
+    payload = {
+        "__EVENTTARGET": "__Page",
+        "__EVENTARGUMENT": "NativeLoginButtonClicked",
+        "__VIEWSTATE": form_state.get("__VIEWSTATE", ""),
+        "__VIEWSTATEGENERATOR": form_state.get("__VIEWSTATEGENERATOR", ""),
+        "__EVENTVALIDATION": form_state.get("__EVENTVALIDATION", ""),
+        "ctl00$ContentPlaceHolder1$Username": settings.username,
+        "ctl00$ContentPlaceHolder1$Password": settings.password,
+        "ctl00$ContentPlaceHolder1$ChromebookApp": "false",
+        "ctl00$ContentPlaceHolder1$showNativeLoginValueField": "true",
+    }
+
+    login_result = _post_form(opener, settings.base_url, payload)
+    if _looks_like_login_page(login_result):
+        raise RuntimeError("Anmeldung wurde nicht bestaetigt")
+
+    updates_html = ""
+    for candidate in _candidate_urls(settings.base_url):
+        candidate_html = _read_text(opener, candidate)
+        if _looks_like_login_page(candidate_html):
+            continue
+        updates_html = candidate_html
+        targeted_updates = _extract_dashboard_updates(candidate_html, settings.base_url, settings.max_updates)
+        if targeted_updates:
+            return targeted_updates
+        if _contains_update_markers(candidate_html):
+            break
+
+    if not updates_html:
+        updates_html = login_result
+
+    return _extract_updates(updates_html, settings.base_url, settings.max_updates, now)
+
+
+def _build_opener(*, verify_ssl: bool):
     cookie_jar = http.cookiejar.CookieJar()
-    return build_opener(HTTPCookieProcessor(cookie_jar))
+    context = ssl.create_default_context() if verify_ssl else ssl._create_unverified_context()
+    return build_opener(HTTPCookieProcessor(cookie_jar), HTTPSHandler(context=context))
 
 
 def _read_text(opener: Any, url: str) -> str:
@@ -195,6 +217,7 @@ def _post_form(opener: Any, url: str, payload: dict[str, str]) -> str:
 def _candidate_urls(base_url: str) -> list[str]:
     normalized = base_url.rstrip("/") + "/"
     return [
+        urljoin(normalized, "Dashboard/Dashboard.aspx?LocationType=Personal&DashboardType=MyPage"),
         urljoin(normalized, "CourseCards"),
         urljoin(normalized, "DashboardMenu.aspx"),
         urljoin(normalized, "welcome.aspx"),
@@ -345,6 +368,10 @@ class _UpdateBlockParser(HTMLParser):
 
 
 def _extract_updates(html: str, base_url: str, max_updates: int, now: datetime) -> list[dict[str, Any]]:
+    dashboard_updates = _extract_dashboard_updates(html, base_url, max_updates)
+    if dashboard_updates:
+        return dashboard_updates
+
     parser = _UpdateBlockParser()
     parser.feed(html)
 
@@ -393,6 +420,114 @@ def _extract_updates(html: str, base_url: str, max_updates: int, now: datetime) 
     return messages
 
 
+def _extract_dashboard_updates(html: str, base_url: str, max_updates: int) -> list[dict[str, Any]]:
+    widget_match = re.search(r"<h2>\s*Letzte Aktualisierungen\s*</h2>(.*?)</ul>\s*</div>", html, re.IGNORECASE | re.DOTALL)
+    if not widget_match:
+        return []
+
+    widget_html = widget_match.group(1)
+    blocks = re.findall(
+        r"(<li\s+[^>]*itsl-cb-stream-item.*?</li>)\s*(?=<li\s+[^>]*itsl-cb-stream-item|$)",
+        widget_html,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if not blocks:
+        return []
+
+    messages = []
+    for index, block in enumerate(blocks[:max_updates], start=1):
+        sender_match = re.search(r'itsl-notifications-person">(.*?)</span>', block, re.IGNORECASE | re.DOTALL)
+        course_match = re.search(r'in <a [^>]*><span>(.*?)</span></a>', block, re.IGNORECASE | re.DOTALL)
+        timestamp_match = re.search(
+            r'itsl-cb-stream-item-timestamp.*?<span[^>]*title="([^"]+)"[^>]*>(.*?)</span>',
+            block,
+            re.IGNORECASE | re.DOTALL,
+        )
+        link_match = re.search(r'href="([^"]+/main\.aspx\?CourseID=\d+[^"]*)"', block, re.IGNORECASE)
+        attachment_match = re.search(
+            r'itsl-light-bulletins-elementlink-elementname\s*">\s*(.*?)\s*</div>',
+            block,
+            re.IGNORECASE | re.DOTALL,
+        )
+        shared_match = re.search(
+            r'data-light-bulletin-single-item-shared-data-svelte="([^"]+)"',
+            block,
+            re.IGNORECASE | re.DOTALL,
+        )
+
+        sender = _compact(sender_match.group(1) if sender_match else "itslearning")
+        course = _compact(course_match.group(1) if course_match else "itslearning")
+        title = f"{sender} in {course}" if course else sender
+        title = title[:120]
+
+        snippet = _extract_bulletin_snippet(shared_match.group(1) if shared_match else "")
+        attachment = _compact(attachment_match.group(1) if attachment_match else "")
+        if attachment:
+            snippet = f"{snippet} Datei: {attachment}." if snippet else f"Datei: {attachment}."
+        if not snippet:
+            snippet = "Neue Aktivitaet in itslearning."
+
+        timestamp = ""
+        unread = True
+        if timestamp_match:
+            timestamp = _compact(timestamp_match.group(2))
+            unread = "vor " in timestamp.lower() or "heute" in timestamp.lower()
+
+        link = urljoin(base_url.rstrip("/") + "/", link_match.group(1)) if link_match else base_url
+
+        messages.append(
+            {
+                "id": f"itslearning-dashboard-{index}",
+                "channel": "itslearning",
+                "channelLabel": "itslearning",
+                "sender": course or "itslearning",
+                "title": title,
+                "snippet": snippet[:220],
+                "priority": _itslearning_priority(title, snippet),
+                "timestamp": timestamp or "Update",
+                "unread": unread,
+                "url": link,
+            }
+        )
+
+    return messages
+
+
+def _extract_bulletin_snippet(shared_attr: str) -> str:
+    if not shared_attr:
+        return ""
+
+    try:
+        shared_data = json.loads(unescape(shared_attr))
+        rtf_content = shared_data.get("rtfContent")
+        if not rtf_content:
+            return _compact(shared_data.get("text") or "")
+
+        rich_text = json.loads(rtf_content)
+        text_parts: list[str] = []
+        _collect_rich_text(rich_text, text_parts)
+        return _compact(" ".join(text_parts[:4]))
+    except Exception:
+        decoded = unescape(shared_attr)
+        matches = re.findall(r"\\u0022text\\u0022:\\u0022(.*?)\\u0022", decoded)
+        clean_matches = [_compact(item) for item in matches if _compact(item)]
+        return _compact(" ".join(clean_matches[:4]))
+
+
+def _collect_rich_text(node: Any, parts: list[str]) -> None:
+    if isinstance(node, dict):
+        text = _compact(str(node.get("text", "")))
+        if text:
+            parts.append(text)
+        for child in node.values():
+            _collect_rich_text(child, parts)
+        return
+
+    if isinstance(node, list):
+        for item in node:
+            _collect_rich_text(item, parts)
+
+
 def _itslearning_priority(title: str, snippet: str) -> str:
     lowered = f"{title} {snippet}".lower()
     if any(keyword in lowered for keyword in ("abgabe", "frist", "deadline", "important", "wichtig")):
@@ -419,3 +554,25 @@ def _extract_timestamp(text: str) -> str:
 
 def _compact(value: str) -> str:
     return re.sub(r"\s+", " ", unescape(value or "")).strip()
+
+
+def _error_detail(exc: Exception) -> str:
+    if isinstance(exc, URLError):
+        reason = getattr(exc, "reason", None)
+        if isinstance(reason, socket.gaierror):
+            return "itslearning konnte gerade nicht geladen werden, weil der lokale Server keinen DNS-/Internet-Zugriff hat."
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            return "itslearning konnte wegen eines lokalen Zertifikatsproblems nicht geladen werden."
+        if reason:
+            return f"itslearning-Login fehlgeschlagen: {reason}."
+    return f"itslearning-Login fehlgeschlagen: {type(exc).__name__}."
+
+
+def _error_next_step(exc: Exception) -> str:
+    if isinstance(exc, URLError):
+        reason = getattr(exc, "reason", None)
+        if isinstance(reason, socket.gaierror):
+            return "Den lokalen Server mit Internetzugriff starten oder direkt im Mac-Terminal ausfuehren."
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            return "Python-Zertifikate auf dem Mac pruefen oder den lokalen Zertifikats-Fallback im Cockpit nutzen."
+    return "Zugangsdaten pruefen oder Seite nach erfolgreichem Login einmal im Browser aufrufen"
