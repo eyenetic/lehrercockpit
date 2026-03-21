@@ -20,14 +20,14 @@ python3 server.py
 Dann im Browser:
 
 ```text
-http://127.0.0.1:4173
+http://127.0.0.1:8080
 ```
 
-## Aktueller Stand
+## Aktueller Stand (2026-03-21)
 
-- Lokale Python-App ohne externe Dependencies
+- Lokale Python-App ohne externe Dependencies (ausser openpyxl, pypdf, playwright optional)
 - Frontend in `index.html`, `styles.css`, `src/app.js`
-- API in `server.py`
+- API in `server.py` (lokal) + `server_test.py` (Render, delegiert an server.py)
 - Dashboard-Zusammenbau in `backend/dashboard.py`
 - Dokumentenmonitor in `backend/document_monitor.py`
 - Mailadapter in `backend/mail_adapter.py`
@@ -39,7 +39,8 @@ http://127.0.0.1:4173
 - `WEBUNTIS_BASE_URL=https://hermann-ehlers-os.webuntis.com`
 - `ITSLEARNING_BASE_URL=https://berlin.itslearning.com`
 - `ORGAPLAN_PDF_URL=https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf`
-- `CLASSWORK_PLAN_URL=<OneDrive-Link>`
+- `CLASSWORK_PLAN_URL=<OneDrive-Link>` (blockiert, nur als Fallback)
+- `CLASSWORK_GSHEETS_CSV_URL=https://docs.google.com/spreadsheets/d/e/2PACX-1vSbtq5XRitB38-o_yPg-IvKGRHEcjFkcWZSFsdtHPb_NeDfEYUdLdKLcmBexLfH4h6jX-ZnUPjHGEBg/pub?output=csv`
 
 ## Was funktioniert
 
@@ -48,51 +49,54 @@ http://127.0.0.1:4173
 - Quellenstatus fuer die realen URLs
 - Dokumentenmonitor mit lokalem Zustand in `data/document-monitor-state.json`
 - Orgaplan wird erfolgreich beobachtet und als `tracked` gemeldet
-- Klassenarbeitsplan ist verlinkt, aber automatischer Abruf ist durch OneDrive blockiert
+- **Klassenarbeitsplan** vollstaendig live:
+  - Google Sheets CSV als primaere Live-Quelle (kein Login noetig)
+  - XLS/XLSX Upload-Button im UI (`📂 Hochladen`) → parst alle Sheets
+  - Monats-Tab-Selektor im UI (autom. aktueller Monat)
+  - Leere Spalten werden automatisch ausgeblendet
+  - Fallback-Kette: Google Sheets → Playwright-Cache → mock-dashboard.json
+
+## Klassenarbeitsplan-Datenfluss (Prioritaeten)
+
+1. **Google Sheets CSV** (live, oeffentlich, kein Login) — `CLASSWORK_GSHEETS_CSV_URL`
+2. **XLS/XLSX Upload** via `POST /api/classwork/upload` → gespeichert in `data/classwork-cache.json`
+3. **Playwright-Scrape** via `POST /api/classwork/scrape` → gespeichert in `data/classwork-cache.json`
+4. **`data/mock-dashboard.json`** Snapshot (Render cold-start Fallback, immer im Repo)
 
 ## Bekannte Einschraenkungen
 
 - Berliner Dienstmail derzeit nicht sinnvoll per IMAP integrierbar; im Projekt nur vorbereitet
-- WebUntis ist als Quelle konfiguriert, aber noch ohne Session-/Datenabruf
+- WebUntis ist als Quelle konfiguriert, aber noch ohne Session-/Datenabruf (iCal fehlt)
 - itslearning ist als Quelle konfiguriert, aber noch ohne Session-/Datenabruf
-- OneDrive-Link fuer Klassenarbeitsplan liefert fuer automatisierte Abrufe aktuell keine robuste offene Datei
+- Playwright-Scrape funktioniert nur lokal (Render hat kein Chromium ohne Build-Step)
+- Render-Umgebungsvariable `CLASSWORK_GSHEETS_CSV_URL` muss manuell gesetzt werden
 
 ## Beste naechste Schritte
 
-1. WebUntis-Session oder offiziellen Abrufweg pruefen und `Heute`/Vertretungen real befuellen
-2. itslearning-Ansichten identifizieren und read-only anbinden
-3. Orgaplan-Aenderungserkennung im UI noch aggressiver hervorheben
-4. Klassenarbeitsplan auf besseren Export-/Direktlink umstellen
-5. Weitere Schul-PDFs oder Rundschreiben in den Dokumentenmonitor aufnehmen
+1. **WebUntis iCal verbinden**: `WEBUNTIS_ICAL_URL` in `.env.local` setzen → live Stundenplan sofort
+2. **itslearning credentials setzen**: `ITSLEARNING_USERNAME` + `ITSLEARNING_PASSWORD` in `.env.local`
+3. **Render env var setzen**: `CLASSWORK_GSHEETS_CSV_URL` im Render-Dashboard hinterlegen
+4. **Orgaplan-Aenderungserkennung** im UI noch aggressiver hervorheben (Badge auf Nav-Item)
+5. **Playwright auf Render**: Build-Befehl um `playwright install chromium` ergaenzen
+6. **Weitere Schul-PDFs** oder Rundschreiben in den Dokumentenmonitor aufnehmen
 
-## Deployment Status (Stand: 2026-03-19)
+## Deployment Status (Stand: 2026-03-21)
 
 ### Netlify Frontend (Primary)
 
 - **URL:** `https://dainty-empanada-5ab04b.netlify.app` — Live ✅
-- **Hosting:** Statisches Hosting (kein Build-Step, kostenlos, kein Team-Membership nötig)
-- **Config:** `netlify.toml` + `.netlifyignore`
-- **API-URL in `index.html`:** `window.RAILWAY_API_URL = "https://lehrercockpit.onrender.com"`
+- **Hosting:** Statisches Hosting (kein Build-Step, kostenlos)
+- **API-URL in `index.html`:** `window.BACKEND_API_URL = "https://lehrercockpit.onrender.com"`
+- **Auto-Deploy:** Jeder Push auf `main` → Netlify deployt automatisch
 
 ### Render Backend (Primary)
 
 - **URL:** `https://lehrercockpit.onrender.com` — Live ✅
-- **Hinweis:** Render Free Tier — 30s Kaltstart nach 15min Inaktivität
-- **Start-Befehl:** `python3 server_test.py`
+- **Hinweis:** Render Free Tier — 30s Kaltstart nach 15min Inaktivitaet
+- **Start-Befehl:** `python3 server_test.py` (delegiert an `server.py`)
 - **PORT:** aus `$PORT` Env-Variable
 - **CORS:** `CORS_ORIGIN` Env-Variable (Default: `*`)
-
-### Railway Backend (Legacy)
-
-- **URL:** `https://lehrercockpit-production.up.railway.app` — Nicht mehr primärer Hoster
-- **Hinweis:** Railway wird nicht mehr als primärer Backend-Hoster verwendet. Render ist jetzt der primäre Hoster.
-- **Config:** `railway.json` + `Procfile` (noch im Repo, aber nicht aktiv genutzt)
-
-### Vercel Frontend (Legacy)
-
-- **URL:** `https://lehrercockpit.vercel.app` — Nicht mehr primärer Hoster
-- **Hinweis:** Vercel wird nicht mehr als primärer Frontend-Hoster verwendet. Netlify ist jetzt der primäre Hoster.
-- **Config:** `vercel.json` + `.vercelignore` (noch im Repo, aber nicht aktiv genutzt)
+- **Wichtig:** `CLASSWORK_GSHEETS_CSV_URL` muss manuell im Render-Dashboard gesetzt werden
 
 ### GitHub Repo
 
@@ -101,10 +105,37 @@ http://127.0.0.1:4173
 
 ### Wichtige Hinweise
 
-- **Primäres Frontend:** Netlify (`https://dainty-empanada-5ab04b.netlify.app`)
-- `server_test.py` ist der Railway-Produktionsserver; `server.py` ist fuer lokale Entwicklung
-- Lokaler Dev-Server: `python3 server.py` → `http://localhost:4173`
+- **Primaeres Frontend:** Netlify (`https://dainty-empanada-5ab04b.netlify.app`)
+- `server_test.py` delegiert vollstaendig an `server.py` (kein eigener Handler-Code mehr)
+- Lokaler Dev-Server: `python3 server.py` → `http://localhost:8080`
 - CORS ist auf `*` gesetzt, sodass sowohl Netlify als auch Vercel als Origins erlaubt sind
+- **API POST-Calls** (scrape, upload, settings) nutzen `getBackendApiBase()` → immer Render-URL, nicht Netlify-Origin
+
+## API-Endpunkte (server.py)
+
+| Methode | Pfad | Beschreibung |
+|---------|------|-------------|
+| GET | `/api/health` | Healthcheck |
+| GET | `/api/dashboard` | Dashboard-Payload (inkl. Klassenarbeitsplan aus Google Sheets oder Cache) |
+| GET | `/api/classwork` | Aktueller classwork-cache.json Inhalt |
+| POST | `/api/classwork/scrape` | Playwright-Scrape im Hintergrund starten |
+| GET | `/api/classwork/scrape/progress` | SSE-Stream fuer Scrape-Fortschritt |
+| POST | `/api/classwork/upload` | XLS/XLSX/CSV hochladen, alle Sheets parsen, Cache speichern |
+| POST | `/api/local-settings/itslearning` | itslearning-Zugangsdaten lokal speichern |
+
+## Commit-Historie (Session 2026-03-21)
+
+| Commit | Beschreibung |
+|--------|-------------|
+| `5705c29` | Wire Playwright classwork cache into /api/dashboard planDigest |
+| `329cfa6` | Upgrade server_test.py + embed classwork data in mock-dashboard |
+| `ffb1597` | Fix Render: use mock-dashboard.json classwork snapshot as fallback |
+| `f8f58f3` | Use Google Sheets CSV as primary live source for Klassenarbeitsplan |
+| `acbfdb6` | Add XLS/XLSX/CSV upload for Klassenarbeitsplan |
+| `28b0702` | Fix 404: use getBackendApiBase() for all API POST calls |
+| `f09fc54` | Rename 'Datei oeffnen' to 'Plan online im Viewer öffnen' |
+| `aea3101` | Fix Excel upload: read all sheets + clean newlines from headers |
+| `53614aa` | Add month tab selector to Klassenarbeitsplan table |
 
 ---
 
@@ -116,40 +147,6 @@ http://127.0.0.1:4173
 - **Email:** `arifulu@users.noreply.github.com`
 - **Rolle:** Collaborator am `eyenetic/lehrercockpit`-Repository
 
-### Commit-Übersicht (8 Commits am 2026-03-19)
-
-| Commit | Beschreibung |
-|--------|-------------|
-| `e617ac1` | Initial import of Lehrer-Cockpit — Erstimport des gesamten Projekts |
-| `aa4eae6` | Merge remote main into local Lehrer-Cockpit state |
-| `d33fff2` | Add live WebUntis hub and Orgaplan digest — Neue Module + Frontend-Erweiterungen |
-| `8c40389` | Merge remote-tracking branch 'origin/main' |
-| `d724e90` | Configure deploy targets for Vercel and Railway |
-| `cdae5e5` | Merge remote-tracking branch 'origin/main' |
-| `e8c9e5d` | Publish fresh WebUntis snapshot fallback |
-| `2f7dcc4` | Re-enable Netlify auto deploys — `ignore = "exit 1"` aus `netlify.toml` entfernt |
-
-### Was Arif implementiert/geändert hat
-
-#### Neue Dateien (Added)
-- **`backend/plan_digest.py`** — Neues Modul für Orgaplan-Digest-Funktionalität (PDF-Parsing und Zusammenfassung)
-- **`backend/webuntis_adapter.py`** — Neuer WebUntis-Adapter für Stundenplan- und Vertretungsdaten
-- **`data/mock-dashboard.js`** — JavaScript-basierter Fallback-Snapshot mit aktuellen WebUntis-Daten
-- **`requirements.txt`** — Python-Dependencies für das Backend
-
-#### Geänderte Dateien (Modified)
-- **`netlify.toml`** — Netlify Auto-Deploy Blocker entfernt (`ignore = "exit 1"` entfernt), damit Pushes automatisch deployt werden
-- **`data/mock-dashboard.json`** — Aktualisierter Fallback-Snapshot mit frischen WebUntis-Daten
-- **`index.html`** — Frontend-Erweiterungen für WebUntis-Hub-Anzeige und Deploy-Target-Konfiguration
-- **`src/app.js`** — JavaScript-Logik für WebUntis-Daten-Rendering im Dashboard
-- **`styles.css`** — Styling-Anpassungen für neue UI-Komponenten
-- **`backend/config.py`** — Konfiguration um WebUntis- und Orgaplan-Parameter erweitert
-- **`backend/dashboard.py`** — Dashboard-Zusammenbau um neue Datenquellen erweitert
-- **`config/mail.env.example`** — Beispiel-Konfiguration aktualisiert
-- **`README.md`** — Dokumentation aktualisiert
-- **`Procfile`** — Railway-Startbefehl angepasst
-- **`railway.json`** — Railway-Deploy-Konfiguration angepasst
-
 ### Zusammenfassung
 
-Arif hat das Projekt initial importiert, die WebUntis-Integration (`webuntis_adapter.py`) und den Orgaplan-Digest (`plan_digest.py`) als neue Backend-Module hinzugefügt, einen aktuellen Fallback-Snapshot erstellt, und die Deployment-Pipeline für Netlify, Vercel und Railway konfiguriert. Sein letzter Commit hat die Netlify-Auto-Deploys wieder aktiviert, sodass jeder Push auf `main` automatisch live geht.
+Arif hat das Projekt initial importiert, die WebUntis-Integration (`webuntis_adapter.py`) und den Orgaplan-Digest (`plan_digest.py`) als neue Backend-Module hinzugefuegt, einen aktuellen Fallback-Snapshot erstellt, und die Deployment-Pipeline fuer Netlify, Vercel und Railway konfiguriert.
