@@ -58,6 +58,7 @@ class AppSettings:
     webuntis_ical_url: str
     orgaplan_pdf_url: str
     classwork_plan_url: str
+    classwork_gsheets_csv_url: str
 
     @property
     def itslearning_base_url(self) -> str:
@@ -115,6 +116,7 @@ def load_settings() -> AppSettings:
         webuntis_ical_url=os.getenv("WEBUNTIS_ICAL_URL", "").strip(),
         orgaplan_pdf_url=os.getenv("ORGAPLAN_PDF_URL", "").strip(),
         classwork_plan_url=os.getenv("CLASSWORK_PLAN_URL", "").strip(),
+        classwork_gsheets_csv_url=os.getenv("CLASSWORK_GSHEETS_CSV_URL", "").strip(),
     )
 
 

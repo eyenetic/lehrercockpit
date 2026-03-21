@@ -734,13 +734,13 @@
       "sourceUrl": "https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf"
     },
     "classwork": {
-      "status": "ok",
+      "status": "warning",
       "title": "Klassenarbeitsplan",
-      "detail": "Automatischer Abruf blockiert. Die Excel-Datei wird unten als eingebettete Vorschau angezeigt.",
+      "detail": "Google Sheets CSV-URL noch nicht konfiguriert. Bitte CLASSWORK_GSHEETS_CSV_URL in .env.local hinterlegen.",
       "updatedAt": "21:31",
       "previewRows": [],
-      "sourceUrl": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?resid=F42AA6058C6F8B05!s677a2311a8bf4c8a93e251bf2b5ddd85&ithint=file%2Cxlsx&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE",
-      "embedUrl": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?action=embedview&wdAllowInteractivity=True&wdHideGridlines=True&wdHideHeaders=False"
+      "structuredRows": [],
+      "sourceUrl": "https://onedrive.live.com/:x:/g/personal/F42AA6058C6F8B05/EREjeme_qIpMk-JRvytd3YUBqJwruJ60eAwWw5-DJ7dCUA?resid=F42AA6058C6F8B05!s677a2311a8bf4c8a93e251bf2b5ddd85&ithint=file%2Cxlsx&migratedtospo=true&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3gvYy9mNDJhYTYwNThjNmY4YjA1L0VSRWplbWVfcUlwTWstSlJ2eXRkM1lVQnFKd3J1SjYwZUF3V3c1LURKN2RDVUE"
     }
   }
 }

@@ -82,9 +82,9 @@
     orgaplanUpcomingList: document.querySelector("#orgaplan-upcoming-list"),
     classworkOpenLink: document.querySelector("#classwork-open-link"),
     classworkDigestDetail: document.querySelector("#classwork-digest-detail"),
+    classworkTableContainer: document.querySelector("#classwork-table-container"),
+    classworkTable: document.querySelector("#classwork-table"),
     classworkPreviewList: document.querySelector("#classwork-preview-list"),
-    classworkEmbedContainer: document.querySelector("#classwork-embed-container"),
-    classworkEmbedFrame: document.querySelector("#classwork-embed-frame"),
     documentList: document.querySelector("#document-list"),
     documentSearch: document.querySelector("#document-search"),
     assistantForm: document.querySelector("#assistant-form"),
@@ -177,8 +177,8 @@
         detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
         updatedAt: formatTime(now),
         previewRows: [],
+        structuredRows: [],
         sourceUrl: "",
-        embedUrl: "",
       },
     };
 
@@ -244,8 +244,8 @@
             detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
             updatedAt: formatTime(new Date()),
             previewRows: [],
+            structuredRows: [],
             sourceUrl: "",
-            embedUrl: "",
           },
         },
         workspace: {
@@ -454,6 +454,11 @@
       return "";
     }
 
+    if (classwork.structuredRows?.length) {
+      const first = classwork.structuredRows[0];
+      const values = Object.values(first).filter(Boolean);
+      return values.slice(0, 3).join(" | ") || classwork.detail || "";
+    }
     return classwork.previewRows?.[0] || classwork.detail || "";
   }
 
@@ -670,30 +675,38 @@
           .join("")
       : `<div class="empty-state">Noch keine Orgaplan-Highlights erkannt.</div>`;
 
-    elements.classworkPreviewList.innerHTML = classwork.previewRows.length
-      ? classwork.previewRows
-          .map(
-            (row) => `
-              <article class="priority-item">
-                <p class="priority-copy">${row}</p>
-              </article>
-            `
-          )
-          .join("")
-      : "";
-
-    if (classwork.embedUrl && elements.classworkEmbedContainer && elements.classworkEmbedFrame) {
-      elements.classworkEmbedFrame.src = classwork.embedUrl;
-      elements.classworkEmbedContainer.hidden = false;
-      if (!classwork.previewRows.length) {
-        elements.classworkPreviewList.innerHTML = "";
-      }
-    } else if (elements.classworkEmbedContainer) {
-      elements.classworkEmbedContainer.hidden = true;
-      if (!classwork.previewRows.length) {
-        elements.classworkPreviewList.innerHTML = `<div class="empty-state">Der Klassenarbeitsplan ist verlinkt, aber aktuell noch nicht automatisch auslesbar.</div>`;
-      }
+    if (classwork.structuredRows && classwork.structuredRows.length && elements.classworkTableContainer && elements.classworkTable) {
+      elements.classworkTableContainer.hidden = false;
+      elements.classworkPreviewList.hidden = true;
+      elements.classworkTable.innerHTML = renderClassworkTable(classwork.structuredRows);
+    } else if (classwork.previewRows && classwork.previewRows.length) {
+      if (elements.classworkTableContainer) elements.classworkTableContainer.hidden = true;
+      if (elements.classworkPreviewList) elements.classworkPreviewList.hidden = false;
+      elements.classworkPreviewList.innerHTML = classwork.previewRows
+        .map((row) => `<article class="priority-item"><p class="priority-copy">${row}</p></article>`)
+        .join("");
+    } else {
+      if (elements.classworkTableContainer) elements.classworkTableContainer.hidden = true;
+      if (elements.classworkPreviewList) elements.classworkPreviewList.hidden = false;
+      elements.classworkPreviewList.innerHTML = `<div class="empty-state">Der Klassenarbeitsplan ist verlinkt, aber aktuell noch nicht automatisch auslesbar.</div>`;
     }
+  }
+
+  function renderClassworkTable(rows) {
+    if (!rows.length) return "";
+    const headers = Object.keys(rows[0]);
+    const thead = `<thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>`;
+    const tbody = `<tbody>${rows
+      .map(
+        (row) =>
+          `<tr>${headers.map((h) => `<td>${escapeHtml(String(row[h] || ""))}</td>`).join("")}</tr>`
+      )
+      .join("")}</tbody>`;
+    return thead + tbody;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
   function renderOrgaplanItem(item) {
@@ -756,14 +769,11 @@
   }
 
   function summarizeClassworkDigest(classwork) {
+    if (classwork.status === "ok" && classwork.structuredRows?.length) {
+      return `Live aus Google Sheets gelesen. ${classwork.structuredRows.length} Eintraege werden als Tabelle angezeigt.`;
+    }
     if (classwork.status === "ok" && classwork.previewRows?.length) {
       return "Live gelesen. Vorschau fuer die ersten relevanten Zeilen ist unten sichtbar.";
-    }
-    if (classwork.status === "ok" && classwork.embedUrl) {
-      return "Excel-Vorschau wird unten eingebettet angezeigt.";
-    }
-    if (classwork.embedUrl) {
-      return truncateText(classwork.detail || "Automatischer Abruf blockiert. Excel-Vorschau unten eingebettet.", 140);
     }
     return truncateText(classwork.detail || "Klassenarbeitsplan ist aktuell nicht automatisch auslesbar.", 140);
   }

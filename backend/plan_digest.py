@@ -41,10 +41,10 @@ class DownloadResult:
     error: str
 
 
-def build_plan_digest(orgaplan_url: str, classwork_url: str, now: datetime) -> dict[str, Any]:
+def build_plan_digest(orgaplan_url: str, classwork_url: str, classwork_gsheets_csv_url: str, now: datetime) -> dict[str, Any]:
     return {
         "orgaplan": _build_orgaplan_digest(orgaplan_url, now),
-        "classwork": _build_classwork_digest(classwork_url, now),
+        "classwork": _build_classwork_digest(classwork_url, classwork_gsheets_csv_url, now),
     }
 
 
@@ -108,33 +108,32 @@ def _build_orgaplan_digest(url: str, now: datetime) -> dict[str, Any]:
         }
 
 
-def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
+def _build_classwork_digest(url: str, gsheets_csv_url: str, now: datetime) -> dict[str, Any]:
+    # Prefer Google Sheets CSV if configured
+    if gsheets_csv_url:
+        return _build_classwork_from_gsheets(gsheets_csv_url, url, now)
+
     if not url:
         return {
             "status": "warning",
             "title": "Klassenarbeitsplan",
-            "detail": "Noch kein Link fuer den Klassenarbeitsplan hinterlegt.",
+            "detail": "Noch kein Link fuer den Klassenarbeitsplan hinterlegt. Tipp: Google Sheets CSV-URL in CLASSWORK_GSHEETS_CSV_URL hinterlegen.",
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
+            "structuredRows": [],
             "sourceUrl": "",
-            "embedUrl": "",
         }
-
-    embed_url = _build_onedrive_embed_url(url)
 
     download = _download_document(url)
     if not download.reachable:
-        fallback_detail = _blocked_detail("Klassenarbeitsplan", download)
-        if embed_url:
-            fallback_detail = "Automatischer Abruf blockiert. Die Excel-Datei wird unten als eingebettete Vorschau angezeigt."
         return {
-            "status": "ok" if embed_url else ("warning" if download.status_code else "error"),
+            "status": "warning" if download.status_code else "error",
             "title": "Klassenarbeitsplan",
-            "detail": fallback_detail,
+            "detail": _blocked_detail("Klassenarbeitsplan", download),
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
+            "structuredRows": [],
             "sourceUrl": url,
-            "embedUrl": embed_url,
         }
 
     try:
@@ -146,7 +145,7 @@ def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
             if not values:
                 continue
             rows.append(" | ".join(values[:6]))
-            if len(rows) >= 6:
+            if len(rows) >= 8:
                 break
 
         return {
@@ -155,37 +154,92 @@ def _build_classwork_digest(url: str, now: datetime) -> dict[str, Any]:
             "detail": "Excel-Datei wurde live gelesen und fuer das Cockpit vorbereitet.",
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": rows,
+            "structuredRows": [],
             "sourceUrl": url,
-            "embedUrl": embed_url,
         }
     except Exception as exc:
         return {
-            "status": "ok" if embed_url else "warning",
+            "status": "warning",
             "title": "Klassenarbeitsplan",
-            "detail": f"Datei erreichbar, aber nicht als Tabelle auswertbar. {'Vorschau wird eingebettet angezeigt.' if embed_url else f'{type(exc).__name__}.'}",
+            "detail": f"Datei erreichbar, aber nicht als Tabelle auswertbar: {type(exc).__name__}.",
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
+            "structuredRows": [],
             "sourceUrl": url,
-            "embedUrl": embed_url,
         }
 
 
-def _build_onedrive_embed_url(url: str) -> str:
-    """Convert a OneDrive sharing URL to an embeddable Excel Online viewer URL."""
-    if not url:
-        return ""
+def _build_classwork_from_gsheets(csv_url: str, source_url: str, now: datetime) -> dict[str, Any]:
+    """Fetch Klassenarbeitsplan from a Google Sheets public CSV export URL."""
+    download = _download_document(csv_url)
+    if not download.reachable:
+        return {
+            "status": "warning" if download.status_code else "error",
+            "title": "Klassenarbeitsplan",
+            "detail": _blocked_detail("Klassenarbeitsplan (Google Sheets)", download),
+            "updatedAt": now.strftime("%H:%M"),
+            "previewRows": [],
+            "structuredRows": [],
+            "sourceUrl": source_url or csv_url,
+        }
 
-    if "onedrive.live.com" in url and "/:x:/" in url:
-        return url.split("?")[0] + "?action=embedview&wdAllowInteractivity=True&wdHideGridlines=True&wdHideHeaders=False"
+    try:
+        import csv as csv_module
+        text = download.data.decode("utf-8", errors="replace")
+        reader = csv_module.reader(text.splitlines())
+        all_rows = [row for row in reader if any(cell.strip() for cell in row)]
 
-    if "1drv.ms" in url:
-        return url.split("?")[0] + "?action=embedview"
+        if not all_rows:
+            return {
+                "status": "warning",
+                "title": "Klassenarbeitsplan",
+                "detail": "Google Sheets CSV war leer.",
+                "updatedAt": now.strftime("%H:%M"),
+                "previewRows": [],
+                "structuredRows": [],
+                "sourceUrl": source_url or csv_url,
+            }
 
-    if "sharepoint.com" in url or "onedrive.live.com" in url:
-        base = url.split("?")[0]
-        return base + "?action=embedview&wdAllowInteractivity=True"
+        # Build structured rows: detect header row
+        header = [cell.strip() for cell in all_rows[0]]
+        data_rows = all_rows[1:] if len(all_rows) > 1 else all_rows
 
-    return ""
+        structured: list[dict[str, str]] = []
+        for row in data_rows:
+            if not any(cell.strip() for cell in row):
+                continue
+            entry: dict[str, str] = {}
+            for i, col in enumerate(header):
+                entry[col] = row[i].strip() if i < len(row) else ""
+            structured.append(entry)
+
+        # Build preview strings (first 8 rows, max 6 columns)
+        preview_rows = []
+        for row in all_rows[:9]:
+            values = [cell.strip() for cell in row[:6] if cell.strip()]
+            if values:
+                preview_rows.append(" | ".join(values))
+
+        row_count = len(data_rows)
+        return {
+            "status": "ok",
+            "title": "Klassenarbeitsplan",
+            "detail": f"Live aus Google Sheets gelesen. {row_count} Eintraege gefunden.",
+            "updatedAt": now.strftime("%H:%M"),
+            "previewRows": preview_rows,
+            "structuredRows": structured[:40],
+            "sourceUrl": source_url or csv_url,
+        }
+    except Exception as exc:
+        return {
+            "status": "warning",
+            "title": "Klassenarbeitsplan",
+            "detail": f"Google Sheets erreichbar, aber nicht auswertbar: {type(exc).__name__}.",
+            "updatedAt": now.strftime("%H:%M"),
+            "previewRows": [],
+            "structuredRows": [],
+            "sourceUrl": source_url or csv_url,
+        }
 
 
 def _download_document(url: str) -> DownloadResult:
