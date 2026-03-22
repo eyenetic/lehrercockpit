@@ -2,7 +2,16 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cockpit" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Lehrer-Cockpit</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,7 +27,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=21" />
+    <link rel="stylesheet" href="./styles.css?v=22" />
   </head>
   <body>
     <div class="app-shell">
@@ -37,6 +46,7 @@
         <nav class="sidebar-nav" aria-label="Bereiche">
           <button class="nav-link active" type="button" data-section-target="overview">Heute</button>
           <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
+          <button class="nav-link" type="button" data-section-target="grades">Noten</button>
           <button class="nav-link" type="button" data-section-target="inbox">Inbox</button>
           <button class="nav-link" type="button" data-section-target="documents">Dokumente</button>
           <button class="nav-link" type="button" data-section-target="access">Zugaenge</button>
@@ -144,6 +154,108 @@
               <div id="channel-filters" class="filter-row"></div>
             </div>
             <div id="message-list" class="stack-list"></div>
+          </article>
+        </section>
+
+        <section class="content-grid single-grid" data-view-section="grades">
+          <article class="card" id="grades-section" aria-labelledby="grades-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Noten Beta</p>
+                <h2 id="grades-title">Notenradar</h2>
+              </div>
+              <span class="pill pill-live">lokal</span>
+            </div>
+            <p id="grades-detail" class="source-detail">
+              Lokale Beta fuer schnelle Noten- und Bewertungsuebersicht. Noch keine offizielle Schulportal-Schnittstelle.
+            </p>
+
+            <div class="grades-summary-grid">
+              <article class="grades-stat-card">
+                <span class="grades-stat-label">Klasse</span>
+                <strong id="grades-summary-class">Keine Klasse</strong>
+              </article>
+              <article class="grades-stat-card">
+                <span class="grades-stat-label">Eintraege</span>
+                <strong id="grades-summary-count">0</strong>
+              </article>
+              <article class="grades-stat-card">
+                <span class="grades-stat-label">Durchschnitt</span>
+                <strong id="grades-summary-average">-</strong>
+              </article>
+              <article class="grades-stat-card">
+                <span class="grades-stat-label">Auffaellig</span>
+                <strong id="grades-summary-risk">0</strong>
+              </article>
+            </div>
+
+            <div class="grades-layout">
+              <section class="grades-panel">
+                <div class="sidebar-head">
+                  <div>
+                    <p class="card-kicker">Eingabe</p>
+                    <h2>Schnelleintrag</h2>
+                  </div>
+                </div>
+                <form id="grades-form" class="connect-form">
+                  <div class="connect-grid grades-grid">
+                    <label class="connect-field">
+                      <span>Klasse</span>
+                      <select id="grades-class-input"></select>
+                    </label>
+                    <label class="connect-field">
+                      <span>Art</span>
+                      <select id="grades-type-input">
+                        <option value="Klassenarbeit">Klassenarbeit</option>
+                        <option value="LEK">LEK</option>
+                        <option value="Muendlich">Muendlich</option>
+                        <option value="Sonstiges">Sonstiges</option>
+                      </select>
+                    </label>
+                    <label class="connect-field">
+                      <span>Schueler:in</span>
+                      <input id="grades-student-input" type="text" placeholder="Name" autocomplete="off" />
+                    </label>
+                    <label class="connect-field">
+                      <span>Titel</span>
+                      <input id="grades-title-input" type="text" placeholder="z. B. 3. KA Mathe" autocomplete="off" />
+                    </label>
+                    <label class="connect-field">
+                      <span>Note</span>
+                      <input id="grades-value-input" type="text" placeholder="z. B. 2-" autocomplete="off" />
+                    </label>
+                    <label class="connect-field">
+                      <span>Datum</span>
+                      <input id="grades-date-input" type="date" />
+                    </label>
+                  </div>
+                  <label class="connect-field">
+                    <span>Bemerkung</span>
+                    <input id="grades-comment-input" type="text" placeholder="optional" autocomplete="off" />
+                  </label>
+                  <div class="assistant-actions grades-actions">
+                    <button class="primary-button" type="submit">Lokal speichern</button>
+                  </div>
+                </form>
+                <div id="grades-feedback" class="connect-feedback"></div>
+              </section>
+
+              <section class="grades-panel">
+                <div class="sidebar-head">
+                  <div>
+                    <p class="card-kicker">Ansicht</p>
+                    <h2>Klassenueberblick</h2>
+                  </div>
+                </div>
+                <div class="classwork-controls grades-controls">
+                  <label class="classwork-select-field" for="grades-class-filter">
+                    <span>Klasse</span>
+                    <select id="grades-class-filter"></select>
+                  </label>
+                </div>
+                <div id="grades-list" class="stack-list"></div>
+              </section>
+            </div>
           </article>
         </section>
 

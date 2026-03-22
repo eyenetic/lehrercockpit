@@ -27,6 +27,10 @@
     classworkUploadFeedbackKind: "",
     classworkSelectedClass: "",
     classworkView: "list",
+    gradesData: null,
+    gradesSelectedClass: "",
+    gradesFeedback: "",
+    gradesFeedbackKind: "",
     theme: loadStoredTheme(),
   };
 
@@ -98,6 +102,22 @@
     classworkPreviewList: document.querySelector("#classwork-preview-list"),
     classworkUploadButton: document.querySelector("#classwork-upload-button"),
     classworkUploadFeedback: document.querySelector("#classwork-upload-feedback"),
+    gradesDetail: document.querySelector("#grades-detail"),
+    gradesSummaryClass: document.querySelector("#grades-summary-class"),
+    gradesSummaryCount: document.querySelector("#grades-summary-count"),
+    gradesSummaryAverage: document.querySelector("#grades-summary-average"),
+    gradesSummaryRisk: document.querySelector("#grades-summary-risk"),
+    gradesClassInput: document.querySelector("#grades-class-input"),
+    gradesTypeInput: document.querySelector("#grades-type-input"),
+    gradesStudentInput: document.querySelector("#grades-student-input"),
+    gradesTitleInput: document.querySelector("#grades-title-input"),
+    gradesValueInput: document.querySelector("#grades-value-input"),
+    gradesDateInput: document.querySelector("#grades-date-input"),
+    gradesCommentInput: document.querySelector("#grades-comment-input"),
+    gradesFeedback: document.querySelector("#grades-feedback"),
+    gradesForm: document.querySelector("#grades-form"),
+    gradesClassFilter: document.querySelector("#grades-class-filter"),
+    gradesList: document.querySelector("#grades-list"),
     documentList: document.querySelector("#document-list"),
     documentSearch: document.querySelector("#document-search"),
     assistantForm: document.querySelector("#assistant-form"),
@@ -692,7 +712,7 @@
     const entries = classwork.entries || [];
 
     bindExternalLink(elements.orgaplanOpenLink, orgaplan.sourceUrl, "PDF oeffnen");
-    bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Plan online im Viewer öffnen");
+    bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Plan online im Viewer oeffnen");
 
     elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
     elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
@@ -856,6 +876,176 @@
           .join("")}
       </div>
     `;
+  }
+
+  function getGradebookData() {
+    return (
+      state.gradesData || {
+        status: "empty",
+        detail: "Noch keine lokalen Noten erfasst.",
+        updatedAt: "",
+        entries: [],
+        classes: [],
+      }
+    );
+  }
+
+  function getGradeClasses() {
+    const gradeClasses = getGradebookData().classes || [];
+    const classworkClasses = getData().planDigest?.classwork?.classes || [];
+    return Array.from(new Set([...gradeClasses, ...classworkClasses])).sort();
+  }
+
+  function getActiveGradeClass(classes) {
+    if (!classes.length) {
+      state.gradesSelectedClass = "";
+      return "";
+    }
+
+    if (state.gradesSelectedClass && classes.includes(state.gradesSelectedClass)) {
+      return state.gradesSelectedClass;
+    }
+
+    state.gradesSelectedClass = classes[0];
+    return state.gradesSelectedClass;
+  }
+
+  function renderGrades() {
+    if (!elements.gradesList) {
+      return;
+    }
+
+    const gradebook = getGradebookData();
+    const classes = getGradeClasses();
+    const activeClass = getActiveGradeClass(classes);
+    const entries = (gradebook.entries || [])
+      .filter((entry) => !activeClass || entry.classLabel === activeClass)
+      .sort((left, right) => (right.date || "").localeCompare(left.date || ""));
+
+    const summary = summarizeGrades(entries);
+
+    elements.gradesDetail.textContent = gradebook.updatedAt
+      ? `${gradebook.detail} Letzter lokaler Stand: ${gradebook.updatedAt}.`
+      : gradebook.detail;
+    elements.gradesSummaryClass.textContent = activeClass || "Keine Klasse";
+    elements.gradesSummaryCount.textContent = String(entries.length);
+    elements.gradesSummaryAverage.textContent = summary.averageLabel;
+    elements.gradesSummaryRisk.textContent = String(summary.riskCount);
+    elements.gradesFeedback.textContent = state.gradesFeedback;
+    elements.gradesFeedback.className = `connect-feedback${state.gradesFeedbackKind ? ` ${state.gradesFeedbackKind}` : ""}`;
+
+    renderGradeClassOptions(elements.gradesClassInput, classes, activeClass, true);
+    renderGradeClassOptions(elements.gradesClassFilter, classes, activeClass, false);
+
+    if (elements.gradesDateInput && !elements.gradesDateInput.value) {
+      elements.gradesDateInput.value = new Date().toISOString().slice(0, 10);
+    }
+
+    elements.gradesList.innerHTML = entries.length
+      ? entries.map((entry) => renderGradeItem(entry)).join("")
+      : `<div class="empty-state">Noch keine lokalen Noten fuer diese Klasse erfasst.</div>`;
+  }
+
+  function renderGradeClassOptions(element, classes, activeClass, includePlaceholder) {
+    if (!element) {
+      return;
+    }
+
+    if (!classes.length) {
+      element.innerHTML = includePlaceholder
+        ? `<option value="">Klasse waehlen</option>`
+        : `<option value="">Keine Klasse</option>`;
+      element.disabled = !includePlaceholder;
+      return;
+    }
+
+    element.disabled = false;
+    element.innerHTML = `${includePlaceholder ? `<option value="">Klasse waehlen</option>` : ""}${classes
+      .map(
+        (classLabel) => `<option value="${classLabel}" ${classLabel === activeClass ? "selected" : ""}>${classLabel}</option>`
+      )
+      .join("")}`;
+  }
+
+  function summarizeGrades(entries) {
+    const numericGrades = entries
+      .map((entry) => parseGradeValue(entry.gradeValue))
+      .filter((value) => Number.isFinite(value));
+    const average = numericGrades.length
+      ? numericGrades.reduce((sum, value) => sum + value, 0) / numericGrades.length
+      : null;
+    const riskCount = numericGrades.filter((value) => value >= 4).length;
+    return {
+      averageLabel: average ? average.toFixed(2).replace(".", ",") : "-",
+      riskCount,
+    };
+  }
+
+  function parseGradeValue(value) {
+    const token = String(value || "").trim();
+    if (!token) {
+      return Number.NaN;
+    }
+
+    const mapping = {
+      "1+": 0.7,
+      "1": 1,
+      "1-": 1.3,
+      "2+": 1.7,
+      "2": 2,
+      "2-": 2.3,
+      "3+": 2.7,
+      "3": 3,
+      "3-": 3.3,
+      "4+": 3.7,
+      "4": 4,
+      "4-": 4.3,
+      "5+": 4.7,
+      "5": 5,
+      "5-": 5.3,
+      "6": 6,
+    };
+
+    if (mapping[token] !== undefined) {
+      return mapping[token];
+    }
+
+    const numeric = Number(token.replace(",", "."));
+    return Number.isFinite(numeric) ? numeric : Number.NaN;
+  }
+
+  function renderGradeItem(entry) {
+    return `
+      <article class="grade-item">
+        <div class="grade-item-top">
+          <div>
+            <strong>${entry.studentName}</strong>
+            <p class="message-snippet">${entry.classLabel} · ${entry.type} · ${formatGradeDate(entry.date)}</p>
+          </div>
+          <div class="grade-item-actions">
+            <span class="meta-tag low">${entry.gradeValue || "-"}</span>
+            <button class="filter-button" type="button" data-grade-delete="${entry.id}">Entfernen</button>
+          </div>
+        </div>
+        <p class="classwork-entry-title">${entry.title}</p>
+        <div class="meta-row">
+          ${entry.points ? `<span class="meta-tag">${entry.points}</span>` : ""}
+          ${entry.comment ? `<span class="meta-tag">${entry.comment}</span>` : ""}
+        </div>
+      </article>
+    `;
+  }
+
+  function formatGradeDate(value) {
+    if (!value) {
+      return "ohne Datum";
+    }
+    try {
+      const date = new Date(`${value}T00:00:00`);
+      return date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    } catch (_error) {
+      return value;
+    }
   }
 
   function renderOrgaplanItem(item) {
@@ -1537,6 +1727,39 @@
         renderPlanDigest();
       });
     }
+
+    if (elements.gradesForm) {
+      elements.gradesForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await saveGradeEntry();
+      });
+    }
+
+    if (elements.gradesClassFilter) {
+      elements.gradesClassFilter.addEventListener("change", (event) => {
+        state.gradesSelectedClass = event.target.value;
+        renderGrades();
+      });
+    }
+
+    if (elements.gradesClassInput) {
+      elements.gradesClassInput.addEventListener("change", (event) => {
+        if (event.target.value) {
+          state.gradesSelectedClass = event.target.value;
+          renderGrades();
+        }
+      });
+    }
+
+    if (elements.gradesList) {
+      elements.gradesList.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-grade-delete]");
+        if (!button) {
+          return;
+        }
+        await deleteGradeEntry(button.dataset.gradeDelete);
+      });
+    }
   }
 
   function renderAll() {
@@ -1552,6 +1775,7 @@
     renderWebUntisControls();
     renderWebUntisSchedule();
     renderPlanDigest();
+    renderGrades();
     renderDocuments();
   }
 
@@ -1706,15 +1930,117 @@
     }
   }
 
+  async function loadGradebook() {
+    try {
+      const response = await fetch("/api/grades");
+      if (!response.ok) {
+        return;
+      }
+      state.gradesData = await response.json();
+      renderGrades();
+    } catch (_error) {
+      // lokal optional
+    }
+  }
+
+  async function saveGradeEntry() {
+    if (!IS_LOCAL_RUNTIME) {
+      state.gradesFeedback = "Die Noten-Beta ist nur lokal verfuegbar.";
+      state.gradesFeedbackKind = "warning";
+      renderGrades();
+      return;
+    }
+
+    const payload = {
+      classLabel: elements.gradesClassInput?.value.trim() || "",
+      type: elements.gradesTypeInput?.value.trim() || "Sonstiges",
+      studentName: elements.gradesStudentInput?.value.trim() || "",
+      title: elements.gradesTitleInput?.value.trim() || "",
+      gradeValue: elements.gradesValueInput?.value.trim() || "",
+      date: elements.gradesDateInput?.value || "",
+      comment: elements.gradesCommentInput?.value.trim() || "",
+    };
+
+    if (!payload.classLabel || !payload.studentName || !payload.title) {
+      state.gradesFeedback = "Klasse, Schueler:in und Titel werden benoetigt.";
+      state.gradesFeedbackKind = "warning";
+      renderGrades();
+      return;
+    }
+
+    state.gradesFeedback = "Speichere lokalen Noteneintrag ...";
+    state.gradesFeedbackKind = "";
+    renderGrades();
+
+    try {
+      const response = await fetch("/api/local-settings/grades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.detail || "Noteneintrag konnte nicht gespeichert werden.");
+      }
+
+      state.gradesData = result;
+      state.gradesSelectedClass = payload.classLabel;
+      state.gradesFeedback = result.detail || "Note lokal gespeichert.";
+      state.gradesFeedbackKind = "success";
+      if (elements.gradesForm) {
+        elements.gradesForm.reset();
+      }
+      if (elements.gradesDateInput) {
+        elements.gradesDateInput.value = new Date().toISOString().slice(0, 10);
+      }
+      renderGrades();
+    } catch (error) {
+      state.gradesFeedback = error.message || "Noteneintrag konnte nicht gespeichert werden.";
+      state.gradesFeedbackKind = "warning";
+      renderGrades();
+    }
+  }
+
+  async function deleteGradeEntry(entryId) {
+    if (!entryId || !IS_LOCAL_RUNTIME) {
+      return;
+    }
+    try {
+      const response = await fetch("/api/local-settings/grades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "delete", id: entryId }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.detail || "Eintrag konnte nicht entfernt werden.");
+      }
+      state.gradesData = result;
+      state.gradesFeedback = result.detail || "Eintrag entfernt.";
+      state.gradesFeedbackKind = "success";
+      renderGrades();
+    } catch (error) {
+      state.gradesFeedback = error.message || "Eintrag konnte nicht entfernt werden.";
+      state.gradesFeedbackKind = "warning";
+      renderGrades();
+    }
+  }
+
   function initialize() {
     normalizeLocalWebUntisState();
     applyTheme();
     elements.assistantAnswer.textContent =
       "Frag mich nach der Woche, nach dem Orgaplan, nach Dokumenten oder nach deiner Inbox.";
     registerEvents();
-    refreshDashboard().then(() => loadClassworkCache());
+    refreshDashboard().then(() => {
+      loadClassworkCache();
+      loadGradebook();
+    });
     window.setInterval(() => {
-      refreshDashboard().then(() => loadClassworkCache());
+      refreshDashboard().then(() => {
+        loadClassworkCache();
+        loadGradebook();
+      });
     }, AUTO_REFRESH_MS);
   }
 

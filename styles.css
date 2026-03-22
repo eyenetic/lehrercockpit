@@ -871,6 +871,82 @@ a {
   gap: 16px;
 }
 
+.grades-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.grades-stat-card,
+.grades-panel,
+.grade-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.grades-stat-card {
+  padding: 16px;
+}
+
+.grades-stat-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.grades-stat-card strong {
+  font-size: 1.35rem;
+  letter-spacing: -0.04em;
+}
+
+.grades-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.grades-panel {
+  padding: 18px;
+}
+
+.grades-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grades-actions {
+  align-items: flex-start;
+}
+
+.grades-controls {
+  margin: 10px 0 16px;
+  grid-template-columns: minmax(180px, 240px);
+}
+
+.grade-item {
+  padding: 14px 15px;
+  display: grid;
+  gap: 8px;
+}
+
+.grade-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.grade-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .plan-digest-card {
   padding: 18px;
 }
@@ -1035,7 +1111,9 @@ a {
   .compact-grid,
   .tertiary-grid,
   .plan-digest-grid,
-  .connect-grid {
+  .connect-grid,
+  .grades-summary-grid,
+  .grades-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1090,7 +1168,8 @@ a {
 
   .webuntis-week-columns,
   .compact-link-grid,
-  .classwork-calendar {
+  .classwork-calendar,
+  .grades-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1106,5 +1185,157 @@ a {
 
   .search-box {
     width: 100%;
+  }
+}
+
+/* ─── iPhone / PWA ───────────────────────────────────────────── */
+
+.app-shell {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (max-width: 480px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    height: auto;
+    width: 100%;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    padding: env(safe-area-inset-bottom) 8px 8px;
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+  }
+
+  .brand-block,
+  .runtime-banner,
+  .theme-toggle,
+  .sidebar-theme {
+    display: none;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    flex: 1;
+    gap: 0;
+  }
+
+  .nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px;
+    font-size: 0.65rem;
+    border-radius: var(--radius-sm);
+    min-width: 52px;
+    text-align: center;
+    letter-spacing: 0;
+  }
+
+  .nav-link[data-section-target="overview"]::before {
+    content: "◎";
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .nav-link[data-section-target="schedule"]::before {
+    content: "▦";
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .nav-link[data-section-target="grades"]::before {
+    content: "◉";
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .nav-link[data-section-target="inbox"]::before {
+    content: "◫";
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .nav-link[data-section-target="documents"]::before {
+    content: "◱";
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .nav-link[data-section-target="access"]::before {
+    content: "⊞";
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .nav-link[data-section-target="assistant"]::before {
+    content: "◈";
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .app-main {
+    padding: 16px 16px 90px;
+    gap: 12px;
+  }
+
+  .topbar {
+    flex-direction: row;
+    align-items: center;
+    padding-bottom: 14px;
+    margin-bottom: 0;
+  }
+
+  .topbar h1 {
+    font-size: 1.2rem;
+  }
+
+  .hero-text {
+    display: none;
+  }
+
+  .card,
+  .briefing-card {
+    padding: 14px;
+  }
+
+  .segment-button[data-view="week"] {
+    display: none;
+  }
+
+  .classwork-table-container {
+    display: none !important;
+  }
+
+  .classwork-preview-list {
+    display: grid !important;
+  }
+
+  .plan-digest-grid {
+    grid-template-columns: 1fr;
+  }
+
+  [data-view-section="assistant"] {
+    display: none;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

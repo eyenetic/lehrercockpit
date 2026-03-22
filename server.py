@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 try:
     from backend.dashboard import build_dashboard_payload
     from backend.classwork_cache import load_cache, save_cache
+    from backend.grades_store import create_grade_entry, load_gradebook, save_gradebook
     from backend.local_settings import save_classwork_file, save_itslearning_settings
     _DASHBOARD_IMPORT_ERROR: Exception | None = None
 except Exception as _exc:
@@ -18,6 +19,9 @@ except Exception as _exc:
     save_itslearning_settings = None  # type: ignore[assignment]
     load_cache = None  # type: ignore[assignment]
     save_cache = None  # type: ignore[assignment]
+    create_grade_entry = None  # type: ignore[assignment]
+    load_gradebook = None  # type: ignore[assignment]
+    save_gradebook = None  # type: ignore[assignment]
     _DASHBOARD_IMPORT_ERROR = _exc
     import traceback
     traceback.print_exc()
@@ -27,6 +31,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 MOCK_DATA_PATH = PROJECT_ROOT / "data" / "mock-dashboard.json"
 MONITOR_STATE_PATH = PROJECT_ROOT / "data" / "document-monitor-state.json"
 CLASSWORK_CACHE_PATH = PROJECT_ROOT / "data" / "classwork-cache.json"
+GRADES_LOCAL_PATH = PROJECT_ROOT / "data" / "grades-local.json"
 ENV_FILE_PATH = PROJECT_ROOT / ".env.local"
 CLASSWORK_LOCAL_PATH = PROJECT_ROOT / "data" / "classwork-plan-local.xlsx"
 
@@ -55,6 +60,13 @@ _load_env_file()
 # ── HTTP handler ──────────────────────────────────────────────────────────────
 
 class LehrerCockpitHandler(SimpleHTTPRequestHandler):
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".json": "application/json",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(PROJECT_ROOT), **kwargs)
 
@@ -88,6 +100,13 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 return
             result = load_cache(CLASSWORK_CACHE_PATH)
             self._send_json(result)
+            return
+
+        if parsed.path == "/api/grades":
+            if load_gradebook is None:
+                self._send_json({"status": "error", "detail": "Grades store not available."}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+                return
+            self._send_json(load_gradebook(GRADES_LOCAL_PATH))
             return
 
         super().do_GET()
@@ -239,6 +258,50 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                     "path": str(CLASSWORK_LOCAL_PATH),
                 }
             )
+            return
+
+        if parsed.path == "/api/local-settings/grades":
+            if not self._is_local_request():
+                self._send_json({"error": "local-only"}, status=HTTPStatus.FORBIDDEN)
+                return
+
+            if load_gradebook is None or save_gradebook is None or create_grade_entry is None:
+                self._send_json(
+                    {"error": "grades module failed to import", "detail": str(_DASHBOARD_IMPORT_ERROR)},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+                return
+
+            payload = self._read_json_body()
+            mode = str(payload.get("mode", "append")).strip() or "append"
+            current = load_gradebook(GRADES_LOCAL_PATH)
+            current_entries = current.get("entries", [])
+
+            if mode == "replace":
+                entries = payload.get("entries", [])
+                result = save_gradebook(GRADES_LOCAL_PATH, entries if isinstance(entries, list) else [])
+                self._send_json({"status": "ok", "detail": "Noten lokal gespeichert.", **result})
+                return
+
+            if mode == "delete":
+                entry_id = str(payload.get("id", "")).strip()
+                if not entry_id:
+                    self._send_json({"error": "validation", "detail": "Eintrags-ID fehlt."}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                remaining = [entry for entry in current_entries if entry.get("id") != entry_id]
+                result = save_gradebook(GRADES_LOCAL_PATH, remaining)
+                self._send_json({"status": "ok", "detail": "Eintrag entfernt.", **result})
+                return
+
+            entry = create_grade_entry(payload)
+            if not entry["classLabel"] or not entry["studentName"] or not entry["title"]:
+                self._send_json(
+                    {"error": "validation", "detail": "Klasse, Schueler:in und Titel werden benoetigt."},
+                    status=HTTPStatus.BAD_REQUEST,
+                )
+                return
+            result = save_gradebook(GRADES_LOCAL_PATH, [entry] + current_entries)
+            self._send_json({"status": "ok", "detail": "Note lokal gespeichert.", **result})
             return
 
         self._send_json({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
