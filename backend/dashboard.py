@@ -13,15 +13,23 @@ from .itslearning_adapter import fetch_itslearning_sync
 from .mail_adapter import fetch_mail_sync
 from .plan_digest import build_plan_digest
 from .webuntis_adapter import fetch_webuntis_sync
+from .webuntis_cache import cache_is_recent, load_webuntis_cache, save_webuntis_cache
 
 
-def build_dashboard_payload(mock_path: Path, monitor_state_path: Path, classwork_cache_path: Path | None = None) -> dict[str, Any]:
+def build_dashboard_payload(
+    mock_path: Path,
+    monitor_state_path: Path,
+    classwork_cache_path: Path | None = None,
+    webuntis_cache_path: Path | None = None,
+) -> dict[str, Any]:
     payload = _load_mock_payload(mock_path)
     settings = load_settings()
     now = datetime.now().astimezone()
     mail_sync = fetch_mail_sync(settings.mail, now)
     itslearning_sync = fetch_itslearning_sync(settings.itslearning, now)
     webuntis_sync = fetch_webuntis_sync(settings.webuntis_base_url, settings.webuntis_ical_url, now)
+    if webuntis_cache_path is not None:
+        webuntis_sync = _apply_webuntis_cache(webuntis_sync, webuntis_cache_path, now)
     document_monitor = build_document_monitor(_monitored_documents(settings), monitor_state_path, now)
     plan_digest = build_plan_digest(
         settings.orgaplan_pdf_url,
@@ -29,6 +37,8 @@ def build_dashboard_payload(mock_path: Path, monitor_state_path: Path, classwork
         settings.classwork_plan_local_path,
         now,
     )
+    if classwork_cache_path is not None:
+        plan_digest["classwork"] = _merge_classwork_cache(plan_digest["classwork"], classwork_cache_path, mock_path)
 
     payload["generatedAt"] = now.isoformat()
     payload["teacher"]["name"] = settings.teacher_name
@@ -586,6 +596,41 @@ def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path, moc
             print(f"[dashboard] classwork mock fallback failed: {exc}", flush=True)
 
     return plan_classwork
+
+
+def _apply_webuntis_cache(webuntis_sync: Any, cache_path: Path, now: datetime) -> Any:
+    if webuntis_sync.mode == "live-webuntis" and webuntis_sync.events:
+        try:
+            save_webuntis_cache(
+                cache_path,
+                events=webuntis_sync.events,
+                schedule=webuntis_sync.schedule,
+                priorities=webuntis_sync.priorities,
+                detail=webuntis_sync.source.get("detail", ""),
+            )
+        except Exception as exc:
+            print(f"[dashboard] webuntis cache write failed: {exc}", flush=True)
+        return webuntis_sync
+
+    cached = load_webuntis_cache(cache_path)
+    if cached.get("status") != "ok" or not cached.get("events") or not cache_is_recent(cached, max_hours=24):
+        return webuntis_sync
+
+    detail = cached.get("detail") or f"{len(cached['events'])} Termine aus dem letzten erfolgreichen WebUntis-Abruf."
+    webuntis_sync.source = {
+        **webuntis_sync.source,
+        "status": "warning",
+        "cadence": "Fallback aus lokalem Cache",
+        "lastSync": cached.get("updatedAt") or now.strftime("%H:%M"),
+        "nextStep": "iCal erneut pruefen; bis dahin bleibt der letzte erfolgreiche Stand sichtbar.",
+        "detail": f"{detail} Aktuell wird der zuletzt erfolgreiche Stand angezeigt.",
+    }
+    webuntis_sync.schedule = cached.get("schedule", [])
+    webuntis_sync.priorities = cached.get("priorities", [])
+    webuntis_sync.events = cached.get("events", [])
+    webuntis_sync.mode = "cached-webuntis"
+    webuntis_sync.note = f"WebUntis zeigt gerade den letzten erfolgreichen Stand von {cached.get('updatedAt') or now.strftime('%H:%M')}."
+    return webuntis_sync
 
 
 def _apply_monitor_priorities(

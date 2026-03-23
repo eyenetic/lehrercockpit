@@ -41,8 +41,10 @@ Thumbs.db
 .cache/
 data/document-monitor-state.json
 data/classwork-cache.json
+data/webuntis-cache.json
 data/playwright-classwork-profile/
 data/grades-local.json
+data/class-notes-local.json
 
 # Project-specific
 *.zip

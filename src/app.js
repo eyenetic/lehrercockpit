@@ -31,6 +31,10 @@
     gradesSelectedClass: "",
     gradesFeedback: "",
     gradesFeedbackKind: "",
+    notesData: null,
+    notesSelectedClass: "",
+    notesFeedback: "",
+    notesFeedbackKind: "",
     theme: loadStoredTheme(),
   };
 
@@ -118,6 +122,12 @@
     gradesForm: document.querySelector("#grades-form"),
     gradesClassFilter: document.querySelector("#grades-class-filter"),
     gradesList: document.querySelector("#grades-list"),
+    notesForm: document.querySelector("#class-notes-form"),
+    notesClassFilter: document.querySelector("#class-notes-class-filter"),
+    notesInput: document.querySelector("#class-notes-input"),
+    notesFeedback: document.querySelector("#class-notes-feedback"),
+    notesList: document.querySelector("#class-notes-list"),
+    notesClearButton: document.querySelector("#class-notes-clear"),
     documentList: document.querySelector("#document-list"),
     documentSearch: document.querySelector("#document-search"),
     assistantForm: document.querySelector("#assistant-form"),
@@ -328,7 +338,7 @@
 
   function renderMeta() {
     const data = getData();
-    elements.heroNote.textContent = `${data.meta.note} Letztes Update: ${data.meta.lastUpdatedLabel}.`;
+    elements.heroNote.textContent = `Stand ${data.meta.lastUpdatedLabel}. ${data.meta.note}`;
   }
 
   function renderRuntimeBanner() {
@@ -406,18 +416,28 @@
 
   function renderBriefing() {
     const data = getData();
-    const briefingItems = [];
     const nextEvent = findNextLesson(data);
     const orgaplanItem = pickOrgaplanBriefing(data);
     const classworkItem = pickClassworkBriefing(data);
     const inboxItem = pickInboxBriefing(data);
+    const weeklyPreview = pickWeeklyPreview(data);
+    const lead = nextEvent
+      ? {
+          kicker: isEventCurrent(nextEvent) ? "laeuft gerade" : "naechste Stunde",
+          title: nextEvent.title,
+          copy: `${nextEvent.time}${nextEvent.location ? ` · ${nextEvent.location}` : ""}${nextEvent.description ? ` · ${nextEvent.description}` : ""}`,
+          timingClass: getEventTimingClass(nextEvent),
+        }
+      : orgaplanItem
+        ? {
+            kicker: "heute wichtig",
+            title: orgaplanItem.label || "Orgaplan",
+            copy: orgaplanItem.copy,
+            timingClass: "is-upcoming",
+          }
+        : null;
 
-    if (nextEvent) {
-      briefingItems.push({
-        title: "Naechste Stunde",
-        copy: `${nextEvent.title} um ${nextEvent.time}${nextEvent.location ? ` in ${nextEvent.location}` : ""}.`,
-      });
-    }
+    const briefingItems = [];
 
     if (orgaplanItem) {
       briefingItems.push({
@@ -440,17 +460,35 @@
       });
     }
 
-    elements.briefingOutput.innerHTML = briefingItems.length
-      ? briefingItems
-          .map(
-            (item) => `
-              <article class="briefing-item">
-                <strong>${item.title}</strong>
-                <span>${item.copy}</span>
-              </article>
-            `
-          )
-          .join("")
+    if (weeklyPreview) {
+      briefingItems.push({
+        title: "Wochenvorschau",
+        copy: weeklyPreview,
+      });
+    }
+
+    elements.briefingOutput.innerHTML = lead || briefingItems.length
+      ? `
+        ${lead ? `
+          <article class="briefing-lead ${lead.timingClass}">
+            <span class="briefing-lead-kicker">${lead.kicker}</span>
+            <strong>${lead.title}</strong>
+            <p>${lead.copy}</p>
+          </article>
+        ` : ""}
+        <div class="briefing-grid">
+          ${briefingItems
+            .map(
+              (item) => `
+                <article class="briefing-item">
+                  <strong>${item.title}</strong>
+                  <span>${item.copy}</span>
+                </article>
+              `
+            )
+            .join("")}
+        </div>
+      `
       : `<div class="empty-state">Noch keine Briefing-Daten verfuegbar.</div>`;
   }
 
@@ -497,6 +535,23 @@
     };
   }
 
+  function hasTodayOrgaplanHint(data) {
+    const orgaplan = data.planDigest?.orgaplan;
+    if (!orgaplan) {
+      return false;
+    }
+
+    const now = new Date(data.generatedAt || Date.now());
+    const dayToken = now.getDate().toString().padStart(2, "0");
+    const monthToken = (now.getMonth() + 1).toString().padStart(2, "0");
+    const candidates = [...(orgaplan.upcoming || []), ...(orgaplan.highlights || [])];
+
+    return candidates.some((item) => {
+      const haystack = `${item.dateLabel || ""} ${item.title || ""}`.toLowerCase();
+      return haystack.includes(`${dayToken}.${monthToken}`) || haystack.includes(` ${dayToken} `);
+    });
+  }
+
   function pickClassworkBriefing(data) {
     const classwork = data.planDigest?.classwork;
     if (!classwork) {
@@ -508,6 +563,35 @@
       return `${nextEntry.classLabel}: ${nextEntry.dateLabel} ${nextEntry.title}`;
     }
     return classwork.previewRows?.[0] || classwork.detail || "";
+  }
+
+  function pickWeeklyPreview(data) {
+    const now = new Date(data.generatedAt || Date.now());
+    if (now.getDay() !== 1) {
+      return "";
+    }
+
+    const center = data.webuntisCenter || {};
+    const weekStart = getWeekAnchorDate(center.currentDate || now.toISOString().slice(0, 10), "week");
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const weekEvents = (center.events || []).filter((event) => {
+      const startsAt = new Date(event.startsAt);
+      return startsAt >= weekStart && startsAt < weekEnd;
+    });
+    const classworkCount = (data.planDigest?.classwork?.entries || []).filter((entry) => {
+      const date = new Date(`${entry.isoDate}T00:00:00`);
+      return date >= weekStart && date < weekEnd;
+    }).length;
+    const classes = new Set(
+      weekEvents.flatMap((event) => extractClassLabels(event))
+    );
+
+    if (!weekEvents.length && !classworkCount) {
+      return "";
+    }
+
+    return `${weekEvents.length} Termine, ${classworkCount} Arbeiten und ${classes.size || 0} Klassen diese Woche.`;
   }
 
   function pickInboxBriefing(data) {
@@ -936,6 +1020,7 @@
 
     renderGradeClassOptions(elements.gradesClassInput, classes, activeClass, true);
     renderGradeClassOptions(elements.gradesClassFilter, classes, activeClass, false);
+    renderClassNotes(classes, activeClass);
 
     if (elements.gradesDateInput && !elements.gradesDateInput.value) {
       elements.gradesDateInput.value = new Date().toISOString().slice(0, 10);
@@ -944,6 +1029,87 @@
     elements.gradesList.innerHTML = entries.length
       ? entries.map((entry) => renderGradeItem(entry)).join("")
       : `<div class="empty-state">Noch keine lokalen Noten fuer diese Klasse erfasst.</div>`;
+  }
+
+  function getNotesData() {
+    return (
+      state.notesData || {
+        status: "empty",
+        detail: "Noch keine Klassen-Notizen erfasst.",
+        updatedAt: "",
+        notes: [],
+        classes: [],
+      }
+    );
+  }
+
+  function getNoteClasses() {
+    const notesClasses = getNotesData().classes || [];
+    return Array.from(new Set([...getGradeClasses(), ...notesClasses])).sort();
+  }
+
+  function getActiveNoteClass(classes, suggestedClass) {
+    if (!classes.length) {
+      state.notesSelectedClass = "";
+      return "";
+    }
+
+    if (state.notesSelectedClass && classes.includes(state.notesSelectedClass)) {
+      return state.notesSelectedClass;
+    }
+
+    if (suggestedClass && classes.includes(suggestedClass)) {
+      state.notesSelectedClass = suggestedClass;
+      return suggestedClass;
+    }
+
+    state.notesSelectedClass = classes[0];
+    return state.notesSelectedClass;
+  }
+
+  function renderClassNotes(classes, suggestedClass) {
+    if (!elements.notesList) {
+      return;
+    }
+
+    const notesData = getNotesData();
+    const noteClasses = getNoteClasses();
+    const activeClass = getActiveNoteClass(noteClasses, suggestedClass);
+    const notes = (notesData.notes || [])
+      .slice()
+      .sort((left, right) => String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")));
+    const currentNote = notes.find((item) => item.classLabel === activeClass) || null;
+
+    renderGradeClassOptions(elements.notesClassFilter, noteClasses, activeClass, false);
+    if (elements.notesInput && !elements.notesInput.matches(":focus")) {
+      elements.notesInput.value = currentNote?.text || "";
+    }
+
+    elements.notesFeedback.textContent = state.notesFeedback;
+    elements.notesFeedback.className = `connect-feedback${state.notesFeedbackKind ? ` ${state.notesFeedbackKind}` : ""}`;
+
+    const visibleNotes = currentNote
+      ? [currentNote, ...notes.filter((item) => item.classLabel !== activeClass).slice(0, 3)]
+      : notes.slice(0, 4);
+
+    elements.notesList.innerHTML = visibleNotes.length
+      ? visibleNotes
+          .map(
+            (note) => `
+              <article class="grade-item note-item ${note.classLabel === activeClass ? "active" : ""}">
+                <div class="grade-item-top">
+                  <div>
+                    <strong>${note.classLabel}</strong>
+                    <p class="message-snippet">${formatNoteTimestamp(note.updatedAt)}</p>
+                  </div>
+                  <span class="meta-tag low">${note.classLabel === activeClass ? "aktiv" : "notiz"}</span>
+                </div>
+                <p class="classwork-entry-title">${note.text}</p>
+              </article>
+            `
+          )
+          .join("")
+      : `<div class="empty-state">Noch keine Klassen-Notizen erfasst.</div>`;
   }
 
   function renderGradeClassOptions(element, classes, activeClass, includePlaceholder) {
@@ -1139,6 +1305,7 @@
   function renderDocuments() {
     const data = getData();
     const query = state.documentSearch.trim().toLowerCase();
+    const changedDocuments = new Set((data.documentMonitor || []).filter((item) => item.changed).map((item) => item.id));
     const filteredDocuments = data.documents.filter((entry) => {
       const haystack = `${entry.title} ${entry.source} ${entry.summary} ${entry.tags.join(" ")}`.toLowerCase();
       return haystack.includes(query);
@@ -1154,7 +1321,9 @@
                     <strong>${entry.title}</strong>
                     <p class="message-snippet">${entry.source} - Stand ${entry.updatedAt}</p>
                   </div>
-                  <span class="meta-tag low">bereit</span>
+                  <span class="meta-tag ${changedDocuments.has(entry.id === "doc-1" ? "orgaplan" : entry.id) ? "warning" : "low"}">
+                    ${changedDocuments.has(entry.id === "doc-1" ? "orgaplan" : entry.id) ? "neu" : "bereit"}
+                  </span>
                 </div>
                 <p class="document-summary">${entry.summary}</p>
                 <div class="meta-row">
@@ -1458,8 +1627,9 @@
   }
 
   function renderWeekEvent(event) {
+    const timingClass = getEventTimingClass(event);
     return `
-      <article class="webuntis-week-event">
+      <article class="webuntis-week-event ${timingClass}">
         <div class="webuntis-week-time">${event.time.replace(" - ", "–")}</div>
         <div class="webuntis-week-copy">
           <strong>${event.title}</strong>
@@ -1628,7 +1798,7 @@
       button.addEventListener("click", () => {
         state.activeSection = button.dataset.sectionTarget || "overview";
         renderSectionFocus();
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: 0, behavior: "auto" });
       });
     });
 
@@ -1760,6 +1930,27 @@
         await deleteGradeEntry(button.dataset.gradeDelete);
       });
     }
+
+    if (elements.notesForm) {
+      elements.notesForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await saveClassNote();
+      });
+    }
+
+    if (elements.notesClassFilter) {
+      elements.notesClassFilter.addEventListener("change", (event) => {
+        state.notesSelectedClass = event.target.value;
+        renderClassNotes(getGradeClasses(), state.notesSelectedClass);
+        renderNavSignals();
+      });
+    }
+
+    if (elements.notesClearButton) {
+      elements.notesClearButton.addEventListener("click", async () => {
+        await clearClassNote();
+      });
+    }
   }
 
   function renderAll() {
@@ -1777,6 +1968,8 @@
     renderPlanDigest();
     renderGrades();
     renderDocuments();
+    renderNavSignals();
+    renderDocumentMonitor();
   }
 
   async function refreshDashboard() {
@@ -1943,6 +2136,20 @@
     }
   }
 
+  async function loadNotes() {
+    try {
+      const response = await fetch("/api/notes");
+      if (!response.ok) {
+        return;
+      }
+      state.notesData = await response.json();
+      renderClassNotes(getGradeClasses(), state.gradesSelectedClass);
+      renderNavSignals();
+    } catch (_error) {
+      // lokal optional
+    }
+  }
+
   async function saveGradeEntry() {
     if (!IS_LOCAL_RUNTIME) {
       state.gradesFeedback = "Die Noten-Beta ist nur lokal verfuegbar.";
@@ -2026,6 +2233,86 @@
     }
   }
 
+  async function saveClassNote() {
+    if (!IS_LOCAL_RUNTIME) {
+      state.notesFeedback = "Klassen-Notizen sind nur lokal verfuegbar.";
+      state.notesFeedbackKind = "warning";
+      renderClassNotes(getGradeClasses(), state.notesSelectedClass);
+      return;
+    }
+
+    const classLabel = elements.notesClassFilter?.value.trim() || state.notesSelectedClass || state.gradesSelectedClass || "";
+    const text = elements.notesInput?.value.trim() || "";
+
+    if (!classLabel) {
+      state.notesFeedback = "Bitte zuerst eine Klasse waehlen.";
+      state.notesFeedbackKind = "warning";
+      renderClassNotes(getGradeClasses(), state.notesSelectedClass);
+      return;
+    }
+
+    state.notesFeedback = "Speichere Klassen-Notiz lokal ...";
+    state.notesFeedbackKind = "";
+    renderClassNotes(getGradeClasses(), classLabel);
+
+    try {
+      const response = await fetch("/api/local-settings/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classLabel, text }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.detail || "Notiz konnte nicht gespeichert werden.");
+      }
+      state.notesData = result;
+      state.notesSelectedClass = classLabel;
+      state.notesFeedback = result.detail || "Notiz lokal gespeichert.";
+      state.notesFeedbackKind = "success";
+      renderClassNotes(getGradeClasses(), classLabel);
+      renderNavSignals();
+    } catch (error) {
+      state.notesFeedback = error.message || "Notiz konnte nicht gespeichert werden.";
+      state.notesFeedbackKind = "warning";
+      renderClassNotes(getGradeClasses(), classLabel);
+    }
+  }
+
+  async function clearClassNote() {
+    if (!IS_LOCAL_RUNTIME) {
+      return;
+    }
+
+    const classLabel = elements.notesClassFilter?.value.trim() || state.notesSelectedClass || "";
+    if (!classLabel) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/local-settings/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "delete", classLabel }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.detail || "Notiz konnte nicht entfernt werden.");
+      }
+      state.notesData = result;
+      state.notesFeedback = result.detail || "Notiz entfernt.";
+      state.notesFeedbackKind = "success";
+      if (elements.notesInput) {
+        elements.notesInput.value = "";
+      }
+      renderClassNotes(getGradeClasses(), classLabel);
+      renderNavSignals();
+    } catch (error) {
+      state.notesFeedback = error.message || "Notiz konnte nicht entfernt werden.";
+      state.notesFeedbackKind = "warning";
+      renderClassNotes(getGradeClasses(), classLabel);
+    }
+  }
+
   function initialize() {
     normalizeLocalWebUntisState();
     applyTheme();
@@ -2035,11 +2322,13 @@
     refreshDashboard().then(() => {
       loadClassworkCache();
       loadGradebook();
+      loadNotes();
     });
     window.setInterval(() => {
       refreshDashboard().then(() => {
         loadClassworkCache();
         loadGradebook();
+        loadNotes();
       });
     }, AUTO_REFRESH_MS);
   }
@@ -2107,6 +2396,39 @@
       ...data,
     };
     renderPlanDigest();
+  }
+
+  function renderNavSignals() {
+    const data = getData();
+    const unreadCount = (data.messages || []).filter((message) => message.unread).length;
+    const changedDocuments = (data.documentMonitor || []).filter((item) => item.changed).length;
+    const classworkToday = (data.planDigest?.classwork?.entries || []).some((entry) => entry.isoDate === (data.webuntisCenter?.currentDate || ""));
+    const orgaplanToday = hasTodayOrgaplanHint(data);
+    const nextEvent = findNextLesson(data);
+    const allGrades = (getGradebookData().entries || []);
+    const noteCount = (getNotesData().notes || []).length;
+    const gradeRisk = summarizeGrades(allGrades).riskCount;
+
+    const statuses = {
+      overview: nextEvent || unreadCount || changedDocuments || classworkToday ? "accent" : "",
+      schedule: nextEvent ? (isEventCurrent(nextEvent) ? "live" : "accent") : "",
+      inbox: unreadCount ? "warning" : "",
+      documents: changedDocuments ? "danger" : (classworkToday || orgaplanToday ? "warning" : ""),
+      grades: gradeRisk ? "danger" : (noteCount ? "accent" : ""),
+      access: "",
+      assistant: "",
+    };
+
+    elements.navLinks.forEach((button) => {
+      const target = button.dataset.sectionTarget || "";
+      const statusKind = statuses[target] || "";
+      button.classList.toggle("has-status", Boolean(statusKind));
+      if (statusKind) {
+        button.dataset.statusKind = statusKind;
+      } else {
+        delete button.dataset.statusKind;
+      }
+    });
   }
 
   async function triggerClassworkUpload(file) {
@@ -2725,6 +3047,40 @@
       reader.onerror = () => reject(new Error("Datei konnte lokal nicht gelesen werden."));
       reader.readAsDataURL(file);
     });
+  }
+
+  function getEventTimingClass(event) {
+    const now = new Date(getData().generatedAt || Date.now());
+    const start = new Date(event.startsAt);
+    const end = new Date(event.endsAt);
+    if (end < now) {
+      return "is-past";
+    }
+    if (start <= now && now < end) {
+      return "is-current";
+    }
+    return "is-upcoming";
+  }
+
+  function isEventCurrent(event) {
+    return getEventTimingClass(event) === "is-current";
+  }
+
+  function extractClassLabels(event) {
+    const haystack = `${event.title || ""} ${event.detail || ""} ${event.description || ""}`.match(/\b(?:[5-9][A-Z]?|1[0-3][A-Z]?|Q\d(?:\/Q?\d)?)\b/gi);
+    return haystack ? haystack.map((token) => token.toUpperCase()) : [];
+  }
+
+  function formatNoteTimestamp(value) {
+    if (!value) {
+      return "ohne Zeitstempel";
+    }
+    try {
+      const date = new Date(value);
+      return `zuletzt aktualisiert ${date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} · ${date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+    } catch (_error) {
+      return value;
+    }
   }
 
   initialize();

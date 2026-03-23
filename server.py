@@ -11,6 +11,7 @@ try:
     from backend.dashboard import build_dashboard_payload
     from backend.classwork_cache import load_cache, save_cache
     from backend.grades_store import create_grade_entry, load_gradebook, save_gradebook
+    from backend.notes_store import create_note, load_notes, save_notes
     from backend.local_settings import save_classwork_file, save_itslearning_settings
     _DASHBOARD_IMPORT_ERROR: Exception | None = None
 except Exception as _exc:
@@ -22,6 +23,9 @@ except Exception as _exc:
     create_grade_entry = None  # type: ignore[assignment]
     load_gradebook = None  # type: ignore[assignment]
     save_gradebook = None  # type: ignore[assignment]
+    create_note = None  # type: ignore[assignment]
+    load_notes = None  # type: ignore[assignment]
+    save_notes = None  # type: ignore[assignment]
     _DASHBOARD_IMPORT_ERROR = _exc
     import traceback
     traceback.print_exc()
@@ -31,7 +35,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 MOCK_DATA_PATH = PROJECT_ROOT / "data" / "mock-dashboard.json"
 MONITOR_STATE_PATH = PROJECT_ROOT / "data" / "document-monitor-state.json"
 CLASSWORK_CACHE_PATH = PROJECT_ROOT / "data" / "classwork-cache.json"
+WEBUNTIS_CACHE_PATH = PROJECT_ROOT / "data" / "webuntis-cache.json"
 GRADES_LOCAL_PATH = PROJECT_ROOT / "data" / "grades-local.json"
+NOTES_LOCAL_PATH = PROJECT_ROOT / "data" / "class-notes-local.json"
 ENV_FILE_PATH = PROJECT_ROOT / ".env.local"
 CLASSWORK_LOCAL_PATH = PROJECT_ROOT / "data" / "classwork-plan-local.xlsx"
 
@@ -89,7 +95,12 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                     status=HTTPStatus.INTERNAL_SERVER_ERROR,
                 )
                 return
-            payload = build_dashboard_payload(MOCK_DATA_PATH, MONITOR_STATE_PATH, CLASSWORK_CACHE_PATH)
+            payload = build_dashboard_payload(
+                MOCK_DATA_PATH,
+                MONITOR_STATE_PATH,
+                CLASSWORK_CACHE_PATH,
+                WEBUNTIS_CACHE_PATH,
+            )
             self._send_json(payload)
             return
 
@@ -107,6 +118,13 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 self._send_json({"status": "error", "detail": "Grades store not available."}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
                 return
             self._send_json(load_gradebook(GRADES_LOCAL_PATH))
+            return
+
+        if parsed.path == "/api/notes":
+            if load_notes is None:
+                self._send_json({"status": "error", "detail": "Notes store not available."}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+                return
+            self._send_json(load_notes(NOTES_LOCAL_PATH))
             return
 
         super().do_GET()
@@ -302,6 +320,44 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 return
             result = save_gradebook(GRADES_LOCAL_PATH, [entry] + current_entries)
             self._send_json({"status": "ok", "detail": "Note lokal gespeichert.", **result})
+            return
+
+        if parsed.path == "/api/local-settings/notes":
+            if not self._is_local_request():
+                self._send_json({"error": "local-only"}, status=HTTPStatus.FORBIDDEN)
+                return
+
+            if load_notes is None or save_notes is None or create_note is None:
+                self._send_json(
+                    {"error": "notes module failed to import", "detail": str(_DASHBOARD_IMPORT_ERROR)},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+                return
+
+            payload = self._read_json_body()
+            mode = str(payload.get("mode", "upsert")).strip() or "upsert"
+            current = load_notes(NOTES_LOCAL_PATH)
+            current_notes = current.get("notes", [])
+
+            if mode == "delete":
+                class_label = str(payload.get("classLabel", "")).strip().upper()
+                if not class_label:
+                    self._send_json({"error": "validation", "detail": "Klasse fehlt."}, status=HTTPStatus.BAD_REQUEST)
+                    return
+                remaining = [item for item in current_notes if item.get("classLabel") != class_label]
+                result = save_notes(NOTES_LOCAL_PATH, remaining)
+                self._send_json({"status": "ok", "detail": "Notiz entfernt.", **result})
+                return
+
+            note = create_note(payload)
+            if not note["classLabel"]:
+                self._send_json({"error": "validation", "detail": "Klasse wird benoetigt."}, status=HTTPStatus.BAD_REQUEST)
+                return
+            remaining = [item for item in current_notes if item.get("classLabel") != note["classLabel"]]
+            if note["text"]:
+                remaining = [note] + remaining
+            result = save_notes(NOTES_LOCAL_PATH, remaining)
+            self._send_json({"status": "ok", "detail": "Notiz lokal gespeichert.", **result})
             return
 
         self._send_json({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)

@@ -27,7 +27,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=23" />
+    <link rel="stylesheet" href="./styles.css?v=24" />
   </head>
   <body>
     <div class="app-shell">
@@ -255,6 +255,38 @@
                 </div>
                 <div id="grades-list" class="stack-list"></div>
               </section>
+
+              <section class="grades-panel notes-panel">
+                <div class="sidebar-head">
+                  <div>
+                    <p class="card-kicker">Kontext</p>
+                    <h2>Schueler-Notizen</h2>
+                  </div>
+                  <span class="pill pill-live">lokal</span>
+                </div>
+                <div class="classwork-controls grades-controls">
+                  <label class="classwork-select-field" for="class-notes-class-filter">
+                    <span>Klasse</span>
+                    <select id="class-notes-class-filter"></select>
+                  </label>
+                </div>
+                <form id="class-notes-form" class="connect-form">
+                  <label class="connect-field">
+                    <span>Hinweis</span>
+                    <textarea
+                      id="class-notes-input"
+                      rows="4"
+                      placeholder="z. B. 8A: Max fehlt oft freitags. 10B: Praesentation verschoben."
+                    ></textarea>
+                  </label>
+                  <div class="assistant-actions grades-actions notes-actions">
+                    <button class="primary-button" type="submit">Notiz speichern</button>
+                    <button id="class-notes-clear" class="secondary-link" type="button">Notiz entfernen</button>
+                  </div>
+                </form>
+                <div id="class-notes-feedback" class="connect-feedback"></div>
+                <div id="class-notes-list" class="stack-list compact-list"></div>
+              </section>
             </div>
           </article>
         </section>
@@ -422,7 +454,7 @@
       </main>
     </div>
 
-    <script src="./data/mock-dashboard.js?v=23"></script>
-    <script src="./src/app.js?v=23"></script>
+    <script src="./data/mock-dashboard.js?v=24"></script>
+    <script src="./src/app.js?v=24"></script>
   </body>
 </html>
