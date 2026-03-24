@@ -48,11 +48,29 @@ class ItslearningSettings:
 
 
 @dataclass
+class NextcloudSettings:
+    base_url: str
+    username: str
+    password: str
+    q1q2_url: str
+    q3q4_url: str
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.base_url or self.q1q2_url or self.q3q4_url)
+
+    @property
+    def login_configured(self) -> bool:
+        return bool(self.base_url and self.username and self.password)
+
+
+@dataclass
 class AppSettings:
     teacher_name: str
     school_name: str
     mail: MailSettings
     itslearning: ItslearningSettings
+    nextcloud: NextcloudSettings
     schoolportal_url: str
     webuntis_base_url: str
     webuntis_ical_url: str
@@ -63,6 +81,10 @@ class AppSettings:
     @property
     def itslearning_base_url(self) -> str:
         return self.itslearning.base_url
+
+    @property
+    def nextcloud_base_url(self) -> str:
+        return self.nextcloud.base_url
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -106,12 +128,20 @@ def load_settings() -> AppSettings:
         password=os.getenv("ITSLEARNING_PASSWORD", "").strip(),
         max_updates=_env_int("ITSLEARNING_MAX_UPDATES", 6),
     )
+    nextcloud_settings = NextcloudSettings(
+        base_url=os.getenv("NEXTCLOUD_BASE_URL", "https://nextcloud-g2.b-sz-heos.logoip.de").strip(),
+        username=os.getenv("NEXTCLOUD_USERNAME", "").strip(),
+        password=os.getenv("NEXTCLOUD_PASSWORD", "").strip(),
+        q1q2_url=os.getenv("NEXTCLOUD_Q1Q2_URL", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901").strip(),
+        q3q4_url=os.getenv("NEXTCLOUD_Q3Q4_URL", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900").strip(),
+    )
 
     return AppSettings(
         teacher_name=os.getenv("TEACHER_NAME", "").strip(),
         school_name=os.getenv("SCHOOL_NAME", "Stadtteilschule Nord").strip() or "Stadtteilschule Nord",
         mail=mail_settings,
         itslearning=itslearning_settings,
+        nextcloud=nextcloud_settings,
         schoolportal_url=os.getenv("SCHOOLPORTAL_URL", "https://schulportal.berlin.de").strip(),
         webuntis_base_url=os.getenv("WEBUNTIS_BASE_URL", "").strip(),
         webuntis_ical_url=os.getenv("WEBUNTIS_ICAL_URL", "").strip(),

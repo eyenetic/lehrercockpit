@@ -27,7 +27,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=24" />
+    <link rel="stylesheet" href="./styles.css?v=26" />
   </head>
   <body>
     <div class="app-shell">
@@ -80,7 +80,7 @@
         </header>
 
         <section class="overview-grid" data-view-section="overview">
-          <section class="card briefing-card" aria-labelledby="briefing-title">
+          <section class="card briefing-card tone-overview" aria-labelledby="briefing-title">
             <div class="section-head">
               <div>
                 <p class="card-kicker">Heute</p>
@@ -106,7 +106,7 @@
             <div id="priority-list" class="stack-list"></div>
           </article>
 
-          <article class="card schedule-card" id="schedule-section" aria-labelledby="schedule-title">
+          <article class="card schedule-card tone-schedule" id="schedule-section" aria-labelledby="schedule-title">
             <div class="section-head">
               <div>
                 <p class="card-kicker">Plan</p>
@@ -145,7 +145,7 @@
         </section>
 
         <section class="content-grid single-grid" data-view-section="inbox">
-          <article class="card" id="inbox-section" aria-labelledby="inbox-title">
+          <article class="card tone-inbox" id="inbox-section" aria-labelledby="inbox-title">
             <div class="section-head section-head-wrap">
               <div>
                 <p class="card-kicker">Kommunikation</p>
@@ -158,7 +158,7 @@
         </section>
 
         <section class="content-grid single-grid" data-view-section="grades">
-          <article class="card" id="grades-section" aria-labelledby="grades-title">
+          <article class="card tone-grades" id="grades-section" aria-labelledby="grades-title">
             <div class="section-head section-head-wrap">
               <div>
                 <p class="card-kicker">Noten Beta</p>
@@ -190,7 +190,7 @@
             </div>
 
             <div class="grades-layout">
-              <section class="grades-panel">
+              <section class="grades-panel tone-grades-panel">
                 <div class="sidebar-head">
                   <div>
                     <p class="card-kicker">Eingabe</p>
@@ -240,7 +240,7 @@
                 <div id="grades-feedback" class="connect-feedback"></div>
               </section>
 
-              <section class="grades-panel">
+              <section class="grades-panel tone-grades-panel">
                 <div class="sidebar-head">
                   <div>
                     <p class="card-kicker">Ansicht</p>
@@ -256,7 +256,7 @@
                 <div id="grades-list" class="stack-list"></div>
               </section>
 
-              <section class="grades-panel notes-panel">
+              <section class="grades-panel notes-panel tone-notes-panel">
                 <div class="sidebar-head">
                   <div>
                     <p class="card-kicker">Kontext</p>
@@ -292,7 +292,7 @@
         </section>
 
         <section class="content-grid single-grid" data-view-section="documents">
-          <article class="card" id="documents-section" aria-labelledby="docs-title">
+          <article class="card tone-documents" id="documents-section" aria-labelledby="docs-title">
             <div class="section-head section-head-wrap">
               <div>
                 <p class="card-kicker">Dokumente</p>
@@ -309,7 +309,7 @@
               </label>
             </div>
             <div class="plan-digest-grid">
-              <section class="plan-digest-card" aria-labelledby="orgaplan-digest-title">
+              <section class="plan-digest-card tone-orgaplan" aria-labelledby="orgaplan-digest-title">
                 <div class="sidebar-head">
                   <div>
                     <p class="card-kicker">Orgaplan</p>
@@ -321,7 +321,7 @@
                 <div id="orgaplan-upcoming-list" class="stack-list compact-list"></div>
               </section>
 
-              <section class="plan-digest-card" aria-labelledby="classwork-digest-title">
+              <section class="plan-digest-card tone-classwork" aria-labelledby="classwork-digest-title">
                 <div class="sidebar-head">
                   <div>
                     <p class="card-kicker">Klassenarbeitsplan</p>
@@ -386,7 +386,7 @@
         </section>
 
         <section class="assistant-row" data-view-section="assistant">
-          <article class="card assistant-card" aria-labelledby="assistant-title">
+          <article class="card assistant-card tone-assistant" aria-labelledby="assistant-title">
             <div class="section-head">
               <div>
                 <p class="card-kicker">Assistenz</p>
@@ -412,17 +412,17 @@
         </section>
 
         <section class="content-grid compact-grid" id="access-section" data-view-section="access">
-          <article class="card compact-panel" aria-labelledby="quicklinks-title">
+          <article class="card compact-panel tone-access" aria-labelledby="quicklinks-title">
             <div class="section-head section-head-compact">
               <div>
-                <p class="card-kicker">Direktzugriff</p>
+                <p class="card-kicker">Arbeitsbereiche</p>
                 <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
               </div>
             </div>
             <div id="quick-link-grid" class="link-grid compact-link-grid"></div>
           </article>
 
-          <article class="card compact-panel" id="itslearning-connect-card" aria-labelledby="itslearning-connect-title">
+          <article class="card compact-panel tone-itslearning" id="itslearning-connect-card" aria-labelledby="itslearning-connect-title">
             <div class="section-head section-head-compact">
               <div>
                 <p class="card-kicker">itslearning</p>
@@ -433,28 +433,83 @@
             <p id="itslearning-connect-copy" class="source-detail">
               Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner `.env.local` auf diesem Mac.
             </p>
-            <form id="itslearning-connect-form" class="connect-form">
-              <div class="connect-grid">
-                <label class="connect-field">
-                  <span>Benutzername</span>
-                  <input id="itslearning-username" type="text" autocomplete="username" placeholder="itslearning-Benutzername" />
-                </label>
-                <label class="connect-field">
-                  <span>Passwort</span>
-                  <input id="itslearning-password" type="password" autocomplete="current-password" placeholder="itslearning-Passwort" />
-                </label>
-              </div>
-              <div class="assistant-actions">
-                <button class="primary-button" type="submit">Lokal speichern</button>
-              </div>
-            </form>
+            <details class="connector-details">
+              <summary>Verbindung anpassen</summary>
+              <form id="itslearning-connect-form" class="connect-form">
+                <div class="connect-grid">
+                  <label class="connect-field">
+                    <span>Benutzername</span>
+                    <input id="itslearning-username" type="text" autocomplete="username" placeholder="itslearning-Benutzername" />
+                  </label>
+                  <label class="connect-field">
+                    <span>Passwort</span>
+                    <input id="itslearning-password" type="password" autocomplete="current-password" placeholder="itslearning-Passwort" />
+                  </label>
+                </div>
+                <div class="assistant-actions">
+                  <button class="primary-button" type="submit">Lokal speichern</button>
+                </div>
+              </form>
+            </details>
             <div id="itslearning-connect-feedback" class="connect-feedback"></div>
+          </article>
+
+          <article class="card compact-panel tone-nextcloud" id="nextcloud-connect-card" aria-labelledby="nextcloud-connect-title">
+            <div class="section-head section-head-compact">
+              <div>
+                <p class="card-kicker">Nextcloud</p>
+                <h2 id="nextcloud-connect-title">Fehlzeiten verbinden</h2>
+              </div>
+              <span id="nextcloud-connect-status" class="pill pill-positive">lokal</span>
+            </div>
+            <p id="nextcloud-connect-copy" class="source-detail">
+              Lokale Verbindung fuer Benutzername und Passwort. Die Bearbeitung bleibt in Nextcloud, das Cockpit wird hier zuerst nur zum technischen Zugriff und als schneller Einstieg genutzt.
+            </p>
+            <div class="nextcloud-workspaces">
+              <a id="nextcloud-open-q1q2" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901" target="_blank" rel="noreferrer" data-nextcloud-link="q1q2">
+                <span class="meta-tag low">Fehlzeiten</span>
+                <strong>Q1 / Q2</strong>
+                <p>11. Klasse direkt in Nextcloud oeffnen</p>
+                <span class="quick-link-action">oeffnen</span>
+              </a>
+              <a id="nextcloud-open-q3q4" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900" target="_blank" rel="noreferrer" data-nextcloud-link="q3q4">
+                <span class="meta-tag low">Fehlzeiten</span>
+                <strong>Q3 / Q4</strong>
+                <p>12. Klasse direkt in Nextcloud oeffnen</p>
+                <span class="quick-link-action">oeffnen</span>
+              </a>
+            </div>
+            <div class="nextcloud-meta-strip">
+              <div class="meta-snippet">
+                <span class="card-kicker">Zuletzt geoeffnet</span>
+                <strong id="nextcloud-last-opened">Noch kein Zugriff gespeichert</strong>
+              </div>
+            </div>
+            <details class="connector-details">
+              <summary>Verbindung anpassen</summary>
+              <form id="nextcloud-connect-form" class="connect-form">
+                <div class="connect-grid">
+                  <label class="connect-field">
+                    <span>Benutzername</span>
+                    <input id="nextcloud-username" type="text" autocomplete="username" placeholder="Nextcloud-Benutzername" />
+                  </label>
+                  <label class="connect-field">
+                    <span>Passwort</span>
+                    <input id="nextcloud-password" type="password" autocomplete="current-password" placeholder="Nextcloud-Passwort" />
+                  </label>
+                </div>
+                <div class="assistant-actions">
+                  <button class="primary-button" type="submit">Lokal speichern</button>
+                </div>
+              </form>
+            </details>
+            <div id="nextcloud-connect-feedback" class="connect-feedback"></div>
           </article>
         </section>
       </main>
     </div>
 
-    <script src="./data/mock-dashboard.js?v=24"></script>
-    <script src="./src/app.js?v=24"></script>
+    <script src="./data/mock-dashboard.js?v=26"></script>
+    <script src="./src/app.js?v=26"></script>
   </body>
 </html>

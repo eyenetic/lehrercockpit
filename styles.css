@@ -15,6 +15,18 @@
   --radius-md: 10px;
   --radius-sm: 7px;
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --tone-overview: #2563eb;
+  --tone-schedule: #4f46e5;
+  --tone-inbox: #0f766e;
+  --tone-grades: #b45309;
+  --tone-notes: #7c3aed;
+  --tone-documents: #c2410c;
+  --tone-orgaplan: #0f766e;
+  --tone-classwork: #a16207;
+  --tone-access: #475569;
+  --tone-itslearning: #0f5fe0;
+  --tone-nextcloud: #0284c7;
+  --tone-assistant: #7c3aed;
   color-scheme: light;
 }
 
@@ -414,6 +426,110 @@ a {
   box-shadow: var(--shadow-soft);
 }
 
+.tone-overview,
+.tone-schedule,
+.tone-inbox,
+.tone-grades,
+.tone-documents,
+.tone-orgaplan,
+.tone-classwork,
+.tone-access,
+.tone-itslearning,
+.tone-nextcloud,
+.tone-assistant {
+  position: relative;
+  overflow: hidden;
+}
+
+.tone-overview::before,
+.tone-schedule::before,
+.tone-inbox::before,
+.tone-grades::before,
+.tone-documents::before,
+.tone-orgaplan::before,
+.tone-classwork::before,
+.tone-access::before,
+.tone-itslearning::before,
+.tone-nextcloud::before,
+.tone-assistant::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--section-tone, var(--accent));
+  opacity: 0.9;
+}
+
+.tone-overview {
+  --section-tone: var(--tone-overview);
+  background: color-mix(in srgb, var(--panel) 93%, var(--tone-overview) 7%);
+}
+
+.tone-schedule {
+  --section-tone: var(--tone-schedule);
+  background: color-mix(in srgb, var(--panel) 94%, var(--tone-schedule) 6%);
+}
+
+.tone-inbox {
+  --section-tone: var(--tone-inbox);
+  background: color-mix(in srgb, var(--panel) 94%, var(--tone-inbox) 6%);
+}
+
+.tone-grades {
+  --section-tone: var(--tone-grades);
+  background: color-mix(in srgb, var(--panel) 94%, var(--tone-grades) 6%);
+}
+
+.tone-documents {
+  --section-tone: var(--tone-documents);
+  background: color-mix(in srgb, var(--panel) 94%, var(--tone-documents) 6%);
+}
+
+.tone-orgaplan {
+  --section-tone: var(--tone-orgaplan);
+  background: color-mix(in srgb, var(--panel) 95%, var(--tone-orgaplan) 5%);
+}
+
+.tone-classwork {
+  --section-tone: var(--tone-classwork);
+  background: color-mix(in srgb, var(--panel) 95%, var(--tone-classwork) 5%);
+}
+
+.tone-access {
+  --section-tone: var(--tone-access);
+  background: color-mix(in srgb, var(--panel) 95%, var(--tone-access) 5%);
+}
+
+.tone-itslearning {
+  --section-tone: var(--tone-itslearning);
+  background: color-mix(in srgb, var(--panel) 95%, var(--tone-itslearning) 5%);
+}
+
+.tone-nextcloud {
+  --section-tone: var(--tone-nextcloud);
+  background: color-mix(in srgb, var(--panel) 95%, var(--tone-nextcloud) 5%);
+}
+
+.tone-assistant {
+  --section-tone: var(--tone-assistant);
+  background: color-mix(in srgb, var(--panel) 95%, var(--tone-assistant) 5%);
+}
+
+.tone-grades-panel,
+.tone-notes-panel {
+  border: 1px solid color-mix(in srgb, var(--section-tone, var(--line)) 14%, var(--line));
+  background: color-mix(in srgb, var(--panel) 97%, var(--section-tone, var(--accent)) 3%);
+  border-radius: var(--radius-md);
+}
+
+.tone-notes-panel {
+  --section-tone: var(--tone-notes);
+}
+
+.tone-grades-panel {
+  --section-tone: var(--tone-grades);
+}
+
 .section-head,
 .sidebar-head,
 .message-top,
@@ -432,6 +548,22 @@ a {
 
 .section-head {
   margin-bottom: 18px;
+}
+
+.tone-overview .card-kicker,
+.tone-schedule .card-kicker,
+.tone-inbox .card-kicker,
+.tone-grades .card-kicker,
+.tone-documents .card-kicker,
+.tone-orgaplan .card-kicker,
+.tone-classwork .card-kicker,
+.tone-access .card-kicker,
+.tone-itslearning .card-kicker,
+.tone-nextcloud .card-kicker,
+.tone-assistant .card-kicker,
+.tone-grades-panel .card-kicker,
+.tone-notes-panel .card-kicker {
+  color: color-mix(in srgb, var(--section-tone, var(--accent)) 72%, var(--muted));
 }
 
 .section-head.section-head-wrap,
@@ -482,6 +614,11 @@ a {
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--accent) 4%, var(--panel));
   border-left: 4px solid var(--accent);
+}
+
+.tone-overview .briefing-lead {
+  background: color-mix(in srgb, var(--panel) 91%, var(--tone-overview) 9%);
+  border-left-color: var(--tone-overview);
 }
 
 .briefing-lead.is-current {
@@ -1139,9 +1276,115 @@ a {
   gap: 14px;
 }
 
+.connector-details {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.connector-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  list-style: none;
+}
+
+.connector-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.connector-details[open] summary {
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+
 .connect-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tone-schedule .secondary-link,
+.tone-documents .secondary-link,
+.tone-access .quick-link-action,
+.tone-itslearning .secondary-link,
+.tone-nextcloud .quick-link-action,
+.tone-nextcloud .secondary-link,
+.tone-orgaplan .secondary-link,
+.tone-classwork .secondary-link {
+  color: var(--section-tone, var(--accent));
+}
+
+.tone-nextcloud .nextcloud-work-card,
+.tone-itslearning .connector-details,
+.tone-classwork .classwork-day,
+.tone-orgaplan .source-detail,
+.tone-documents #document-list > *,
+.tone-access #quick-link-grid > * {
+  border-color: color-mix(in srgb, var(--section-tone, var(--accent)) 12%, var(--line));
+}
+
+.tone-nextcloud .nextcloud-work-card {
+  background: color-mix(in srgb, var(--panel) 96%, var(--tone-nextcloud) 4%);
+}
+
+.tone-access #quick-link-grid > *,
+.tone-documents #document-list > * {
+  background: color-mix(in srgb, var(--panel) 97%, var(--section-tone, var(--accent)) 3%);
+  border-radius: var(--radius-md);
+}
+
+.tone-inbox #message-list > *,
+.tone-documents #orgaplan-upcoming-list > *,
+.tone-documents #classwork-preview-list > *,
+.tone-grades #grades-list > *,
+.tone-grades #class-notes-list > * {
+  border-color: color-mix(in srgb, var(--section-tone, var(--accent)) 12%, var(--line));
+  background: color-mix(in srgb, var(--panel) 97%, var(--section-tone, var(--accent)) 3%);
+}
+
+.nextcloud-link-grid {
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.nextcloud-workspaces {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.nextcloud-work-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+  color: inherit;
+  text-decoration: none;
+}
+
+.nextcloud-work-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.nextcloud-meta-strip {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+}
+
+.meta-snippet {
+  display: grid;
+  gap: 4px;
 }
 
 .connect-feedback,

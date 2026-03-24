@@ -12,12 +12,13 @@ try:
     from backend.classwork_cache import load_cache, save_cache
     from backend.grades_store import create_grade_entry, load_gradebook, save_gradebook
     from backend.notes_store import create_note, load_notes, save_notes
-    from backend.local_settings import save_classwork_file, save_itslearning_settings
+    from backend.local_settings import save_classwork_file, save_itslearning_settings, save_nextcloud_settings
     _DASHBOARD_IMPORT_ERROR: Exception | None = None
 except Exception as _exc:
     build_dashboard_payload = None  # type: ignore[assignment]
     save_classwork_file = None  # type: ignore[assignment]
     save_itslearning_settings = None  # type: ignore[assignment]
+    save_nextcloud_settings = None  # type: ignore[assignment]
     load_cache = None  # type: ignore[assignment]
     save_cache = None  # type: ignore[assignment]
     create_grade_entry = None  # type: ignore[assignment]
@@ -235,6 +236,69 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 "username": username,
                 "baseUrl": base_url,
             })
+            return
+
+        if parsed.path == "/api/local-settings/nextcloud":
+            if not self._is_local_request():
+                self._send_json({"error": "local-only"}, status=HTTPStatus.FORBIDDEN)
+                return
+
+            if _DASHBOARD_IMPORT_ERROR is not None or save_nextcloud_settings is None:
+                self._send_json(
+                    {"error": "settings module failed to import", "detail": str(_DASHBOARD_IMPORT_ERROR)},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+                return
+
+            payload = self._read_json_body()
+            username = str(payload.get("username", "")).strip()
+            password = str(payload.get("password", "")).strip()
+            base_url = (
+                str(payload.get("baseUrl", "https://nextcloud-g2.b-sz-heos.logoip.de")).strip()
+                or "https://nextcloud-g2.b-sz-heos.logoip.de"
+            )
+            q1q2_url = (
+                str(payload.get("q1q2Url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901")).strip()
+                or "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901"
+            )
+            q3q4_url = (
+                str(payload.get("q3q4Url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900")).strip()
+                or "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900"
+            )
+
+            if not username or not password:
+                self._send_json(
+                    {"error": "validation", "detail": "Benutzername und Passwort werden benoetigt."},
+                    status=HTTPStatus.BAD_REQUEST,
+                )
+                return
+
+            try:
+                save_nextcloud_settings(
+                    ENV_FILE_PATH,
+                    base_url=base_url,
+                    username=username,
+                    password=password,
+                    q1q2_url=q1q2_url,
+                    q3q4_url=q3q4_url,
+                )
+            except Exception as exc:
+                self._send_json(
+                    {"error": "save-failed", "detail": f"{type(exc).__name__}: {exc}"},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+                return
+
+            self._send_json(
+                {
+                    "status": "ok",
+                    "detail": "Nextcloud-Zugang lokal gespeichert.",
+                    "username": username,
+                    "baseUrl": base_url,
+                    "q1q2Url": q1q2_url,
+                    "q3q4Url": q3q4_url,
+                }
+            )
             return
 
         if parsed.path == "/api/local-settings/classwork-upload":

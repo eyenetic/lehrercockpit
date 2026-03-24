@@ -3,6 +3,7 @@
   const WEBUNTIS_FAVORITES_KEY = "lehrerCockpit.webuntis.favorites";
   const ACTIVE_WEBUNTIS_PLAN_KEY = "lehrerCockpit.webuntis.activePlan";
   const THEME_KEY = "lehrerCockpit.theme";
+  const NEXTCLOUD_LAST_OPENED_KEY = "lehrerCockpit.nextcloud.lastOpened";
   const AUTO_REFRESH_MS = 180000;
   const IS_LOCAL_RUNTIME =
     window.location.protocol === "file:" ||
@@ -60,6 +61,16 @@
     itslearningUsername: document.querySelector("#itslearning-username"),
     itslearningPassword: document.querySelector("#itslearning-password"),
     itslearningConnectFeedback: document.querySelector("#itslearning-connect-feedback"),
+    nextcloudConnectCard: document.querySelector("#nextcloud-connect-card"),
+    nextcloudConnectStatus: document.querySelector("#nextcloud-connect-status"),
+    nextcloudConnectCopy: document.querySelector("#nextcloud-connect-copy"),
+    nextcloudConnectForm: document.querySelector("#nextcloud-connect-form"),
+    nextcloudUsername: document.querySelector("#nextcloud-username"),
+    nextcloudPassword: document.querySelector("#nextcloud-password"),
+    nextcloudConnectFeedback: document.querySelector("#nextcloud-connect-feedback"),
+    nextcloudOpenQ1Q2: document.querySelector("#nextcloud-open-q1q2"),
+    nextcloudOpenQ3Q4: document.querySelector("#nextcloud-open-q3q4"),
+    nextcloudLastOpened: document.querySelector("#nextcloud-last-opened"),
     priorityList: document.querySelector("#priority-list"),
     sourceList: document.querySelector("#source-list"),
     channelFilters: document.querySelector("#channel-filters"),
@@ -610,8 +621,9 @@
 
   function renderQuickLinks() {
     const data = getData();
-    elements.quickLinkGrid.innerHTML = data.quickLinks.length
-      ? data.quickLinks
+    const quickLinks = (data.quickLinks || []).filter((link) => !String(link.id || "").startsWith("nextcloud-"));
+    elements.quickLinkGrid.innerHTML = quickLinks.length
+      ? quickLinks
           .map(
             (link) => `
               <a class="quick-link-card" href="${link.url}" target="_blank" rel="noreferrer">
@@ -645,6 +657,45 @@
       "Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner .env.local auf diesem Mac.";
     if (!elements.itslearningUsername.value && source?.status === "ok") {
       elements.itslearningUsername.placeholder = "Benutzername bereits lokal gespeichert";
+    }
+  }
+
+  function renderNextcloudConnector() {
+    if (!elements.nextcloudConnectCard) {
+      return;
+    }
+
+    if (!IS_LOCAL_RUNTIME) {
+      elements.nextcloudConnectCard.hidden = true;
+      return;
+    }
+
+    const source = getData().sources.find((item) => item.id === "nextcloud");
+    const quickLinks = getData().quickLinks || [];
+    const q1q2Link = quickLinks.find((item) => item.id === "nextcloud-q1q2");
+    const q3q4Link = quickLinks.find((item) => item.id === "nextcloud-q3q4");
+    const lastOpened = loadNextcloudLastOpened();
+
+    elements.nextcloudConnectCard.hidden = false;
+    elements.nextcloudConnectStatus.className = `pill ${source?.status === "ok" ? "pill-live" : "pill-positive"}`;
+    elements.nextcloudConnectStatus.textContent = source?.status === "ok" ? "verbunden" : "lokal";
+    elements.nextcloudConnectCopy.textContent =
+      source?.detail ||
+      "Nextcloud ist als lokaler Schulzugang vorbereitet. Von hier aus oeffnest du die Fehlzeiten-Dateien und pruefst den technischen Zugriff.";
+
+    if (elements.nextcloudOpenQ1Q2) {
+      elements.nextcloudOpenQ1Q2.href = q1q2Link?.url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901";
+    }
+    if (elements.nextcloudOpenQ3Q4) {
+      elements.nextcloudOpenQ3Q4.href = q3q4Link?.url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900";
+    }
+    if (elements.nextcloudLastOpened) {
+      elements.nextcloudLastOpened.textContent = lastOpened
+        ? `${lastOpened.label} - ${lastOpened.when}`
+        : "Noch kein Zugriff gespeichert";
+    }
+    if (!elements.nextcloudUsername.value && source?.status === "ok") {
+      elements.nextcloudUsername.placeholder = "Benutzername bereits lokal gespeichert";
     }
   }
 
@@ -1863,6 +1914,20 @@
       });
     }
 
+    if (elements.nextcloudConnectForm) {
+      elements.nextcloudConnectForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await saveNextcloudCredentials();
+      });
+    }
+
+    [elements.nextcloudOpenQ1Q2, elements.nextcloudOpenQ3Q4].filter(Boolean).forEach((link) => {
+      link.addEventListener("click", () => {
+        saveNextcloudLastOpened(link.dataset.nextcloudLink, link.querySelector("strong")?.textContent || link.textContent);
+        renderNextcloudConnector();
+      });
+    });
+
     if (elements.themeToggle) {
       elements.themeToggle.addEventListener("click", () => {
         state.theme = state.theme === "dark" ? "light" : "dark";
@@ -1961,6 +2026,7 @@
     renderBriefing();
     renderQuickLinks();
     renderItslearningConnector();
+    renderNextcloudConnector();
     renderChannelFilters();
     renderMessages();
     renderWebUntisControls();
@@ -2029,6 +2095,72 @@
       elements.itslearningConnectFeedback.textContent = error.message || "itslearning-Zugang konnte nicht gespeichert werden.";
       elements.itslearningConnectFeedback.className = "connect-feedback warning";
     }
+  }
+
+  async function saveNextcloudCredentials() {
+    const username = elements.nextcloudUsername?.value.trim() || "";
+    const password = elements.nextcloudPassword?.value.trim() || "";
+
+    if (!username || !password) {
+      elements.nextcloudConnectFeedback.textContent = "Bitte Benutzername und Passwort eintragen.";
+      elements.nextcloudConnectFeedback.className = "connect-feedback warning";
+      return;
+    }
+
+    elements.nextcloudConnectFeedback.textContent = "Speichere lokale Nextcloud-Zugangsdaten ...";
+    elements.nextcloudConnectFeedback.className = "connect-feedback";
+
+    try {
+      const response = await fetch("/api/local-settings/nextcloud", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          baseUrl: "https://nextcloud-g2.b-sz-heos.logoip.de",
+          username,
+          password,
+          q1q2Url: "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901",
+          q3q4Url: "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900",
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.detail || "Lokales Speichern fehlgeschlagen.");
+      }
+
+      elements.nextcloudConnectFeedback.textContent = payload.detail || "Nextcloud-Zugang gespeichert.";
+      elements.nextcloudConnectFeedback.className = "connect-feedback success";
+      elements.nextcloudPassword.value = "";
+      await refreshDashboard();
+    } catch (error) {
+      elements.nextcloudConnectFeedback.textContent = error.message || "Nextcloud-Zugang konnte nicht gespeichert werden.";
+      elements.nextcloudConnectFeedback.className = "connect-feedback warning";
+    }
+  }
+
+  function loadNextcloudLastOpened() {
+    try {
+      const raw = localStorage.getItem(NEXTCLOUD_LAST_OPENED_KEY);
+      if (!raw) return null;
+      const payload = JSON.parse(raw);
+      if (!payload || !payload.label || !payload.when) return null;
+      return payload;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function saveNextcloudLastOpened(id, label) {
+    const normalizedLabel =
+      id === "q1q2" ? "Q1 / Q2" : id === "q3q4" ? "Q3 / Q4" : (label || "Nextcloud");
+    const payload = {
+      id: id || "nextcloud",
+      label: normalizedLabel,
+      when: formatTime(new Date()),
+    };
+    localStorage.setItem(NEXTCLOUD_LAST_OPENED_KEY, JSON.stringify(payload));
   }
 
   async function uploadClassworkFile(file) {

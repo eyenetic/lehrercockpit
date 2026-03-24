@@ -11,6 +11,7 @@ from .config import load_settings
 from .document_monitor import MonitoredDocument, build_document_monitor
 from .itslearning_adapter import fetch_itslearning_sync
 from .mail_adapter import fetch_mail_sync
+from .nextcloud_adapter import fetch_nextcloud_sync
 from .plan_digest import build_plan_digest
 from .webuntis_adapter import fetch_webuntis_sync
 from .webuntis_cache import cache_is_recent, load_webuntis_cache, save_webuntis_cache
@@ -27,6 +28,7 @@ def build_dashboard_payload(
     now = datetime.now().astimezone()
     mail_sync = fetch_mail_sync(settings.mail, now)
     itslearning_sync = fetch_itslearning_sync(settings.itslearning, now)
+    nextcloud_sync = fetch_nextcloud_sync(settings.nextcloud, now)
     webuntis_sync = fetch_webuntis_sync(settings.webuntis_base_url, settings.webuntis_ical_url, now)
     if webuntis_cache_path is not None:
         webuntis_sync = _apply_webuntis_cache(webuntis_sync, webuntis_cache_path, now)
@@ -44,7 +46,7 @@ def build_dashboard_payload(
     payload["teacher"]["name"] = settings.teacher_name
     payload["teacher"]["school"] = settings.school_name
     payload["workspace"] = _build_workspace(settings)
-    payload["meta"] = _build_meta(settings, mail_sync, itslearning_sync, webuntis_sync, now)
+    payload["meta"] = _build_meta(settings, mail_sync, itslearning_sync, nextcloud_sync, webuntis_sync, now)
     payload["quickLinks"] = _build_quick_links(settings)
     payload["berlinFocus"] = _build_berlin_focus(settings)
     payload["documentMonitor"] = document_monitor
@@ -57,6 +59,7 @@ def build_dashboard_payload(
     payload["sources"] = _apply_source_configuration(payload["sources"], settings)
     payload["sources"] = _merge_source(payload["sources"], mail_sync.source)
     payload["sources"] = _merge_source(payload["sources"], itslearning_sync.source)
+    payload["sources"] = _merge_source(payload["sources"], nextcloud_sync.source)
     payload["sources"] = _merge_source(payload["sources"], webuntis_sync.source)
     payload["sources"] = _apply_source_configuration(payload["sources"], settings)
     payload["documents"] = _apply_document_configuration(payload["documents"], settings)
@@ -118,7 +121,7 @@ def _merge_priorities(incoming: list[dict[str, Any]], existing: list[dict[str, A
     return combined[:4]
 
 
-def _build_meta(settings: Any, mail_sync: Any, itslearning_sync: Any, webuntis_sync: Any, now: datetime) -> dict[str, str]:
+def _build_meta(settings: Any, mail_sync: Any, itslearning_sync: Any, nextcloud_sync: Any, webuntis_sync: Any, now: datetime) -> dict[str, str]:
     notes = []
     live_modes = set()
 
@@ -130,6 +133,9 @@ def _build_meta(settings: Any, mail_sync: Any, itslearning_sync: Any, webuntis_s
 
     if settings.itslearning_base_url:
         notes.append(itslearning_sync.note)
+
+    if settings.nextcloud.configured and nextcloud_sync.note:
+        notes.append(nextcloud_sync.note)
 
     if mail_sync.mode == "live-mail":
         notes.append(mail_sync.note)
@@ -303,6 +309,8 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
     optional_links = [
         ("webuntis", "WebUntis", settings.webuntis_base_url, "Planung", "Stundenplan, Vertretung und Heute"),
         ("itslearning", "itslearning", settings.itslearning_base_url, "Lernen", "Updates und Kursmeldungen"),
+        ("nextcloud-q1q2", "Fehlzeiten Q1/Q2", settings.nextcloud.q1q2_url, "Nextcloud", "Fehlzeiten-Datei fuer die 11. Klasse direkt in Nextcloud"),
+        ("nextcloud-q3q4", "Fehlzeiten Q3/Q4", settings.nextcloud.q3q4_url, "Nextcloud", "Fehlzeiten-Datei fuer die 12. Klasse direkt in Nextcloud"),
         ("orgaplan", "Orgaplan", settings.orgaplan_pdf_url, "PDF", "Aktueller Orgaplan fuer eure Schule"),
     ]
 

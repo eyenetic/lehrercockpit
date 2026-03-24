@@ -11,6 +11,14 @@ ITSLEARNING_KEYS = (
     "ITSLEARNING_MAX_UPDATES",
 )
 
+NEXTCLOUD_KEYS = (
+    "NEXTCLOUD_BASE_URL",
+    "NEXTCLOUD_USERNAME",
+    "NEXTCLOUD_PASSWORD",
+    "NEXTCLOUD_Q1Q2_URL",
+    "NEXTCLOUD_Q3Q4_URL",
+)
+
 
 def save_itslearning_settings(
     env_path: Path,
@@ -25,6 +33,25 @@ def save_itslearning_settings(
         "ITSLEARNING_USERNAME": username.strip(),
         "ITSLEARNING_PASSWORD": password.strip(),
         "ITSLEARNING_MAX_UPDATES": str(max(1, min(max_updates, 12))),
+    }
+    _upsert_env_values(env_path, updates)
+
+
+def save_nextcloud_settings(
+    env_path: Path,
+    *,
+    base_url: str,
+    username: str,
+    password: str,
+    q1q2_url: str,
+    q3q4_url: str,
+) -> None:
+    updates = {
+        "NEXTCLOUD_BASE_URL": base_url.strip(),
+        "NEXTCLOUD_USERNAME": username.strip(),
+        "NEXTCLOUD_PASSWORD": password.strip(),
+        "NEXTCLOUD_Q1Q2_URL": q1q2_url.strip(),
+        "NEXTCLOUD_Q3Q4_URL": q3q4_url.strip(),
     }
     _upsert_env_values(env_path, updates)
 
