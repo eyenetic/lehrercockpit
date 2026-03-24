@@ -78,6 +78,7 @@
     monitorList: document.querySelector("#monitor-list"),
     scheduleList: document.querySelector("#schedule-list"),
     webuntisViewSwitch: document.querySelector("#webuntis-view-switch"),
+    webuntisRefreshButton: document.querySelector("#webuntis-refresh-button"),
     webuntisOpenToday: document.querySelector("#webuntis-open-today"),
     webuntisOpenBase: document.querySelector("#webuntis-open-base"),
     webuntisActivePlan: document.querySelector("#webuntis-active-plan"),
@@ -1418,7 +1419,7 @@
 
     elements.webuntisActivePlan.textContent = "Mein Stundenplan";
     elements.webuntisDetail.textContent =
-      "Persoenlicher Plan ueber WebUntis-iCal. Im Cockpit kompakt, fuer Details direkt in WebUntis weiter.";
+      "Persoenlicher Plan ueber WebUntis-iCal. Vergangene, laufende und kommende Stunden werden hier markiert. Ausfaelle erscheinen nur, wenn WebUntis sie im iCal mitsendet.";
     elements.webuntisRangeLabel.textContent = getWebUntisRangeLabel(center);
     elements.webuntisPlanStrip.hidden = true;
     elements.webuntisPlanStrip.innerHTML = "";
@@ -1570,14 +1571,19 @@
 
   function renderWebUntisSchedule() {
     const events = getWebUntisEvents();
+    const center = getData().webuntisCenter;
 
     if (!events.length) {
-      elements.scheduleList.innerHTML = `<div class="empty-state">Im gewaehlten WebUntis-Zeitraum liegen gerade keine Termine vor.</div>`;
+      if (state.webuntisView === "day") {
+        elements.scheduleList.innerHTML = `<div class="empty-state">Heute liegen im WebUntis-iCal keine Termine vor.</div>`;
+        return;
+      }
+      elements.scheduleList.innerHTML = renderWeekSchedule([], center);
       return;
     }
 
     if (state.webuntisView !== "day") {
-      elements.scheduleList.innerHTML = renderWeekSchedule(events, getData().webuntisCenter);
+      elements.scheduleList.innerHTML = renderWeekSchedule(events, center);
       return;
     }
 
@@ -1587,11 +1593,19 @@
 
   function renderWeekSchedule(events, center) {
     const columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, state.webuntisView));
+    const hasAnyWeekEvents = columns.some((column) => column.events.length);
+    const nextFutureEvent = findNextEventAfter(columns[columns.length - 1]?.isoDate || center.currentDate);
     return `
       <div class="webuntis-week-board">
         <div class="webuntis-agenda-head">
           <strong>${getWebUntisRangeLabel(center)}</strong>
-          <span>${columns.reduce((sum, column) => sum + column.events.length, 0)} Eintraege</span>
+          <span>${
+            hasAnyWeekEvents
+              ? `${columns.reduce((sum, column) => sum + column.events.length, 0)} Eintraege`
+              : nextFutureEvent
+                ? `Naechster bekannter Termin: ${formatDate(new Date(nextFutureEvent.startsAt))}`
+                : "keine Eintraege im iCal"
+          }</span>
         </div>
         <div class="webuntis-week-columns">
           ${columns
@@ -1606,7 +1620,7 @@
                     ${
                       column.events.length
                         ? column.events.map((event) => renderWeekEvent(event)).join("")
-                        : `<div class="webuntis-week-empty">Keine Termine</div>`
+                        : renderEmptyWeekColumn(column, hasAnyWeekEvents)
                     }
                   </div>
                 </section>
@@ -1661,11 +1675,15 @@
   }
 
   function renderDayEvent(event) {
+    const timingClass = getEventTimingClass(event);
     return `
-      <article class="webuntis-event">
+      <article class="webuntis-event ${timingClass} ${isCancelledEvent(event) ? "is-cancelled" : ""}">
         <div class="webuntis-event-time">${event.time}</div>
         <div>
-          <strong>${event.title}</strong>
+          <div class="webuntis-event-head">
+            <strong>${event.title}</strong>
+            <span class="meta-tag ${eventStateTagClass(event)}">${eventStateLabel(event)}</span>
+          </div>
           <p class="webuntis-event-copy">${compactEventDetail(event)}</p>
           <div class="meta-row">
             <span class="meta-tag">${event.category}</span>
@@ -1680,10 +1698,13 @@
   function renderWeekEvent(event) {
     const timingClass = getEventTimingClass(event);
     return `
-      <article class="webuntis-week-event ${timingClass}">
+      <article class="webuntis-week-event ${timingClass} ${isCancelledEvent(event) ? "is-cancelled" : ""}">
         <div class="webuntis-week-time">${event.time.replace(" - ", "–")}</div>
         <div class="webuntis-week-copy">
-          <strong>${event.title}</strong>
+          <div class="webuntis-week-head">
+            <strong>${event.title}</strong>
+            <span class="meta-tag ${eventStateTagClass(event)}">${eventStateLabel(event)}</span>
+          </div>
           ${event.location ? `<div class="webuntis-week-meta">${event.location}</div>` : ""}
           ${event.description ? `<div class="webuntis-week-meta">${event.description}</div>` : ""}
         </div>
@@ -1752,6 +1773,7 @@
         key,
         weekday: day.toLocaleDateString("de-DE", { weekday: "short" }),
         date: formatDate(day),
+        isoDate: key,
         events: byKey.get(key) || [],
       };
     });
@@ -1894,6 +1916,22 @@
       elements.webuntisPickerSearch.addEventListener("input", (event) => {
         state.webuntisPickerSearch = event.target.value;
         renderWebUntisPicker();
+      });
+    }
+    if (elements.webuntisRefreshButton) {
+      elements.webuntisRefreshButton.addEventListener("click", async () => {
+        if (elements.webuntisRefreshButton.disabled) {
+          return;
+        }
+        const originalLabel = elements.webuntisRefreshButton.textContent;
+        elements.webuntisRefreshButton.disabled = true;
+        elements.webuntisRefreshButton.textContent = "Aktualisiere …";
+        try {
+          await refreshDashboard();
+        } finally {
+          elements.webuntisRefreshButton.disabled = false;
+          elements.webuntisRefreshButton.textContent = originalLabel;
+        }
       });
     }
     document.addEventListener("keydown", (event) => {
@@ -3182,7 +3220,7 @@
   }
 
   function getEventTimingClass(event) {
-    const now = new Date(getData().generatedAt || Date.now());
+    const now = new Date();
     const start = new Date(event.startsAt);
     const end = new Date(event.endsAt);
     if (end < now) {
@@ -3196,6 +3234,60 @@
 
   function isEventCurrent(event) {
     return getEventTimingClass(event) === "is-current";
+  }
+
+  function eventStateLabel(event) {
+    if (isCancelledEvent(event)) {
+      return "entfaellt";
+    }
+    const timingClass = getEventTimingClass(event);
+    if (timingClass === "is-past") {
+      return "vorbei";
+    }
+    if (timingClass === "is-current") {
+      return "jetzt";
+    }
+    return "kommt";
+  }
+
+  function eventStateTagClass(event) {
+    if (isCancelledEvent(event)) {
+      return "critical";
+    }
+    const timingClass = getEventTimingClass(event);
+    if (timingClass === "is-past") {
+      return "low";
+    }
+    if (timingClass === "is-current") {
+      return "ok";
+    }
+    return "";
+  }
+
+  function isCancelledEvent(event) {
+    const haystack = `${event.title || ""} ${event.description || ""} ${event.detail || ""}`.toLowerCase();
+    return /(entf[aä]llt|ausfall|ausfaellt|fällt aus|faellt aus|cancelled|verlegt|vertretung)/i.test(haystack);
+  }
+
+  function findNextEventAfter(referenceIsoDate) {
+    const events = (getData().webuntisCenter?.events || [])
+      .filter((event) => event.startsAt)
+      .filter((event) => event.startsAt.slice(0, 10) > referenceIsoDate)
+      .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt));
+    return events[0] || null;
+  }
+
+  function renderEmptyWeekColumn(column, hasAnyWeekEvents) {
+    if (hasAnyWeekEvents) {
+      return `<div class="webuntis-week-empty">Kein iCal-Eintrag fuer diesen Tag</div>`;
+    }
+
+    const nextEvent = findNextEventAfter(column.isoDate);
+    if (nextEvent) {
+      return `<div class="webuntis-week-empty">Im iCal keine Termine. Naechster Eintrag am ${formatDate(new Date(nextEvent.startsAt))}.</div>`;
+    }
+
+    return `<div class="webuntis-week-empty">Im iCal sind fuer diese Woche gerade keine Termine vorhanden.</div>`;
   }
 
   function extractClassLabels(event) {

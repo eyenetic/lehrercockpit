@@ -969,10 +969,19 @@ a {
   transition: opacity 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 
+.webuntis-event-head,
+.webuntis-week-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .webuntis-event {
   grid-template-columns: 92px minmax(0, 1fr);
   align-items: start;
   border-left: 3px solid var(--accent);
+  padding-left: 10px;
 }
 
 .webuntis-week-event.is-current,
@@ -981,9 +990,21 @@ a {
   background: color-mix(in srgb, var(--accent) 7%, var(--panel));
 }
 
+.webuntis-week-event.is-upcoming,
+.webuntis-event.is-upcoming {
+  border-left: 3px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  padding-left: 10px;
+}
+
 .webuntis-week-event.is-past,
 .webuntis-event.is-past {
   opacity: 0.35;
+}
+
+.webuntis-week-event.is-cancelled,
+.webuntis-event.is-cancelled {
+  border-left: 3px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, var(--panel));
 }
 
 .webuntis-event-time,
@@ -1004,6 +1025,11 @@ a {
 
 .webuntis-week-copy {
   min-width: 0;
+}
+
+#webuntis-refresh-button[disabled] {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .webuntis-week-meta,
