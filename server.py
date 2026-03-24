@@ -5,7 +5,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
-from urllib.parse import urlparse
+import time
+from urllib.parse import parse_qs, urlparse
 
 try:
     from backend.dashboard import build_dashboard_payload
@@ -41,8 +42,10 @@ GRADES_LOCAL_PATH = PROJECT_ROOT / "data" / "grades-local.json"
 NOTES_LOCAL_PATH = PROJECT_ROOT / "data" / "class-notes-local.json"
 ENV_FILE_PATH = PROJECT_ROOT / ".env.local"
 CLASSWORK_LOCAL_PATH = PROJECT_ROOT / "data" / "classwork-plan-local.xlsx"
+DASHBOARD_CACHE_TTL_SECONDS = int(os.environ.get("DASHBOARD_CACHE_TTL_SECONDS", "45"))
 
 CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "*")
+_DASHBOARD_CACHE: dict[str, object] = {"payload": None, "created_monotonic": 0.0}
 
 
 def _load_env_file() -> None:
@@ -62,6 +65,32 @@ def _load_env_file() -> None:
 
 
 _load_env_file()
+
+
+def _invalidate_dashboard_cache() -> None:
+    _DASHBOARD_CACHE["payload"] = None
+    _DASHBOARD_CACHE["created_monotonic"] = 0.0
+
+
+def _get_cached_dashboard_payload(*, force_refresh: bool) -> dict[str, object]:
+    cached_payload = _DASHBOARD_CACHE.get("payload")
+    created_monotonic = float(_DASHBOARD_CACHE.get("created_monotonic") or 0.0)
+    if (
+        not force_refresh
+        and cached_payload is not None
+        and (time.monotonic() - created_monotonic) <= DASHBOARD_CACHE_TTL_SECONDS
+    ):
+        return cached_payload  # type: ignore[return-value]
+
+    payload = build_dashboard_payload(
+        MOCK_DATA_PATH,
+        MONITOR_STATE_PATH,
+        CLASSWORK_CACHE_PATH,
+        WEBUNTIS_CACHE_PATH,
+    )
+    _DASHBOARD_CACHE["payload"] = payload
+    _DASHBOARD_CACHE["created_monotonic"] = time.monotonic()
+    return payload
 
 
 # ── HTTP handler ──────────────────────────────────────────────────────────────
@@ -84,6 +113,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
 
         if parsed.path == "/api/health":
             self._send_json({"status": "ok"})
@@ -96,12 +126,8 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                     status=HTTPStatus.INTERNAL_SERVER_ERROR,
                 )
                 return
-            payload = build_dashboard_payload(
-                MOCK_DATA_PATH,
-                MONITOR_STATE_PATH,
-                CLASSWORK_CACHE_PATH,
-                WEBUNTIS_CACHE_PATH,
-            )
+            force_refresh = query.get("refresh", ["0"])[0].lower() in {"1", "true", "yes"}
+            payload = _get_cached_dashboard_payload(force_refresh=force_refresh)
             self._send_json(payload)
             return
 
@@ -187,6 +213,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
             result = fetch_classwork_from_browser(onedrive_url)
             if result.get("status") == "ok":
                 result["cacheWritten"] = write_to_cache(result)
+                _invalidate_dashboard_cache()
             self._send_json(result)
             return
 
@@ -236,6 +263,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 "username": username,
                 "baseUrl": base_url,
             })
+            _invalidate_dashboard_cache()
             return
 
         if parsed.path == "/api/local-settings/nextcloud":
@@ -299,6 +327,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                     "q3q4Url": q3q4_url,
                 }
             )
+            _invalidate_dashboard_cache()
             return
 
         if parsed.path == "/api/local-settings/classwork-upload":
@@ -340,6 +369,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                     "path": str(CLASSWORK_LOCAL_PATH),
                 }
             )
+            _invalidate_dashboard_cache()
             return
 
         if parsed.path == "/api/local-settings/grades":
@@ -363,6 +393,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 entries = payload.get("entries", [])
                 result = save_gradebook(GRADES_LOCAL_PATH, entries if isinstance(entries, list) else [])
                 self._send_json({"status": "ok", "detail": "Noten lokal gespeichert.", **result})
+                _invalidate_dashboard_cache()
                 return
 
             if mode == "delete":
@@ -373,6 +404,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 remaining = [entry for entry in current_entries if entry.get("id") != entry_id]
                 result = save_gradebook(GRADES_LOCAL_PATH, remaining)
                 self._send_json({"status": "ok", "detail": "Eintrag entfernt.", **result})
+                _invalidate_dashboard_cache()
                 return
 
             entry = create_grade_entry(payload)
@@ -384,6 +416,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 return
             result = save_gradebook(GRADES_LOCAL_PATH, [entry] + current_entries)
             self._send_json({"status": "ok", "detail": "Note lokal gespeichert.", **result})
+            _invalidate_dashboard_cache()
             return
 
         if parsed.path == "/api/local-settings/notes":
@@ -411,6 +444,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 remaining = [item for item in current_notes if item.get("classLabel") != class_label]
                 result = save_notes(NOTES_LOCAL_PATH, remaining)
                 self._send_json({"status": "ok", "detail": "Notiz entfernt.", **result})
+                _invalidate_dashboard_cache()
                 return
 
             note = create_note(payload)
@@ -422,6 +456,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 remaining = [note] + remaining
             result = save_notes(NOTES_LOCAL_PATH, remaining)
             self._send_json({"status": "ok", "detail": "Notiz lokal gespeichert.", **result})
+            _invalidate_dashboard_cache()
             return
 
         self._send_json({"error": "not-found"}, status=HTTPStatus.NOT_FOUND)
@@ -456,6 +491,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
 
         if save_cache:
             save_cache(CLASSWORK_CACHE_PATH, result)
+        _invalidate_dashboard_cache()
 
         self._send_json(result)
 

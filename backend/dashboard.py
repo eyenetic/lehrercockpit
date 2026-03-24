@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from datetime import datetime
 import json
@@ -26,19 +27,29 @@ def build_dashboard_payload(
     payload = _load_mock_payload(mock_path)
     settings = load_settings()
     now = datetime.now().astimezone()
-    mail_sync = fetch_mail_sync(settings.mail, now)
-    itslearning_sync = fetch_itslearning_sync(settings.itslearning, now)
-    nextcloud_sync = fetch_nextcloud_sync(settings.nextcloud, now)
-    webuntis_sync = fetch_webuntis_sync(settings.webuntis_base_url, settings.webuntis_ical_url, now)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        mail_future = executor.submit(fetch_mail_sync, settings.mail, now)
+        itslearning_future = executor.submit(fetch_itslearning_sync, settings.itslearning, now)
+        nextcloud_future = executor.submit(fetch_nextcloud_sync, settings.nextcloud, now)
+        webuntis_future = executor.submit(fetch_webuntis_sync, settings.webuntis_base_url, settings.webuntis_ical_url, now)
+        monitor_future = executor.submit(build_document_monitor, _monitored_documents(settings), monitor_state_path, now)
+        plan_digest_future = executor.submit(
+            build_plan_digest,
+            settings.orgaplan_pdf_url,
+            settings.classwork_plan_url,
+            settings.classwork_plan_local_path,
+            now,
+        )
+
+        mail_sync = mail_future.result()
+        itslearning_sync = itslearning_future.result()
+        nextcloud_sync = nextcloud_future.result()
+        webuntis_sync = webuntis_future.result()
+        document_monitor = monitor_future.result()
+        plan_digest = plan_digest_future.result()
+
     if webuntis_cache_path is not None:
         webuntis_sync = _apply_webuntis_cache(webuntis_sync, webuntis_cache_path, now)
-    document_monitor = build_document_monitor(_monitored_documents(settings), monitor_state_path, now)
-    plan_digest = build_plan_digest(
-        settings.orgaplan_pdf_url,
-        settings.classwork_plan_url,
-        settings.classwork_plan_local_path,
-        now,
-    )
     if classwork_cache_path is not None:
         plan_digest["classwork"] = _merge_classwork_cache(plan_digest["classwork"], classwork_cache_path, mock_path)
 
@@ -46,6 +57,7 @@ def build_dashboard_payload(
     payload["teacher"]["name"] = settings.teacher_name
     payload["teacher"]["school"] = settings.school_name
     payload["workspace"] = _build_workspace(settings)
+    payload["localConnections"] = _build_local_connections(settings)
     payload["meta"] = _build_meta(settings, mail_sync, itslearning_sync, nextcloud_sync, webuntis_sync, now)
     payload["quickLinks"] = _build_quick_links(settings)
     payload["berlinFocus"] = _build_berlin_focus(settings)
@@ -89,6 +101,23 @@ def build_dashboard_payload(
     payload["priorities"] = _merge_priorities(webuntis_sync.priorities, payload["priorities"])
 
     return payload
+
+
+def _build_local_connections(settings: Any) -> dict[str, Any]:
+    return {
+        "itslearning": {
+            "configured": settings.itslearning.native_login_configured,
+            "username": settings.itslearning.username,
+        },
+        "nextcloud": {
+            "configured": settings.nextcloud.login_configured,
+            "username": settings.nextcloud.username,
+        },
+        "mail": {
+            "configured": settings.mail.configured,
+            "account": settings.mail.local_account or settings.mail.username,
+        },
+    }
 
 
 def _load_mock_payload(mock_path: Path) -> dict[str, Any]:

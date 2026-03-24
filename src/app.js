@@ -155,10 +155,10 @@
     website: "Webseite",
   };
 
-  async function loadDashboard() {
+  async function loadDashboard(forceRefresh = false) {
     const sources = IS_LOCAL_RUNTIME
-      ? ["/api/dashboard", "./data/mock-dashboard.json"]
-      : [...PRODUCTION_API_BASES.map((base) => `${base}/api/dashboard`), "./data/mock-dashboard.json"];
+      ? [`/api/dashboard${forceRefresh ? "?refresh=1" : ""}`, "./data/mock-dashboard.json"]
+      : [...PRODUCTION_API_BASES.map((base) => `${base}/api/dashboard${forceRefresh ? "?refresh=1" : ""}`), "./data/mock-dashboard.json"];
 
     for (const source of sources) {
       try {
@@ -650,14 +650,20 @@
     }
 
     const source = getData().sources.find((item) => item.id === "itslearning");
+    const connection = getData().localConnections?.itslearning || {};
     elements.itslearningConnectCard.hidden = false;
-    elements.itslearningConnectStatus.className = `pill ${source?.status === "ok" ? "pill-live" : "pill-positive"}`;
-    elements.itslearningConnectStatus.textContent = source?.status === "ok" ? "verbunden" : "lokal";
+    elements.itslearningConnectStatus.className = `pill ${
+      source?.status === "ok" ? "pill-live" : connection.configured ? "pill-attention" : "pill-positive"
+    }`;
+    elements.itslearningConnectStatus.textContent = source?.status === "ok" ? "verbunden" : connection.configured ? "gespeichert" : "lokal";
     elements.itslearningConnectCopy.textContent =
       source?.detail ||
       "Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner .env.local auf diesem Mac.";
-    if (!elements.itslearningUsername.value && source?.status === "ok") {
-      elements.itslearningUsername.placeholder = "Benutzername bereits lokal gespeichert";
+    if (!elements.itslearningUsername.value && connection.username) {
+      elements.itslearningUsername.value = connection.username;
+    }
+    if (connection.configured) {
+      elements.itslearningPassword.placeholder = "Passwort lokal gespeichert";
     }
   }
 
@@ -672,14 +678,17 @@
     }
 
     const source = getData().sources.find((item) => item.id === "nextcloud");
+    const connection = getData().localConnections?.nextcloud || {};
     const quickLinks = getData().quickLinks || [];
     const q1q2Link = quickLinks.find((item) => item.id === "nextcloud-q1q2");
     const q3q4Link = quickLinks.find((item) => item.id === "nextcloud-q3q4");
     const lastOpened = loadNextcloudLastOpened();
 
     elements.nextcloudConnectCard.hidden = false;
-    elements.nextcloudConnectStatus.className = `pill ${source?.status === "ok" ? "pill-live" : "pill-positive"}`;
-    elements.nextcloudConnectStatus.textContent = source?.status === "ok" ? "verbunden" : "lokal";
+    elements.nextcloudConnectStatus.className = `pill ${
+      source?.status === "ok" ? "pill-live" : connection.configured ? "pill-attention" : "pill-positive"
+    }`;
+    elements.nextcloudConnectStatus.textContent = source?.status === "ok" ? "verbunden" : connection.configured ? "gespeichert" : "lokal";
     elements.nextcloudConnectCopy.textContent =
       source?.detail ||
       "Nextcloud ist als lokaler Schulzugang vorbereitet. Von hier aus oeffnest du die Fehlzeiten-Dateien und pruefst den technischen Zugriff.";
@@ -695,8 +704,11 @@
         ? `${lastOpened.label} - ${lastOpened.when}`
         : "Noch kein Zugriff gespeichert";
     }
-    if (!elements.nextcloudUsername.value && source?.status === "ok") {
-      elements.nextcloudUsername.placeholder = "Benutzername bereits lokal gespeichert";
+    if (!elements.nextcloudUsername.value && connection.username) {
+      elements.nextcloudUsername.value = connection.username;
+    }
+    if (connection.configured) {
+      elements.nextcloudPassword.placeholder = "Passwort lokal gespeichert";
     }
   }
 
@@ -1864,7 +1876,7 @@
 
   function registerEvents() {
     elements.briefingButton.addEventListener("click", async () => {
-      await refreshDashboard();
+      await refreshDashboard(true);
     });
 
     elements.navLinks.forEach((button) => {
@@ -1927,7 +1939,7 @@
         elements.webuntisRefreshButton.disabled = true;
         elements.webuntisRefreshButton.textContent = "Aktualisiere …";
         try {
-          await refreshDashboard();
+          await refreshDashboard(true);
         } finally {
           elements.webuntisRefreshButton.disabled = false;
           elements.webuntisRefreshButton.textContent = originalLabel;
@@ -2076,10 +2088,10 @@
     renderDocumentMonitor();
   }
 
-  async function refreshDashboard() {
+  async function refreshDashboard(forceRefresh = false) {
     elements.heroNote.textContent = "Lade aktuelle Datenquellen und aktualisiere Cockpit, WebUntis und Inbox.";
     try {
-      state.data = await loadDashboard();
+      state.data = await loadDashboard(forceRefresh);
       renderAll();
     } catch (error) {
       if (window.LEHRER_COCKPIT_FALLBACK_DATA) {
@@ -2128,7 +2140,7 @@
       elements.itslearningConnectFeedback.textContent = payload.detail || "itslearning-Zugang gespeichert.";
       elements.itslearningConnectFeedback.className = "connect-feedback success";
       elements.itslearningPassword.value = "";
-      await refreshDashboard();
+      await refreshDashboard(true);
     } catch (error) {
       elements.itslearningConnectFeedback.textContent = error.message || "itslearning-Zugang konnte nicht gespeichert werden.";
       elements.itslearningConnectFeedback.className = "connect-feedback warning";
@@ -2171,7 +2183,7 @@
       elements.nextcloudConnectFeedback.textContent = payload.detail || "Nextcloud-Zugang gespeichert.";
       elements.nextcloudConnectFeedback.className = "connect-feedback success";
       elements.nextcloudPassword.value = "";
-      await refreshDashboard();
+      await refreshDashboard(true);
     } catch (error) {
       elements.nextcloudConnectFeedback.textContent = error.message || "Nextcloud-Zugang konnte nicht gespeichert werden.";
       elements.nextcloudConnectFeedback.className = "connect-feedback warning";
@@ -2233,7 +2245,7 @@
 
       state.classworkUploadFeedback = payload.detail || "Klassenarbeitsplan importiert.";
       state.classworkUploadFeedbackKind = "success";
-      await refreshDashboard();
+      await refreshDashboard(true);
     } catch (error) {
       state.classworkUploadFeedback = error.message || "Klassenarbeitsplan konnte nicht importiert werden.";
       state.classworkUploadFeedbackKind = "warning";
@@ -2282,7 +2294,7 @@
           `✓ ${payload.detail || "Daten erfolgreich geladen."}`,
           "ok"
         );
-        await refreshDashboard();
+        await refreshDashboard(true);
         await loadClassworkCache();
       }
     } catch (error) {
@@ -2501,6 +2513,10 @@
         loadNotes();
       });
     }, AUTO_REFRESH_MS);
+  }
+
+  function connectionHint(type) {
+    return getData().localConnections?.[type] || {};
   }
 
   function loadStoredTheme() {
