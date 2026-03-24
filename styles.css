@@ -603,7 +603,7 @@ a {
 .briefing-grid {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .briefing-lead {
@@ -685,6 +685,25 @@ a {
 .briefing-item {
   border-left: 3px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 2%, var(--panel));
+}
+
+.briefing-item-orgaplan {
+  border-left-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 5%, var(--panel));
+}
+
+.briefing-item-classwork {
+  border-left-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 4%, var(--panel));
+}
+
+.briefing-item-inbox {
+  border-left-color: var(--accent);
+}
+
+.briefing-item-week {
+  border-left-color: var(--success);
+  background: color-mix(in srgb, var(--success) 4%, var(--panel));
 }
 
 .priority-copy,

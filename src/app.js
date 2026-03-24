@@ -443,6 +443,7 @@
     const orgaplanItem = pickOrgaplanBriefing(data);
     const classworkItem = pickClassworkBriefing(data);
     const inboxItem = pickInboxBriefing(data);
+    const todaySummary = pickTodayScheduleBriefing(data, nextEvent);
     const weeklyPreview = pickWeeklyPreview(data);
     const lead = nextEvent
       ? {
@@ -451,6 +452,13 @@
           copy: `${nextEvent.time}${nextEvent.location ? ` · ${nextEvent.location}` : ""}${nextEvent.description ? ` · ${nextEvent.description}` : ""}`,
           timingClass: getEventTimingClass(nextEvent),
         }
+      : todaySummary
+        ? {
+            kicker: "heute",
+            title: todaySummary.title,
+            copy: todaySummary.copy,
+            timingClass: "is-upcoming",
+          }
       : orgaplanItem
         ? {
             kicker: "heute wichtig",
@@ -460,35 +468,38 @@
           }
         : null;
 
-    const briefingItems = [];
-
-    if (orgaplanItem) {
-      briefingItems.push({
-        title: "Orgaplan",
-        copy: `${orgaplanItem.label}: ${orgaplanItem.copy}`,
-      });
-    }
-
-    if (classworkItem) {
-      briefingItems.push({
-        title: "Klassenarbeitsplan",
-        copy: classworkItem,
-      });
-    }
-
-    if (inboxItem) {
-      briefingItems.push({
-        title: "Inbox",
-        copy: inboxItem,
-      });
-    }
-
-    if (weeklyPreview) {
-      briefingItems.push({
-        title: "Wochenvorschau",
-        copy: weeklyPreview,
-      });
-    }
+    const briefingItems = [
+      orgaplanItem
+        ? {
+            title: "Orgaplan",
+            copy: `${orgaplanItem.label}: ${orgaplanItem.copy}`,
+            tone: "orgaplan",
+          }
+        : null,
+      classworkItem
+        ? {
+            title: "Klassenarbeiten",
+            copy: classworkItem,
+            tone: "classwork",
+          }
+        : null,
+      inboxItem
+        ? {
+            title: "Inbox",
+            copy: inboxItem,
+            tone: "inbox",
+          }
+        : null,
+      weeklyPreview
+        ? {
+            title: "Wochenvorschau",
+            copy: weeklyPreview,
+            tone: "week",
+          }
+        : null,
+    ]
+      .filter(Boolean)
+      .slice(0, 3);
 
     elements.briefingOutput.innerHTML = lead || briefingItems.length
       ? `
@@ -503,7 +514,7 @@
           ${briefingItems
             .map(
               (item) => `
-                <article class="briefing-item">
+                <article class="briefing-item briefing-item-${item.tone || "default"}">
                   <strong>${item.title}</strong>
                   <span>${item.copy}</span>
                 </article>
@@ -581,7 +592,11 @@
       return "";
     }
 
-    const nextEntry = (classwork.entries || [])[0];
+    const now = new Date();
+    const nextEntry = (classwork.entries || [])
+      .filter((entry) => entry.isoDate)
+      .sort((left, right) => (left.isoDate || "").localeCompare(right.isoDate || ""))
+      .find((entry) => new Date(`${entry.isoDate}T00:00:00`) >= startOfDay(now));
     if (nextEntry) {
       return `${nextEntry.classLabel}: ${nextEntry.dateLabel} ${nextEntry.title}`;
     }
@@ -589,7 +604,7 @@
   }
 
   function pickWeeklyPreview(data) {
-    const now = new Date(data.generatedAt || Date.now());
+    const now = new Date();
     if (now.getDay() !== 1) {
       return "";
     }
@@ -615,6 +630,47 @@
     }
 
     return `${weekEvents.length} Termine, ${classworkCount} Arbeiten und ${classes.size || 0} Klassen diese Woche.`;
+  }
+
+  function pickTodayScheduleBriefing(data, nextEvent) {
+    const center = data.webuntisCenter || {};
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const todayEvents = (center.events || [])
+      .filter((event) => event.startsAt)
+      .filter((event) => {
+        const startsAt = new Date(event.startsAt);
+        return startsAt >= todayStart && startsAt < tomorrowStart;
+      })
+      .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt));
+
+    if (!todayEvents.length) {
+      return {
+        title: "Heute sind keine iCal-Termine eingetragen",
+        copy: "Wenn Unterricht stattfindet, liegt die Luecke wahrscheinlich an der WebUntis-iCal-Quelle und nicht am Cockpit.",
+      };
+    }
+
+    const remaining = todayEvents.filter((event) => new Date(event.endsAt || event.startsAt) >= now);
+    if (nextEvent && remaining.length) {
+      return {
+        title: `${todayEvents.length} Termine heute`,
+        copy: `${remaining.length} davon liegen noch vor dir. Danach kommt ${nextEvent.title}.`,
+      };
+    }
+
+    return {
+      title: `${todayEvents.length} Termine heute`,
+      copy: remaining.length ? `${remaining.length} Termine sind heute noch offen.` : "Der heutige Plan ist bereits durchlaufen.",
+    };
+  }
+
+  function startOfDay(date) {
+    const copy = new Date(date);
+    copy.setHours(0, 0, 0, 0);
+    return copy;
   }
 
   function pickInboxBriefing(data) {
@@ -727,7 +783,7 @@
     elements.nextcloudConnectStatus.textContent = source?.status === "ok" ? "verbunden" : connection.configured ? "gespeichert" : "lokal";
     elements.nextcloudConnectCopy.textContent =
       source?.detail ||
-      "Nextcloud ist als lokaler Schulzugang vorbereitet. Von hier aus oeffnest du die Fehlzeiten-Dateien und pruefst den technischen Zugriff.";
+      "Nextcloud ist als Arbeitsbereich vorbereitet. Von hier aus oeffnest du die Fehlzeiten-Dateien direkt im Browser.";
 
     if (elements.nextcloudOpenQ1Q2) {
       elements.nextcloudOpenQ1Q2.href = q1q2Link?.url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901";
@@ -1385,9 +1441,9 @@
     if (classwork.status === "ok") {
       const classCount = (classwork.classes || []).length;
       const entryCount = (classwork.entries || []).length;
-      return `Lokale Datei aktiv. ${entryCount} Eintraege fuer ${classCount} Klassen erkannt.`;
+      return `${entryCount} Eintraege fuer ${classCount} Klassen erkannt. Du kannst jetzt kompakt nach Klasse arbeiten.`;
     }
-    return truncateText(classwork.detail || "Klassenarbeitsplan ist aktuell nicht automatisch auslesbar.", 140);
+    return truncateText(classwork.detail || "Der Klassenarbeitsplan ist verlinkt, aber noch nicht automatisch lesbar.", 140);
   }
 
   function weekdayLabel(value) {

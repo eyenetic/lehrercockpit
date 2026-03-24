@@ -28,8 +28,8 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "status": "warning",
                 "cadence": "lokal vorbereiten",
                 "lastSync": "nicht verbunden",
-                "nextStep": "Nextcloud lokal verbinden und Fehlzeiten-Dateien hinterlegen",
-                "detail": "Nextcloud ist noch nicht eingerichtet.",
+                "nextStep": "Arbeitsbereich lokal vorbereiten",
+                "detail": "Nextcloud ist als Arbeitsbereich noch nicht eingerichtet.",
             },
             note="",
         )
@@ -43,8 +43,8 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "status": "warning",
                 "cadence": "lokal bei Reload",
                 "lastSync": "bereit",
-                "nextStep": "Benutzername und Passwort lokal speichern, dann WebDAV testen",
-                "detail": "Die Fehlzeiten-Dateien sind verlinkt. Fuer den technischen Zugriff fehlen noch lokale Zugangsdaten.",
+                "nextStep": "Lokalen Zugang speichern, damit das Cockpit den Bereich pruefen kann",
+                "detail": "Die Fehlzeiten-Dateien sind verlinkt. Fuer den lokalen Verbindungscheck fehlen noch Zugangsdaten.",
             },
             note="",
         )
@@ -59,15 +59,15 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "status": "ok",
                 "cadence": "lokal bei Reload",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "Als Naechstes koennen wir pruefen, ob sich die Excel-Dateien direkt lesen lassen",
+                "nextStep": "Als Naechstes koennen wir Metadaten oder spaeter direkte Datei-Leselogik pruefen",
                 "detail": (
-                    "Nextcloud-Zugang erfolgreich geprueft. "
+                    "Nextcloud-Arbeitsbereich lokal verbunden. "
                     + (
-                        "Lokaler SSL-Fallback ist aktiv, weil der Schulserver kein vollstaendig vertrautes Zertifikat liefert. "
+                        "Der Schulserver braucht lokal einen SSL-Fallback. "
                         if probe.get("sslFallback")
                         else ""
                     )
-                    + "Die Fehlzeiten-Dateien koennen jetzt aus dem Cockpit geoeffnet werden."
+                    + "Die Fehlzeiten-Dateien koennen jetzt direkt aus dem Cockpit geoeffnet werden."
                 ),
             },
             note=f"Nextcloud-Fehlzeiten sind lokal verbunden. Letzter Abruf: {now.strftime('%H:%M')}.",
@@ -81,7 +81,7 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "status": "warning",
                 "cadence": "lokal bei Reload",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "Zugang pruefen oder spaeter WebDAV/App-Passwort mit der Schul-IT klaeren",
+                "nextStep": "Zugang pruefen oder spaeter mit der Schul-IT App-Passwoerter/WebDAV klaeren",
                 "detail": _nextcloud_error_detail(exc),
             },
             note="Nextcloud konnte gerade nicht technisch geprueft werden.",
