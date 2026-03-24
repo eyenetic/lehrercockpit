@@ -1,4 +1,5 @@
 FROM python:3.11-slim
+# Flask + gunicorn WSGI stack (replaces ThreadingHTTPServer for Render compatibility)
 
 WORKDIR /app
 
