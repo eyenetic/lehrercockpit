@@ -79,8 +79,19 @@
     nextcloudUsername: document.querySelector("#nextcloud-username"),
     nextcloudPassword: document.querySelector("#nextcloud-password"),
     nextcloudConnectFeedback: document.querySelector("#nextcloud-connect-feedback"),
+    nextcloudWorkspaceUrl: document.querySelector("#nextcloud-workspace-url"),
+    nextcloudOpenRoot: document.querySelector("#nextcloud-open-root"),
     nextcloudOpenQ1Q2: document.querySelector("#nextcloud-open-q1q2"),
     nextcloudOpenQ3Q4: document.querySelector("#nextcloud-open-q3q4"),
+    nextcloudQ1Q2UrlInput: document.querySelector("#nextcloud-q1q2-url"),
+    nextcloudQ3Q4UrlInput: document.querySelector("#nextcloud-q3q4-url"),
+    nextcloudLink1Label: document.querySelector("#nextcloud-link1-label"),
+    nextcloudLink1Url: document.querySelector("#nextcloud-link1-url"),
+    nextcloudLink2Label: document.querySelector("#nextcloud-link2-label"),
+    nextcloudLink2Url: document.querySelector("#nextcloud-link2-url"),
+    nextcloudLink3Label: document.querySelector("#nextcloud-link3-label"),
+    nextcloudLink3Url: document.querySelector("#nextcloud-link3-url"),
+    nextcloudCustomLinks: document.querySelector("#nextcloud-custom-links"),
     nextcloudLastOpened: document.querySelector("#nextcloud-last-opened"),
     priorityList: document.querySelector("#priority-list"),
     sourceList: document.querySelector("#source-list"),
@@ -771,33 +782,90 @@
 
     const source = getData().sources.find((item) => item.id === "nextcloud");
     const connection = getData().localConnections?.nextcloud || {};
-    const quickLinks = getData().quickLinks || [];
-    const q1q2Link = quickLinks.find((item) => item.id === "nextcloud-q1q2");
-    const q3q4Link = quickLinks.find((item) => item.id === "nextcloud-q3q4");
+    const workspaceUrl = connection.workspaceUrl || connection.baseUrl || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/";
+    const q1q2Url = connection.q1q2Url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901";
+    const q3q4Url = connection.q3q4Url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900";
+    const workspaceLinks = Array.isArray(connection.workspaceLinks) ? connection.workspaceLinks : [];
     const lastOpened = loadNextcloudLastOpened();
 
     elements.nextcloudConnectCard.hidden = false;
     elements.nextcloudConnectStatus.className = `pill ${
       source?.status === "ok" ? "pill-live" : connection.configured ? "pill-attention" : "pill-positive"
     }`;
-    elements.nextcloudConnectStatus.textContent = source?.status === "ok" ? "verbunden" : connection.configured ? "gespeichert" : "lokal";
+    elements.nextcloudConnectStatus.textContent =
+      source?.status === "ok"
+        ? (connection.configured ? "verbunden" : "bereit")
+        : connection.configured
+          ? "gespeichert"
+          : "lokal";
     elements.nextcloudConnectCopy.textContent =
       source?.detail ||
       "Nextcloud ist als Arbeitsbereich vorbereitet. Von hier aus oeffnest du die Fehlzeiten-Dateien direkt im Browser.";
 
+    if (elements.nextcloudOpenRoot) {
+      elements.nextcloudOpenRoot.href = workspaceUrl;
+    }
     if (elements.nextcloudOpenQ1Q2) {
-      elements.nextcloudOpenQ1Q2.href = q1q2Link?.url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901";
+      elements.nextcloudOpenQ1Q2.href = q1q2Url;
     }
     if (elements.nextcloudOpenQ3Q4) {
-      elements.nextcloudOpenQ3Q4.href = q3q4Link?.url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900";
+      elements.nextcloudOpenQ3Q4.href = q3q4Url;
+    }
+    if (elements.nextcloudCustomLinks) {
+      elements.nextcloudCustomLinks.hidden = !workspaceLinks.length;
+      elements.nextcloudCustomLinks.innerHTML = workspaceLinks
+        .map(
+          (link) => `
+            <a class="nextcloud-work-card" href="${link.url}" target="_blank" rel="noreferrer" data-nextcloud-link="${link.id}">
+              <span class="meta-tag low">Arbeitslink</span>
+              <strong>${link.label}</strong>
+              <p>Direkt in Nextcloud oeffnen</p>
+              <span class="quick-link-action">oeffnen</span>
+            </a>
+          `
+        )
+        .join("");
+      elements.nextcloudCustomLinks.querySelectorAll("[data-nextcloud-link]").forEach((link) => {
+        link.addEventListener("click", () => {
+          saveNextcloudLastOpened(link.dataset.nextcloudLink, link.querySelector("strong")?.textContent || link.textContent);
+          renderNextcloudConnector();
+        });
+      });
     }
     if (elements.nextcloudLastOpened) {
       elements.nextcloudLastOpened.textContent = lastOpened
         ? `${lastOpened.label} - ${lastOpened.when}`
         : "Noch kein Zugriff gespeichert";
     }
+    if (elements.nextcloudWorkspaceUrl && !elements.nextcloudWorkspaceUrl.value) {
+      elements.nextcloudWorkspaceUrl.value = workspaceUrl;
+    }
     if (!elements.nextcloudUsername.value && connection.username) {
       elements.nextcloudUsername.value = connection.username;
+    }
+    if (elements.nextcloudQ1Q2UrlInput && !elements.nextcloudQ1Q2UrlInput.value) {
+      elements.nextcloudQ1Q2UrlInput.value = q1q2Url;
+    }
+    if (elements.nextcloudQ3Q4UrlInput && !elements.nextcloudQ3Q4UrlInput.value) {
+      elements.nextcloudQ3Q4UrlInput.value = q3q4Url;
+    }
+    if (elements.nextcloudLink1Label && !elements.nextcloudLink1Label.value) {
+      elements.nextcloudLink1Label.value = workspaceLinks[0]?.label || "";
+    }
+    if (elements.nextcloudLink1Url && !elements.nextcloudLink1Url.value) {
+      elements.nextcloudLink1Url.value = workspaceLinks[0]?.url || "";
+    }
+    if (elements.nextcloudLink2Label && !elements.nextcloudLink2Label.value) {
+      elements.nextcloudLink2Label.value = workspaceLinks[1]?.label || "";
+    }
+    if (elements.nextcloudLink2Url && !elements.nextcloudLink2Url.value) {
+      elements.nextcloudLink2Url.value = workspaceLinks[1]?.url || "";
+    }
+    if (elements.nextcloudLink3Label && !elements.nextcloudLink3Label.value) {
+      elements.nextcloudLink3Label.value = workspaceLinks[2]?.label || "";
+    }
+    if (elements.nextcloudLink3Url && !elements.nextcloudLink3Url.value) {
+      elements.nextcloudLink3Url.value = workspaceLinks[2]?.url || "";
     }
     if (connection.configured) {
       elements.nextcloudPassword.placeholder = "Passwort lokal gespeichert";
@@ -2085,7 +2153,7 @@
       });
     }
 
-    [elements.nextcloudOpenQ1Q2, elements.nextcloudOpenQ3Q4].filter(Boolean).forEach((link) => {
+    [elements.nextcloudOpenRoot, elements.nextcloudOpenQ1Q2, elements.nextcloudOpenQ3Q4].filter(Boolean).forEach((link) => {
       link.addEventListener("click", () => {
         saveNextcloudLastOpened(link.dataset.nextcloudLink, link.querySelector("strong")?.textContent || link.textContent);
         renderNextcloudConnector();
@@ -2265,14 +2333,11 @@
   async function saveNextcloudCredentials() {
     const username = elements.nextcloudUsername?.value.trim() || "";
     const password = elements.nextcloudPassword?.value.trim() || "";
+    const workspaceUrl = elements.nextcloudWorkspaceUrl?.value.trim() || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/";
+    const q1q2Url = elements.nextcloudQ1Q2UrlInput?.value.trim() || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901";
+    const q3q4Url = elements.nextcloudQ3Q4UrlInput?.value.trim() || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900";
 
-    if (!username || !password) {
-      elements.nextcloudConnectFeedback.textContent = "Bitte Benutzername und Passwort eintragen.";
-      elements.nextcloudConnectFeedback.className = "connect-feedback warning";
-      return;
-    }
-
-    elements.nextcloudConnectFeedback.textContent = "Speichere lokale Nextcloud-Zugangsdaten ...";
+    elements.nextcloudConnectFeedback.textContent = "Speichere Nextcloud-Arbeitsbereich lokal ...";
     elements.nextcloudConnectFeedback.className = "connect-feedback";
 
     try {
@@ -2283,10 +2348,17 @@
         },
         body: JSON.stringify({
           baseUrl: "https://nextcloud-g2.b-sz-heos.logoip.de",
+          workspaceUrl,
           username,
           password,
-          q1q2Url: "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901",
-          q3q4Url: "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900",
+          q1q2Url,
+          q3q4Url,
+          link1Label: elements.nextcloudLink1Label?.value.trim() || "",
+          link1Url: elements.nextcloudLink1Url?.value.trim() || "",
+          link2Label: elements.nextcloudLink2Label?.value.trim() || "",
+          link2Url: elements.nextcloudLink2Url?.value.trim() || "",
+          link3Label: elements.nextcloudLink3Label?.value.trim() || "",
+          link3Url: elements.nextcloudLink3Url?.value.trim() || "",
         }),
       });
 
@@ -2295,7 +2367,7 @@
         throw new Error(payload.detail || "Lokales Speichern fehlgeschlagen.");
       }
 
-      elements.nextcloudConnectFeedback.textContent = payload.detail || "Nextcloud-Zugang gespeichert.";
+      elements.nextcloudConnectFeedback.textContent = payload.detail || "Nextcloud-Arbeitsbereich gespeichert.";
       elements.nextcloudConnectFeedback.className = "connect-feedback success";
       elements.nextcloudPassword.value = "";
       await refreshDashboard(true);
@@ -2319,7 +2391,7 @@
 
   function saveNextcloudLastOpened(id, label) {
     const normalizedLabel =
-      id === "q1q2" ? "Q1 / Q2" : id === "q3q4" ? "Q3 / Q4" : (label || "Nextcloud");
+      id === "root" ? "Nextcloud" : id === "q1q2" ? "Q1 / Q2" : id === "q3q4" ? "Q3 / Q4" : (label || "Nextcloud");
     const payload = {
       id: id || "nextcloud",
       label: normalizedLabel,

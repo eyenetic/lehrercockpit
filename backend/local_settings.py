@@ -15,8 +15,15 @@ NEXTCLOUD_KEYS = (
     "NEXTCLOUD_BASE_URL",
     "NEXTCLOUD_USERNAME",
     "NEXTCLOUD_PASSWORD",
+    "NEXTCLOUD_WORKSPACE_URL",
     "NEXTCLOUD_Q1Q2_URL",
     "NEXTCLOUD_Q3Q4_URL",
+    "NEXTCLOUD_LINK_1_LABEL",
+    "NEXTCLOUD_LINK_1_URL",
+    "NEXTCLOUD_LINK_2_LABEL",
+    "NEXTCLOUD_LINK_2_URL",
+    "NEXTCLOUD_LINK_3_LABEL",
+    "NEXTCLOUD_LINK_3_URL",
 )
 
 
@@ -43,15 +50,29 @@ def save_nextcloud_settings(
     base_url: str,
     username: str,
     password: str,
+    workspace_url: str,
     q1q2_url: str,
     q3q4_url: str,
+    link_1_label: str = "",
+    link_1_url: str = "",
+    link_2_label: str = "",
+    link_2_url: str = "",
+    link_3_label: str = "",
+    link_3_url: str = "",
 ) -> None:
     updates = {
         "NEXTCLOUD_BASE_URL": base_url.strip(),
         "NEXTCLOUD_USERNAME": username.strip(),
         "NEXTCLOUD_PASSWORD": password.strip(),
+        "NEXTCLOUD_WORKSPACE_URL": workspace_url.strip(),
         "NEXTCLOUD_Q1Q2_URL": q1q2_url.strip(),
         "NEXTCLOUD_Q3Q4_URL": q3q4_url.strip(),
+        "NEXTCLOUD_LINK_1_LABEL": link_1_label.strip(),
+        "NEXTCLOUD_LINK_1_URL": link_1_url.strip(),
+        "NEXTCLOUD_LINK_2_LABEL": link_2_label.strip(),
+        "NEXTCLOUD_LINK_2_URL": link_2_url.strip(),
+        "NEXTCLOUD_LINK_3_LABEL": link_3_label.strip(),
+        "NEXTCLOUD_LINK_3_URL": link_3_url.strip(),
     }
     _upsert_env_values(env_path, updates)
 

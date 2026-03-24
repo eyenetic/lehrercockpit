@@ -52,16 +52,52 @@ class NextcloudSettings:
     base_url: str
     username: str
     password: str
+    workspace_url: str
     q1q2_url: str
     q3q4_url: str
+    link_1_label: str
+    link_1_url: str
+    link_2_label: str
+    link_2_url: str
+    link_3_label: str
+    link_3_url: str
 
     @property
     def configured(self) -> bool:
-        return bool(self.base_url or self.q1q2_url or self.q3q4_url)
+        return bool(
+            self.base_url
+            or self.workspace_url
+            or self.q1q2_url
+            or self.q3q4_url
+            or self.link_1_url
+            or self.link_2_url
+            or self.link_3_url
+        )
 
     @property
     def login_configured(self) -> bool:
         return bool(self.base_url and self.username and self.password)
+
+    @property
+    def workspace_links(self) -> list[dict[str, str]]:
+        links = []
+        for index, (label, url) in enumerate(
+            [
+                (self.link_1_label, self.link_1_url),
+                (self.link_2_label, self.link_2_url),
+                (self.link_3_label, self.link_3_url),
+            ],
+            start=1,
+        ):
+            if url.strip():
+                links.append(
+                    {
+                        "id": f"custom-{index}",
+                        "label": (label or f"Arbeitslink {index}").strip(),
+                        "url": url.strip(),
+                    }
+                )
+        return links
 
 
 @dataclass
@@ -132,8 +168,15 @@ def load_settings() -> AppSettings:
         base_url=os.getenv("NEXTCLOUD_BASE_URL", "https://nextcloud-g2.b-sz-heos.logoip.de").strip(),
         username=os.getenv("NEXTCLOUD_USERNAME", "").strip(),
         password=os.getenv("NEXTCLOUD_PASSWORD", "").strip(),
+        workspace_url=os.getenv("NEXTCLOUD_WORKSPACE_URL", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/").strip(),
         q1q2_url=os.getenv("NEXTCLOUD_Q1Q2_URL", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901").strip(),
         q3q4_url=os.getenv("NEXTCLOUD_Q3Q4_URL", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900").strip(),
+        link_1_label=os.getenv("NEXTCLOUD_LINK_1_LABEL", "").strip(),
+        link_1_url=os.getenv("NEXTCLOUD_LINK_1_URL", "").strip(),
+        link_2_label=os.getenv("NEXTCLOUD_LINK_2_LABEL", "").strip(),
+        link_2_url=os.getenv("NEXTCLOUD_LINK_2_URL", "").strip(),
+        link_3_label=os.getenv("NEXTCLOUD_LINK_3_LABEL", "").strip(),
+        link_3_url=os.getenv("NEXTCLOUD_LINK_3_URL", "").strip(),
     )
 
     return AppSettings(

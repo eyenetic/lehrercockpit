@@ -39,15 +39,18 @@ _load_env_file()
 
 try:
     from backend.dashboard import build_dashboard_payload
+    from backend.config import load_settings
     from backend.classwork_cache import load_cache, save_cache
     from backend.grades_store import create_grade_entry, load_gradebook, save_gradebook
     from backend.notes_store import create_note, load_notes, save_notes
-    from backend.local_settings import save_classwork_file, save_itslearning_settings
+    from backend.local_settings import save_classwork_file, save_itslearning_settings, save_nextcloud_settings
     _IMPORT_ERROR: Exception | None = None
 except Exception as _exc:
     build_dashboard_payload = None  # type: ignore[assignment]
+    load_settings = None  # type: ignore[assignment]
     save_classwork_file = None  # type: ignore[assignment]
     save_itslearning_settings = None  # type: ignore[assignment]
+    save_nextcloud_settings = None  # type: ignore[assignment]
     load_cache = None  # type: ignore[assignment]
     save_cache = None  # type: ignore[assignment]
     create_grade_entry = None  # type: ignore[assignment]
@@ -241,6 +244,70 @@ def api_local_settings_itslearning() -> Response:
         return jsonify({"error": "save-failed", "detail": f"{type(exc).__name__}: {exc}"}), 500
 
     return jsonify({"status": "ok", "detail": "itslearning-Zugang lokal gespeichert.", "username": username, "baseUrl": base_url})
+
+
+@app.route("/api/local-settings/nextcloud", methods=["POST", "OPTIONS"])
+def api_local_settings_nextcloud() -> Response:
+    if request.method == "OPTIONS":
+        return Response(status=204)
+    if not _is_local_request():
+        return jsonify({"error": "local-only"}), 403
+    if _IMPORT_ERROR is not None or save_nextcloud_settings is None:
+        return jsonify({"error": "settings module failed to import", "detail": str(_IMPORT_ERROR)}), 500
+
+    payload = request.get_json(silent=True) or {}
+    current_settings = load_settings() if load_settings is not None else None
+    current_nextcloud = getattr(current_settings, "nextcloud", None)
+
+    username = str(payload.get("username", "")).strip() or getattr(current_nextcloud, "username", "")
+    password = str(payload.get("password", "")).strip() or getattr(current_nextcloud, "password", "")
+    base_url = str(payload.get("baseUrl", getattr(current_nextcloud, "base_url", "https://nextcloud-g2.b-sz-heos.logoip.de"))).strip() or getattr(current_nextcloud, "base_url", "https://nextcloud-g2.b-sz-heos.logoip.de")
+    workspace_url = str(payload.get("workspaceUrl", getattr(current_nextcloud, "workspace_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/"))).strip() or getattr(current_nextcloud, "workspace_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/")
+    q1q2_url = str(payload.get("q1q2Url", getattr(current_nextcloud, "q1q2_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901"))).strip() or getattr(current_nextcloud, "q1q2_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901")
+    q3q4_url = str(payload.get("q3q4Url", getattr(current_nextcloud, "q3q4_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900"))).strip() or getattr(current_nextcloud, "q3q4_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900")
+    link_1_label = str(payload.get("link1Label", getattr(current_nextcloud, "link_1_label", ""))).strip()
+    link_1_url = str(payload.get("link1Url", getattr(current_nextcloud, "link_1_url", ""))).strip()
+    link_2_label = str(payload.get("link2Label", getattr(current_nextcloud, "link_2_label", ""))).strip()
+    link_2_url = str(payload.get("link2Url", getattr(current_nextcloud, "link_2_url", ""))).strip()
+    link_3_label = str(payload.get("link3Label", getattr(current_nextcloud, "link_3_label", ""))).strip()
+    link_3_url = str(payload.get("link3Url", getattr(current_nextcloud, "link_3_url", ""))).strip()
+
+    try:
+        save_nextcloud_settings(
+            ENV_FILE_PATH,
+            base_url=base_url,
+            username=username,
+            password=password,
+            workspace_url=workspace_url,
+            q1q2_url=q1q2_url,
+            q3q4_url=q3q4_url,
+            link_1_label=link_1_label,
+            link_1_url=link_1_url,
+            link_2_label=link_2_label,
+            link_2_url=link_2_url,
+            link_3_label=link_3_label,
+            link_3_url=link_3_url,
+        )
+    except Exception as exc:
+        return jsonify({"error": "save-failed", "detail": f"{type(exc).__name__}: {exc}"}), 500
+
+    return jsonify(
+        {
+            "status": "ok",
+            "detail": "Nextcloud-Arbeitsbereich lokal gespeichert.",
+            "username": username,
+            "baseUrl": base_url,
+            "workspaceUrl": workspace_url,
+            "q1q2Url": q1q2_url,
+            "q3q4Url": q3q4_url,
+            "link1Label": link_1_label,
+            "link1Url": link_1_url,
+            "link2Label": link_2_label,
+            "link2Url": link_2_url,
+            "link3Label": link_3_label,
+            "link3Url": link_3_url,
+        }
+    )
 
 
 @app.route("/api/local-settings/classwork-upload", methods=["POST", "OPTIONS"])

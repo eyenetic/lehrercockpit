@@ -40,11 +40,11 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "id": "nextcloud",
                 "name": "Nextcloud",
                 "type": "Fehlzeiten",
-                "status": "warning",
-                "cadence": "lokal bei Reload",
+                "status": "ok",
+                "cadence": "im Browser",
                 "lastSync": "bereit",
-                "nextStep": "Lokalen Zugang speichern, damit das Cockpit den Bereich pruefen kann",
-                "detail": "Die Fehlzeiten-Dateien sind verlinkt. Fuer den lokalen Verbindungscheck fehlen noch Zugangsdaten.",
+                "nextStep": "Arbeitslinks nutzen oder spaeter optional einen lokalen Verbindungscheck hinterlegen",
+                "detail": "Nextcloud ist als Arbeitsbereich hinterlegt. Die Dateien lassen sich direkt im Browser oeffnen.",
             },
             note="",
         )
@@ -73,6 +73,23 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
             note=f"Nextcloud-Fehlzeiten sind lokal verbunden. Letzter Abruf: {now.strftime('%H:%M')}.",
         )
     except Exception as exc:
+        if settings.workspace_url or settings.q1q2_url or settings.q3q4_url:
+            return NextcloudSyncResult(
+                source={
+                    "id": "nextcloud",
+                    "name": "Nextcloud",
+                    "type": "Fehlzeiten",
+                    "status": "ok",
+                    "cadence": "im Browser",
+                    "lastSync": now.strftime("%H:%M"),
+                    "nextStep": "Arbeitslinks weiter nutzen. Den technischen Direktcheck koennen wir spaeter noch verfeinern.",
+                    "detail": (
+                        "Nextcloud ist als Arbeitsbereich nutzbar. "
+                        f"Der technische Verbindungscheck war gerade nicht stabil ({_nextcloud_error_detail(exc)})."
+                    ),
+                },
+                note="Nextcloud bleibt als Arbeitsbereich verfuegbar.",
+            )
         return NextcloudSyncResult(
             source={
                 "id": "nextcloud",

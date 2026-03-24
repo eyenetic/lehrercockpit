@@ -27,7 +27,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=31" />
+    <link rel="stylesheet" href="./styles.css?v=32" />
   </head>
   <body>
     <div class="app-shell">
@@ -475,6 +475,12 @@
               Die Bearbeitung bleibt in Nextcloud. Das Cockpit dient hier als schneller Einstieg in eure Fehlzeiten-Dateien.
             </p>
             <div class="nextcloud-workspaces">
+              <a id="nextcloud-open-root" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/" target="_blank" rel="noreferrer" data-nextcloud-link="root">
+                <span class="meta-tag low">Arbeitsbereich</span>
+                <strong>Nextcloud</strong>
+                <p>Dateien, Freigaben und Teamordner direkt oeffnen</p>
+                <span class="quick-link-action">oeffnen</span>
+              </a>
               <a id="nextcloud-open-q1q2" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901" target="_blank" rel="noreferrer" data-nextcloud-link="q1q2">
                 <span class="meta-tag low">Fehlzeiten</span>
                 <strong>Q1 / Q2</strong>
@@ -488,6 +494,7 @@
                 <span class="quick-link-action">oeffnen</span>
               </a>
             </div>
+            <div id="nextcloud-custom-links" class="nextcloud-workspaces" hidden></div>
             <div class="nextcloud-meta-strip">
               <div class="meta-snippet">
                 <span class="card-kicker">Zuletzt geoeffnet</span>
@@ -499,6 +506,10 @@
               <form id="nextcloud-connect-form" class="connect-form">
                 <div class="connect-grid">
                   <label class="connect-field">
+                    <span>Arbeitsbereich</span>
+                    <input id="nextcloud-workspace-url" type="url" placeholder="Nextcloud-Start oder Ordnerlink" />
+                  </label>
+                  <label class="connect-field">
                     <span>Benutzername</span>
                     <input id="nextcloud-username" type="text" autocomplete="username" placeholder="Nextcloud-Benutzername" />
                   </label>
@@ -506,9 +517,41 @@
                     <span>Passwort</span>
                     <input id="nextcloud-password" type="password" autocomplete="current-password" placeholder="Nextcloud-Passwort" />
                   </label>
+                  <label class="connect-field">
+                    <span>Fehlzeiten Q1 / Q2</span>
+                    <input id="nextcloud-q1q2-url" type="url" placeholder="Link zur Datei" />
+                  </label>
+                  <label class="connect-field">
+                    <span>Fehlzeiten Q3 / Q4</span>
+                    <input id="nextcloud-q3q4-url" type="url" placeholder="Link zur Datei" />
+                  </label>
+                  <label class="connect-field">
+                    <span>Arbeitslink 1</span>
+                    <input id="nextcloud-link1-label" type="text" placeholder="z. B. Fachbereich" />
+                  </label>
+                  <label class="connect-field">
+                    <span>URL 1</span>
+                    <input id="nextcloud-link1-url" type="url" placeholder="Link zu Ordner oder Datei" />
+                  </label>
+                  <label class="connect-field">
+                    <span>Arbeitslink 2</span>
+                    <input id="nextcloud-link2-label" type="text" placeholder="z. B. Teamordner" />
+                  </label>
+                  <label class="connect-field">
+                    <span>URL 2</span>
+                    <input id="nextcloud-link2-url" type="url" placeholder="Link zu Ordner oder Datei" />
+                  </label>
+                  <label class="connect-field">
+                    <span>Arbeitslink 3</span>
+                    <input id="nextcloud-link3-label" type="text" placeholder="z. B. Protokolle" />
+                  </label>
+                  <label class="connect-field">
+                    <span>URL 3</span>
+                    <input id="nextcloud-link3-url" type="url" placeholder="Link zu Ordner oder Datei" />
+                  </label>
                 </div>
                 <div class="assistant-actions">
-                  <button class="primary-button" type="submit">Lokal speichern</button>
+                  <button class="primary-button" type="submit">Arbeitsbereich speichern</button>
                 </div>
               </form>
             </details>
@@ -518,7 +561,7 @@
       </main>
     </div>
 
-    <script src="./data/mock-dashboard.js?v=31"></script>
-    <script src="./src/app.js?v=31"></script>
+    <script src="./data/mock-dashboard.js?v=32"></script>
+    <script src="./src/app.js?v=32"></script>
   </body>
 </html>

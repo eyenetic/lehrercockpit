@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlparse
 
 try:
     from backend.dashboard import build_dashboard_payload
+    from backend.config import load_settings
     from backend.classwork_cache import load_cache, save_cache
     from backend.grades_store import create_grade_entry, load_gradebook, save_gradebook
     from backend.notes_store import create_note, load_notes, save_notes
@@ -17,6 +18,7 @@ try:
     _DASHBOARD_IMPORT_ERROR: Exception | None = None
 except Exception as _exc:
     build_dashboard_payload = None  # type: ignore[assignment]
+    load_settings = None  # type: ignore[assignment]
     save_classwork_file = None  # type: ignore[assignment]
     save_itslearning_settings = None  # type: ignore[assignment]
     save_nextcloud_settings = None  # type: ignore[assignment]
@@ -279,27 +281,33 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 return
 
             payload = self._read_json_body()
-            username = str(payload.get("username", "")).strip()
-            password = str(payload.get("password", "")).strip()
+            current_settings = load_settings() if load_settings is not None else None
+            current_nextcloud = getattr(current_settings, "nextcloud", None)
+
+            username = str(payload.get("username", "")).strip() or getattr(current_nextcloud, "username", "")
+            password = str(payload.get("password", "")).strip() or getattr(current_nextcloud, "password", "")
             base_url = (
-                str(payload.get("baseUrl", "https://nextcloud-g2.b-sz-heos.logoip.de")).strip()
-                or "https://nextcloud-g2.b-sz-heos.logoip.de"
+                str(payload.get("baseUrl", getattr(current_nextcloud, "base_url", "https://nextcloud-g2.b-sz-heos.logoip.de"))).strip()
+                or getattr(current_nextcloud, "base_url", "https://nextcloud-g2.b-sz-heos.logoip.de")
+            )
+            workspace_url = (
+                str(payload.get("workspaceUrl", getattr(current_nextcloud, "workspace_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/"))).strip()
+                or getattr(current_nextcloud, "workspace_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/")
             )
             q1q2_url = (
-                str(payload.get("q1q2Url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901")).strip()
-                or "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901"
+                str(payload.get("q1q2Url", getattr(current_nextcloud, "q1q2_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901"))).strip()
+                or getattr(current_nextcloud, "q1q2_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901")
             )
             q3q4_url = (
-                str(payload.get("q3q4Url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900")).strip()
-                or "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900"
+                str(payload.get("q3q4Url", getattr(current_nextcloud, "q3q4_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900"))).strip()
+                or getattr(current_nextcloud, "q3q4_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900")
             )
-
-            if not username or not password:
-                self._send_json(
-                    {"error": "validation", "detail": "Benutzername und Passwort werden benoetigt."},
-                    status=HTTPStatus.BAD_REQUEST,
-                )
-                return
+            link_1_label = str(payload.get("link1Label", getattr(current_nextcloud, "link_1_label", ""))).strip()
+            link_1_url = str(payload.get("link1Url", getattr(current_nextcloud, "link_1_url", ""))).strip()
+            link_2_label = str(payload.get("link2Label", getattr(current_nextcloud, "link_2_label", ""))).strip()
+            link_2_url = str(payload.get("link2Url", getattr(current_nextcloud, "link_2_url", ""))).strip()
+            link_3_label = str(payload.get("link3Label", getattr(current_nextcloud, "link_3_label", ""))).strip()
+            link_3_url = str(payload.get("link3Url", getattr(current_nextcloud, "link_3_url", ""))).strip()
 
             try:
                 save_nextcloud_settings(
@@ -307,8 +315,15 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                     base_url=base_url,
                     username=username,
                     password=password,
+                    workspace_url=workspace_url,
                     q1q2_url=q1q2_url,
                     q3q4_url=q3q4_url,
+                    link_1_label=link_1_label,
+                    link_1_url=link_1_url,
+                    link_2_label=link_2_label,
+                    link_2_url=link_2_url,
+                    link_3_label=link_3_label,
+                    link_3_url=link_3_url,
                 )
             except Exception as exc:
                 self._send_json(
@@ -320,11 +335,18 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
             self._send_json(
                 {
                     "status": "ok",
-                    "detail": "Nextcloud-Zugang lokal gespeichert.",
+                    "detail": "Nextcloud-Arbeitsbereich lokal gespeichert.",
                     "username": username,
                     "baseUrl": base_url,
+                    "workspaceUrl": workspace_url,
                     "q1q2Url": q1q2_url,
                     "q3q4Url": q3q4_url,
+                    "link1Label": link_1_label,
+                    "link1Url": link_1_url,
+                    "link2Label": link_2_label,
+                    "link2Url": link_2_url,
+                    "link3Label": link_3_label,
+                    "link3Url": link_3_url,
                 }
             )
             _invalidate_dashboard_cache()
