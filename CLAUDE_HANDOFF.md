@@ -19,11 +19,11 @@ python3 server.py
 
 Dann im Browser: `http://127.0.0.1:8080`
 
-## Aktueller Stand (2026-03-21)
+## Aktueller Stand (2026-03-24)
 
-- Lokale Python-App ohne externe Dependencies (ausser openpyxl, pypdf)
+- **Flask + gunicorn** als WSGI-Stack auf Render (loest Port-Scan-Timeout mit Python 3.14)
 - Frontend in `index.html`, `styles.css`, `src/app.js`
-- API in `server.py` (lokal) + `server_test.py` (Render, delegiert an server.py)
+- API in `app.py` (Flask, Render/gunicorn) + `server.py` (lokale Entwicklung, ThreadingHTTPServer)
 - Dashboard-Zusammenbau in `backend/dashboard.py`
 - Dokumentenmonitor in `backend/document_monitor.py`
 - Konfiguration ueber `.env.local`
@@ -73,7 +73,8 @@ Render Free Tier setzt den Disk nach 15 Min Inaktivitaet zurueck → Upload-Date
 
 - **URL:** `https://lehrercockpit.onrender.com` — Live ✅
 - **Build:** Docker (`Dockerfile`) — sauber, kein Playwright mehr
-- **Start:** `python3 server.py`
+- **Start:** `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120` (via `Procfile`)
+- **WSGI-App:** `app.py` (Flask) — loest Render Port-Scan-Timeout mit Python 3.14
 - **PORT:** aus `$PORT` Env-Variable
 - **CORS:** `*`
 - **Env-Variablen auf Render setzen:** (keine Pflicht-Variablen mehr fuer Klassenarbeitsplan)
@@ -92,6 +93,8 @@ CMD ["python3", "server.py"]
 ```
 
 Kein Playwright, keine System-Deps mehr — Build schlaegt nicht mehr fehl.
+
+> **Hinweis:** `Dockerfile` startet noch `server.py` (ThreadingHTTPServer), wird aber von Render ueber `Procfile` (gunicorn) uebersteuert. Fuer Docker-Deployments ggf. `CMD` auf `gunicorn app:app ...` umstellen.
 
 ### GitHub Repo
 
@@ -138,4 +141,5 @@ Kein Playwright, keine System-Deps mehr — Build schlaegt nicht mehr fehl.
 | `83e47bd` | Upload-Zeitstempel anzeigen (Stand: TT.MM.JJJJ, HH:MM Uhr) |
 | `2520fb6` | Empty-Cache-Placeholder-Text aktualisiert |
 | `f476cfd` | **Dockerfile ohne Playwright** — Build-Fehler auf Render behoben |
-| *(heute)* | **OneDrive + Google Sheets Verbindungen entfernt** — nur Upload-Workflow |
+| *(2026-03-21)* | **OneDrive + Google Sheets Verbindungen entfernt** — nur Upload-Workflow |
+| *(2026-03-24)* | **Flask + gunicorn Migration** — `app.py` + `Procfile` → loest Render Port-Scan-Timeout |
