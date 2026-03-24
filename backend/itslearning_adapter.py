@@ -426,16 +426,31 @@ def _extract_updates(html: str, base_url: str, max_updates: int, now: datetime) 
 
 
 def _extract_dashboard_updates(html: str, base_url: str, max_updates: int) -> list[dict[str, Any]]:
+    def extract_stream_blocks(fragment: str) -> list[str]:
+        blocks: list[str] = []
+        item_starts = list(
+            re.finditer(
+                r'<li\b[^>]*class="[^"]*itsl-cb-stream-item[^"]*"',
+                fragment,
+                re.IGNORECASE | re.DOTALL,
+            )
+        )
+        for index, match in enumerate(item_starts):
+            start = match.start()
+            end = item_starts[index + 1].start() if index + 1 < len(item_starts) else len(fragment)
+            blocks.append(fragment[start:end])
+        return blocks
+
     widget_match = re.search(r"<h2>\s*Letzte Aktualisierungen\s*</h2>(.*?)</ul>\s*</div>", html, re.IGNORECASE | re.DOTALL)
     if not widget_match:
         return []
 
     widget_html = widget_match.group(1)
-    blocks = re.findall(
-        r"(<li\s+[^>]*itsl-cb-stream-item.*?</li>)\s*(?=<li\s+[^>]*itsl-cb-stream-item|$)",
-        widget_html,
-        re.IGNORECASE | re.DOTALL,
-    )
+    blocks = extract_stream_blocks(widget_html)
+    if len(blocks) < min(max_updates, 2):
+        pagewide_blocks = extract_stream_blocks(html)
+        if len(pagewide_blocks) > len(blocks):
+            blocks = pagewide_blocks
     if not blocks:
         return []
 

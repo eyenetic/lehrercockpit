@@ -27,7 +27,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=28" />
+    <link rel="stylesheet" href="./styles.css?v=30" />
   </head>
   <body>
     <div class="app-shell">
@@ -152,9 +152,12 @@
                 <p class="card-kicker">Kommunikation</p>
                 <h2 id="inbox-title">Inbox</h2>
               </div>
-              <div id="channel-filters" class="filter-row"></div>
+              <div class="section-head-actions">
+                <div id="channel-filters" class="filter-row"></div>
+                <button class="section-toggle" type="button" data-expand-toggle="inbox" data-expand-target="message-list">Mehr anzeigen</button>
+              </div>
             </div>
-            <div id="message-list" class="stack-list"></div>
+            <div id="message-list" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
           </article>
         </section>
 
@@ -254,7 +257,8 @@
                     <select id="grades-class-filter"></select>
                   </label>
                 </div>
-                <div id="grades-list" class="stack-list"></div>
+                <div id="grades-list" class="stack-list expandable-scroll" data-expand-panel="grades"></div>
+                <button class="section-toggle" type="button" data-expand-toggle="grades" data-expand-target="grades-list">Mehr anzeigen</button>
               </section>
 
               <section class="grades-panel notes-panel tone-notes-panel">
@@ -286,7 +290,8 @@
                   </div>
                 </form>
                 <div id="class-notes-feedback" class="connect-feedback"></div>
-                <div id="class-notes-list" class="stack-list compact-list"></div>
+                <div id="class-notes-list" class="stack-list compact-list expandable-scroll" data-expand-panel="notes"></div>
+                <button class="section-toggle" type="button" data-expand-toggle="notes" data-expand-target="class-notes-list">Mehr anzeigen</button>
               </section>
             </div>
           </article>
@@ -355,10 +360,12 @@
                   <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
                 </div>
                 <p id="classwork-upload-feedback" class="connect-feedback"></p>
-                <div id="classwork-preview-list" class="stack-list compact-list"></div>
+                <div id="classwork-preview-list" class="stack-list compact-list expandable-scroll" data-expand-panel="classwork"></div>
+                <button class="section-toggle" type="button" data-expand-toggle="classwork" data-expand-target="classwork-preview-list">Mehr anzeigen</button>
               </section>
             </div>
-            <div id="document-list" class="document-list"></div>
+            <div id="document-list" class="document-list expandable-scroll" data-expand-panel="documents"></div>
+            <button class="section-toggle" type="button" data-expand-toggle="documents" data-expand-target="document-list">Mehr anzeigen</button>
           </article>
         </section>
 
@@ -420,7 +427,8 @@
                 <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
               </div>
             </div>
-            <div id="quick-link-grid" class="link-grid compact-link-grid"></div>
+            <div id="quick-link-grid" class="link-grid compact-link-grid expandable-scroll" data-expand-panel="access"></div>
+            <button class="section-toggle" type="button" data-expand-toggle="access" data-expand-target="quick-link-grid">Mehr anzeigen</button>
           </article>
 
           <article class="card compact-panel tone-itslearning" id="itslearning-connect-card" aria-labelledby="itslearning-connect-title">
@@ -510,7 +518,7 @@
       </main>
     </div>
 
-    <script src="./data/mock-dashboard.js?v=28"></script>
-    <script src="./src/app.js?v=28"></script>
+    <script src="./data/mock-dashboard.js?v=30"></script>
+    <script src="./src/app.js?v=30"></script>
   </body>
 </html>

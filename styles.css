@@ -1075,6 +1075,58 @@ a {
   margin-top: 18px;
 }
 
+.section-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.section-toggle {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+  color: var(--muted);
+  padding: 8px 11px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.section-toggle:hover,
+.section-toggle:focus-visible {
+  background: var(--panel);
+  color: var(--ink);
+  border-color: var(--line-strong);
+  outline: none;
+}
+
+.expandable-scroll {
+  min-height: 0;
+}
+
+.expandable-scroll.is-collapsed {
+  overflow: hidden;
+}
+
+.expandable-scroll.is-expanded {
+  height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+#quick-link-grid.expandable-scroll.is-expanded {
+  height: 260px;
+}
+
+#class-notes-list.expandable-scroll.is-expanded,
+#classwork-preview-list.expandable-scroll.is-expanded,
+#grades-list.expandable-scroll.is-expanded {
+  height: 280px;
+}
+
 .document-item,
 .source-item {
   grid-template-columns: minmax(0, 1fr) auto;

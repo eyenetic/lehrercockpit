@@ -4,7 +4,16 @@
   const ACTIVE_WEBUNTIS_PLAN_KEY = "lehrerCockpit.webuntis.activePlan";
   const THEME_KEY = "lehrerCockpit.theme";
   const NEXTCLOUD_LAST_OPENED_KEY = "lehrerCockpit.nextcloud.lastOpened";
+  const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const AUTO_REFRESH_MS = 180000;
+  const PANEL_COLLAPSE_LIMITS = {
+    inbox: 4,
+    grades: 4,
+    notes: 3,
+    classwork: 4,
+    documents: 4,
+    access: 4,
+  };
   const IS_LOCAL_RUNTIME =
     window.location.protocol === "file:" ||
     window.location.hostname === "localhost" ||
@@ -37,6 +46,7 @@
     notesFeedback: "",
     notesFeedbackKind: "",
     theme: loadStoredTheme(),
+    expandedPanels: loadExpandedPanels(),
   };
 
   const elements = {
@@ -48,6 +58,7 @@
     themeToggleLabel: document.querySelector(".theme-toggle-label"),
     navLinks: Array.from(document.querySelectorAll("[data-section-target]")),
     viewSections: Array.from(document.querySelectorAll("[data-view-section]")),
+    expandToggles: Array.from(document.querySelectorAll("[data-expand-toggle]")),
     workspaceEyebrow: document.querySelector("#workspace-eyebrow"),
     workspaceTitle: document.querySelector("#workspace-title"),
     workspaceDescription: document.querySelector("#workspace-description"),
@@ -623,8 +634,10 @@
   function renderQuickLinks() {
     const data = getData();
     const quickLinks = (data.quickLinks || []).filter((link) => !String(link.id || "").startsWith("nextcloud-"));
+    const visibleQuickLinks = getVisiblePanelItems(quickLinks, "access");
+    setExpandableMeta(elements.quickLinkGrid, quickLinks.length, visibleQuickLinks.length);
     elements.quickLinkGrid.innerHTML = quickLinks.length
-      ? quickLinks
+      ? visibleQuickLinks
           .map(
             (link) => `
               <a class="quick-link-card" href="${link.url}" target="_blank" rel="noreferrer">
@@ -637,6 +650,29 @@
           )
           .join("")
       : `<div class="empty-state">Noch keine Direktzugriffe konfiguriert.</div>`;
+  }
+
+  function renderExpandableSections() {
+    elements.expandToggles.forEach((button) => {
+      const panelKey = button.dataset.expandToggle || "";
+      const targetId = button.dataset.expandTarget || "";
+      const target = targetId ? document.getElementById(targetId) : null;
+      if (!target) {
+        return;
+      }
+
+      const expanded = Boolean(state.expandedPanels[panelKey]);
+      target.classList.toggle("is-expanded", expanded);
+      target.classList.toggle("is-collapsed", !expanded);
+      button.textContent = expanded ? "Weniger anzeigen" : "Mehr anzeigen";
+      button.setAttribute("aria-expanded", expanded ? "true" : "false");
+      const totalCount = Number(target.dataset.totalCount || 0);
+      const collapsedCount = Number(target.dataset.collapsedCount || totalCount);
+      const hasMeaningfulContent =
+        target.children.length > 1 ||
+        (target.firstElementChild && !target.firstElementChild.classList.contains("empty-state"));
+      button.hidden = !hasMeaningfulContent || totalCount <= collapsedCount;
+    });
   }
 
   function renderItslearningConnector() {
@@ -804,9 +840,11 @@
       return state.selectedChannel === "all" || message.channel === state.selectedChannel;
       })
       .sort((left, right) => compareMessageTime(right.timestamp, left.timestamp));
+    const visibleMessages = getVisiblePanelItems(filteredMessages, "inbox");
+    setExpandableMeta(elements.messageList, filteredMessages.length, visibleMessages.length);
 
     elements.messageList.innerHTML = filteredMessages.length
-      ? filteredMessages
+      ? visibleMessages
           .map(
             (message) => `
               <article class="message-item">
@@ -882,11 +920,13 @@
     const classEntries = entries
       .filter((entry) => entry.classLabel === activeClass)
       .sort((left, right) => (left.isoDate || "").localeCompare(right.isoDate || ""));
+    const visibleClassEntries = getVisiblePanelItems(classEntries, "classwork");
+    setExpandableMeta(elements.classworkPreviewList, classEntries.length, visibleClassEntries.length);
 
     elements.classworkPreviewList.innerHTML = classEntries.length
       ? state.classworkView === "calendar"
-        ? renderClassworkCalendar(classEntries)
-        : renderClassworkList(classEntries)
+        ? renderClassworkCalendar(visibleClassEntries)
+        : renderClassworkList(visibleClassEntries)
       : classwork.previewRows.length
         ? classwork.previewRows
             .map(
@@ -1069,6 +1109,7 @@
     const entries = (gradebook.entries || [])
       .filter((entry) => !activeClass || entry.classLabel === activeClass)
       .sort((left, right) => (right.date || "").localeCompare(left.date || ""));
+    const visibleEntries = getVisiblePanelItems(entries, "grades");
 
     const summary = summarizeGrades(entries);
 
@@ -1090,8 +1131,9 @@
       elements.gradesDateInput.value = new Date().toISOString().slice(0, 10);
     }
 
+    setExpandableMeta(elements.gradesList, entries.length, visibleEntries.length);
     elements.gradesList.innerHTML = entries.length
-      ? entries.map((entry) => renderGradeItem(entry)).join("")
+      ? visibleEntries.map((entry) => renderGradeItem(entry)).join("")
       : `<div class="empty-state">Noch keine lokalen Noten fuer diese Klasse erfasst.</div>`;
   }
 
@@ -1152,9 +1194,11 @@
     elements.notesFeedback.textContent = state.notesFeedback;
     elements.notesFeedback.className = `connect-feedback${state.notesFeedbackKind ? ` ${state.notesFeedbackKind}` : ""}`;
 
-    const visibleNotes = currentNote
-      ? [currentNote, ...notes.filter((item) => item.classLabel !== activeClass).slice(0, 3)]
-      : notes.slice(0, 4);
+    const prioritizedNotes = currentNote
+      ? [currentNote, ...notes.filter((item) => item.classLabel !== activeClass)]
+      : notes.slice();
+    const visibleNotes = getVisiblePanelItems(prioritizedNotes, "notes");
+    setExpandableMeta(elements.notesList, prioritizedNotes.length, visibleNotes.length);
 
     elements.notesList.innerHTML = visibleNotes.length
       ? visibleNotes
@@ -1374,9 +1418,11 @@
       const haystack = `${entry.title} ${entry.source} ${entry.summary} ${entry.tags.join(" ")}`.toLowerCase();
       return haystack.includes(query);
     });
+    const visibleDocuments = getVisiblePanelItems(filteredDocuments, "documents");
+    setExpandableMeta(elements.documentList, filteredDocuments.length, visibleDocuments.length);
 
     elements.documentList.innerHTML = filteredDocuments.length
-      ? filteredDocuments
+      ? visibleDocuments
           .map(
             (entry) => `
               <article class="document-item">
@@ -1887,6 +1933,18 @@
       });
     });
 
+    elements.expandToggles.forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.expandToggle || "";
+        if (!key) {
+          return;
+        }
+        state.expandedPanels[key] = !state.expandedPanels[key];
+        persistExpandedPanels();
+        renderExpandableSections();
+      });
+    });
+
     elements.documentSearch.addEventListener("input", (event) => {
       state.documentSearch = event.target.value;
       renderDocuments();
@@ -2084,6 +2142,7 @@
     renderPlanDigest();
     renderGrades();
     renderDocuments();
+    renderExpandableSections();
     renderNavSignals();
     renderDocumentMonitor();
   }
@@ -2517,6 +2576,45 @@
 
   function connectionHint(type) {
     return getData().localConnections?.[type] || {};
+  }
+
+  function loadExpandedPanels() {
+    try {
+      const raw = localStorage.getItem(EXPANDED_PANELS_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  function persistExpandedPanels() {
+    try {
+      localStorage.setItem(EXPANDED_PANELS_KEY, JSON.stringify(state.expandedPanels));
+    } catch (_error) {
+      // ignore local storage errors
+    }
+  }
+
+  function getVisiblePanelItems(items, panelKey) {
+    const list = Array.isArray(items) ? items : [];
+    if (state.expandedPanels[panelKey]) {
+      return list;
+    }
+    const limit = PANEL_COLLAPSE_LIMITS[panelKey] || list.length;
+    return list.slice(0, limit);
+  }
+
+  function setExpandableMeta(element, totalCount, visibleCount) {
+    if (!element) {
+      return;
+    }
+
+    const panelKey = element.dataset.expandPanel || "";
+    const collapsedCount = panelKey ? Math.min(PANEL_COLLAPSE_LIMITS[panelKey] || totalCount, totalCount) : totalCount;
+    element.dataset.totalCount = String(totalCount);
+    element.dataset.visibleCount = String(visibleCount);
+    element.dataset.collapsedCount = String(collapsedCount);
   }
 
   function loadStoredTheme() {
