@@ -3,7 +3,10 @@ Admin-Endpunkte: User-Verwaltung, System-Einstellungen, Modul-Defaults.
 
 Alle Routen erfordern Admin-Rolle (via @require_admin).
 """
-from flask import Blueprint, request, g
+import csv
+import io
+from datetime import date as _date
+from flask import Blueprint, request, g, Response
 
 from backend.db import db_connection
 from backend.users.user_store import get_user_by_id, update_user, delete_user
@@ -444,15 +447,37 @@ def put_setting_by_key(key: str):
 
 # ── Audit Log ─────────────────────────────────────────────────────────────────
 
+def _build_audit_query(event_type, date_from, date_to):
+    """Helper: build WHERE clause + params for audit_log queries.
+
+    Returns (where_clause, params_list).
+    """
+    conditions = []
+    params = []
+    if event_type:
+        conditions.append("al.event_type = %s")
+        params.append(event_type)
+    if date_from:
+        conditions.append("al.created_at >= %s::date")
+        params.append(date_from)
+    if date_to:
+        conditions.append("al.created_at < (%s::date + INTERVAL '1 day')")
+        params.append(date_to)
+    where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    return where_clause, params
+
+
 @admin_bp.route("/audit-log", methods=["GET"])
 @require_admin
 def get_audit_log():
     """Audit-Log-Ereignisse abrufen (paginiert, filterbar).
 
     Query-Parameter:
-      limit   (int, default 50, max 200)
-      offset  (int, default 0)
+      limit      (int, default 50, max 200)
+      offset     (int, default 0)
       event_type (str, optional)
+      date_from  (ISO date string, e.g. 2024-03-01, optional)
+      date_to    (ISO date string, e.g. 2024-03-31, optional)
 
     Response: {"ok": true, "events": [...], "total": int, "limit": int, "offset": int}
     """
@@ -463,43 +488,27 @@ def get_audit_log():
         return error("limit und offset müssen Ganzzahlen sein", 422)
 
     event_type = request.args.get("event_type", "").strip() or None
+    date_from = request.args.get("date_from", "").strip() or None
+    date_to = request.args.get("date_to", "").strip() or None
+
+    where_clause, base_params = _build_audit_query(event_type, date_from, date_to)
 
     try:
         with db_connection() as conn:
-            if event_type:
-                total_row = conn.execute(
-                    "SELECT COUNT(*) FROM audit_log WHERE event_type = %s",
-                    (event_type,),
-                ).fetchone()
-                rows = conn.execute(
-                    """
-                    SELECT al.id, al.event_type, al.user_id,
-                           u.first_name || ' ' || u.last_name AS user_name,
-                           al.ip_address, al.details, al.created_at
-                    FROM audit_log al
-                    LEFT JOIN users u ON al.user_id = u.id
-                    WHERE al.event_type = %s
-                    ORDER BY al.created_at DESC
-                    LIMIT %s OFFSET %s
-                    """,
-                    (event_type, limit, offset),
-                ).fetchall()
-            else:
-                total_row = conn.execute(
-                    "SELECT COUNT(*) FROM audit_log"
-                ).fetchone()
-                rows = conn.execute(
-                    """
-                    SELECT al.id, al.event_type, al.user_id,
-                           u.first_name || ' ' || u.last_name AS user_name,
-                           al.ip_address, al.details, al.created_at
-                    FROM audit_log al
-                    LEFT JOIN users u ON al.user_id = u.id
-                    ORDER BY al.created_at DESC
-                    LIMIT %s OFFSET %s
-                    """,
-                    (limit, offset),
-                ).fetchall()
+            count_sql = f"SELECT COUNT(*) FROM audit_log al {where_clause}"
+            total_row = conn.execute(count_sql, base_params).fetchone()
+
+            rows_sql = f"""
+                SELECT al.id, al.event_type, al.user_id,
+                       u.first_name || ' ' || u.last_name AS user_name,
+                       al.ip_address, al.details, al.created_at
+                FROM audit_log al
+                LEFT JOIN users u ON al.user_id = u.id
+                {where_clause}
+                ORDER BY al.created_at DESC
+                LIMIT %s OFFSET %s
+            """
+            rows = conn.execute(rows_sql, base_params + [limit, offset]).fetchall()
 
         total = total_row[0] if total_row else 0
         events = []
@@ -524,7 +533,107 @@ def get_audit_log():
         return error(f"Fehler beim Laden des Audit-Logs: {type(exc).__name__}: {exc}", 500)
 
 
+@admin_bp.route("/audit-log/export.csv", methods=["GET"])
+@require_admin
+def export_audit_log_csv():
+    """Audit-Log als CSV exportieren.
+
+    Query-Parameter: dieselben wie GET /audit-log (limit bis 5000, date_from, date_to, event_type).
+
+    Response: CSV-Datei mit Content-Disposition: attachment.
+    """
+    try:
+        limit = min(int(request.args.get("limit", 5000)), 5000)
+        offset = int(request.args.get("offset", 0))
+    except (ValueError, TypeError):
+        limit = 5000
+        offset = 0
+
+    event_type = request.args.get("event_type", "").strip() or None
+    date_from = request.args.get("date_from", "").strip() or None
+    date_to = request.args.get("date_to", "").strip() or None
+
+    where_clause, base_params = _build_audit_query(event_type, date_from, date_to)
+
+    try:
+        with db_connection() as conn:
+            rows_sql = f"""
+                SELECT al.id, al.event_type, al.user_id,
+                       u.first_name || ' ' || u.last_name AS user_name,
+                       al.ip_address, al.details, al.created_at
+                FROM audit_log al
+                LEFT JOIN users u ON al.user_id = u.id
+                {where_clause}
+                ORDER BY al.created_at DESC
+                LIMIT %s OFFSET %s
+            """
+            rows = conn.execute(rows_sql, base_params + [limit, offset]).fetchall()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Zeitpunkt", "Ereignis", "Benutzer", "IP", "Details"])
+        for row in rows:
+            created_at = row[6].isoformat() if row[6] else ""
+            details_str = str(row[5] or {})
+            writer.writerow([
+                created_at,
+                row[1] or "",
+                row[3] or "",
+                row[4] or "",
+                details_str,
+            ])
+
+        today = _date.today().isoformat()
+        filename = f"audit-log-{today}.csv"
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as exc:
+        return error(f"Fehler beim Exportieren des Audit-Logs: {type(exc).__name__}: {exc}", 500)
+
+
 # ── Maintenance ────────────────────────────────────────────────────────────────
+
+@admin_bp.route("/maintenance/null-prefix-users", methods=["GET"])
+@require_admin
+def get_null_prefix_users():
+    """Benutzer mit fehlendem code_prefix abrufen.
+
+    Diese Benutzer wurden vor Phase 9c angelegt und nutzen den langsameren
+    Authentifizierungspfad (vollständiger Tabellen-Scan + argon2 für alle User).
+    code_prefix kann nicht rückwirkend berechnet werden — nur Code-Rotation hilft.
+
+    Response: {"ok": true, "users": [...], "count": int}
+    """
+    try:
+        with db_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT u.id, u.first_name || ' ' || u.last_name AS display_name,
+                       u.role, u.created_at
+                FROM users u
+                JOIN user_access_codes uac ON u.id = uac.user_id
+                WHERE uac.code_prefix IS NULL
+                  AND u.is_active = TRUE
+                ORDER BY u.last_name, u.first_name
+                """
+            ).fetchall()
+
+        users = [
+            {
+                "user_id": row[0],
+                "display_name": row[1],
+                "role": row[2],
+                "created_at": row[3].isoformat() if row[3] else None,
+            }
+            for row in rows
+        ]
+        return success({"users": users, "count": len(users)})
+    except Exception as exc:
+        return error(f"Fehler beim Laden der Benutzer ohne code_prefix: {type(exc).__name__}: {exc}", 500)
+
 
 @admin_bp.route("/maintenance/cleanup-sessions", methods=["POST"])
 @require_admin

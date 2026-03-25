@@ -98,12 +98,22 @@
           body: JSON.stringify({ value: value })
         });
       },
-      getAuditLog: function(limit, offset, eventType) {
+      getAuditLog: function(limit, offset, eventType, dateFrom, dateTo) {
         limit = limit || 50;
         offset = offset || 0;
         var url = '/api/v2/admin/audit-log?limit=' + limit + '&offset=' + offset;
         if (eventType) url += '&event_type=' + encodeURIComponent(eventType);
+        if (dateFrom) url += '&date_from=' + encodeURIComponent(dateFrom);
+        if (dateTo) url += '&date_to=' + encodeURIComponent(dateTo);
         return apiFetch(url);
+      },
+      getAuditLogCsvUrl: function(eventType, dateFrom, dateTo) {
+        var base = window.BACKEND_API_URL || 'https://api.lehrercockpit.com';
+        var url = base + '/api/v2/admin/audit-log/export.csv?limit=5000';
+        if (eventType) url += '&event_type=' + encodeURIComponent(eventType);
+        if (dateFrom) url += '&date_from=' + encodeURIComponent(dateFrom);
+        if (dateTo) url += '&date_to=' + encodeURIComponent(dateTo);
+        return url;
       },
     },
 

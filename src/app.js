@@ -1664,422 +1664,127 @@
 
   // ── SECTION: WebUntis (controls, picker, watchlist, schedule) ───────────────
 
+  // ── WebUntis render functions — delegated to window.LehrerWebUntis (Phase 10c) ─
+  // Full implementations are in src/features/webuntis.js.
+  // These stubs remain so that any direct calls within app.js still work
+  // during the transition period. Original bodies kept as TODO comments.
+
   function renderWebUntisControls() {
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisControls();
+    // TODO: remove fallback after webuntis.js verified
     const center = getData().webuntisCenter;
     const buttons = [
       { id: "day", label: "Heute" },
       { id: "week", label: center.currentWeekLabel || "Diese Woche" },
       { id: "next-week", label: nextWeekLabel(center.currentDate) },
     ];
-
     elements.webuntisViewSwitch.innerHTML = buttons
-      .map(
-        (button) => `
-          <button class="segment-button ${state.webuntisView === button.id ? "active" : ""}" type="button" data-webuntis-view="${button.id}">
-            ${button.label}
-          </button>
-        `
-      )
+      .map((button) => `<button class="segment-button ${state.webuntisView === button.id ? "active" : ""}" type="button" data-webuntis-view="${button.id}">${button.label}</button>`)
       .join("");
-
     elements.webuntisViewSwitch.querySelectorAll("[data-webuntis-view]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.webuntisView = button.dataset.webuntisView;
-        renderWebUntisControls();
-        renderWebUntisSchedule();
-      });
+      button.addEventListener("click", () => { state.webuntisView = button.dataset.webuntisView; renderWebUntisControls(); renderWebUntisSchedule(); });
     });
-
     bindExternalLink(elements.webuntisOpenToday, center.todayUrl, "Heute in WebUntis");
     bindExternalLink(elements.webuntisOpenBase, center.startUrl || center.todayUrl, "WebUntis oeffnen");
-
     elements.webuntisActivePlan.textContent = "Mein Stundenplan";
-    elements.webuntisDetail.textContent =
-      "Persoenlicher Plan ueber WebUntis-iCal. Vergangene, laufende und kommende Stunden werden hier markiert. Ausfaelle erscheinen nur, wenn WebUntis sie im iCal mitsendet.";
+    elements.webuntisDetail.textContent = "Persoenlicher Plan ueber WebUntis-iCal. Vergangene, laufende und kommende Stunden werden hier markiert. Ausfaelle erscheinen nur, wenn WebUntis sie im iCal mitsendet.";
     elements.webuntisRangeLabel.textContent = getWebUntisRangeLabel(center);
     elements.webuntisPlanStrip.hidden = true;
     elements.webuntisPlanStrip.innerHTML = "";
   }
 
   function renderWebUntisPicker() {
-    const center = getData().webuntisCenter;
-    const finder = center.finder || {
-      status: "warning",
-      note: "Planfinder ist vorbereitet.",
-      availableTypes: [
-        { id: "teacher", label: "Mein Plan" },
-        { id: "class", label: "Klasse" },
-        { id: "room", label: "Raum" },
-      ],
-      entities: [],
-      watchlist: [],
-      searchPlaceholder: "Klasse oder Raum aus deinem Plan suchen",
-    };
-    const query = state.webuntisPickerSearch.trim().toLowerCase();
-    const currentPlan = {
-      id: "personal",
-      type: "teacher",
-      label: center.activePlan || "Mein Stundenplan",
-      detail: center.detail || center.note,
-      favorite: state.favorites.includes("personal"),
-    };
-    const searchResults = getGlobalPickerResults(center, query);
-    const categories = (finder.availableTypes || center.planTypes || []).map((category) => ({
-      ...category,
-      count: getPickerEntities(center, category.id, query).length,
-    }));
-    const activePlan = getActivePlan(center);
-
-    elements.webuntisPickerOverlay.hidden = !state.webuntisPickerOpen;
-    elements.webuntisPickerSearch.value = state.webuntisPickerSearch;
-    elements.webuntisPickerSearch.placeholder = finder.searchPlaceholder || "Stundenplan suchen";
-    elements.webuntisPickerEdit.textContent = activePlan.id === "personal" ? "Fertig" : "Zuruecksetzen";
-
-    const favorites = getFavoriteEntities(center, query);
-    elements.webuntisPickerCurrent.innerHTML = renderPickerItem(currentPlan, {
-      active: !state.activeFinderEntityId && state.activeShortcutId === "personal",
-      compact: false,
-      showFavorite: true,
-      action: "select",
-    });
-    elements.webuntisPickerResultsSection.hidden = !query;
-    elements.webuntisPickerResultsLabel.textContent = query ? `Treffer fuer "${state.webuntisPickerSearch}"` : "Suche";
-    elements.webuntisPickerResults.innerHTML = query
-      ? searchResults.length
-        ? searchResults
-            .map((entity) => renderPickerItem(entity, { active: isEntityActive(center, entity), showFavorite: entity.id !== "personal" }))
-            .join("")
-        : `<div class="empty-state">Keine passenden Plaene gefunden.</div>`
-      : "";
-    elements.webuntisPickerFavorites.innerHTML = favorites.length
-      ? favorites.map((entity) => renderPickerItem(entity, { active: isEntityActive(center, entity), showFavorite: true, action: "select" })).join("")
-      : `<div class="empty-state">Noch keine Favoriten gespeichert.</div>`;
-    elements.webuntisPickerCategories.innerHTML = categories
-      .map(
-        (category) => `
-          <button class="picker-category-item" type="button" data-picker-category="${category.id}">
-            <span>${category.label}</span>
-            <span>${category.count}</span>
-          </button>
-        `
-      )
-      .join("");
-
-    elements.webuntisPickerCategories.querySelectorAll("[data-picker-category]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.webuntisPickerCategory = button.dataset.pickerCategory;
-        renderWebUntisPicker();
-      });
-    });
-
-    const showCategory = Boolean(state.webuntisPickerCategory);
-    elements.webuntisPickerHome.hidden = showCategory;
-    elements.webuntisPickerCategoryView.hidden = !showCategory;
-
-    if (showCategory) {
-      const category = categories.find((item) => item.id === state.webuntisPickerCategory);
-      const categoryItems = getPickerEntities(center, state.webuntisPickerCategory, query);
-      elements.webuntisPickerCategoryKicker.textContent = "Stundenplaene";
-      elements.webuntisPickerCategoryTitle.textContent = category?.label || "Auswahl";
-      elements.webuntisPickerCategoryNote.textContent =
-        state.webuntisPickerCategory === "teacher"
-          ? "Kolleg:innen-Listen folgen erst mit echter WebUntis-Session. Aktuell bleibt dein persoenlicher Plan die stabile Basis."
-          : "Auswaehlen wechselt die Anzeige im Cockpit. Klassen und Raeume stammen derzeit aus deinem persoenlichen Plan.";
-      elements.webuntisPickerCategoryResults.innerHTML = categoryItems.length
-        ? categoryItems
-            .map((entity) =>
-              renderPickerItem(entity, {
-                active: isEntityActive(center, entity),
-                showFavorite: entity.id !== "personal",
-                action: "select",
-              })
-            )
-            .join("")
-        : `<div class="empty-state">In dieser Kategorie gibt es aktuell keine weiteren Live-Eintraege.</div>`;
-    }
-
-    bindPickerActions(center);
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisPicker();
+    // TODO: remove after webuntis.js verified — full implementation moved to src/features/webuntis.js
   }
 
   function renderWebUntisWatchlist() {
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisWatchlist();
+    // TODO: remove after webuntis.js verified
     const finder = getData().webuntisCenter.finder || { watchlist: [] };
     elements.webuntisWatchlist.innerHTML = (finder.watchlist || []).length
-      ? finder.watchlist
-          .map(
-            (item) => `
-              <article class="priority-item">
-                <div class="priority-top">
-                  <strong>${item.title}</strong>
-                  <span class="meta-tag ${watchStatusClass(item.status)}">${watchStatusLabel(item.status)}</span>
-                </div>
-                <p class="priority-copy">${item.detail}</p>
-              </article>
-            `
-          )
-          .join("")
+      ? finder.watchlist.map((item) => `<article class="priority-item"><div class="priority-top"><strong>${item.title}</strong><span class="meta-tag ${watchStatusClass(item.status)}">${watchStatusLabel(item.status)}</span></div><p class="priority-copy">${item.detail}</p></article>`).join("")
       : `<div class="empty-state">Noch keine geoeffneten Plaene im Radar.</div>`;
   }
 
   function renderWebUntisPlanStrip() {
-    const center = getData().webuntisCenter;
-    const plans = getPinnedPlans(center);
-    const visiblePlans = plans.filter((plan) => !(plan.id === "personal" && plans.length === 1));
-
-    elements.webuntisPlanStrip.hidden = visiblePlans.length === 0;
-
-    elements.webuntisPlanStrip.innerHTML = visiblePlans.length
-      ? visiblePlans
-          .map(
-            (plan) => `
-              <button class="plan-chip ${isPlanChipActive(center, plan) ? "active" : ""}" type="button" data-plan-chip="${plan.id}">
-                <span class="plan-chip-type">${shortcutTypeLabel(plan.type)}</span>
-                <strong>${plan.label}</strong>
-              </button>
-            `
-          )
-      .join("")
-      : `<div class="empty-state">Noch keine Plaene gespeichert.</div>`;
-
-    elements.webuntisPlanStrip.querySelectorAll("[data-plan-chip]").forEach((button) => {
-      button.addEventListener("click", () => selectPlanById(getData().webuntisCenter, button.dataset.planChip));
-    });
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisPlanStrip();
+    // TODO: remove after webuntis.js verified
   }
 
   function renderWebUntisSchedule() {
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisSchedule();
+    // TODO: remove after webuntis.js verified
     const events = getWebUntisEvents();
     const center = getData().webuntisCenter;
-
     if (!events.length) {
-      if (state.webuntisView === "day") {
-        elements.scheduleList.innerHTML = `<div class="empty-state">Heute liegen im WebUntis-iCal keine Termine vor.</div>`;
-        return;
-      }
-      elements.scheduleList.innerHTML = renderWeekSchedule([], center);
-      return;
+      if (state.webuntisView === "day") { elements.scheduleList.innerHTML = `<div class="empty-state">Heute liegen im WebUntis-iCal keine Termine vor.</div>`; return; }
+      elements.scheduleList.innerHTML = renderWeekSchedule([], center); return;
     }
-
-    if (state.webuntisView !== "day") {
-      elements.scheduleList.innerHTML = renderWeekSchedule(events, center);
-      return;
-    }
-
+    if (state.webuntisView !== "day") { elements.scheduleList.innerHTML = renderWeekSchedule(events, center); return; }
     const grouped = groupEventsByDay(events);
     elements.scheduleList.innerHTML = renderAgendaGroups(grouped, "Heute");
   }
 
   function renderWeekSchedule(events, center) {
-    const columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, state.webuntisView));
-    const hasAnyWeekEvents = columns.some((column) => column.events.length);
-    const nextFutureEvent = findNextEventAfter(columns[columns.length - 1]?.isoDate || center.currentDate);
-    return `
-      <div class="webuntis-week-board">
-        <div class="webuntis-agenda-head">
-          <strong>${getWebUntisRangeLabel(center)}</strong>
-          <span>${
-            hasAnyWeekEvents
-              ? `${columns.reduce((sum, column) => sum + column.events.length, 0)} Eintraege`
-              : nextFutureEvent
-                ? `Naechster bekannter Termin: ${formatDate(new Date(nextFutureEvent.startsAt))}`
-                : "keine Eintraege im iCal"
-          }</span>
-        </div>
-        <div class="webuntis-week-columns">
-          ${columns
-            .map(
-              (column) => `
-                <section class="webuntis-week-column">
-                  <div class="webuntis-week-column-head">
-                    <span class="webuntis-weekday">${column.weekday}</span>
-                    <strong>${column.date}</strong>
-                  </div>
-                  <div class="webuntis-week-column-items">
-                    ${
-                      column.events.length
-                        ? column.events.map((event) => renderWeekEvent(event)).join("")
-                        : renderEmptyWeekColumn(column, hasAnyWeekEvents)
-                    }
-                  </div>
-                </section>
-              `
-            )
-            .join("")}
-        </div>
-      </div>
-    `;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWeekSchedule(events, center);
+    // TODO: remove after webuntis.js verified
+    return '<div class="empty-state">WebUntis-Modul nicht geladen.</div>';
   }
 
   function renderAgendaGroups(groups, label) {
-    return `
-      <div class="webuntis-agenda">
-        <div class="webuntis-agenda-head">
-          <strong>${label}</strong>
-          <span>${groups.reduce((sum, group) => sum + group.events.length, 0)} Eintraege</span>
-        </div>
-        ${groups.map((group) => renderAgendaGroup(group)).join("")}
-      </div>
-    `;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderAgendaGroups(groups, label);
+    return '';
   }
 
   function renderAgendaGroup(group) {
-    return `
-      <section class="webuntis-agenda-group">
-        <div class="webuntis-agenda-label">
-          <span>${group.label}</span>
-          <span>${group.events.length ? `${group.events.length} Termine` : "frei"}</span>
-        </div>
-        <div class="webuntis-agenda-items">
-          ${
-            group.events.length
-              ? group.events.map((event) => renderWeekEvent(event)).join("")
-              : `<div class="webuntis-week-empty">Keine Termine</div>`
-          }
-        </div>
-      </section>
-    `;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderAgendaGroup(group);
+    return '';
   }
 
   function renderDayGroup(group) {
-    return `
-      <section class="webuntis-day-group">
-        <div class="webuntis-day-label">
-          <span>${group.label}</span>
-          <span>${group.events.length} Eintraege</span>
-        </div>
-        ${group.events.map((event) => renderDayEvent(event)).join("")}
-      </section>
-    `;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderDayGroup(group);
+    return '';
   }
 
   function renderDayEvent(event) {
-    const timingClass = getEventTimingClass(event);
-    return `
-      <article class="webuntis-event ${timingClass} ${isCancelledEvent(event) ? "is-cancelled" : ""}">
-        <div class="webuntis-event-time">${event.time}</div>
-        <div>
-          <div class="webuntis-event-head">
-            <strong>${event.title}</strong>
-            <span class="meta-tag ${eventStateTagClass(event)}">${eventStateLabel(event)}</span>
-          </div>
-          <p class="webuntis-event-copy">${compactEventDetail(event)}</p>
-          <div class="meta-row">
-            <span class="meta-tag">${event.category}</span>
-            ${event.location ? `<span class="meta-tag">${event.location}</span>` : ""}
-            ${event.description ? `<span class="meta-tag">${event.description}</span>` : ""}
-          </div>
-        </div>
-      </article>
-    `;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderDayEvent(event);
+    return '';
   }
 
   function renderWeekEvent(event) {
-    const timingClass = getEventTimingClass(event);
-    return `
-      <article class="webuntis-week-event ${timingClass} ${isCancelledEvent(event) ? "is-cancelled" : ""}">
-        <div class="webuntis-week-time">${event.time.replace(" - ", "–")}</div>
-        <div class="webuntis-week-copy">
-          <div class="webuntis-week-head">
-            <strong>${event.title}</strong>
-            <span class="meta-tag ${eventStateTagClass(event)}">${eventStateLabel(event)}</span>
-          </div>
-          ${event.location ? `<div class="webuntis-week-meta">${event.location}</div>` : ""}
-          ${event.description ? `<div class="webuntis-week-meta">${event.description}</div>` : ""}
-        </div>
-      </article>
-    `;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWeekEvent(event);
+    return '';
   }
 
   function getWebUntisEvents() {
-    const center = getData().webuntisCenter;
-    const referenceDate = new Date(`${center.currentDate}T00:00:00`);
-    let events = (center.events || []).filter((event) => event.startsAt);
-
-    if (!events.length) {
-      return [];
-    }
-
-    if (state.webuntisView === "day") {
-      events = events.filter((event) => isSameDay(new Date(event.startsAt), referenceDate));
-    } else {
-      const weekStart = getWeekAnchorDate(center.currentDate, state.webuntisView);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 7);
-
-      events = events.filter((event) => {
-        const startsAt = new Date(event.startsAt);
-        return startsAt >= weekStart && startsAt < weekEnd;
-      });
-    }
-    return events;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.getWebUntisEvents();
+    return [];
   }
 
   function groupEventsByDay(events) {
-    const groups = new Map();
-
-    events.forEach((event) => {
-      const date = new Date(event.startsAt);
-      const key = date.toISOString().slice(0, 10);
-      const label = `${weekdayLabel(date)} ${formatDate(date)}`;
-      if (!groups.has(key)) {
-        groups.set(key, { key, label, events: [] });
-      }
-      groups.get(key).events.push(event);
-    });
-
-    return Array.from(groups.values());
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.groupEventsByDay(events);
+    return [];
   }
 
   function buildWeekColumns(events, currentDate) {
-    const weekStart = startOfWeek(currentDate instanceof Date ? currentDate : new Date(`${currentDate}T00:00:00`));
-    const byKey = new Map();
-
-    events.forEach((event) => {
-      const date = new Date(event.startsAt);
-      const key = date.toISOString().slice(0, 10);
-      if (!byKey.has(key)) {
-        byKey.set(key, []);
-      }
-      byKey.get(key).push(event);
-    });
-
-    return Array.from({ length: 5 }, (_, index) => {
-      const day = new Date(weekStart);
-      day.setDate(weekStart.getDate() + index);
-      const key = day.toISOString().slice(0, 10);
-      return {
-        key,
-        weekday: day.toLocaleDateString("de-DE", { weekday: "short" }),
-        date: formatDate(day),
-        isoDate: key,
-        events: byKey.get(key) || [],
-      };
-    });
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.buildWeekColumns(events, currentDate);
+    return [];
   }
 
   function getWeekAnchorDate(currentDate, view) {
-    const referenceDate = new Date(`${currentDate}T00:00:00`);
-    const weekStart = startOfWeek(referenceDate);
-    if (view === "next-week") {
-      const nextWeek = new Date(weekStart);
-      nextWeek.setDate(nextWeek.getDate() + 7);
-      return nextWeek;
-    }
-    return weekStart;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.getWeekAnchorDate(currentDate, view);
+    return new Date(currentDate + 'T00:00:00');
   }
 
   function nextWeekLabel(currentDate) {
-    const nextWeek = getWeekAnchorDate(currentDate, "next-week");
-    const weekNumber = isoWeekNumber(nextWeek);
-    return `Naechste KW ${weekNumber}`;
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.nextWeekLabel(currentDate);
+    return 'Naechste Woche';
   }
 
   function getWebUntisRangeLabel(center) {
-    if (state.webuntisView === "day") {
-      return "Heute";
-    }
-    if (state.webuntisView === "next-week") {
-      return nextWeekLabel(center.currentDate);
-    }
-    return center.currentWeekLabel || "Diese Woche";
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.getWebUntisRangeLabel(center);
+    return state.webuntisView === 'day' ? 'Heute' : (center.currentWeekLabel || 'Diese Woche');
   }
 
   function bindExternalLink(element, url, label) {
@@ -2635,6 +2340,20 @@
         getGradeClasses: getGradeClasses,
       });
     }
+    // Init LehrerWebUntis with shared state, elements, and utility callbacks (Phase 10c)
+    if (window.LehrerWebUntis) {
+      window.LehrerWebUntis.init(state, elements, {
+        getData: getData,
+        renderAll: renderAll,
+        formatDate: formatDate,
+        formatTime: formatTime,
+        weekdayLabel: weekdayLabel,
+        isSameDay: isSameDay,
+        startOfWeek: startOfWeek,
+        isoWeekNumber: isoWeekNumber,
+        bindExternalLink: bindExternalLink,
+      });
+    }
     refreshDashboard().then(() => {
       loadClassworkCache();
       loadGradebook();
@@ -2861,17 +2580,18 @@
     return window.location.protocol !== "file:" ? window.location.origin : "";
   }
 
+  // ── WebUntis localStorage helpers — delegated to window.LehrerWebUntis (Phase 10c) ─
+  // loadSavedShortcuts and loadWebUntisFavorites are called at state initialization
+  // time (before init), so they include fallback implementations here too.
+
   function loadSavedShortcuts() {
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.loadSavedShortcuts();
     try {
       const raw = window.localStorage.getItem(WEBUNTIS_SHORTCUTS_KEY);
-      if (!raw) {
-        return [];
-      }
+      if (!raw) return [];
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? sanitizeShortcuts(parsed) : [];
-    } catch (error) {
-      return [];
-    }
+      return Array.isArray(parsed) ? parsed.filter((e) => e && e.id && e.label && e.type) : [];
+    } catch (_e) { return []; }
   }
 
   function persistShortcuts() {
@@ -2879,13 +2599,12 @@
   }
 
   function loadWebUntisFavorites() {
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.loadWebUntisFavorites();
     try {
       const raw = window.localStorage.getItem(WEBUNTIS_FAVORITES_KEY);
       const parsed = JSON.parse(raw || "[]");
-      return Array.isArray(parsed) ? sanitizeFavorites(parsed) : [];
-    } catch (error) {
-      return [];
-    }
+      return Array.isArray(parsed) ? parsed.filter((e) => typeof e === 'string') : [];
+    } catch (_e) { return []; }
   }
 
   function persistFavorites() {
@@ -3190,29 +2909,20 @@
   }
 
   function normalizeLocalWebUntisState() {
-    if (state.shortcuts.length) {
-      state.shortcuts = [];
-      persistShortcuts();
-    }
-
-    if (state.favorites.length) {
-      state.favorites = [];
-      persistFavorites();
-    }
-
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.normalizeLocalWebUntisState();
+    // TODO: remove after webuntis.js verified
+    if (state.shortcuts.length) { state.shortcuts = []; persistShortcuts(); }
+    if (state.favorites.length) { state.favorites = []; persistFavorites(); }
     state.activeShortcutId = "personal";
     state.activeFinderEntityId = null;
     persistActiveShortcutId();
   }
 
   function compactEventDetail(event) {
+    if (window.LehrerWebUntis) return window.LehrerWebUntis.compactEventDetail(event);
     const parts = [];
-    if (event.location) {
-      parts.push(`Ort ${event.location}`);
-    }
-    if (event.description) {
-      parts.push(event.description);
-    }
+    if (event.location) parts.push(`Ort ${event.location}`);
+    if (event.description) parts.push(event.description);
     return parts.join(" • ") || "Persoenlicher WebUntis-Termin";
   }
 

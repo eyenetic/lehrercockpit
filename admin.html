@@ -555,19 +555,26 @@
           <div class="admin-card">
             <div class="admin-card-header">
               <h2 class="admin-section-title">Aktivitätsprotokoll</h2>
-              <div style="display:flex;gap:0.5rem;align-items:center;">
+              <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                <div class="form-field" style="margin:0;">
+                  <input type="date" id="audit-date-from" title="Von Datum" style="padding:0.35rem 0.6rem;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--panel-soft);color:var(--ink);font-size:0.82rem;" />
+                </div>
+                <div class="form-field" style="margin:0;">
+                  <input type="date" id="audit-date-to" title="Bis Datum" style="padding:0.35rem 0.6rem;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--panel-soft);color:var(--ink);font-size:0.82rem;" />
+                </div>
                 <div class="form-field" style="margin:0;">
                   <select id="audit-event-filter" style="padding:0.35rem 0.6rem;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--panel-soft);color:var(--ink);font-size:0.82rem;min-width:160px;">
                     <option value="">Alle Ereignisse</option>
-                    <option value="login_success">Login erfolgreich</option>
-                    <option value="login_failure">Login fehlgeschlagen</option>
-                    <option value="teacher_created">Lehrkraft angelegt</option>
-                    <option value="teacher_deactivated">Lehrkraft deaktiviert</option>
-                    <option value="code_rotated">Code erneuert</option>
-                    <option value="bootstrap_created">Bootstrap</option>
+                    <option value="login_success">✅ Anmeldung erfolgreich</option>
+                    <option value="login_failure">❌ Anmeldung fehlgeschlagen</option>
+                    <option value="teacher_created">👤 Lehrkraft erstellt</option>
+                    <option value="teacher_deactivated">🚫 Lehrkraft deaktiviert</option>
+                    <option value="code_rotated">🔑 Zugangscode erneuert</option>
+                    <option value="bootstrap_created">⚙️ Bootstrap-Admin erstellt</option>
                   </select>
                 </div>
                 <button class="btn btn-sm" id="btn-audit-refresh" type="button">Aktualisieren</button>
+                <button class="btn btn-sm" id="btn-audit-csv" type="button" title="Audit-Log als CSV exportieren">📥 CSV-Export</button>
               </div>
             </div>
             <div id="audit-feedback"></div>
@@ -739,7 +746,10 @@
 
           // ── Audit log event wiring ─────────────────────────────────────────
           var btnAuditRefresh = document.getElementById('btn-audit-refresh');
+          var btnAuditCsv = document.getElementById('btn-audit-csv');
           var auditFilter = document.getElementById('audit-event-filter');
+          var auditDateFrom = document.getElementById('audit-date-from');
+          var auditDateTo = document.getElementById('audit-date-to');
           var auditPrev = document.getElementById('audit-prev');
           var auditNext = document.getElementById('audit-next');
           if (btnAuditRefresh) {
@@ -748,8 +758,25 @@
               loadAuditLog();
             });
           }
+          if (btnAuditCsv) {
+            btnAuditCsv.addEventListener('click', function () {
+              downloadAuditCsv();
+            });
+          }
           if (auditFilter) {
             auditFilter.addEventListener('change', function () {
+              _auditOffset = 0;
+              loadAuditLog();
+            });
+          }
+          if (auditDateFrom) {
+            auditDateFrom.addEventListener('change', function () {
+              _auditOffset = 0;
+              loadAuditLog();
+            });
+          }
+          if (auditDateTo) {
+            auditDateTo.addEventListener('change', function () {
               _auditOffset = 0;
               loadAuditLog();
             });
@@ -796,11 +823,34 @@
         var _auditLimit = 50;
         var _auditTotal = 0;
 
+        var AUDIT_EVENT_LABELS = {
+          'login_success':       '✅ Anmeldung erfolgreich',
+          'login_failure':       '❌ Anmeldung fehlgeschlagen',
+          'teacher_created':     '👤 Lehrkraft erstellt',
+          'teacher_deactivated': '🚫 Lehrkraft deaktiviert',
+          'code_rotated':        '🔑 Zugangscode erneuert',
+          'bootstrap_created':   '⚙️ Bootstrap-Admin erstellt',
+        };
+
+        function _auditEventLabel(eventType) {
+          return AUDIT_EVENT_LABELS[eventType] || esc(eventType || '–');
+        }
+
+        function _getAuditFilters() {
+          return {
+            eventType: (document.getElementById('audit-event-filter') || {}).value || '',
+            dateFrom:  (document.getElementById('audit-date-from') || {}).value || '',
+            dateTo:    (document.getElementById('audit-date-to') || {}).value || '',
+          };
+        }
+
         async function loadAuditLog() {
           var container = document.getElementById('audit-table-container');
-          var eventType = document.getElementById('audit-event-filter').value;
+          var f = _getAuditFilters();
           var params = 'limit=' + _auditLimit + '&offset=' + _auditOffset;
-          if (eventType) params += '&event_type=' + encodeURIComponent(eventType);
+          if (f.eventType) params += '&event_type=' + encodeURIComponent(f.eventType);
+          if (f.dateFrom)  params += '&date_from=' + encodeURIComponent(f.dateFrom);
+          if (f.dateTo)    params += '&date_to=' + encodeURIComponent(f.dateTo);
           if (container) container.innerHTML = '<p class="loading-row">Lade Audit-Log…</p>';
           try {
             var resp = await apiFetch('/api/v2/admin/audit-log?' + params);
@@ -813,6 +863,34 @@
             if (container) {
               container.innerHTML = '<p class="feedback-msg error">Fehler beim Laden des Audit-Logs.</p>';
             }
+          }
+        }
+
+        async function downloadAuditCsv() {
+          var f = _getAuditFilters();
+          // Build URL with filters
+          var url = BACKEND + '/api/v2/admin/audit-log/export.csv?limit=5000';
+          if (f.eventType) url += '&event_type=' + encodeURIComponent(f.eventType);
+          if (f.dateFrom)  url += '&date_from=' + encodeURIComponent(f.dateFrom);
+          if (f.dateTo)    url += '&date_to=' + encodeURIComponent(f.dateTo);
+          try {
+            var resp = await fetch(url, { credentials: 'include' });
+            if (!resp.ok) {
+              setFeedback('audit-feedback', 'CSV-Export fehlgeschlagen (HTTP ' + resp.status + ').', 'error');
+              return;
+            }
+            var blob = await resp.blob();
+            var today = new Date().toISOString().slice(0, 10);
+            var filename = 'audit-log-' + today + '.csv';
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+          } catch (e) {
+            setFeedback('audit-feedback', 'CSV-Export fehlgeschlagen: Verbindungsfehler.', 'error');
           }
         }
 
@@ -830,10 +908,9 @@
             var detailStr = ev.details && Object.keys(ev.details).length
               ? JSON.stringify(ev.details)
               : '–';
-            var eventTypeClass = 'audit-event-badge audit-' + (ev.event_type || '').replace(/_/g, '-');
             html += '<tr>'
               + '<td style="white-space:nowrap;font-size:0.78rem;color:var(--muted);">' + esc(time) + '</td>'
-              + '<td><span class="' + esc(eventTypeClass) + '">' + esc(ev.event_type || '–') + '</span></td>'
+              + '<td>' + _auditEventLabel(ev.event_type) + '</td>'
               + '<td>' + esc(ev.user_name || '–') + '</td>'
               + '<td style="font-size:0.78rem;color:var(--muted);">' + esc(ev.ip_address || '–') + '</td>'
               + '<td style="font-size:0.75rem;color:var(--muted);max-width:200px;word-break:break-all;">' + esc(detailStr) + '</td>'
