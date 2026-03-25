@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -56,9 +56,9 @@ jobs:
       ENCRYPTION_KEY: ""
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -70,5 +70,5 @@ jobs:
         run: |
           python3 -c "from cryptography.fernet import Fernet; print('ENCRYPTION_KEY=' + Fernet.generate_key().decode())" >> $GITHUB_ENV
 
-      - name: Run full test suite with DB
-        run: pytest tests/ -v --tb=short
+      - name: Run DB tests only
+        run: pytest tests/ -v --tb=short -m "db"
