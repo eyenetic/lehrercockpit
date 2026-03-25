@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Einrichten – Lehrer-Cockpit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      body.onboarding-page {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        background: var(--bg);
+      }
+
+      .onboarding-card {
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+        padding: 2.5rem 2rem;
+        width: 100%;
+        max-width: 480px;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .onboarding-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .onboarding-header h1 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .onboarding-header p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .step-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      .step-dots {
+        display: flex;
+        gap: 5px;
+      }
+
+      .step-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--line-strong);
+        transition: background 180ms ease;
+      }
+
+      .step-dot.active {
+        background: var(--accent);
+      }
+
+      .step-dot.done {
+        background: var(--success);
+      }
+
+      .onboarding-step {
+        display: none;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .onboarding-step.visible {
+        display: flex;
+      }
+
+      .onboarding-step h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .onboarding-step p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .form-field label {
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--ink);
+      }
+
+      .form-field input[type="text"],
+      .form-field input[type="url"],
+      .form-field input[type="password"] {
+        padding: 0.6rem 0.75rem;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        background: var(--panel-soft);
+        color: var(--ink);
+        font-size: 0.9rem;
+        transition: border-color 120ms ease;
+      }
+
+      .form-field input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .form-field .field-hint {
+        font-size: 0.76rem;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      .onboarding-actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--line);
+      }
+
+      .btn-skip {
+        padding: 0.55rem 1rem;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: border-color 120ms ease, color 120ms ease;
+      }
+
+      .btn-skip:hover {
+        border-color: var(--accent);
+        color: var(--ink);
+      }
+
+      .btn-next {
+        padding: 0.55rem 1.25rem;
+        border: none;
+        border-radius: var(--radius-md);
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 120ms ease;
+      }
+
+      .btn-next:hover:not(:disabled) {
+        opacity: 0.85;
+      }
+
+      .btn-next:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .onboarding-feedback {
+        font-size: 0.8rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: var(--radius-sm);
+        margin: 0;
+      }
+
+      .onboarding-feedback.error {
+        background: rgba(220, 38, 38, 0.1);
+        border: 1px solid rgba(220, 38, 38, 0.3);
+        color: var(--danger);
+      }
+
+      .onboarding-feedback.success {
+        background: rgba(22, 163, 74, 0.1);
+        border: 1px solid rgba(22, 163, 74, 0.3);
+        color: var(--success);
+      }
+
+      .welcome-icon {
+        font-size: 2.5rem;
+        text-align: center;
+      }
+
+      .welcome-features {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .welcome-features li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .welcome-features li::before {
+        content: "✓";
+        color: var(--success);
+        font-weight: 700;
+        flex-shrink: 0;
+        margin-top: 0.05em;
+      }
+    </style>
+  </head>
+  <body class="onboarding-page">
+    <div class="onboarding-card">
+      <div class="onboarding-header">
+        <h1>Lehrer-Cockpit einrichten</h1>
+        <p>Konfiguriere deine persönlichen Datenquellen. Du kannst Schritte jederzeit überspringen.</p>
+      </div>
+
+      <div class="step-indicator">
+        <div class="step-dots" id="step-dots"></div>
+        <span id="step-label">Schritt 1 von 1</span>
+      </div>
+
+      <!-- Schritt: Willkommen -->
+      <div class="onboarding-step" id="step-welcome">
+        <div class="welcome-icon">👋</div>
+        <h2>Willkommen, <span id="welcome-name">Lehrkraft</span>!</h2>
+        <p>
+          Das Lehrer-Cockpit bündelt deine wichtigsten Quellen auf einer Seite:
+          Stundenplan, Noten, Inbox, Dokumente und mehr.
+        </p>
+        <ul class="welcome-features">
+          <li>Tagesüberblick mit Briefing auf einen Blick</li>
+          <li>WebUntis-Stundenplan direkt integriert</li>
+          <li>itslearning-Inbox und Aufgaben</li>
+          <li>Nextcloud-Dokumente und Ordner</li>
+        </ul>
+        <p>In den nächsten Schritten richtest du deine Datenquellen ein.</p>
+        <div id="welcome-feedback"></div>
+      </div>
+
+      <!-- Schritt: WebUntis -->
+      <div class="onboarding-step" id="step-webuntis">
+        <h2>WebUntis verbinden</h2>
+        <p>
+          Verbinde deinen persönlichen Stundenplan über die iCal-URL aus WebUntis.
+        </p>
+        <div class="form-field">
+          <label for="webuntis-ical-url">WebUntis iCal-URL</label>
+          <input
+            type="url"
+            id="webuntis-ical-url"
+            placeholder="https://mese.webuntis.com/WebUntis/ical?…"
+            autocomplete="off"
+          />
+          <p class="field-hint">
+            Zu finden in WebUntis unter: Mein Konto → Kalender → iCal-Export → URL kopieren
+          </p>
+        </div>
+        <div id="webuntis-feedback"></div>
+      </div>
+
+      <!-- Schritt: itslearning -->
+      <div class="onboarding-step" id="step-itslearning">
+        <h2>itslearning verbinden</h2>
+        <p>Verbinde dein itslearning-Konto für Inbox und Aufgaben.</p>
+        <div class="form-field">
+          <label for="its-server">Server-URL</label>
+          <input
+            type="url"
+            id="its-server"
+            placeholder="https://schule.itslearning.com"
+            autocomplete="off"
+          />
+        </div>
+        <div class="form-field">
+          <label for="its-username">Benutzername</label>
+          <input type="text" id="its-username" placeholder="vorname.nachname" autocomplete="off" />
+        </div>
+        <div class="form-field">
+          <label for="its-password">Passwort</label>
+          <input type="password" id="its-password" placeholder="••••••••" autocomplete="new-password" />
+        </div>
+        <div id="itslearning-feedback"></div>
+      </div>
+
+      <!-- Schritt: Nextcloud -->
+      <div class="onboarding-step" id="step-nextcloud">
+        <h2>Nextcloud verbinden <span style="font-size:0.75rem;font-weight:400;color:var(--muted);">(optional)</span></h2>
+        <p>Verbinde dein Nextcloud-Konto für Dokumente und geteilte Ordner.</p>
+        <div class="form-field">
+          <label for="nc-server">Server-URL</label>
+          <input type="url" id="nc-server" placeholder="https://cloud.schule.de" autocomplete="off" />
+        </div>
+        <div class="form-field">
+          <label for="nc-username">Benutzername</label>
+          <input type="text" id="nc-username" placeholder="vorname.nachname" autocomplete="off" />
+        </div>
+        <div class="form-field">
+          <label for="nc-password">Passwort / App-Passwort</label>
+          <input type="password" id="nc-password" placeholder="••••••••" autocomplete="new-password" />
+          <p class="field-hint">
+            Empfehlung: Nutze ein App-Passwort (Nextcloud → Einstellungen → Sicherheit → App-Passwörter).
+          </p>
+        </div>
+        <div id="nextcloud-feedback"></div>
+      </div>
+
+      <!-- Letzter Schritt: Fertig -->
+      <div class="onboarding-step" id="step-finish">
+        <div class="welcome-icon">🎉</div>
+        <h2>Alles eingerichtet!</h2>
+        <p>
+          Dein Cockpit ist bereit. Du kannst alle Einstellungen jederzeit in den jeweiligen
+          Modulen anpassen.
+        </p>
+        <div id="finish-feedback"></div>
+      </div>
+
+      <div class="onboarding-actions">
+        <button class="btn-skip" id="btn-skip" type="button">Überspringen</button>
+        <button class="btn-next" id="btn-next" type="button">Weiter</button>
+      </div>
+    </div>
+
+    <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
+    <script src="./src/api-client.js"></script>
+    <script>
+      (function () {
+        const BACKEND = window.BACKEND_API_URL || '';
+
+        // Module IDs die Onboarding brauchen könnten
+        const MODULE_STEPS = [
+          { id: 'step-welcome',    moduleId: null,          always: true },
+          { id: 'step-webuntis',   moduleId: 'webuntis',    always: false },
+          { id: 'step-itslearning',moduleId: 'itslearning', always: false },
+          { id: 'step-nextcloud',  moduleId: 'nextcloud',   always: false },
+          { id: 'step-finish',     moduleId: null,          always: true },
+        ];
+
+        let currentStepIndex = 0;
+        let activeSteps = [];
+        let currentUser = null;
+
+        async function init() {
+          // Auth check
+          try {
+            const resp = await fetch(BACKEND + '/api/v2/auth/me', { credentials: 'include' });
+            if (!resp.ok) { window.location.href = './login.html'; return; }
+            const data = await resp.json();
+            if (!data.ok) { window.location.href = './login.html'; return; }
+            currentUser = data.user;
+          } catch (e) {
+            window.location.href = './login.html';
+            return;
+          }
+
+          // Onboarding nötig?
+          try {
+            const resp = await fetch(BACKEND + '/api/v2/dashboard/onboarding-status', { credentials: 'include' });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (!data.needs_onboarding) {
+                window.location.href = './index.html';
+                return;
+              }
+              buildActiveSteps(data.unconfigured_modules || []);
+            } else {
+              buildActiveSteps([]);
+            }
+          } catch (e) {
+            buildActiveSteps([]);
+          }
+
+          // Welcome-Name setzen
+          const nameEl = document.getElementById('welcome-name');
+          if (nameEl && currentUser) {
+            nameEl.textContent = currentUser.first_name || currentUser.full_name || 'Lehrkraft';
+          }
+
+          renderDots();
+          showStep(0);
+        }
+
+        function buildActiveSteps(unconfiguredModules) {
+          activeSteps = MODULE_STEPS.filter(function (s) {
+            if (s.always) return true;
+            return unconfiguredModules.includes(s.moduleId);
+          });
+          // Always include at least welcome + finish
+          if (activeSteps.length < 2) {
+            activeSteps = [MODULE_STEPS[0], MODULE_STEPS[MODULE_STEPS.length - 1]];
+          }
+        }
+
+        function renderDots() {
+          const container = document.getElementById('step-dots');
+          container.innerHTML = '';
+          activeSteps.forEach(function (_, i) {
+            const dot = document.createElement('div');
+            dot.className = 'step-dot';
+            dot.id = 'dot-' + i;
+            container.appendChild(dot);
+          });
+        }
+
+        function showStep(index) {
+          currentStepIndex = index;
+          const step = activeSteps[index];
+          const total = activeSteps.length;
+
+          // Hide all steps
+          MODULE_STEPS.forEach(function (s) {
+            const el = document.getElementById(s.id);
+            if (el) el.classList.remove('visible');
+          });
+
+          // Show current
+          const current = document.getElementById(step.id);
+          if (current) current.classList.add('visible');
+
+          // Update dots
+          activeSteps.forEach(function (_, i) {
+            const dot = document.getElementById('dot-' + i);
+            if (!dot) return;
+            dot.className = 'step-dot';
+            if (i < index) dot.classList.add('done');
+            else if (i === index) dot.classList.add('active');
+          });
+
+          // Update label
+          document.getElementById('step-label').textContent =
+            'Schritt ' + (index + 1) + ' von ' + total;
+
+          // Update buttons
+          const skipBtn = document.getElementById('btn-skip');
+          const nextBtn = document.getElementById('btn-next');
+          const isLast = index === total - 1;
+          const isFirst = index === 0;
+
+          if (isLast) {
+            skipBtn.style.display = 'none';
+            nextBtn.textContent = 'Cockpit öffnen';
+          } else if (isFirst) {
+            skipBtn.style.display = 'none';
+            nextBtn.textContent = 'Los geht\'s';
+          } else {
+            skipBtn.style.display = '';
+            skipBtn.textContent = 'Überspringen';
+            nextBtn.textContent = 'Speichern & Weiter';
+          }
+        }
+
+        function clearFeedback() {
+          ['welcome-feedback', 'webuntis-feedback', 'itslearning-feedback', 'nextcloud-feedback', 'finish-feedback'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+          });
+        }
+
+        function showFeedback(containerId, message, type) {
+          const el = document.getElementById(containerId);
+          if (!el) return;
+          el.innerHTML = '<p class="onboarding-feedback ' + type + '">' + message + '</p>';
+        }
+
+        async function saveCurrentStep() {
+          const step = activeSteps[currentStepIndex];
+          if (!step.moduleId) return true; // welcome/finish → nichts zu speichern
+
+          let config = {};
+          let feedbackId = '';
+
+          if (step.moduleId === 'webuntis') {
+            feedbackId = 'webuntis-feedback';
+            const url = document.getElementById('webuntis-ical-url').value.trim();
+            if (!url) return true; // optional
+            config = { ical_url: url };
+          } else if (step.moduleId === 'itslearning') {
+            feedbackId = 'itslearning-feedback';
+            const server = document.getElementById('its-server').value.trim();
+            const user = document.getElementById('its-username').value.trim();
+            const pass = document.getElementById('its-password').value;
+            if (!server && !user && !pass) return true; // alles leer → überspringen
+            if (!server || !user || !pass) {
+              showFeedback(feedbackId, 'Bitte alle Felder ausfüllen oder Schritt überspringen.', 'error');
+              return false;
+            }
+            config = { server_url: server, username: user, password: pass };
+          } else if (step.moduleId === 'nextcloud') {
+            feedbackId = 'nextcloud-feedback';
+            const server = document.getElementById('nc-server').value.trim();
+            const user = document.getElementById('nc-username').value.trim();
+            const pass = document.getElementById('nc-password').value;
+            if (!server && !user && !pass) return true; // optional
+            if (!server || !user || !pass) {
+              showFeedback(feedbackId, 'Bitte alle Felder ausfüllen oder Schritt überspringen.', 'error');
+              return false;
+            }
+            config = { server_url: server, username: user, password: pass };
+          }
+
+          try {
+            const resp = await fetch(BACKEND + '/api/v2/dashboard/module-config/' + step.moduleId, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(config),
+              credentials: 'include',
+            });
+            if (!resp.ok) {
+              const err = await resp.json().catch(function () { return {}; });
+              showFeedback(feedbackId, err.error || 'Fehler beim Speichern.', 'error');
+              return false;
+            }
+            return true;
+          } catch (e) {
+            showFeedback(feedbackId, 'Verbindungsfehler.', 'error');
+            return false;
+          }
+        }
+
+        // Event-Handler
+        document.getElementById('btn-next').addEventListener('click', async function () {
+          clearFeedback();
+          const isLast = currentStepIndex === activeSteps.length - 1;
+
+          if (isLast) {
+            // Onboarding abschließen
+            try {
+              await fetch(BACKEND + '/api/v2/dashboard/onboarding/complete', {
+                method: 'POST',
+                credentials: 'include',
+              });
+            } catch (e) {
+              // ignorieren – weiterleiten trotzdem
+            }
+            window.location.href = './index.html';
+            return;
+          }
+
+          const isFirst = currentStepIndex === 0;
+          if (!isFirst) {
+            const btn = document.getElementById('btn-next');
+            btn.disabled = true;
+            btn.textContent = 'Speichern…';
+            const ok = await saveCurrentStep();
+            btn.disabled = false;
+            if (!ok) {
+              // Fehler angezeigt, nicht weiter
+              showStep(currentStepIndex);
+              return;
+            }
+          }
+
+          showStep(currentStepIndex + 1);
+        });
+
+        document.getElementById('btn-skip').addEventListener('click', function () {
+          clearFeedback();
+          if (currentStepIndex < activeSteps.length - 1) {
+            showStep(currentStepIndex + 1);
+          }
+        });
+
+        init();
+      })();
+    </script>
+  </body>
+</html>

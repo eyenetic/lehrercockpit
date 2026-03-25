@@ -115,7 +115,8 @@ CLASSWORK_LOCAL_PATH = PROJECT_ROOT / "data" / "classwork-plan-local.xlsx"
 app = Flask(__name__, static_folder=None)
 app.config["PROPAGATE_EXCEPTIONS"] = False
 
-CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "*")
+# Production CORS origin — set CORS_ORIGIN=https://app.lehrercockpit.com on Render
+CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "http://localhost:3000")
 
 # ── Schema initialisation ─────────────────────────────────────────────────────
 # Runs once at startup. For DbStore this creates the app_state table if needed.
@@ -131,16 +132,38 @@ except Exception as _schema_exc:
 
 
 def _cors(response: Response) -> Response:
-    response.headers["Access-Control-Allow-Origin"] = CORS_ORIGIN
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    origin = request.headers.get("Origin", "")
+    allowed_origins = [o.strip() for o in CORS_ORIGIN.split(",")]
+    if origin in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+    elif allowed_origins:
+        # Only set explicit origin (never wildcard when credentials are required)
+        response.headers["Access-Control-Allow-Origin"] = allowed_origins[0]
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Cookie"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Cache-Control"] = "no-store"
     return response
 
 
 @app.after_request
 def after_request(response: Response) -> Response:
-    return _cors(response)
+    response = _cors(response)
+    # Add X-API-Version: v1-legacy header to all legacy /api/ endpoints
+    # (those that are NOT under /api/v2/)
+    path = request.path
+    if path.startswith("/api/") and not path.startswith("/api/v2/"):
+        response.headers["X-API-Version"] = "v1-legacy"
+    return response
+
+
+@app.before_request
+def handle_options():
+    """Handle CORS preflight OPTIONS requests before routing."""
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        return _cors(response)
 
 
 @app.route("/", defaults={"path": ""})
@@ -160,6 +183,13 @@ def static_files(path: str) -> Response:
         path = str(file_path.relative_to(PROJECT_ROOT))
     return send_from_directory(str(PROJECT_ROOT), path)
 
+
+# ============================================================
+# LEGACY v1 API ENDPOINTS
+# These endpoints are retained for backward compatibility.
+# Do NOT add new features here. Use /api/v2/* blueprints instead.
+# Migration status per endpoint is documented in CLAUDE_HANDOFF.md
+# ============================================================
 
 # ── GET endpoints ─────────────────────────────────────────────────────────────
 
@@ -456,6 +486,35 @@ def api_local_settings_notes() -> Response:
 def _is_local_request() -> bool:
     remote = request.remote_addr or ""
     return remote in {"127.0.0.1", "::1", "localhost"}
+
+
+# ── Multi-User API (v2) ───────────────────────────────────────────────────────
+
+try:
+    from backend.api import register_blueprints
+    from backend.migrations import run_all_migrations
+    from backend.api.auth_routes import limiter
+
+    register_blueprints(app)
+    limiter.init_app(app)
+
+    if os.environ.get("DATABASE_URL", "").strip():
+        try:
+            run_all_migrations()
+        except Exception as _migration_exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(f"Migration failed: {_migration_exc}")
+
+        try:
+            from backend.admin.bootstrap import ensure_bootstrap_admin
+            ensure_bootstrap_admin()
+        except Exception as _bootstrap_exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(f"Bootstrap check failed: {_bootstrap_exc}")
+
+except Exception as _api_import_exc:
+    import logging as _logging
+    _logging.getLogger(__name__).warning(f"Multi-user API blueprints failed to load: {_api_import_exc}")
 
 
 # ── Dev entrypoint ────────────────────────────────────────────────────────────

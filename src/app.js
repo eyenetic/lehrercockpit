@@ -198,6 +198,15 @@
     itslearning: "itslearning",
   };
 
+  // ── SECTION: DashboardManager (Multi-User) ──────────────────────────────────
+  //
+  // Activated when window.MULTIUSER_ENABLED === true.
+  // Fetches GET /api/v2/dashboard, stores module layout, wires the settings
+  // panel (layout management), and injects module-config banners.
+
+  // DashboardManager is extracted to src/modules/dashboard-manager.js (Phase 8d)
+  const DashboardManager = window.DashboardManager;
+
   // ── SECTION: API / data loading ─────────────────────────────────────────────
 
   async function loadDashboard(forceRefresh = false) {
@@ -207,12 +216,31 @@
 
     for (const source of sources) {
       try {
-        const response = await fetch(source, { cache: "no-store" });
+        // credentials: 'include' ensures session cookie forwarded to backend (Phase 8c/8d)
+        const response = await fetch(source, { cache: "no-store", credentials: "include" });
         if (!response.ok) {
           continue;
         }
 
-        return normalizeDashboard(await response.json());
+        const data = normalizeDashboard(await response.json());
+
+        // Phase 9e: After loading the v1 dashboard payload, override grades/notes
+        // with v2 per-user data when running in multi-user SaaS mode.
+        // Fails silently — v1 data (or empty arrays) remain usable as fallback.
+        try {
+          if (window.LehrerGrades && window.MULTIUSER_ENABLED && window.LehrerAPI) {
+            const v2Data = await window.LehrerAPI.getNotesData();
+            if (v2Data.ok) {
+              const json = await v2Data.json();
+              if (data.grades !== undefined) data.grades = json.grades || [];
+              if (data.notes !== undefined) data.notes = json.notes || [];
+            }
+          }
+        } catch (_e) {
+          // Fail silently — v1 data is still usable
+        }
+
+        return data;
       } catch (error) {
         continue;
       }
@@ -2368,29 +2396,15 @@
       return;
     }
 
-    elements.itslearningConnectFeedback.textContent = "Speichere lokale itslearning-Zugangsdaten ...";
+    elements.itslearningConnectFeedback.textContent = "Speichere itslearning-Zugangsdaten ...";
     elements.itslearningConnectFeedback.className = "connect-feedback";
 
+    // MULTIUSER_ENABLED = true — always use v2 API (Phase 8d: if/else removed)
     try {
-      const response = await fetch("/api/local-settings/itslearning", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          baseUrl: "https://berlin.itslearning.com",
-          username,
-          password,
-          maxUpdates: 6,
-        }),
-      });
-
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.detail || "Lokales Speichern fehlgeschlagen.");
-      }
-
-      elements.itslearningConnectFeedback.textContent = payload.detail || "itslearning-Zugang gespeichert.";
+      const resp = await window.LehrerAPI.saveModuleConfig("itslearning", { username, password });
+      const payload = await resp.json();
+      if (!resp.ok) throw new Error(payload.error || "Speichern fehlgeschlagen.");
+      elements.itslearningConnectFeedback.textContent = "itslearning-Zugang gespeichert.";
       elements.itslearningConnectFeedback.className = "connect-feedback success";
       elements.itslearningPassword.value = "";
       await refreshDashboard(true);
@@ -2404,40 +2418,16 @@
     const username = elements.nextcloudUsername?.value.trim() || "";
     const password = elements.nextcloudPassword?.value.trim() || "";
     const workspaceUrl = elements.nextcloudWorkspaceUrl?.value.trim() || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/";
-    const q1q2Url = elements.nextcloudQ1Q2UrlInput?.value.trim() || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901";
-    const q3q4Url = elements.nextcloudQ3Q4UrlInput?.value.trim() || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900";
 
-    elements.nextcloudConnectFeedback.textContent = "Speichere Nextcloud-Arbeitsbereich lokal ...";
+    elements.nextcloudConnectFeedback.textContent = "Speichere Nextcloud-Arbeitsbereich ...";
     elements.nextcloudConnectFeedback.className = "connect-feedback";
 
+    // MULTIUSER_ENABLED = true — always use v2 API (Phase 8d: if/else removed)
     try {
-      const response = await fetch("/api/local-settings/nextcloud", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          baseUrl: "https://nextcloud-g2.b-sz-heos.logoip.de",
-          workspaceUrl,
-          username,
-          password,
-          q1q2Url,
-          q3q4Url,
-          link1Label: elements.nextcloudLink1Label?.value.trim() || "",
-          link1Url: elements.nextcloudLink1Url?.value.trim() || "",
-          link2Label: elements.nextcloudLink2Label?.value.trim() || "",
-          link2Url: elements.nextcloudLink2Url?.value.trim() || "",
-          link3Label: elements.nextcloudLink3Label?.value.trim() || "",
-          link3Url: elements.nextcloudLink3Url?.value.trim() || "",
-        }),
-      });
-
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.detail || "Lokales Speichern fehlgeschlagen.");
-      }
-
-      elements.nextcloudConnectFeedback.textContent = payload.detail || "Nextcloud-Arbeitsbereich gespeichert.";
+      const resp = await window.LehrerAPI.saveModuleConfig("nextcloud", { server_url: workspaceUrl, username, password });
+      const payload = await resp.json();
+      if (!resp.ok) throw new Error(payload.error || "Speichern fehlgeschlagen.");
+      elements.nextcloudConnectFeedback.textContent = "Nextcloud-Arbeitsbereich gespeichert.";
       elements.nextcloudConnectFeedback.className = "connect-feedback success";
       elements.nextcloudPassword.value = "";
       await refreshDashboard(true);
@@ -2562,193 +2552,67 @@
     }
   }
 
+  // ── Grades / Notes — delegated to window.LehrerGrades (Phase 9e) ─────────────
+  // These functions are now implemented in src/features/grades.js which uses
+  // v2 endpoints (GET/POST /api/v2/modules/noten/*) when MULTIUSER_ENABLED is
+  // true, and falls back to v1 for local runtime.
+
   async function loadGradebook() {
+    if (window.LehrerGrades) {
+      return window.LehrerGrades.loadGradebook();
+    }
+    // Minimal v1 fallback if grades.js failed to load
     try {
-      const response = await fetch("/api/grades");
-      if (!response.ok) {
-        return;
-      }
+      const response = await window.LehrerAPI.legacy.getGrades();
+      if (!response.ok) return;
       state.gradesData = await response.json();
       renderGrades();
-    } catch (_error) {
-      // lokal optional
-    }
+    } catch (_error) { /* lokal optional */ }
   }
 
   async function loadNotes() {
+    if (window.LehrerGrades) {
+      return window.LehrerGrades.loadNotes();
+    }
+    // Minimal v1 fallback if grades.js failed to load
     try {
-      const response = await fetch("/api/notes");
-      if (!response.ok) {
-        return;
-      }
+      const response = await window.LehrerAPI.legacy.getNotes();
+      if (!response.ok) return;
       state.notesData = await response.json();
       renderClassNotes(getGradeClasses(), state.gradesSelectedClass);
       renderNavSignals();
-    } catch (_error) {
-      // lokal optional
-    }
+    } catch (_error) { /* lokal optional */ }
   }
 
   async function saveGradeEntry() {
-    if (!IS_LOCAL_RUNTIME) {
-      state.gradesFeedback = "Die Noten-Beta ist nur lokal verfuegbar.";
-      state.gradesFeedbackKind = "warning";
-      renderGrades();
-      return;
+    if (window.LehrerGrades) {
+      return window.LehrerGrades.saveGradeEntry();
     }
-
-    const payload = {
-      classLabel: elements.gradesClassInput?.value.trim() || "",
-      type: elements.gradesTypeInput?.value.trim() || "Sonstiges",
-      studentName: elements.gradesStudentInput?.value.trim() || "",
-      title: elements.gradesTitleInput?.value.trim() || "",
-      gradeValue: elements.gradesValueInput?.value.trim() || "",
-      date: elements.gradesDateInput?.value || "",
-      comment: elements.gradesCommentInput?.value.trim() || "",
-    };
-
-    if (!payload.classLabel || !payload.studentName || !payload.title) {
-      state.gradesFeedback = "Klasse, Schueler:in und Titel werden benoetigt.";
-      state.gradesFeedbackKind = "warning";
-      renderGrades();
-      return;
-    }
-
-    state.gradesFeedback = "Speichere lokalen Noteneintrag ...";
-    state.gradesFeedbackKind = "";
+    // Fallback: show informational message if grades.js not available
+    state.gradesFeedback = "Noten-Modul nicht geladen. Bitte Seite neu laden.";
+    state.gradesFeedbackKind = "warning";
     renderGrades();
-
-    try {
-      const response = await fetch("/api/local-settings/grades", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.detail || "Noteneintrag konnte nicht gespeichert werden.");
-      }
-
-      state.gradesData = result;
-      state.gradesSelectedClass = payload.classLabel;
-      state.gradesFeedback = result.detail || "Note lokal gespeichert.";
-      state.gradesFeedbackKind = "success";
-      if (elements.gradesForm) {
-        elements.gradesForm.reset();
-      }
-      if (elements.gradesDateInput) {
-        elements.gradesDateInput.value = new Date().toISOString().slice(0, 10);
-      }
-      renderGrades();
-    } catch (error) {
-      state.gradesFeedback = error.message || "Noteneintrag konnte nicht gespeichert werden.";
-      state.gradesFeedbackKind = "warning";
-      renderGrades();
-    }
   }
 
   async function deleteGradeEntry(entryId) {
-    if (!entryId || !IS_LOCAL_RUNTIME) {
-      return;
-    }
-    try {
-      const response = await fetch("/api/local-settings/grades", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "delete", id: entryId }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.detail || "Eintrag konnte nicht entfernt werden.");
-      }
-      state.gradesData = result;
-      state.gradesFeedback = result.detail || "Eintrag entfernt.";
-      state.gradesFeedbackKind = "success";
-      renderGrades();
-    } catch (error) {
-      state.gradesFeedback = error.message || "Eintrag konnte nicht entfernt werden.";
-      state.gradesFeedbackKind = "warning";
-      renderGrades();
+    if (window.LehrerGrades) {
+      return window.LehrerGrades.deleteGradeEntry(entryId);
     }
   }
 
   async function saveClassNote() {
-    if (!IS_LOCAL_RUNTIME) {
-      state.notesFeedback = "Klassen-Notizen sind nur lokal verfuegbar.";
-      state.notesFeedbackKind = "warning";
-      renderClassNotes(getGradeClasses(), state.notesSelectedClass);
-      return;
+    if (window.LehrerGrades) {
+      return window.LehrerGrades.saveClassNote();
     }
-
-    const classLabel = elements.notesClassFilter?.value.trim() || state.notesSelectedClass || state.gradesSelectedClass || "";
-    const text = elements.notesInput?.value.trim() || "";
-
-    if (!classLabel) {
-      state.notesFeedback = "Bitte zuerst eine Klasse waehlen.";
-      state.notesFeedbackKind = "warning";
-      renderClassNotes(getGradeClasses(), state.notesSelectedClass);
-      return;
-    }
-
-    state.notesFeedback = "Speichere Klassen-Notiz lokal ...";
-    state.notesFeedbackKind = "";
-    renderClassNotes(getGradeClasses(), classLabel);
-
-    try {
-      const response = await fetch("/api/local-settings/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classLabel, text }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.detail || "Notiz konnte nicht gespeichert werden.");
-      }
-      state.notesData = result;
-      state.notesSelectedClass = classLabel;
-      state.notesFeedback = result.detail || "Notiz lokal gespeichert.";
-      state.notesFeedbackKind = "success";
-      renderClassNotes(getGradeClasses(), classLabel);
-      renderNavSignals();
-    } catch (error) {
-      state.notesFeedback = error.message || "Notiz konnte nicht gespeichert werden.";
-      state.notesFeedbackKind = "warning";
-      renderClassNotes(getGradeClasses(), classLabel);
-    }
+    // Fallback
+    state.notesFeedback = "Noten-Modul nicht geladen. Bitte Seite neu laden.";
+    state.notesFeedbackKind = "warning";
+    renderClassNotes(getGradeClasses(), state.notesSelectedClass);
   }
 
   async function clearClassNote() {
-    if (!IS_LOCAL_RUNTIME) {
-      return;
-    }
-
-    const classLabel = elements.notesClassFilter?.value.trim() || state.notesSelectedClass || "";
-    if (!classLabel) {
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/local-settings/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "delete", classLabel }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.detail || "Notiz konnte nicht entfernt werden.");
-      }
-      state.notesData = result;
-      state.notesFeedback = result.detail || "Notiz entfernt.";
-      state.notesFeedbackKind = "success";
-      if (elements.notesInput) {
-        elements.notesInput.value = "";
-      }
-      renderClassNotes(getGradeClasses(), classLabel);
-      renderNavSignals();
-    } catch (error) {
-      state.notesFeedback = error.message || "Notiz konnte nicht entfernt werden.";
-      state.notesFeedbackKind = "warning";
-      renderClassNotes(getGradeClasses(), classLabel);
+    if (window.LehrerGrades) {
+      return window.LehrerGrades.clearClassNote();
     }
   }
 
@@ -2760,6 +2624,17 @@
     elements.assistantAnswer.textContent =
       "Frag mich nach der Woche, nach dem Orgaplan, nach Dokumenten oder nach deiner Inbox.";
     registerEvents();
+    // Init DashboardManager for multi-user module layout
+    DashboardManager.init();
+    // Init LehrerGrades with shared state, elements, and render callbacks (Phase 9e)
+    if (window.LehrerGrades) {
+      window.LehrerGrades.init(state, elements, {
+        renderGrades: renderGrades,
+        renderClassNotes: renderClassNotes,
+        renderNavSignals: renderNavSignals,
+        getGradeClasses: getGradeClasses,
+      });
+    }
     refreshDashboard().then(() => {
       loadClassworkCache();
       loadGradebook();
@@ -2826,10 +2701,8 @@
   }
 
   async function loadClassworkCache() {
-    const apiBase = IS_LOCAL_RUNTIME ? "" : getBackendApiBase();
-    if (!apiBase && !IS_LOCAL_RUNTIME) return;
     try {
-      const resp = await fetch(`${apiBase}/api/classwork`);
+      const resp = await window.LehrerAPI.legacy.getClasswork();
       if (!resp.ok) return;
       const data = await resp.json();
       const hasRows = (data.entries && data.entries.length > 0) ||

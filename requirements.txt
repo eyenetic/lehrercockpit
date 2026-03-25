@@ -5,3 +5,7 @@ pypdf>=6.9
 playwright>=1.40
 pytest>=8.0
 psycopg[binary]>=3.1
+argon2-cffi>=23.1.0
+flask-limiter>=3.5
+itsdangerous>=2.1.2
+cryptography>=42.0.0

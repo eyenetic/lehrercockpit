@@ -4,6 +4,15 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 
+# ── SaaS / Deployment environment variables ───────────────────────────────────
+# These are read once at import time and used throughout the application.
+
+LEHRERCOCKPIT_ENV = os.environ.get("LEHRERCOCKPIT_ENV", "development")
+CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "http://localhost:3000")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+API_URL = os.environ.get("API_URL", "http://localhost:5000")
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")  # Fernet key for module config encryption
+
 
 @dataclass
 class MailSettings:

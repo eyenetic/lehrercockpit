@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anmelden – Lehrer-Cockpit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      body.login-page {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        background: var(--bg);
+      }
+
+      .login-card {
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+        padding: 2.5rem 2rem;
+        width: 100%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .login-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 0.25rem;
+      }
+
+      .login-brand-mark {
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--accent);
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .login-card h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--ink);
+        line-height: 1.2;
+      }
+
+      .login-subtitle {
+        margin: 0;
+        font-size: 0.82rem;
+        color: var(--muted);
+        font-weight: 400;
+      }
+
+      .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .login-form label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--ink);
+      }
+
+      .login-form input[type="text"] {
+        padding: 0.6rem 0.75rem;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        background: var(--panel-soft);
+        color: var(--ink);
+        font-size: 1rem;
+        font-family: "Geist Mono", monospace;
+        letter-spacing: 0.04em;
+        transition: border-color 120ms ease;
+      }
+
+      .login-form input[type="text"]:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .login-hint {
+        margin: 0;
+        font-size: 0.77rem;
+        color: var(--muted);
+      }
+
+      .login-error {
+        margin: 0;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-sm);
+        background: rgba(220, 38, 38, 0.1);
+        border: 1px solid rgba(220, 38, 38, 0.3);
+        color: var(--danger);
+        font-size: 0.82rem;
+      }
+
+      .login-submit {
+        padding: 0.65rem 1rem;
+        border: none;
+        border-radius: var(--radius-md);
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 120ms ease;
+      }
+
+      .login-submit:hover:not(:disabled) {
+        opacity: 0.88;
+      }
+
+      .login-submit:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body class="login-page">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-brand-mark">L</div>
+        <div>
+          <h1>Lehrer-Cockpit</h1>
+          <p class="login-subtitle">ruhig, kompakt, relevant</p>
+        </div>
+      </div>
+
+      <p style="margin:0; font-size:0.88rem; color:var(--muted);">
+        Bitte gib deinen persönlichen Zugangscode ein.
+      </p>
+
+      <form class="login-form" id="login-form" autocomplete="off">
+        <label for="access-code">
+          Zugangscode
+          <input
+            type="text"
+            id="access-code"
+            name="access-code"
+            placeholder="z. B. ABC-123-XYZ"
+            autofocus
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </label>
+        <p class="login-hint">Deinen Code bekommst du von der Schuladministration.</p>
+        <p id="error-message" hidden class="login-error"></p>
+        <button type="submit" id="submit-btn" class="login-submit">Anmelden</button>
+      </form>
+    </div>
+
+    <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('login-form');
+        const codeInput = document.getElementById('access-code');
+        const errorMsg = document.getElementById('error-message');
+        const submitBtn = document.getElementById('submit-btn');
+
+        // Leitet basierend auf Rolle weiter
+        function redirectByRole(user) {
+          const role = user && user.role;
+          if (role === 'admin') {
+            window.location.href = './admin.html';
+          } else {
+            // Lehrer: Onboarding prüfen wenn Feld vorhanden, sonst Dashboard
+            if (user && user.onboarding_complete === false) {
+              window.location.href = './onboarding.html';
+            } else {
+              window.location.href = './index.html';
+            }
+          }
+        }
+
+        // Prüfe ob bereits eingeloggt
+        async function checkSession() {
+          try {
+            const backendUrl = window.BACKEND_API_URL || '';
+            const resp = await fetch(backendUrl + '/api/v2/auth/me', { credentials: 'include' });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.ok) {
+                redirectByRole(data.user);
+              }
+            }
+          } catch (e) {
+            // nicht eingeloggt, Formular zeigen
+          }
+        }
+
+        // Login-Submit
+        form.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const code = codeInput.value.trim();
+          if (!code) return;
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Anmelden…';
+          errorMsg.hidden = true;
+
+          try {
+            const backendUrl = window.BACKEND_API_URL || '';
+            const resp = await fetch(backendUrl + '/api/v2/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code }),
+              credentials: 'include',
+            });
+            const data = await resp.json();
+            if (resp.ok && data.ok) {
+              redirectByRole(data.user);
+            } else {
+              errorMsg.textContent = data.error || 'Ungültiger Zugangscode.';
+              errorMsg.hidden = false;
+            }
+          } catch (e) {
+            errorMsg.textContent = 'Verbindungsfehler. Bitte versuche es erneut.';
+            errorMsg.hidden = false;
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Anmelden';
+          }
+        });
+
+        checkSession();
+      });
+    </script>
+  </body>
+</html>

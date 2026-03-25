@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin – Lehrer-Cockpit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      /* ── Admin Page Shell ─────────────────────────────────────── */
+      body.admin-page {
+        margin: 0;
+        background: var(--bg);
+        min-height: 100vh;
+      }
+
+      .admin-shell {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-height: 100vh;
+      }
+
+      .admin-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1.5rem;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line-strong);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .admin-topbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .admin-topbar-brand .brand-mark-sm {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+
+      .admin-topbar-nav {
+        display: flex;
+        gap: 4px;
+      }
+
+      .admin-topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .admin-topbar-actions a {
+        color: var(--accent);
+        font-size: 0.82rem;
+      }
+
+      /* ── Tabs ────────────────────────────────────────────────── */
+      .admin-tabs {
+        display: flex;
+        gap: 2px;
+      }
+
+      .admin-tab {
+        padding: 0.45rem 1rem;
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+      }
+
+      .admin-tab:hover {
+        background: var(--panel-soft);
+        color: var(--ink);
+      }
+
+      .admin-tab.active {
+        background: var(--accent-soft, rgba(37,99,235,0.1));
+        color: var(--accent);
+        border-color: transparent;
+      }
+
+      /* ── Body content ────────────────────────────────────────── */
+      .admin-body {
+        padding: 1.5rem;
+        max-width: 900px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .admin-section {
+        display: none;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .admin-section.visible {
+        display: flex;
+      }
+
+      .admin-section-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      /* ── Tables ──────────────────────────────────────────────── */
+      .user-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+      }
+
+      .user-table thead tr {
+        border-bottom: 1px solid var(--line-strong);
+      }
+
+      .user-table th {
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+        color: var(--muted);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      .user-table td {
+        padding: 0.55rem 0.75rem;
+        color: var(--ink);
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+      }
+
+      .user-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .user-table tr:hover td {
+        background: var(--panel-soft);
+      }
+
+      .user-table .actions-cell {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+
+      /* ── Badges ──────────────────────────────────────────────── */
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 99px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .badge-active {
+        background: rgba(22, 163, 74, 0.12);
+        color: var(--success);
+      }
+
+      .badge-inactive {
+        background: rgba(220, 38, 38, 0.1);
+        color: var(--danger);
+      }
+
+      .badge-admin {
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--accent);
+      }
+
+      .badge-teacher {
+        background: var(--panel-soft);
+        color: var(--muted);
+      }
+
+      /* ── Buttons ─────────────────────────────────────────────── */
+      .btn {
+        padding: 0.35rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.78rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid var(--line-strong);
+        background: var(--panel-soft);
+        color: var(--ink);
+        transition: background 100ms ease, border-color 100ms ease;
+        white-space: nowrap;
+      }
+
+      .btn:hover {
+        background: var(--panel);
+        border-color: var(--accent);
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      .btn-primary:hover {
+        opacity: 0.88;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .btn-danger {
+        border-color: rgba(220,38,38,0.4);
+        color: var(--danger);
+      }
+
+      .btn-danger:hover {
+        background: rgba(220,38,38,0.1);
+        border-color: var(--danger);
+      }
+
+      .btn-sm {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.74rem;
+      }
+
+      /* ── Cards / Panels ──────────────────────────────────────── */
+      .admin-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+      }
+
+      .admin-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+      }
+
+      /* ── Forms ───────────────────────────────────────────────── */
+      .admin-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+
+      .form-row.single {
+        grid-template-columns: 1fr;
+      }
+
+      .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .form-field label {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--ink);
+      }
+
+      .form-field input,
+      .form-field select {
+        padding: 0.55rem 0.75rem;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        background: var(--panel-soft);
+        color: var(--ink);
+        font-size: 0.85rem;
+        transition: border-color 120ms ease;
+      }
+
+      .form-field input:focus,
+      .form-field select:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .form-field .field-hint {
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      /* ── Access code display ─────────────────────────────────── */
+      .access-code-display {
+        background: var(--panel-soft);
+        border: 2px solid var(--accent);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .access-code-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .access-code-value {
+        font-family: "Geist Mono", monospace;
+        font-size: 1.4rem;
+        font-weight: 500;
+        color: var(--ink);
+        letter-spacing: 0.08em;
+        word-break: break-all;
+      }
+
+      .access-code-warning {
+        font-size: 0.78rem;
+        color: var(--warning);
+        font-weight: 500;
+      }
+
+      /* ── Modal ───────────────────────────────────────────────── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 1rem;
+      }
+
+      .modal-overlay[hidden] {
+        display: none !important;
+      }
+
+      .modal {
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+        padding: 1.75rem;
+        width: 100%;
+        max-width: 440px;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .modal-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 1.25rem;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0 0.25rem;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+      }
+
+      /* ── Feedback messages ───────────────────────────────────── */
+      .feedback-msg {
+        font-size: 0.82rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-sm);
+        margin: 0;
+      }
+
+      .feedback-msg.error {
+        background: rgba(220, 38, 38, 0.1);
+        border: 1px solid rgba(220, 38, 38, 0.3);
+        color: var(--danger);
+      }
+
+      .feedback-msg.success {
+        background: rgba(22, 163, 74, 0.1);
+        border: 1px solid rgba(22, 163, 74, 0.3);
+        color: var(--success);
+      }
+
+      /* ── Module toggle ───────────────────────────────────────── */
+      .toggle-check {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: var(--accent);
+      }
+
+      .order-input {
+        width: 60px;
+        padding: 0.3rem 0.5rem;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-sm);
+        background: var(--panel-soft);
+        color: var(--ink);
+        font-size: 0.82rem;
+        text-align: center;
+      }
+
+      .order-input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      /* ── Spinner ─────────────────────────────────────────────── */
+      .loading-row {
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+        padding: 2rem;
+      }
+    </style>
+  </head>
+  <body class="admin-page">
+    <div class="admin-shell">
+      <!-- Top Bar -->
+      <header class="admin-topbar">
+        <div class="admin-topbar-brand">
+          <div class="brand-mark-sm">L</div>
+          <span>Lehrer-Cockpit Admin</span>
+        </div>
+
+        <nav class="admin-tabs" role="tablist" aria-label="Admin-Bereiche">
+          <button class="admin-tab active" type="button" data-tab="users" role="tab" aria-selected="true">
+            👥 Lehrkräfte
+          </button>
+          <button class="admin-tab" type="button" data-tab="settings" role="tab" aria-selected="false">
+            ⚙️ System
+          </button>
+          <button class="admin-tab" type="button" data-tab="modules" role="tab" aria-selected="false">
+            📦 Module
+          </button>
+          <button class="admin-tab" type="button" data-tab="audit" role="tab" aria-selected="false">
+            🔍 Audit-Log
+          </button>
+        </nav>
+
+        <div class="admin-topbar-actions">
+          <span id="admin-user-name"></span>
+          <a href="./index.html">← Cockpit</a>
+          <button id="btn-logout" class="btn btn-sm" type="button" style="margin-left:0.5rem;">Abmelden</button>
+        </div>
+      </header>
+
+      <!-- Body -->
+      <div class="admin-body">
+        <!-- Tab: Lehrkräfte -->
+        <section class="admin-section visible" id="tab-users" role="tabpanel">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-section-title">Lehrkräfte</h2>
+              <button class="btn btn-primary" id="btn-add-user" type="button">+ Neue Lehrkraft</button>
+            </div>
+            <div id="users-feedback"></div>
+            <div id="users-table-container">
+              <p class="loading-row">Lade Lehrkräfte…</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab: System-Einstellungen -->
+        <section class="admin-section" id="tab-settings" role="tabpanel">
+          <div class="admin-card">
+            <h2 class="admin-section-title" style="margin-bottom:1rem;">System-Einstellungen</h2>
+            <div id="settings-feedback"></div>
+            <form class="admin-form" id="settings-form">
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="s-schulname">Schulname</label>
+                  <input type="text" id="s-schulname" placeholder="z. B. Gymnasium Musterstadt" />
+                </div>
+                <div class="form-field">
+                  <label for="s-orgaplan-url">Orgaplan URL</label>
+                  <input type="url" id="s-orgaplan-url" placeholder="https://…" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="s-orgaplan-pdf">Orgaplan PDF URL</label>
+                  <input type="url" id="s-orgaplan-pdf" placeholder="https://…" />
+                </div>
+                <div class="form-field">
+                  <label for="s-classwork-url">Klassenarbeitsplan URL</label>
+                  <input type="url" id="s-classwork-url" placeholder="https://…" />
+                </div>
+              </div>
+              <div style="display:flex;justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary" id="btn-save-settings">Speichern</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- Tab: Module -->
+        <section class="admin-section" id="tab-modules" role="tabpanel">
+          <div class="admin-card">
+            <h2 class="admin-section-title" style="margin-bottom:1rem;">Modul-Defaults</h2>
+            <div id="modules-feedback"></div>
+            <div id="modules-table-container">
+              <p class="loading-row">Lade Module…</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab: Audit-Log -->
+        <section class="admin-section" id="tab-audit" role="tabpanel">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-section-title">Aktivitätsprotokoll</h2>
+              <div style="display:flex;gap:0.5rem;align-items:center;">
+                <div class="form-field" style="margin:0;">
+                  <select id="audit-event-filter" style="padding:0.35rem 0.6rem;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--panel-soft);color:var(--ink);font-size:0.82rem;min-width:160px;">
+                    <option value="">Alle Ereignisse</option>
+                    <option value="login_success">Login erfolgreich</option>
+                    <option value="login_failure">Login fehlgeschlagen</option>
+                    <option value="teacher_created">Lehrkraft angelegt</option>
+                    <option value="teacher_deactivated">Lehrkraft deaktiviert</option>
+                    <option value="code_rotated">Code erneuert</option>
+                    <option value="bootstrap_created">Bootstrap</option>
+                  </select>
+                </div>
+                <button class="btn btn-sm" id="btn-audit-refresh" type="button">Aktualisieren</button>
+              </div>
+            </div>
+            <div id="audit-feedback"></div>
+            <div id="audit-table-container">
+              <p class="loading-row">Audit-Log wird geladen…</p>
+            </div>
+            <div id="audit-pagination" style="display:flex;gap:0.5rem;align-items:center;margin-top:1rem;font-size:0.82rem;color:var(--muted);">
+              <button class="btn btn-sm" id="audit-prev" type="button" disabled>← Zurück</button>
+              <span id="audit-page-info">–</span>
+              <button class="btn btn-sm" id="audit-next" type="button" disabled>Weiter →</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Modal: Neue Lehrkraft anlegen -->
+    <div class="modal-overlay" id="modal-add-user" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modal-add-title">Neue Lehrkraft anlegen</h2>
+          <button class="modal-close" type="button" id="modal-add-close" aria-label="Schließen">✕</button>
+        </div>
+        <form class="admin-form" id="form-add-user">
+          <div class="form-row">
+            <div class="form-field">
+              <label for="new-firstname">Vorname</label>
+              <input type="text" id="new-firstname" required placeholder="Anna" />
+            </div>
+            <div class="form-field">
+              <label for="new-lastname">Nachname</label>
+              <input type="text" id="new-lastname" required placeholder="Müller" />
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="new-role">Rolle</label>
+            <select id="new-role">
+              <option value="teacher">Lehrkraft (teacher)</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div id="add-user-feedback"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="modal-add-cancel">Abbrechen</button>
+            <button type="submit" class="btn btn-primary" id="btn-create-user">Anlegen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Code-Anzeige (einmalig) -->
+    <div class="modal-overlay" id="modal-code-display" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-code-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modal-code-title">Zugangscode</h2>
+        </div>
+        <p style="margin:0;font-size:0.85rem;color:var(--muted);">
+          Gib diesen Code der Lehrkraft. Er wird nur einmal angezeigt!
+        </p>
+        <div class="access-code-display" id="code-display-box">
+          <span class="access-code-label">Persönlicher Zugangscode</span>
+          <span class="access-code-value" id="code-display-value">–</span>
+          <span class="access-code-warning">⚠️ Dieser Code wird nur einmal angezeigt!</span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
+          <button class="btn" type="button" id="btn-copy-code">Kopieren</button>
+          <button class="btn btn-primary" type="button" id="btn-code-done">Verstanden, schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Bearbeiten -->
+    <div class="modal-overlay" id="modal-edit-user" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modal-edit-title">Lehrkraft bearbeiten</h2>
+          <button class="modal-close" type="button" id="modal-edit-close" aria-label="Schließen">✕</button>
+        </div>
+        <form class="admin-form" id="form-edit-user">
+          <input type="hidden" id="edit-user-id" />
+          <div class="form-row">
+            <div class="form-field">
+              <label for="edit-firstname">Vorname</label>
+              <input type="text" id="edit-firstname" required />
+            </div>
+            <div class="form-field">
+              <label for="edit-lastname">Nachname</label>
+              <input type="text" id="edit-lastname" required />
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="edit-role">Rolle</label>
+            <select id="edit-role">
+              <option value="teacher">Lehrkraft (teacher)</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div id="edit-user-feedback"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="modal-edit-cancel">Abbrechen</button>
+            <button type="submit" class="btn btn-primary">Speichern</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
+    <script src="./src/api-client.js"></script>
+    <script>
+      (function () {
+        const BACKEND = window.BACKEND_API_URL || '';
+        let currentAdmin = null;
+
+        // ── Helper ────────────────────────────────────────────────────────────
+
+        function esc(str) {
+          return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function setFeedback(id, msg, type) {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (!msg) { el.innerHTML = ''; return; }
+          el.innerHTML = '<p class="feedback-msg ' + type + '">' + esc(msg) + '</p>';
+        }
+
+        async function apiFetch(path, opts) {
+          opts = opts || {};
+          opts.credentials = 'include';
+          if (opts.body && typeof opts.body === 'object') {
+            opts.body = JSON.stringify(opts.body);
+            opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+          }
+          return fetch(BACKEND + path, opts);
+        }
+
+        // ── Auth check ────────────────────────────────────────────────────────
+
+        async function init() {
+          try {
+            const resp = await apiFetch('/api/v2/auth/me');
+            if (!resp.ok) { window.location.href = './login.html'; return; }
+            const data = await resp.json();
+            if (!data.ok || data.user.role !== 'admin') {
+              window.location.href = './index.html';
+              return;
+            }
+            currentAdmin = data.user;
+            const nameEl = document.getElementById('admin-user-name');
+            if (nameEl) nameEl.textContent = currentAdmin.full_name || currentAdmin.first_name || '';
+            // Logout button
+            const logoutBtn = document.getElementById('btn-logout');
+            if (logoutBtn) {
+              logoutBtn.addEventListener('click', async function () {
+                await apiFetch('/api/v2/auth/logout', { method: 'POST' }).catch(function () {});
+                window.location.href = './login.html';
+              });
+            }
+          } catch (e) {
+            window.location.href = './login.html';
+            return;
+          }
+
+          setupTabs();
+          loadUsers();
+          loadSettings();
+          loadModules();
+          setupModals();
+
+          // ── Audit log event wiring ─────────────────────────────────────────
+          var btnAuditRefresh = document.getElementById('btn-audit-refresh');
+          var auditFilter = document.getElementById('audit-event-filter');
+          var auditPrev = document.getElementById('audit-prev');
+          var auditNext = document.getElementById('audit-next');
+          if (btnAuditRefresh) {
+            btnAuditRefresh.addEventListener('click', function () {
+              _auditOffset = 0;
+              loadAuditLog();
+            });
+          }
+          if (auditFilter) {
+            auditFilter.addEventListener('change', function () {
+              _auditOffset = 0;
+              loadAuditLog();
+            });
+          }
+          if (auditPrev) {
+            auditPrev.addEventListener('click', function () {
+              _auditOffset = Math.max(0, _auditOffset - _auditLimit);
+              loadAuditLog();
+            });
+          }
+          if (auditNext) {
+            auditNext.addEventListener('click', function () {
+              _auditOffset += _auditLimit;
+              loadAuditLog();
+            });
+          }
+        }
+
+        // ── Tabs ──────────────────────────────────────────────────────────────
+
+        function setupTabs() {
+          document.querySelectorAll('.admin-tab').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              const tab = btn.dataset.tab;
+              document.querySelectorAll('.admin-tab').forEach(function (b) {
+                b.classList.toggle('active', b.dataset.tab === tab);
+                b.setAttribute('aria-selected', b.dataset.tab === tab ? 'true' : 'false');
+              });
+              document.querySelectorAll('.admin-section').forEach(function (s) {
+                s.classList.toggle('visible', s.id === 'tab-' + tab);
+              });
+              // Load audit log when switching to audit tab
+              if (tab === 'audit') {
+                _auditOffset = 0;
+                loadAuditLog();
+              }
+            });
+          });
+        }
+
+        // ── Audit Log Tab ─────────────────────────────────────────────────────
+
+        var _auditOffset = 0;
+        var _auditLimit = 50;
+        var _auditTotal = 0;
+
+        async function loadAuditLog() {
+          var container = document.getElementById('audit-table-container');
+          var eventType = document.getElementById('audit-event-filter').value;
+          var params = 'limit=' + _auditLimit + '&offset=' + _auditOffset;
+          if (eventType) params += '&event_type=' + encodeURIComponent(eventType);
+          if (container) container.innerHTML = '<p class="loading-row">Lade Audit-Log…</p>';
+          try {
+            var resp = await apiFetch('/api/v2/admin/audit-log?' + params);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            var data = await resp.json();
+            _auditTotal = data.total || 0;
+            renderAuditTable(data.events || [], container);
+            renderAuditPagination();
+          } catch (e) {
+            if (container) {
+              container.innerHTML = '<p class="feedback-msg error">Fehler beim Laden des Audit-Logs.</p>';
+            }
+          }
+        }
+
+        function renderAuditTable(events, container) {
+          if (!container) return;
+          if (!events.length) {
+            container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:1rem 0;">Keine Einträge gefunden.</p>';
+            return;
+          }
+          var html = '<table class="user-table"><thead><tr>'
+            + '<th>Zeit</th><th>Ereignis</th><th>Lehrkraft</th><th>IP-Adresse</th><th>Details</th>'
+            + '</tr></thead><tbody>';
+          events.forEach(function (ev) {
+            var time = ev.created_at ? new Date(ev.created_at).toLocaleString('de-DE') : '–';
+            var detailStr = ev.details && Object.keys(ev.details).length
+              ? JSON.stringify(ev.details)
+              : '–';
+            var eventTypeClass = 'audit-event-badge audit-' + (ev.event_type || '').replace(/_/g, '-');
+            html += '<tr>'
+              + '<td style="white-space:nowrap;font-size:0.78rem;color:var(--muted);">' + esc(time) + '</td>'
+              + '<td><span class="' + esc(eventTypeClass) + '">' + esc(ev.event_type || '–') + '</span></td>'
+              + '<td>' + esc(ev.user_name || '–') + '</td>'
+              + '<td style="font-size:0.78rem;color:var(--muted);">' + esc(ev.ip_address || '–') + '</td>'
+              + '<td style="font-size:0.75rem;color:var(--muted);max-width:200px;word-break:break-all;">' + esc(detailStr) + '</td>'
+              + '</tr>';
+          });
+          html += '</tbody></table>';
+          container.innerHTML = html;
+        }
+
+        function renderAuditPagination() {
+          var info = document.getElementById('audit-page-info');
+          var prev = document.getElementById('audit-prev');
+          var next = document.getElementById('audit-next');
+          var from = _auditTotal ? _auditOffset + 1 : 0;
+          var to = Math.min(_auditOffset + _auditLimit, _auditTotal);
+          if (info) info.textContent = _auditTotal
+            ? (from + '–' + to + ' von ' + _auditTotal + ' Ereignissen')
+            : '0 Ereignisse';
+          if (prev) prev.disabled = _auditOffset <= 0;
+          if (next) next.disabled = (_auditOffset + _auditLimit) >= _auditTotal;
+        }
+
+        // ── Users Tab ─────────────────────────────────────────────────────────
+
+        async function loadUsers() {
+          const container = document.getElementById('users-table-container');
+          try {
+            const resp = await apiFetch('/api/v2/admin/users');
+            if (!resp.ok) throw new Error('Fehler beim Laden');
+            const data = await resp.json();
+            const users = data.users || data || [];
+            renderUsersTable(users, container);
+          } catch (e) {
+            container.innerHTML = '<p class="feedback-msg error">Fehler beim Laden der Lehrkräfte.</p>';
+          }
+        }
+
+        function renderUsersTable(users, container) {
+          if (!users.length) {
+            container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:1rem 0;">Keine Lehrkräfte vorhanden.</p>';
+            return;
+          }
+          let html = '<table class="user-table"><thead><tr>'
+            + '<th>Name</th><th>Rolle</th><th>Status</th><th>Code?</th><th>Aktionen</th>'
+            + '</tr></thead><tbody>';
+
+          users.forEach(function (u) {
+            const roleBadge = u.role === 'admin'
+              ? '<span class="badge badge-admin">admin</span>'
+              : '<span class="badge badge-teacher">teacher</span>';
+            const statusBadge = u.is_active
+              ? '<span class="badge badge-active">aktiv</span>'
+              : '<span class="badge badge-inactive">inaktiv</span>';
+            const hasCode = u.has_access_code
+              ? '<span style="color:var(--success);">✓</span>'
+              : '<span style="color:var(--muted);">–</span>';
+
+            html += '<tr>'
+              + '<td>' + esc(u.full_name || (u.first_name + ' ' + u.last_name)) + '</td>'
+              + '<td>' + roleBadge + '</td>'
+              + '<td>' + statusBadge + '</td>'
+              + '<td>' + hasCode + '</td>'
+              + '<td><div class="actions-cell">'
+              + '<button class="btn btn-sm" type="button" onclick="editUser(' + u.id + ')">Bearbeiten</button>'
+              + '<button class="btn btn-sm" type="button" onclick="regenerateCode(' + u.id + ', \'' + esc(u.full_name || u.first_name) + '\')">Code neu</button>'
+              + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" onclick="toggleActive(' + u.id + ', ' + u.is_active + ')">'
+              + (u.is_active ? 'Deaktivieren' : 'Aktivieren') + '</button>'
+              + '</div></td>'
+              + '</tr>';
+          });
+
+          html += '</tbody></table>';
+          container.innerHTML = html;
+        }
+
+        // ── Add User Modal ────────────────────────────────────────────────────
+
+        function setupModals() {
+          // Open add-user modal
+          document.getElementById('btn-add-user').addEventListener('click', function () {
+            document.getElementById('form-add-user').reset();
+            setFeedback('add-user-feedback', '', '');
+            document.getElementById('modal-add-user').hidden = false;
+          });
+
+          // Close add-user modal
+          ['modal-add-close', 'modal-add-cancel'].forEach(function (id) {
+            document.getElementById(id).addEventListener('click', function () {
+              document.getElementById('modal-add-user').hidden = true;
+            });
+          });
+
+          // Submit add-user
+          document.getElementById('form-add-user').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-create-user');
+            btn.disabled = true;
+            btn.textContent = 'Anlegen…';
+            setFeedback('add-user-feedback', '', '');
+
+            const payload = {
+              first_name: document.getElementById('new-firstname').value.trim(),
+              last_name: document.getElementById('new-lastname').value.trim(),
+              role: document.getElementById('new-role').value,
+            };
+
+            try {
+              const resp = await apiFetch('/api/v2/admin/users', { method: 'POST', body: payload });
+              const data = await resp.json();
+              if (!resp.ok) {
+                setFeedback('add-user-feedback', data.error || 'Fehler beim Anlegen.', 'error');
+              } else {
+                document.getElementById('modal-add-user').hidden = true;
+                showCode(data.access_code || data.user?.access_code || '');
+                loadUsers();
+              }
+            } catch (err) {
+              setFeedback('add-user-feedback', 'Verbindungsfehler.', 'error');
+            } finally {
+              btn.disabled = false;
+              btn.textContent = 'Anlegen';
+            }
+          });
+
+          // Code display modal actions
+          document.getElementById('btn-copy-code').addEventListener('click', function () {
+            const val = document.getElementById('code-display-value').textContent;
+            navigator.clipboard.writeText(val).then(function () {
+              document.getElementById('btn-copy-code').textContent = 'Kopiert!';
+              setTimeout(function () {
+                document.getElementById('btn-copy-code').textContent = 'Kopieren';
+              }, 1500);
+            });
+          });
+          document.getElementById('btn-code-done').addEventListener('click', function () {
+            document.getElementById('modal-code-display').hidden = true;
+          });
+
+          // Edit modal close
+          ['modal-edit-close', 'modal-edit-cancel'].forEach(function (id) {
+            document.getElementById(id).addEventListener('click', function () {
+              document.getElementById('modal-edit-user').hidden = true;
+            });
+          });
+
+          // Submit edit-user
+          document.getElementById('form-edit-user').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            setFeedback('edit-user-feedback', '', '');
+            const id = document.getElementById('edit-user-id').value;
+            const payload = {
+              first_name: document.getElementById('edit-firstname').value.trim(),
+              last_name: document.getElementById('edit-lastname').value.trim(),
+              role: document.getElementById('edit-role').value,
+            };
+            try {
+              const resp = await apiFetch('/api/v2/admin/users/' + id, { method: 'PUT', body: payload });
+              const data = await resp.json();
+              if (!resp.ok) {
+                setFeedback('edit-user-feedback', data.error || 'Fehler beim Speichern.', 'error');
+              } else {
+                document.getElementById('modal-edit-user').hidden = true;
+                loadUsers();
+              }
+            } catch (err) {
+              setFeedback('edit-user-feedback', 'Verbindungsfehler.', 'error');
+            }
+          });
+        }
+
+        function showCode(code) {
+          document.getElementById('code-display-value').textContent = code || '(kein Code)';
+          document.getElementById('modal-code-display').hidden = false;
+        }
+
+        // exposed to inline onclick
+        window.editUser = async function (id) {
+          try {
+            const resp = await apiFetch('/api/v2/admin/users');
+            const data = await resp.json();
+            const users = data.users || data || [];
+            const u = users.find(function (x) { return x.id === id; });
+            if (!u) return;
+            document.getElementById('edit-user-id').value = u.id;
+            document.getElementById('edit-firstname').value = u.first_name || '';
+            document.getElementById('edit-lastname').value = u.last_name || '';
+            document.getElementById('edit-role').value = u.role || 'teacher';
+            setFeedback('edit-user-feedback', '', '');
+            document.getElementById('modal-edit-user').hidden = false;
+          } catch (e) {
+            alert('Fehler beim Laden der Benutzerdaten.');
+          }
+        };
+
+        window.regenerateCode = async function (id, name) {
+          if (!confirm('Soll für ' + name + ' ein neuer Code generiert werden? Der alte Code wird ungültig.')) return;
+          try {
+            const resp = await apiFetch('/api/v2/admin/users/' + id + '/regenerate-code', { method: 'POST' });
+            const data = await resp.json();
+            if (!resp.ok) {
+              setFeedback('users-feedback', data.error || 'Fehler.', 'error');
+            } else {
+              showCode(data.access_code || '');
+            }
+          } catch (e) {
+            setFeedback('users-feedback', 'Verbindungsfehler.', 'error');
+          }
+        };
+
+        window.toggleActive = async function (id, isActive) {
+          const action = isActive ? 'deaktivieren' : 'aktivieren';
+          if (!confirm('Möchtest du diesen Account ' + action + '?')) return;
+          try {
+            const resp = await apiFetch('/api/v2/admin/users/' + id, {
+              method: 'PUT',
+              body: { is_active: !isActive },
+            });
+            if (!resp.ok) {
+              const data = await resp.json();
+              setFeedback('users-feedback', data.error || 'Fehler.', 'error');
+            } else {
+              loadUsers();
+            }
+          } catch (e) {
+            setFeedback('users-feedback', 'Verbindungsfehler.', 'error');
+          }
+        };
+
+        // ── Settings Tab ──────────────────────────────────────────────────────
+
+        async function loadSettings() {
+          try {
+            const resp = await apiFetch('/api/v2/admin/settings');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const s = data.settings || data || {};
+            if (s.schulname) document.getElementById('s-schulname').value = s.schulname;
+            if (s.orgaplan_url) document.getElementById('s-orgaplan-url').value = s.orgaplan_url;
+            if (s.orgaplan_pdf_url) document.getElementById('s-orgaplan-pdf').value = s.orgaplan_pdf_url;
+            if (s.classwork_url) document.getElementById('s-classwork-url').value = s.classwork_url;
+          } catch (e) { /* ignore */ }
+        }
+
+        document.getElementById('settings-form').addEventListener('submit', async function (e) {
+          e.preventDefault();
+          setFeedback('settings-feedback', '', '');
+          const btn = document.getElementById('btn-save-settings');
+          btn.disabled = true;
+          btn.textContent = 'Speichern…';
+
+          const payload = {
+            schulname: document.getElementById('s-schulname').value.trim(),
+            orgaplan_url: document.getElementById('s-orgaplan-url').value.trim(),
+            orgaplan_pdf_url: document.getElementById('s-orgaplan-pdf').value.trim(),
+            classwork_url: document.getElementById('s-classwork-url').value.trim(),
+          };
+
+          try {
+            const resp = await apiFetch('/api/v2/admin/settings', { method: 'PUT', body: payload });
+            const data = await resp.json();
+            if (!resp.ok) {
+              setFeedback('settings-feedback', data.error || 'Fehler beim Speichern.', 'error');
+            } else {
+              setFeedback('settings-feedback', 'Einstellungen gespeichert.', 'success');
+            }
+          } catch (err) {
+            setFeedback('settings-feedback', 'Verbindungsfehler.', 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Speichern';
+          }
+        });
+
+        // ── Modules Tab ───────────────────────────────────────────────────────
+
+        async function loadModules() {
+          const container = document.getElementById('modules-table-container');
+          try {
+            const resp = await apiFetch('/api/v2/admin/modules');
+            if (!resp.ok) throw new Error('Fehler');
+            const data = await resp.json();
+            const modules = data.modules || data || [];
+            renderModulesTable(modules, container);
+          } catch (e) {
+            container.innerHTML = '<p class="feedback-msg error">Fehler beim Laden der Module.</p>';
+          }
+        }
+
+        function renderModulesTable(modules, container) {
+          if (!modules.length) {
+            container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">Keine Module vorhanden.</p>';
+            return;
+          }
+          let html = '<table class="user-table"><thead><tr>'
+            + '<th>ID</th><th>Name</th><th>Typ</th><th>Standard sichtbar</th><th>Reihenfolge</th><th>Aktion</th>'
+            + '</tr></thead><tbody>';
+
+          modules.forEach(function (m) {
+            html += '<tr>'
+              + '<td><code style="font-family:var(--font-mono,monospace);font-size:0.8rem;">' + esc(m.id || m.module_id) + '</code></td>'
+              + '<td>' + esc(m.name || m.display_name || m.id) + '</td>'
+              + '<td>' + esc(m.type || '–') + '</td>'
+              + '<td style="text-align:center;"><input class="toggle-check" type="checkbox" data-module="' + esc(m.id || m.module_id) + '" data-field="default_visible"'
+              + (m.default_visible ? ' checked' : '') + ' /></td>'
+              + '<td><input class="order-input" type="number" min="0" data-module="' + esc(m.id || m.module_id) + '" data-field="default_order" value="' + (m.default_order || 0) + '" /></td>'
+              + '<td><button class="btn btn-sm" type="button" onclick="saveModule(\'' + esc(m.id || m.module_id) + '\')">Speichern</button></td>'
+              + '</tr>';
+          });
+
+          html += '</tbody></table>';
+          container.innerHTML = html;
+        }
+
+        window.saveModule = async function (moduleId) {
+          const row = document.querySelector('[data-module="' + moduleId + '"][data-field="default_visible"]');
+          const orderEl = document.querySelector('[data-module="' + moduleId + '"][data-field="default_order"]');
+          if (!row || !orderEl) return;
+
+          const payload = {
+            default_visible: row.checked,
+            default_order: parseInt(orderEl.value, 10) || 0,
+          };
+
+          try {
+            const resp = await apiFetch('/api/v2/admin/modules/' + moduleId, { method: 'PUT', body: payload });
+            const data = await resp.json();
+            if (!resp.ok) {
+              setFeedback('modules-feedback', data.error || 'Fehler beim Speichern.', 'error');
+            } else {
+              setFeedback('modules-feedback', 'Modul "' + moduleId + '" gespeichert.', 'success');
+              setTimeout(function () { setFeedback('modules-feedback', '', ''); }, 3000);
+            }
+          } catch (e) {
+            setFeedback('modules-feedback', 'Verbindungsfehler.', 'error');
+          }
+        };
+
+        // ── Close modal on overlay click ──────────────────────────────────────
+
+        document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
+          overlay.addEventListener('click', function (e) {
+            if (e.target === overlay && overlay.id !== 'modal-code-display') {
+              overlay.hidden = true;
+            }
+          });
+        });
+
+        // ── Start ─────────────────────────────────────────────────────────────
+        init();
+      })();
+    </script>
+  </body>
+</html>
