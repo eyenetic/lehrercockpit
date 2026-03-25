@@ -84,6 +84,21 @@ a {
   text-decoration: none;
 }
 
+/* ─── Focus / keyboard accessibility ────────────────────────────────────── */
+
+/* Global visible focus ring for keyboard navigation. Suppressed for mouse/touch
+   via :focus-visible so pointer users do not see rings on click. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Remove the default outline only when we provide a custom visible style */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -217,12 +232,19 @@ a {
   background: var(--danger);
 }
 
-.nav-link:hover,
+.nav-link:hover {
+  background: var(--panel-soft);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
 .nav-link:focus-visible {
   background: var(--panel-soft);
   border-color: var(--line);
   color: var(--ink);
-  outline: none;
+  /* inset ring so the pill shape is preserved */
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .nav-link.active {
@@ -1114,12 +1136,18 @@ a {
   transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
-.section-toggle:hover,
+.section-toggle:hover {
+  background: var(--panel);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
 .section-toggle:focus-visible {
   background: var(--panel);
   color: var(--ink);
   border-color: var(--line-strong);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .expandable-scroll {
@@ -1168,8 +1196,19 @@ a {
   background: var(--panel);
   color: var(--ink);
   padding: 10px 12px;
+  /* Remove browser default outline — replaced with border-color on :focus */
   outline: none;
   transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+/* Re-add focus ring for keyboard navigation via :focus-visible */
+.search-box input:focus-visible,
+.connect-field input:focus-visible,
+.connect-field textarea:focus-visible,
+.classwork-select-field select:focus-visible,
+#assistant-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
 }
 
 .search-box input:focus,

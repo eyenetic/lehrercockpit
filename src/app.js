@@ -1,4 +1,26 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// src/app.js — Lehrer-Cockpit frontend (monolithic IIFE)
+//
+// TODO: Split this file into smaller modules to reduce merge conflicts.
+// Planned structure (use ordered <script> tags, no build tool needed):
+//
+//   src/state.js        — constants, state object, localStorage helpers
+//   src/api.js          — loadDashboard, loadGrades, loadNotes, loadClasswork, postJSON
+//   src/features/
+//     inbox.js          — renderPriorities, renderSources, renderMessages (lines ~895–1083)
+//     classwork.js      — renderClasswork* functions (lines ~1085–1241)
+//     grades.js         — renderGrades, grade form logic (lines ~1243–1553)
+//     documents.js      — renderDocuments (lines ~1555–1601)
+//     webuntis.js       — renderWebUntis*, picker, shortcuts (lines ~1603–2075)
+//   src/render.js       — renderAll, renderBriefing, renderWorkspace (lines ~2283+)
+//   src/events.js       — registerEvents, initialize (lines ~2077, 2715)
+//
+// Until the split happens, all code stays in this IIFE so the closure scope
+// and global variable model remain unchanged.
+// ─────────────────────────────────────────────────────────────────────────────
+
 (function bootstrapApp() {
+  // ── SECTION: State & constants ──────────────────────────────────────────────
   const WEBUNTIS_SHORTCUTS_KEY = "lehrerCockpit.webuntis.shortcuts";
   const WEBUNTIS_FAVORITES_KEY = "lehrerCockpit.webuntis.favorites";
   const ACTIVE_WEBUNTIS_PLAN_KEY = "lehrerCockpit.webuntis.activePlan";
@@ -176,6 +198,8 @@
     itslearning: "itslearning",
   };
 
+  // ── SECTION: API / data loading ─────────────────────────────────────────────
+
   async function loadDashboard(forceRefresh = false) {
     const sources = IS_LOCAL_RUNTIME
       ? [`/api/dashboard${forceRefresh ? "?refresh=1" : ""}`, "./data/mock-dashboard.json"]
@@ -336,6 +360,8 @@
       }
     );
   }
+
+  // ── SECTION: Core render helpers (workspace, theme, meta, stats, briefing) ──
 
   function renderWorkspace() {
     const data = getData();
@@ -893,6 +919,8 @@
       : `<div class="empty-state">Noch keine Berlin-Hinweise verfuegbar.</div>`;
   }
 
+  // ── SECTION: Inbox (priorities, sources, messages) ──────────────────────────
+
   function renderPriorities() {
     const data = getData();
     elements.priorityList.innerHTML = data.priorities.length
@@ -1082,6 +1110,8 @@
         : `<div class="empty-state">Noch keine Klassenarbeiten fuer diese Klasse erkannt.</div>`;
   }
 
+  // ── SECTION: Classwork ───────────────────────────────────────────────────────
+
   function renderClassworkSelector(classes, defaultClass) {
     if (!elements.classworkClassFilter) {
       return;
@@ -1239,6 +1269,8 @@
     state.gradesSelectedClass = classes[0];
     return state.gradesSelectedClass;
   }
+
+  // ── SECTION: Grades & notes ──────────────────────────────────────────────────
 
   function renderGrades() {
     if (!elements.gradesList) {
@@ -1552,6 +1584,8 @@
     return `${clean.slice(0, maxLength - 1).trimEnd()}…`;
   }
 
+  // ── SECTION: Documents ───────────────────────────────────────────────────────
+
   function renderDocuments() {
     const data = getData();
     const query = state.documentSearch.trim().toLowerCase();
@@ -1563,8 +1597,11 @@
     });
     const visibleDocuments = getVisiblePanelItems(filteredDocuments, "documents");
     setExpandableMeta(elements.documentList, filteredDocuments.length, visibleDocuments.length);
+    // Always show the search input once there are extra documents to search through.
     elements.documentSearchWrap.hidden = extraDocuments.length === 0;
-    elements.documentsExtraBlock.hidden = filteredDocuments.length === 0;
+    // Keep the extra-documents block visible even on zero results so the empty-
+    // state message inside it is shown instead of silently hiding the whole area.
+    elements.documentsExtraBlock.hidden = extraDocuments.length === 0;
 
     elements.documentList.innerHTML = filteredDocuments.length
       ? visibleDocuments
@@ -1596,6 +1633,8 @@
     const source = String(entry.source || "").toLowerCase();
     return title.includes("orgaplan") || title.includes("klassenarbeitsplan") || source.includes("orgaplan");
   }
+
+  // ── SECTION: WebUntis (controls, picker, watchlist, schedule) ───────────────
 
   function renderWebUntisControls() {
     const center = getData().webuntisCenter;
@@ -2071,6 +2110,8 @@
     return "Ich antworte hier nur auf Basis der Cockpit-Daten: Stundenplan, Dokumente, Dienstmail, itslearning und aktuelle Hinweise.";
   }
 
+  // ── SECTION: Event registration ──────────────────────────────────────────────
+
   function registerEvents() {
     elements.briefingButton.addEventListener("click", async () => {
       await refreshDashboard(true);
@@ -2276,6 +2317,8 @@
       });
     }
   }
+
+  // ── SECTION: Render orchestration ────────────────────────────────────────────
 
   function renderAll() {
     renderWorkspace();
@@ -2709,6 +2752,8 @@
     }
   }
 
+  // ── SECTION: Bootstrap / initialize ──────────────────────────────────────────
+
   function initialize() {
     normalizeLocalWebUntisState();
     applyTheme();
@@ -2903,6 +2948,8 @@
   }
 
   // ── End Classwork Upload ───────────────────────────────────────────────────
+
+  // ── SECTION: Pure utility functions (date, event, text helpers) ───────────────
 
   function buildProductionApiBases() {
     const bases = [];

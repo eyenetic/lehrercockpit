@@ -1,8 +1,10 @@
 # Lehrer-Cockpit
 
-Dieses Projekt ist jetzt eine lokale Web-App mit Python-Backend. Das Cockpit fuehrt Nachrichten, Vertretungen, Termine und PDFs in einer einzigen Tagesoberflaeche zusammen und kann erste echte Quellen wie WebUntis bereits live ueber einen persoenlichen iCal-Export aufnehmen.
+Ein persoenliches Dashboard fuer den Berliner Schulalltag: WebUntis, itslearning, Orgaplan, Klassenarbeitsplan und Dienstmail an einem Ort.
 
-Fuer Deployments ist das Frontend so vorbereitet, dass es zuerst ein gleiches Origin (`/api`) versucht und danach auf konfigurierte externe Backend-URLs zurueckfallen kann. Damit laesst sich ein Wechsel zwischen Plattformen wie Render oder Railway ohne Umbau der App-Logik abfedern.
+**Deployment:** Frontend auf Netlify (statisch), Backend auf Render (Flask + gunicorn).
+
+Fuer Deployments ist das Frontend so vorbereitet, dass es zuerst ein gleiches Origin (`/api`) versucht und danach auf konfigurierte externe Backend-URLs zurueckfallen kann. Damit laesst sich ein Wechsel zwischen Plattformen ohne Umbau der App-Logik abfedern.
 
 ## Was schon drin ist
 
@@ -21,16 +23,19 @@ Fuer Deployments ist das Frontend so vorbereitet, dass es zuerst ein gleiches Or
 
 ## Projektstruktur
 
-- `index.html` enthaelt die App-Struktur
-- `styles.css` definiert das visuelle System und das responsive Layout
-- `data/mock-dashboard.json` ist der Fallback fuer Demo-Daten
-- `data/document-monitor-state.json` speichert den letzten beobachteten Dokumentenstand
-- `src/app.js` laedt die API-Daten und rendert Dashboard, Filter, Suche und den Assistenten
-- `server.py` liefert die statischen Dateien und die API-Endpunkte aus
-- `backend/` enthaelt Konfiguration, Mailadapter, Plan-Digests und Dashboard-Building
-- `config/mail.env.example` zeigt, welche Umgebungsvariablen fuer WebUntis, itslearning und Mail gesetzt werden koennen
-- `docs/architecture.md` beschreibt, wie echte Quellen nachgezogen werden koennen
-- `requirements.txt` listet die Python-Abhaengigkeiten fuer PDF- und Excel-Auswertung
+- `index.html` — App-Struktur
+- `styles.css` — visuelles System, responsives Layout
+- `src/app.js` — Frontend (Daten laden, rendern, Events)
+- `app.py` — **Produktions-Backend** (Flask, laeuft auf Render via gunicorn)
+- `server.py` — Lokaler Dev-Server (stdlib `ThreadingHTTPServer`, kein gunicorn noetig)
+- `dev_runner.py` — Startskript fuer `server.py` lokal (ersetzt das irrefuehrend benannte `server_test.py`)
+- `backend/` — Konfiguration, Adapter, Dashboard-Building, Persistenz
+- `backend/file_utils.py` — Geteilte Parsing-Hilfsfunktionen (multipart, XLSX), kein Duplikat mehr
+- `backend/persistence.py` — Abstraktion fuer JSON-File-Persistenz, vorbereitet fuer DB-Migration
+- `data/mock-dashboard.json` — Fallback Demo-Daten
+- `tests/` — Automatisierte Tests (pytest)
+- `config/mail.env.example` — Umgebungsvariablen-Vorlage
+- `requirements.txt` — Python-Abhaengigkeiten inkl. pytest
 
 ## Lokal starten
 
@@ -39,11 +44,21 @@ Die App laeuft ohne Build-Schritt:
 ```bash
 python3 -m pip install -r requirements.txt
 python3 server.py
+# oder gleichwertig:
+python3 dev_runner.py
 ```
 
-Danach im Browser `http://localhost:4173` aufrufen.
+Danach im Browser `http://localhost:8080` aufrufen.
 
-Wenn kein lokaler Server laeuft und `index.html` direkt geoeffnet wird, zeigt die App jetzt trotzdem eingebaute Demo-Daten an. Fuer echte API-Daten und den Dokumentenmonitor sollte aber weiterhin `python3 server.py` laufen.
+Wenn kein lokaler Server laeuft und `index.html` direkt geoeffnet wird, zeigt die App trotzdem eingebaute Demo-Daten an. Fuer echte API-Daten sollte `python3 server.py` laufen.
+
+## Tests ausfuehren
+
+```bash
+pytest tests/ -v
+```
+
+Getestet werden: `grades_store`, `notes_store`, `classwork_cache` und die wichtigsten Flask-API-Endpunkte.
 
 ## Quellen vorbereiten
 
@@ -76,9 +91,28 @@ Wenn `ITSLEARNING_USERNAME` und `ITSLEARNING_PASSWORD` gesetzt sind, versucht da
 
 Der `Orgaplan` wird bei jedem Refresh neu gelesen und als kompakter Digest im Cockpit zusammengefasst. Dabei versucht das Backend jetzt, die PDF-Spalten `Allgemein`, `Mittelstufe` und `Oberstufe` getrennt zu erkennen. Der `Klassenarbeitsplan` wird ebenfalls bei jedem Refresh neu versucht; solange OneDrive den automatischen Abruf blockiert, zeigt das Cockpit den Status transparent an.
 
+## Persistenz und Produktionshinweis
+
+Noten, Klassennotizen und Klassenarbeits-Uploads werden in `data/*.json` gespeichert.
+Auf **Render Free Tier** ist das Dateisystem **ephemer** — alle Schreibvorgaenge gehen beim naechsten Neustart oder Redeploy verloren.
+
+Das Backend gibt beim Start auf Render eine Warnung aus:
+```
+[app] WARNING: Running on Render — data/ writes are ephemeral ...
+```
+
+Um Persistenz dauerhaft zu machen, muss `backend/persistence.py` um eine
+`DbStore`-Klasse erweitert werden, die statt JSON-Dateien eine Datenbank
+(z. B. PostgreSQL via `DATABASE_URL`) nutzt. Die aufrufenden Module
+(`grades_store.py`, `notes_store.py`, `classwork_cache.py`) muessen
+dafuer nicht geaendert werden.
+
+**Kurzfristige Loesung:** Render Persistent Disk (Starter-Plan, ca. $7/Mo.).
+
 ## Sinnvolle naechste Schritte
 
-1. WebUntis-Loginweg pruefen und eine sichere Session-Anbindung fuer Stundenplan und Vertretungen bauen.
-2. itslearning-URL hinterlegen und die relevanten Ansichten/Feeds identifizieren.
-3. PDFs automatisch einsammeln, textlich auslesen und mit Klassen/Terminen taggen.
-4. Spaeter Sync-Historie und persoenliche Regeln pro Lehrkraft speichern.
+1. WebUntis-iCal verbinden: `WEBUNTIS_ICAL_URL` in `.env.local` → live Stundenplan.
+2. itslearning: `ITSLEARNING_USERNAME` + `ITSLEARNING_PASSWORD` in `.env.local`.
+3. Render Persistent Disk oder `DATABASE_URL` ergaenzen → Daten ueberleben Neustarts.
+4. PDFs automatisch einsammeln, textlich auslesen und mit Klassen/Terminen taggen.
+5. `src/app.js` weiter in Feature-Module aufteilen (inbox, grades, webuntis, ...).

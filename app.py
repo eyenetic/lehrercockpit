@@ -1,12 +1,16 @@
 """Flask WSGI entry point for Render / gunicorn.
 
-All API logic is ported from server.py.  Static files (index.html, styles.css,
-src/, icons/, data/, manifest.json) are served by Flask's send_from_directory
-so the app works as a single-process web service without a separate static host.
+Static files (index.html, styles.css, src/, icons/, data/, manifest.json) are
+served by Flask's send_from_directory so the app works as a single-process web
+service without a separate static host.
+
+Shared file-parsing logic lives in backend/file_utils.py and is imported here
+rather than duplicated.  Persistence (JSON read/write) is centralised in
+backend/persistence.py which also logs a warning on Render where writes are
+ephemeral.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -35,22 +39,37 @@ def _load_env_file() -> None:
 
 _load_env_file()
 
-# ── Backend imports ───────────────────────────────────────────────────────────
+# ── Ephemeral storage warning (Render free tier) ──────────────────────────────
 
+_IS_RENDER = bool(
+    os.environ.get("RENDER")
+    or os.environ.get("RENDER_SERVICE_ID")
+    or os.environ.get("IS_RENDER")
+)
+if _IS_RENDER:
+    print(
+        "[app] WARNING: Running on Render — data/ writes (grades, notes, classwork uploads) "
+        "are ephemeral and will be lost on the next redeploy or dyno restart. "
+        "Upgrade to a Render Persistent Disk or add a DATABASE_URL to make data durable.",
+        flush=True,
+    )
+
+# ── Backend imports ───────────────────────────────────────────────────────────
+# Split into two blocks:
+#   1. Lightweight stores (grades, notes, classwork, file utils) — these have
+#      minimal dependencies and must work even when heavy adapters are absent.
+#   2. Heavy dashboard/adapter block — may fail in environments without pypdf or
+#      playwright; the API degrades gracefully.
+
+# Block 1: lightweight stores
 try:
-    from backend.dashboard import build_dashboard_payload
-    from backend.config import load_settings
     from backend.classwork_cache import load_cache, save_cache
     from backend.grades_store import create_grade_entry, load_gradebook, save_gradebook
     from backend.notes_store import create_note, load_notes, save_notes
+    from backend.file_utils import extract_multipart_file, parse_classwork_xlsx
     from backend.local_settings import save_classwork_file, save_itslearning_settings, save_nextcloud_settings
-    _IMPORT_ERROR: Exception | None = None
+    _STORES_IMPORT_ERROR: Exception | None = None
 except Exception as _exc:
-    build_dashboard_payload = None  # type: ignore[assignment]
-    load_settings = None  # type: ignore[assignment]
-    save_classwork_file = None  # type: ignore[assignment]
-    save_itslearning_settings = None  # type: ignore[assignment]
-    save_nextcloud_settings = None  # type: ignore[assignment]
     load_cache = None  # type: ignore[assignment]
     save_cache = None  # type: ignore[assignment]
     create_grade_entry = None  # type: ignore[assignment]
@@ -59,6 +78,23 @@ except Exception as _exc:
     create_note = None  # type: ignore[assignment]
     load_notes = None  # type: ignore[assignment]
     save_notes = None  # type: ignore[assignment]
+    extract_multipart_file = None  # type: ignore[assignment]
+    parse_classwork_xlsx = None  # type: ignore[assignment]
+    save_classwork_file = None  # type: ignore[assignment]
+    save_itslearning_settings = None  # type: ignore[assignment]
+    save_nextcloud_settings = None  # type: ignore[assignment]
+    _STORES_IMPORT_ERROR = _exc
+    import traceback
+    traceback.print_exc()
+
+# Block 2: heavy dashboard/adapter imports (pypdf, ical, etc.)
+try:
+    from backend.dashboard import build_dashboard_payload
+    from backend.config import load_settings
+    _IMPORT_ERROR: Exception | None = None
+except Exception as _exc:
+    build_dashboard_payload = None  # type: ignore[assignment]
+    load_settings = None  # type: ignore[assignment]
     _IMPORT_ERROR = _exc
     import traceback
     traceback.print_exc()
@@ -167,14 +203,17 @@ def api_classwork_upload() -> Response:
     if content_length > 20 * 1024 * 1024:
         return jsonify({"error": "too-large", "detail": "Datei zu groß (max 20 MB)."}), 413
 
+    if extract_multipart_file is None or parse_classwork_xlsx is None:
+        return jsonify({"error": "file-utils-unavailable", "detail": str(_IMPORT_ERROR)}), 500
+
     raw_body = request.get_data()
     content_type = request.content_type or ""
-    file_bytes = _extract_multipart_file(raw_body, content_type)
+    file_bytes = extract_multipart_file(raw_body, content_type)
     if file_bytes is None:
         file_bytes = raw_body
 
     try:
-        result = _parse_classwork_xlsx(file_bytes)
+        result = parse_classwork_xlsx(file_bytes)
     except Exception as exc:
         return jsonify({"error": "parse-failed", "detail": f"Datei konnte nicht gelesen werden: {type(exc).__name__}: {exc}"}), 422
 
@@ -220,8 +259,8 @@ def api_local_settings_itslearning() -> Response:
         return Response(status=204)
     if not _is_local_request():
         return jsonify({"error": "local-only"}), 403
-    if _IMPORT_ERROR is not None or save_itslearning_settings is None:
-        return jsonify({"error": "settings module failed to import", "detail": str(_IMPORT_ERROR)}), 500
+    if _STORES_IMPORT_ERROR is not None or save_itslearning_settings is None:
+        return jsonify({"error": "settings module failed to import", "detail": str(_STORES_IMPORT_ERROR)}), 500
 
     payload = request.get_json(silent=True) or {}
     username = str(payload.get("username", "")).strip()
@@ -252,8 +291,8 @@ def api_local_settings_nextcloud() -> Response:
         return Response(status=204)
     if not _is_local_request():
         return jsonify({"error": "local-only"}), 403
-    if _IMPORT_ERROR is not None or save_nextcloud_settings is None:
-        return jsonify({"error": "settings module failed to import", "detail": str(_IMPORT_ERROR)}), 500
+    if _STORES_IMPORT_ERROR is not None or save_nextcloud_settings is None:
+        return jsonify({"error": "settings module failed to import", "detail": str(_STORES_IMPORT_ERROR)}), 500
 
     payload = request.get_json(silent=True) or {}
     current_settings = load_settings() if load_settings is not None else None
@@ -316,8 +355,8 @@ def api_local_settings_classwork_upload() -> Response:
         return Response(status=204)
     if not _is_local_request():
         return jsonify({"error": "local-only"}), 403
-    if _IMPORT_ERROR is not None or save_classwork_file is None:
-        return jsonify({"error": "settings module failed to import", "detail": str(_IMPORT_ERROR)}), 500
+    if _STORES_IMPORT_ERROR is not None or save_classwork_file is None:
+        return jsonify({"error": "settings module failed to import", "detail": str(_STORES_IMPORT_ERROR)}), 500
 
     payload = request.get_json(silent=True) or {}
     filename = str(payload.get("filename", "")).strip()
@@ -341,7 +380,7 @@ def api_local_settings_grades() -> Response:
     if not _is_local_request():
         return jsonify({"error": "local-only"}), 403
     if load_gradebook is None or save_gradebook is None or create_grade_entry is None:
-        return jsonify({"error": "grades module failed to import", "detail": str(_IMPORT_ERROR)}), 500
+        return jsonify({"error": "grades module failed to import", "detail": str(_STORES_IMPORT_ERROR)}), 500
 
     payload = request.get_json(silent=True) or {}
     mode = str(payload.get("mode", "append")).strip() or "append"
@@ -375,7 +414,7 @@ def api_local_settings_notes() -> Response:
     if not _is_local_request():
         return jsonify({"error": "local-only"}), 403
     if load_notes is None or save_notes is None or create_note is None:
-        return jsonify({"error": "notes module failed to import", "detail": str(_IMPORT_ERROR)}), 500
+        return jsonify({"error": "notes module failed to import", "detail": str(_STORES_IMPORT_ERROR)}), 500
 
     payload = request.get_json(silent=True) or {}
     mode = str(payload.get("mode", "upsert")).strip() or "upsert"
@@ -405,112 +444,6 @@ def api_local_settings_notes() -> Response:
 def _is_local_request() -> bool:
     remote = request.remote_addr or ""
     return remote in {"127.0.0.1", "::1", "localhost"}
-
-
-def _extract_multipart_file(body: bytes, content_type: str) -> bytes | None:
-    import re as _re
-    boundary_match = _re.search(r"boundary=([^\s;]+)", content_type)
-    if not boundary_match:
-        return None
-    boundary = ("--" + boundary_match.group(1)).encode()
-    parts = body.split(boundary)
-    for part in parts:
-        if b"filename=" not in part:
-            continue
-        sep = b"\r\n\r\n"
-        idx = part.find(sep)
-        if idx == -1:
-            sep = b"\n\n"
-            idx = part.find(sep)
-        if idx == -1:
-            continue
-        file_data = part[idx + len(sep):]
-        if file_data.endswith(b"\r\n"):
-            file_data = file_data[:-2]
-        return file_data
-    return None
-
-
-def _parse_classwork_xlsx(file_bytes: bytes) -> dict:
-    from io import BytesIO as _BytesIO
-    from datetime import datetime as _dt
-    import re as _re
-
-    now = _dt.now()
-
-    def _clean_header(value: str) -> str:
-        return _re.sub(r"[\r\n]+", " ", str(value)).strip()
-
-    try:
-        from openpyxl import load_workbook as _load_wb
-        wb = _load_wb(_BytesIO(file_bytes), read_only=True, data_only=True)
-    except Exception:
-        import csv as _csv
-        text = file_bytes.decode("utf-8", errors="replace")
-        reader = _csv.reader(text.splitlines())
-        all_rows = [r for r in reader if any(c.strip() for c in r)]
-        if not all_rows:
-            raise ValueError("Datei ist leer oder kein lesbares Format.")
-        header = [c.strip() for c in all_rows[0]]
-        structured = [
-            {header[i]: (row[i].strip() if i < len(row) else "") for i in range(len(header))}
-            for row in all_rows[1:] if any(c.strip() for c in row)
-        ]
-        preview = [" | ".join(c.strip() for c in row[:6] if c.strip()) for row in all_rows[:9]]
-        return {
-            "status": "ok", "title": "Klassenarbeitsplan",
-            "detail": f"CSV hochgeladen. {len(structured)} Eintraege gelesen.",
-            "updatedAt": now.strftime("%H:%M"), "scrapedAt": now.isoformat(),
-            "previewRows": preview, "structuredRows": structured[:200],
-            "sourceUrl": "", "scrapeMode": "upload",
-            "dataHash": hashlib.sha256(file_bytes).hexdigest()[:16],
-            "hasChanges": False, "noChanges": False,
-        }
-
-    all_structured: list[dict] = []
-    preview_rows: list[str] = []
-    total_sheets = len(wb.sheetnames)
-
-    for sheet_name in wb.sheetnames:
-        sheet = wb[sheet_name]
-        raw_rows: list[list[str]] = []
-        for row in sheet.iter_rows(values_only=True):
-            values = [str(v).strip() if v is not None else "" for v in row]
-            if any(v for v in values):
-                raw_rows.append(values)
-            if len(raw_rows) >= 60:
-                break
-
-        if not raw_rows:
-            continue
-
-        header = [_clean_header(col) if col else f"Spalte{i+1}" for i, col in enumerate(raw_rows[0])]
-
-        for row in raw_rows[1:]:
-            if not any(v for v in row):
-                continue
-            entry: dict = {"_sheet": sheet_name}
-            for i, col in enumerate(header):
-                entry[col] = row[i] if i < len(row) else ""
-            all_structured.append(entry)
-
-        if not preview_rows:
-            preview_rows = [" | ".join(v for v in row[:6] if v) for row in raw_rows[:9] if any(row)]
-
-    wb.close()
-
-    if not all_structured:
-        raise ValueError("Tabelle ist leer oder kein lesbares Format.")
-
-    return {
-        "status": "ok", "title": "Klassenarbeitsplan",
-        "detail": f"Excel-Datei hochgeladen. {len(all_structured)} Eintraege aus {total_sheets} Tabellenblättern gelesen.",
-        "updatedAt": now.strftime("%H:%M"), "scrapedAt": now.isoformat(),
-        "previewRows": preview_rows, "structuredRows": all_structured[:200],
-        "sourceUrl": "", "scrapeMode": "upload",
-        "dataHash": hashlib.sha256(file_bytes).hexdigest()[:16],
-        "hasChanges": False, "noChanges": False,
-    }
 
 
 # ── Dev entrypoint ────────────────────────────────────────────────────────────

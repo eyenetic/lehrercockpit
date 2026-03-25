@@ -19,11 +19,16 @@ python3 server.py
 
 Dann im Browser: `http://127.0.0.1:8080`
 
-## Aktueller Stand (2026-03-24)
+## Aktueller Stand (2026-03-25)
 
-- **Flask + gunicorn** als WSGI-Stack auf Render (loest Port-Scan-Timeout mit Python 3.14)
-- Frontend in `index.html`, `styles.css`, `src/app.js`
-- API in `app.py` (Flask, Render/gunicorn) + `server.py` (lokale Entwicklung, ThreadingHTTPServer)
+- **Flask + gunicorn** als WSGI-Stack auf Render (`Procfile`: `gunicorn app:app`)
+- Frontend: `index.html`, `styles.css`, `src/app.js` (monolithisch — Aufteilen in Feature-Module ist naechster Schritt)
+- Produktions-Backend: `app.py` (Flask) — einzige Wahrheit fuer alle API-Endpunkte
+- Lokaler Dev-Server: `server.py` (stdlib ThreadingHTTPServer) — starten via `python3 dev_runner.py`
+- `server_test.py` umbenannt zu `dev_runner.py` (war kein Test, ist ein Launch-Skript)
+- Geteilte Parsing-Logik in `backend/file_utils.py` (war dupliziert in `app.py` und `server.py`)
+- Persistenz-Abstraktion in `backend/persistence.py` (JSON-File-Store, vorbereitet fuer DB-Migration)
+- Tests in `tests/` (pytest: grades_store, notes_store, classwork_cache, API-Endpunkte)
 - Dashboard-Zusammenbau in `backend/dashboard.py`
 - Dokumentenmonitor in `backend/document_monitor.py`
 - Konfiguration ueber `.env.local`
@@ -107,20 +112,38 @@ Kein Playwright, keine System-Deps mehr — Build schlaegt nicht mehr fehl.
 - `ITSLEARNING_BASE_URL=https://berlin.itslearning.com`
 - `ORGAPLAN_PDF_URL=https://hermann-ehlers-schule.de/wp-content/uploads/2026/02/Orgaplan-2025_26-ab-Maerz-2.pdf`
 
+## Persistenz — Render Ephemeral Warning
+
+`data/*.json` und `.env.local` werden auf dem lokalen Dateisystem gespeichert.
+Auf **Render Free Tier** ist dieses Dateisystem **ephemer** — Daten gehen bei jedem
+Neustart/Redeploy verloren. Das Backend gibt dazu beim Start eine explizite Warnung aus.
+
+### Naechster Schritt fuer dauerhafte Persistenz
+
+1. In `backend/persistence.py` eine `DbStore`-Klasse ergaenzen (z. B. via `psycopg2` und `DATABASE_URL`).
+2. Die bestehenden Module `grades_store.py`, `notes_store.py`, `classwork_cache.py` auf den neuen Store umstellen (nur `store.read()` / `store.write()` muss getauscht werden).
+3. `DATABASE_URL` auf Render setzen.
+
+### Kurzfristig: Render Persistent Disk ($7/Mo.)
+
+Unter Render → Service → Disks einen Persistent Disk unter `/app/data` einhaengen.
+Dann ueberlebt alles, was in `data/` geschrieben wird, auch Neustarts.
+
 ## Bekannte Einschraenkungen
 
 - Berliner Dienstmail derzeit nicht sinnvoll per IMAP integrierbar
 - WebUntis ist konfiguriert, aber noch ohne iCal-Anbindung
 - itslearning ist konfiguriert, aber noch ohne Credentials
-- Render Free Tier: Disk nach 15 Min Inaktivitaet zurueck → Upload-Daten weg
+- Render Free Tier: Disk nach 15 Min Inaktivitaet zurueck → Upload-Daten weg (Warnung wird jetzt beim Start geloggt)
+- `src/app.js` ist 3.500+ Zeilen monolithisch — Aufteilen in Feature-Module steht als naechster Schritt an
 
 ## Beste naechste Schritte
 
 1. **WebUntis iCal verbinden**: `WEBUNTIS_ICAL_URL` in `.env.local` → live Stundenplan sofort
 2. **itslearning**: `ITSLEARNING_USERNAME` + `ITSLEARNING_PASSWORD` in `.env.local`
 3. **Render Persistent Disk** (Starter-Plan $7/mo) → Upload-Daten ueberleben Kaltstarts
-4. **Orgaplan-Aenderungserkennung** im UI aggressiver hervorheben (Badge auf Nav-Item)
-5. **Weitere Schul-PDFs** in den Dokumentenmonitor aufnehmen
+4. **`src/app.js` aufteilen**: `src/features/` Verzeichnis anlegen, Inbox/Grades/Notes/Classwork/WebUntis trennen
+5. **Orgaplan-Aenderungserkennung** im UI aggressiver hervorheben (Badge auf Nav-Item)
 
 ## Commit-Historie — Session 2026-03-21
 

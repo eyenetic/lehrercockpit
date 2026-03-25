@@ -3,3 +3,4 @@ gunicorn>=21.0
 openpyxl>=3.1
 pypdf>=6.9
 playwright>=1.40
+pytest>=8.0
