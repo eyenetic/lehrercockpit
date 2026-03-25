@@ -12,7 +12,7 @@
     notes: 3,
     classwork: 4,
     documents: 4,
-    access: 4,
+    access: 8,
   };
   const IS_LOCAL_RUNTIME =
     window.location.protocol === "file:" ||
@@ -22,7 +22,7 @@
 
   const state = {
     activeSection: "overview",
-    selectedChannel: "all",
+    selectedChannel: "mail",
     documentSearch: "",
     webuntisView: "week",
     webuntisPickerOpen: false,
@@ -163,18 +163,17 @@
     notesList: document.querySelector("#class-notes-list"),
     notesClearButton: document.querySelector("#class-notes-clear"),
     documentList: document.querySelector("#document-list"),
+    documentsExtraBlock: document.querySelector("#documents-extra-block"),
     documentSearch: document.querySelector("#document-search"),
+    documentSearchWrap: document.querySelector("#document-search-wrap"),
     assistantForm: document.querySelector("#assistant-form"),
     assistantInput: document.querySelector("#assistant-input"),
     assistantAnswer: document.querySelector("#assistant-answer"),
   };
 
   const channelLabels = {
-    all: "Alle",
     mail: "Dienstmail",
     itslearning: "itslearning",
-    webuntis: "WebUntis",
-    website: "Webseite",
   };
 
   async function loadDashboard(forceRefresh = false) {
@@ -759,9 +758,12 @@
       source?.status === "ok" ? "pill-live" : connection.configured ? "pill-attention" : "pill-positive"
     }`;
     elements.itslearningConnectStatus.textContent = source?.status === "ok" ? "verbunden" : connection.configured ? "gespeichert" : "lokal";
+    const updateCount = getRelevantInboxMessages().filter((message) => message.channel === "itslearning").length;
     elements.itslearningConnectCopy.textContent =
-      source?.detail ||
-      "Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner .env.local auf diesem Mac.";
+      source?.status === "ok"
+        ? `${updateCount} Update${updateCount === 1 ? "" : "s"} erscheinen oben im Kommunikationsbereich. Zugang bleibt lokal auf diesem Mac gespeichert.`
+        : source?.detail ||
+          "Lokale Verbindung fuer Benutzername und Passwort. Updates erscheinen danach oben im Kommunikationsbereich.";
     if (!elements.itslearningUsername.value && connection.username) {
       elements.itslearningUsername.value = connection.username;
     }
@@ -938,11 +940,26 @@
   }
 
   function renderChannelFilters() {
-    elements.channelFilters.innerHTML = Object.entries(channelLabels)
+    const availableChannels = getRelevantInboxMessages()
+      .map((message) => message.channel)
+      .filter((channel, index, array) => channel && array.indexOf(channel) === index);
+
+    if (!availableChannels.length) {
+      elements.channelFilters.hidden = true;
+      elements.channelFilters.innerHTML = "";
+      return;
+    }
+
+    if (!availableChannels.includes(state.selectedChannel)) {
+      state.selectedChannel = availableChannels[0];
+    }
+
+    elements.channelFilters.hidden = availableChannels.length <= 1;
+    elements.channelFilters.innerHTML = availableChannels
       .map(
-        ([id, label]) => `
+        (id) => `
           <button class="filter-button ${state.selectedChannel === id ? "active" : ""}" type="button" data-channel="${id}">
-            ${label}
+            ${channelLabels[id]}
           </button>
         `
       )
@@ -958,11 +975,8 @@
   }
 
   function renderMessages() {
-    const data = getData();
-    const filteredMessages = data.messages
-      .filter((message) => {
-      return state.selectedChannel === "all" || message.channel === state.selectedChannel;
-      })
+    const filteredMessages = getRelevantInboxMessages()
+      .filter((message) => message.channel === state.selectedChannel)
       .sort((left, right) => compareMessageTime(right.timestamp, left.timestamp));
     const visibleMessages = getVisiblePanelItems(filteredMessages, "inbox");
     setExpandableMeta(elements.messageList, filteredMessages.length, visibleMessages.length);
@@ -989,6 +1003,10 @@
           )
           .join("")
       : `<div class="empty-state">Fuer diesen Kanal liegen gerade keine Hinweise vor.</div>`;
+  }
+
+  function getRelevantInboxMessages(data = getData()) {
+    return (data.messages || []).filter((message) => message.channel === "mail" || message.channel === "itslearning");
   }
 
   function renderDocumentMonitor() {
@@ -1502,14 +1520,14 @@
   function summarizeOrgaplanDigest(orgaplan) {
     const count = (orgaplan.upcoming || []).length || (orgaplan.highlights || []).length;
     const month = orgaplan.monthLabel || "diesem Monat";
-    return `${count} relevante Hinweise fuer ${month}. Die naechsten Eintraege stehen unten kompakt im Cockpit.`;
+    return `${count} relevante Hinweise fuer ${month}. Hier stehen nur die naechsten Punkte, nicht der ganze Plan.`;
   }
 
   function summarizeClassworkDigest(classwork) {
     if (classwork.status === "ok") {
       const classCount = (classwork.classes || []).length;
       const entryCount = (classwork.entries || []).length;
-      return `${entryCount} Eintraege fuer ${classCount} Klassen erkannt. Du kannst jetzt kompakt nach Klasse arbeiten.`;
+      return `${entryCount} Eintraege fuer ${classCount} Klassen erkannt. Unten arbeitest du nur mit der Klasse, die du gerade brauchst.`;
     }
     return truncateText(classwork.detail || "Der Klassenarbeitsplan ist verlinkt, aber noch nicht automatisch lesbar.", 140);
   }
@@ -1538,12 +1556,15 @@
     const data = getData();
     const query = state.documentSearch.trim().toLowerCase();
     const changedDocuments = new Set((data.documentMonitor || []).filter((item) => item.changed).map((item) => item.id));
-    const filteredDocuments = data.documents.filter((entry) => {
+    const extraDocuments = data.documents.filter((entry) => !isPrimaryPlanDocument(entry));
+    const filteredDocuments = extraDocuments.filter((entry) => {
       const haystack = `${entry.title} ${entry.source} ${entry.summary} ${entry.tags.join(" ")}`.toLowerCase();
       return haystack.includes(query);
     });
     const visibleDocuments = getVisiblePanelItems(filteredDocuments, "documents");
     setExpandableMeta(elements.documentList, filteredDocuments.length, visibleDocuments.length);
+    elements.documentSearchWrap.hidden = extraDocuments.length === 0;
+    elements.documentsExtraBlock.hidden = filteredDocuments.length === 0;
 
     elements.documentList.innerHTML = filteredDocuments.length
       ? visibleDocuments
@@ -1568,6 +1589,12 @@
           )
           .join("")
       : `<div class="empty-state">Kein Dokument passt gerade zu deiner Suche.</div>`;
+  }
+
+  function isPrimaryPlanDocument(entry) {
+    const title = String(entry.title || "").toLowerCase();
+    const source = String(entry.source || "").toLowerCase();
+    return title.includes("orgaplan") || title.includes("klassenarbeitsplan") || source.includes("orgaplan");
   }
 
   function renderWebUntisControls() {
@@ -2008,7 +2035,7 @@
     const webuntisEvents = getWebUntisEvents();
 
     if (!normalizedQuestion) {
-      return "Ich brauche noch eine konkrete Frage, zum Beispiel zu morgen, zu WebUntis oder zu neuen PDFs.";
+      return "Ich brauche noch eine konkrete Frage, zum Beispiel zu morgen, zu deiner Dienstmail oder zu neuen Dokumenten.";
     }
 
     if (normalizedQuestion.includes("webuntis") || normalizedQuestion.includes("stundenplan")) {
@@ -2041,7 +2068,7 @@
       return webuntisEvents.map((event) => `${event.dateLabel}: ${event.title} (${event.time})`).join(" ");
     }
 
-    return "Im Cockpit beantworte ich dir gerade Fragen zu WebUntis, Dokumenten, Hinweisen und Terminen.";
+    return "Ich antworte hier nur auf Basis der Cockpit-Daten: Stundenplan, Dokumente, Dienstmail, itslearning und aktuelle Hinweise.";
   }
 
   function registerEvents() {

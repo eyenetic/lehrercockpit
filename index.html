@@ -27,7 +27,7 @@
         "https://lehrercockpit-production.up.railway.app",
       ];
     </script>
-    <link rel="stylesheet" href="./styles.css?v=32" />
+    <link rel="stylesheet" href="./styles.css?v=34" />
   </head>
   <body>
     <div class="app-shell">
@@ -150,11 +150,10 @@
             <div class="section-head section-head-wrap">
               <div>
                 <p class="card-kicker">Kommunikation</p>
-                <h2 id="inbox-title">Inbox</h2>
+                <h2 id="inbox-title">Dienstmail und Updates</h2>
               </div>
               <div class="section-head-actions">
                 <div id="channel-filters" class="filter-row"></div>
-                <button class="section-toggle" type="button" data-expand-toggle="inbox" data-expand-target="message-list">Mehr anzeigen</button>
               </div>
             </div>
             <div id="message-list" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
@@ -302,14 +301,14 @@
             <div class="section-head section-head-wrap">
               <div>
                 <p class="card-kicker">Dokumente</p>
-                <h2 id="docs-title">Orgaplan und Plaene</h2>
+                <h2 id="docs-title">Orgaplan und Klassenarbeiten</h2>
               </div>
-              <label class="search-box">
+              <label class="search-box" id="document-search-wrap">
                 <span class="sr-only">Dokumente filtern</span>
                 <input
                   id="document-search"
                   type="search"
-                  placeholder="Dokumente durchsuchen"
+                  placeholder="Weitere Dokumente durchsuchen"
                   autocomplete="off"
                 />
               </label>
@@ -319,7 +318,7 @@
                 <div class="sidebar-head">
                   <div>
                     <p class="card-kicker">Orgaplan</p>
-                    <h2 id="orgaplan-digest-title">Spalten-Digest</h2>
+                    <h2 id="orgaplan-digest-title">Hinweise und Termine</h2>
                   </div>
                   <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer">PDF oeffnen</a>
                 </div>
@@ -364,8 +363,16 @@
                 <button class="section-toggle" type="button" data-expand-toggle="classwork" data-expand-target="classwork-preview-list">Mehr anzeigen</button>
               </section>
             </div>
-            <div id="document-list" class="document-list expandable-scroll" data-expand-panel="documents"></div>
-            <button class="section-toggle" type="button" data-expand-toggle="documents" data-expand-target="document-list">Mehr anzeigen</button>
+            <div id="documents-extra-block" class="documents-extra-block" hidden>
+              <div class="sidebar-head sidebar-subhead">
+                <div>
+                  <p class="card-kicker">Weitere Dokumente</p>
+                  <h2>Zusatzmaterial</h2>
+                </div>
+              </div>
+              <div id="document-list" class="document-list expandable-scroll" data-expand-panel="documents"></div>
+              <button class="section-toggle" type="button" data-expand-toggle="documents" data-expand-target="document-list">Mehr anzeigen</button>
+            </div>
           </article>
         </section>
 
@@ -398,18 +405,18 @@
             <div class="section-head">
               <div>
                 <p class="card-kicker">Assistenz</p>
-                <h2 id="assistant-title">Kurze Rueckfragen</h2>
+                <h2 id="assistant-title">Lokale Cockpit-Hilfe</h2>
               </div>
-              <span class="pill pill-positive">suche</span>
+              <span class="pill pill-positive">lokal</span>
             </div>
             <form id="assistant-form" class="assistant-form">
               <label for="assistant-input" class="assistant-label">
-                Stelle eine Frage wie "Was ist morgen wichtig?" oder "Welche PDFs sind neu?"
+                Fragt nur in den Cockpit-Daten nach: Stundenplan, Dokumente, Dienstmail und aktuelle Hinweise.
               </label>
               <textarea
                 id="assistant-input"
                 rows="4"
-                placeholder="Welche Termine betreffen meine Klassen diese Woche?"
+                placeholder="Zum Beispiel: Was ist morgen wichtig?"
               ></textarea>
               <div class="assistant-actions">
                 <button class="primary-button" type="submit">Antwort generieren</button>
@@ -423,7 +430,7 @@
           <article class="card compact-panel tone-access" aria-labelledby="quicklinks-title">
             <div class="section-head section-head-compact">
               <div>
-                <p class="card-kicker">Arbeitsbereiche</p>
+                <p class="card-kicker">Schnellzugriffe</p>
                 <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
               </div>
             </div>
@@ -435,12 +442,12 @@
             <div class="section-head section-head-compact">
               <div>
                 <p class="card-kicker">itslearning</p>
-                <h2 id="itslearning-connect-title">Updates verbinden</h2>
+                <h2 id="itslearning-connect-title">Lokaler Zugang</h2>
               </div>
               <span id="itslearning-connect-status" class="pill pill-positive">lokal</span>
             </div>
             <p id="itslearning-connect-copy" class="source-detail">
-              Lokale Verbindung fuer Benutzername und Passwort. Gespeichert wird nur in deiner `.env.local` auf diesem Mac.
+              Der Zugang wird lokal gespeichert. Die Updates erscheinen oben im Kommunikationsbereich.
             </p>
             <details class="connector-details">
               <summary>Verbindung anpassen</summary>
@@ -561,7 +568,7 @@
       </main>
     </div>
 
-    <script src="./data/mock-dashboard.js?v=32"></script>
-    <script src="./src/app.js?v=32"></script>
+    <script src="./data/mock-dashboard.js?v=34"></script>
+    <script src="./src/app.js?v=34"></script>
   </body>
 </html>

@@ -1491,20 +1491,32 @@ a {
 
 .quick-link-card {
   display: grid;
-  gap: 10px;
-  padding: 14px 15px;
+  gap: 8px;
+  padding: 12px 13px;
 }
 
 .quick-link-action {
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
 .compact-link-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.documents-extra-block {
+  display: grid;
   gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.sidebar-subhead h2 {
+  font-size: 0.95rem;
 }
 
 .assistant-card {
@@ -1618,7 +1630,8 @@ a {
   .webuntis-week-columns,
   .compact-link-grid,
   .classwork-calendar,
-  .grades-grid {
+  .grades-grid,
+  .nextcloud-workspaces {
     grid-template-columns: 1fr;
   }
 
@@ -1634,6 +1647,85 @@ a {
 
   .search-box {
     width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar,
+  .section-head,
+  .section-head.section-head-wrap,
+  .section-head.section-head-compact,
+  .message-top,
+  .source-top,
+  .document-top,
+  .priority-top,
+  .timeline-top,
+  .classwork-entry-top,
+  .orgaplan-entry-head,
+  .card-heading,
+  .webuntis-toolbar,
+  .webuntis-summary,
+  .grade-item-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-actions,
+  .section-head-actions,
+  .webuntis-toolbar-actions,
+  .grade-item-actions,
+  .assistant-actions {
+    width: 100%;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .filter-row,
+  .meta-row,
+  .classwork-view-switch,
+  .classwork-actions,
+  .webuntis-plan-strip {
+    width: 100%;
+  }
+
+  .section-head-actions > *,
+  .webuntis-toolbar-actions > *,
+  .classwork-actions > *,
+  .assistant-actions > * {
+    width: 100%;
+  }
+
+  .document-item,
+  .source-item {
+    grid-template-columns: 1fr;
+  }
+
+  .grades-summary-grid,
+  .briefing-grid,
+  .plan-digest-grid,
+  .compact-link-grid,
+  .classwork-calendar,
+  .nextcloud-workspaces,
+  .grades-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grade-item-actions {
+    flex-wrap: wrap;
+  }
+
+  .hero-note,
+  .document-summary,
+  .message-snippet,
+  .source-detail,
+  .schedule-note,
+  .connect-feedback,
+  .orgaplan-row p,
+  .quick-link-card p,
+  .nextcloud-work-card p {
+    max-width: none;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 }
 
@@ -1666,6 +1758,7 @@ a {
     gap: 0;
     z-index: 100;
     backdrop-filter: blur(20px);
+    overflow: hidden;
   }
 
   .brand-block,
@@ -1678,9 +1771,17 @@ a {
   .sidebar-nav {
     display: flex;
     flex-direction: row;
-    justify-content: space-around;
+    justify-content: flex-start;
     flex: 1;
-    gap: 0;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 0 2px 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .nav-link {
@@ -1689,17 +1790,24 @@ a {
     align-items: center;
     justify-content: center;
     gap: 3px;
-    padding: 8px 4px;
-    font-size: 0.65rem;
+    flex: 0 0 68px;
+    min-width: 68px;
+    padding: 8px 6px;
+    font-size: 0.61rem;
+    line-height: 1.2;
     border-radius: var(--radius-sm);
-    min-width: 52px;
     text-align: center;
     letter-spacing: 0;
+    white-space: normal;
+    word-break: break-word;
+    scroll-snap-align: start;
   }
 
   .nav-link.has-status::after {
-    top: 8px;
-    right: 8px;
+    top: 7px;
+    right: 10px;
+    width: 7px;
+    height: 7px;
   }
 
   .nav-link::before {
@@ -1752,23 +1860,37 @@ a {
   }
 
   .app-main {
-    padding: 16px 16px 90px;
+    padding: 14px 14px 102px;
     gap: 12px;
   }
 
   .topbar {
-    flex-direction: row;
-    align-items: center;
-    padding-bottom: 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding-bottom: 12px;
     margin-bottom: 0;
   }
 
+  .topbar-actions {
+    gap: 8px;
+  }
+
+  .topbar-actions > * {
+    width: 100%;
+  }
+
   .topbar h1 {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
+    line-height: 1.06;
   }
 
   .hero-text {
     display: none;
+  }
+
+  .hero-note {
+    text-align: left;
   }
 
   .card,
@@ -1793,11 +1915,134 @@ a {
     grid-template-columns: 1fr;
   }
 
+  .section-head,
+  .section-head.section-head-wrap,
+  .section-head.section-head-compact,
+  .section-head-actions,
+  .message-top,
+  .source-top,
+  .document-top,
+  .priority-top,
+  .timeline-top,
+  .classwork-entry-top,
+  .orgaplan-entry-head,
+  .card-heading,
+  .webuntis-toolbar,
+  .webuntis-summary,
+  .grade-item-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-head {
+    margin-bottom: 14px;
+  }
+
+  .section-head-actions,
+  .webuntis-toolbar-actions,
+  .grade-item-actions,
+  .filter-row,
+  .meta-row,
+  .classwork-view-switch,
+  .classwork-actions,
+  .webuntis-plan-strip {
+    width: 100%;
+  }
+
+  .filter-row,
+  .meta-row,
+  .classwork-view-switch,
+  .classwork-actions,
+  .webuntis-toolbar-actions,
+  .grade-item-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-row > *,
+  .meta-row > *,
+  .classwork-view-switch > *,
+  .classwork-actions > *,
+  .webuntis-toolbar-actions > *,
+  .grade-item-actions > *,
+  .section-head-actions > * {
+    width: 100%;
+  }
+
+  .section-toggle,
+  .filter-button,
+  .segment-button,
+  .plan-chip,
+  .secondary-link,
+  .scrape-button,
+  .primary-button {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .pill,
+  .meta-tag {
+    white-space: normal;
+  }
+
+  .document-item,
+  .source-item,
+  .webuntis-event,
+  .webuntis-week-event {
+    grid-template-columns: 1fr;
+  }
+
+  .briefing-grid,
+  .grades-summary-grid,
+  .compact-link-grid,
+  .classwork-calendar,
+  .nextcloud-workspaces,
+  .grades-grid,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .webuntis-summary,
+  .webuntis-plan-strip {
+    gap: 10px;
+  }
+
+  .plan-chip {
+    min-width: 0;
+  }
+
+  .document-summary,
+  .message-snippet,
+  .source-detail,
+  .schedule-note,
+  .connect-feedback,
+  .orgaplan-row p,
+  .quick-link-card p,
+  .nextcloud-work-card p,
+  .classwork-entry p,
+  .grade-item p,
+  .briefing-lead p {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .grades-stat-card,
+  .stat-card,
+  .quick-link-card,
+  .message-item,
+  .document-item,
+  .source-item,
+  .classwork-entry,
+  .grade-item,
+  .nextcloud-work-card {
+    min-width: 0;
+  }
+
   [data-view-section="assistant"] {
     display: none;
   }
 
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
