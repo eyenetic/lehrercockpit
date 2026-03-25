@@ -55,16 +55,33 @@ Wenn kein lokaler Server laeuft und `index.html` direkt geoeffnet wird, zeigt di
 ## Tests ausfuehren
 
 ```bash
-pytest tests/ -v
+# Schneller Pfad — kein DB noetig:
+pytest tests/ -v -m "not db"
+
+# DB-Integration-Tests (erfordern TEST_DATABASE_URL):
+TEST_DATABASE_URL="postgresql://..." pytest tests/ -v -m "db"
 ```
 
 Getestet werden: `grades_store`, `notes_store`, `classwork_cache`, Persistenz-Abstraktion und die wichtigsten Flask-API-Endpunkte.
 
-DB-Integration-Tests (erfordern `TEST_DATABASE_URL`):
+## CI (GitHub Actions)
+
+Bei jedem Push und Pull Request laufen automatisch zwei Jobs:
+
+| Job | Wann | Was |
+|-----|------|-----|
+| **Test (no DB)** | immer | Compile-Check + `pytest -m "not db"` |
+| **Test (with DB)** | immer, aber Tests werden ohne Secret uebersprungen | `pytest -m "db"` |
+
+**Lokale CI-Aequivalente:**
 
 ```bash
-TEST_DATABASE_URL="postgresql://..." pytest tests/test_persistence.py -v -m db
+python3 -m py_compile app.py server.py dev_runner.py backend/*.py
+pytest tests/ -v -m "not db"
 ```
+
+**DB-Tests in GitHub aktivieren:**
+GitHub Repository → Settings → Secrets and variables → Actions → `TEST_DATABASE_URL` = Postgres-Verbindungsstring setzen.
 
 ## Quellen vorbereiten
 

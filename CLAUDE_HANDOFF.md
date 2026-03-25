@@ -19,6 +19,23 @@ python3 server.py
 
 Dann im Browser: `http://127.0.0.1:8080`
 
+## CI (GitHub Actions)
+
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+| Job | Wann | Was |
+|-----|------|-----|
+| **Test (no DB)** | immer | Compile-Check + `pytest -m "not db"` |
+| **Test (with DB)** | immer (Tests skip ohne Secret) | `pytest -m "db"` |
+
+DB-Tests aktivieren: GitHub → Settings → Secrets → `TEST_DATABASE_URL` = Postgres-Verbindungsstring.
+
+Lokal vor dem Merge:
+```bash
+python3 -m py_compile app.py server.py dev_runner.py backend/*.py
+pytest tests/ -v -m "not db"
+```
+
 ## Aktueller Stand (2026-03-25)
 
 - **Flask + gunicorn** als WSGI-Stack auf Render (`Procfile`: `gunicorn app:app`)

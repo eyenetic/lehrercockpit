@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # ── Job A: fast path — always runs, no database needed ─────────────────────
+  test:
+    name: Test (no DB)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Python syntax check
+        run: |
+          python3 -m py_compile app.py server.py dev_runner.py
+          python3 -m py_compile backend/*.py
+
+      - name: Run non-DB tests
+        run: pytest tests/ -v -m "not db"
+
+  # ── Job B: DB integration — always runs but skips gracefully without secret ─
+  # When TEST_DATABASE_URL secret is not configured the env var is empty,
+  # all @pytest.mark.db tests are skipped, and the job exits green.
+  # To enable real DB tests: add TEST_DATABASE_URL as a repo/org secret in
+  # GitHub Settings → Secrets and variables → Actions.
+  test-db:
+    name: Test (with DB)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run DB integration tests
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: pytest tests/ -v -m "db"

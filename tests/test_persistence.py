@@ -148,6 +148,7 @@ db_required = pytest.mark.skipif(
 )
 
 
+@pytest.mark.db
 @db_required
 class TestDbStoreIntegration:
     """Live DB tests — only run when TEST_DATABASE_URL is set.
