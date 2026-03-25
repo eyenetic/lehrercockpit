@@ -31,7 +31,7 @@ Fuer Deployments ist das Frontend so vorbereitet, dass es zuerst ein gleiches Or
 - `dev_runner.py` — Startskript fuer `server.py` lokal (ersetzt das irrefuehrend benannte `server_test.py`)
 - `backend/` — Konfiguration, Adapter, Dashboard-Building, Persistenz
 - `backend/file_utils.py` — Geteilte Parsing-Hilfsfunktionen (multipart, XLSX), kein Duplikat mehr
-- `backend/persistence.py` — Abstraktion fuer JSON-File-Persistenz, vorbereitet fuer DB-Migration
+- `backend/persistence.py` — Persistenz-Abstraktion: JsonFileStore lokal, DbStore (PostgreSQL) in Produktion
 - `data/mock-dashboard.json` — Fallback Demo-Daten
 - `tests/` — Automatisierte Tests (pytest)
 - `config/mail.env.example` — Umgebungsvariablen-Vorlage
@@ -58,7 +58,13 @@ Wenn kein lokaler Server laeuft und `index.html` direkt geoeffnet wird, zeigt di
 pytest tests/ -v
 ```
 
-Getestet werden: `grades_store`, `notes_store`, `classwork_cache` und die wichtigsten Flask-API-Endpunkte.
+Getestet werden: `grades_store`, `notes_store`, `classwork_cache`, Persistenz-Abstraktion und die wichtigsten Flask-API-Endpunkte.
+
+DB-Integration-Tests (erfordern `TEST_DATABASE_URL`):
+
+```bash
+TEST_DATABASE_URL="postgresql://..." pytest tests/test_persistence.py -v -m db
+```
 
 ## Quellen vorbereiten
 
@@ -91,28 +97,55 @@ Wenn `ITSLEARNING_USERNAME` und `ITSLEARNING_PASSWORD` gesetzt sind, versucht da
 
 Der `Orgaplan` wird bei jedem Refresh neu gelesen und als kompakter Digest im Cockpit zusammengefasst. Dabei versucht das Backend jetzt, die PDF-Spalten `Allgemein`, `Mittelstufe` und `Oberstufe` getrennt zu erkennen. Der `Klassenarbeitsplan` wird ebenfalls bei jedem Refresh neu versucht; solange OneDrive den automatischen Abruf blockiert, zeigt das Cockpit den Status transparent an.
 
-## Persistenz und Produktionshinweis
+## Persistenz
 
-Noten, Klassennotizen und Klassenarbeits-Uploads werden in `data/*.json` gespeichert.
-Auf **Render Free Tier** ist das Dateisystem **ephemer** — alle Schreibvorgaenge gehen beim naechsten Neustart oder Redeploy verloren.
+Das Backend nutzt eine Persistenz-Abstraktion in `backend/persistence.py`.
+Der aktive Store wird beim Start geloggt.
 
-Das Backend gibt beim Start auf Render eine Warnung aus:
+### Lokal ohne Datenbank (Standard)
+
+Wenn `DATABASE_URL` **nicht** gesetzt ist, werden Daten als JSON-Dateien
+in `data/` gespeichert. Das funktioniert sofort ohne weitere Einrichtung.
+
 ```
-[app] WARNING: Running on Render — data/ writes are ephemeral ...
+[persistence] Using local file store (no DATABASE_URL set).
 ```
 
-Um Persistenz dauerhaft zu machen, muss `backend/persistence.py` um eine
-`DbStore`-Klasse erweitert werden, die statt JSON-Dateien eine Datenbank
-(z. B. PostgreSQL via `DATABASE_URL`) nutzt. Die aufrufenden Module
-(`grades_store.py`, `notes_store.py`, `classwork_cache.py`) muessen
-dafuer nicht geaendert werden.
+### Produktion mit PostgreSQL (Render)
 
-**Kurzfristige Loesung:** Render Persistent Disk (Starter-Plan, ca. $7/Mo.).
+Wenn `DATABASE_URL` gesetzt ist, werden alle Daten in PostgreSQL gespeichert
+und ueberleben Redeploys/Neustarts.
+
+```
+[persistence] Using PostgreSQL store (DATABASE_URL is set). Data will survive Render redeploys.
+```
+
+**Tabellen:**
+
+| Tabelle | Schluessel | Inhalt |
+|---------|-----------|--------|
+| `app_state` | `grades-local` | Noten-Eintraege |
+| `app_state` | `class-notes-local` | Klassen-Notizen |
+| `app_state` | `classwork-cache` | Klassenarbeitsplan-Upload-Cache |
+
+Die Tabelle wird beim Start automatisch erstellt (`CREATE TABLE IF NOT EXISTS`).
+
+**Einrichten auf Render:**
+1. Render Dashboard → dein Service → Environment → `DATABASE_URL` setzen
+   (z. B. aus einem Render PostgreSQL Add-on: `postgresql://user:pass@host/db`)
+2. Redeployen — fertig.
+
+### Render ohne DATABASE_URL
+
+Wenn das Backend auf Render laeuft ohne `DATABASE_URL`, erscheint eine Warnung:
+```
+[persistence] WARNING: Using file store on Render — data is ephemeral.
+```
 
 ## Sinnvolle naechste Schritte
 
 1. WebUntis-iCal verbinden: `WEBUNTIS_ICAL_URL` in `.env.local` → live Stundenplan.
 2. itslearning: `ITSLEARNING_USERNAME` + `ITSLEARNING_PASSWORD` in `.env.local`.
-3. Render Persistent Disk oder `DATABASE_URL` ergaenzen → Daten ueberleben Neustarts.
+3. `DATABASE_URL` auf Render setzen → Persistenz ist sofort dauerhaft.
 4. PDFs automatisch einsammeln, textlich auslesen und mit Klassen/Terminen taggen.
 5. `src/app.js` weiter in Feature-Module aufteilen (inbox, grades, webuntis, ...).

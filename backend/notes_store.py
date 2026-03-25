@@ -1,13 +1,26 @@
+"""Class notes store.
+
+Reads and writes class note data via the shared persistence abstraction
+(``backend.persistence.store``).  When ``DATABASE_URL`` is set the data lives
+in PostgreSQL; otherwise it falls back to a local JSON file.
+
+Public interface (unchanged for callers)
+-----------------------------------------
+- ``load_notes(path)``          → dict
+- ``save_notes(path, notes)``   → dict
+- ``create_note(data)``         → dict
+"""
 from __future__ import annotations
 
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import Any
 
+from .persistence import store
+
 
 def load_notes(path: Path) -> dict[str, Any]:
-    if not path.exists():
+    if not store.exists(path):
         return {
             "status": "empty",
             "detail": "Noch keine Klassen-Notizen erfasst.",
@@ -16,12 +29,12 @@ def load_notes(path: Path) -> dict[str, Any]:
             "classes": [],
         }
 
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:
+    payload = store.read(path, default=None)
+
+    if not isinstance(payload, dict):
         return {
             "status": "error",
-            "detail": f"Lokale Notizen konnten nicht gelesen werden: {type(exc).__name__}: {exc}",
+            "detail": "Lokale Notizen konnten nicht gelesen werden.",
             "updatedAt": "",
             "notes": [],
             "classes": [],
@@ -33,7 +46,11 @@ def load_notes(path: Path) -> dict[str, Any]:
 
     return {
         "status": "ok" if notes else "empty",
-        "detail": f"{len(notes)} Klassen-Notizen gespeichert." if notes else "Noch keine Klassen-Notizen erfasst.",
+        "detail": (
+            f"{len(notes)} Klassen-Notizen gespeichert."
+            if notes
+            else "Noch keine Klassen-Notizen erfasst."
+        ),
         "updatedAt": payload.get("updatedAt", ""),
         "notes": notes,
         "classes": classes,
@@ -49,8 +66,7 @@ def save_notes(path: Path, notes: list[dict[str, Any]]) -> dict[str, Any]:
         "savedAt": now.isoformat(),
         "notes": normalized_notes,
     }
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    store.write(path, payload)
     return load_notes(path)
 
 

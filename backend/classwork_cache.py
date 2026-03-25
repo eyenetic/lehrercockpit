@@ -1,57 +1,52 @@
-"""Persistent JSON cache for scraped Klassenarbeitsplan data with diff support."""
+"""Klassenarbeitsplan cache store.
+
+Reads and writes classwork cache data via the shared persistence abstraction
+(``backend.persistence.store``).  When ``DATABASE_URL`` is set the data lives
+in PostgreSQL; otherwise it falls back to a local JSON file.
+
+Public interface (unchanged for callers)
+-----------------------------------------
+- ``load_cache(path)``              → dict
+- ``save_cache(path, result)``      → None
+- ``get_previous_hash(path)``       → str
+- ``cache_age_minutes(path)``       → float | None
+- ``_empty_cache()``                → dict  (exported for tests)
+"""
 from __future__ import annotations
 
-import json
-import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-
-_lock = threading.Lock()
+from .persistence import store
 
 
 def load_cache(cache_path: Path) -> dict[str, Any]:
-    """Load cached classwork data from disk, or return empty placeholder."""
-    try:
-        if cache_path.exists():
-            return json.loads(cache_path.read_text(encoding="utf-8"))
-    except Exception:
-        pass
+    """Load cached classwork data, or return an empty placeholder."""
+    result = store.read(cache_path, default=None)
+    if isinstance(result, dict):
+        return result
     return _empty_cache()
 
 
 def save_cache(cache_path: Path, result: dict[str, Any]) -> None:
-    """Persist scrape result to disk atomically."""
-    with _lock:
-        try:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            tmp_path = cache_path.with_suffix(".tmp")
-            tmp_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-            tmp_path.replace(cache_path)
-        except Exception as exc:
-            print(f"[classwork_cache] Failed to save cache: {exc}")
+    """Persist classwork cache data."""
+    store.write(cache_path, result)
 
 
 def get_previous_hash(cache_path: Path) -> str:
-    """Return the dataHash of the last cached result, or empty string."""
-    try:
-        if cache_path.exists():
-            data = json.loads(cache_path.read_text(encoding="utf-8"))
-            return data.get("dataHash", "")
-    except Exception:
-        pass
+    """Return the ``dataHash`` of the last cached result, or empty string."""
+    data = store.read(cache_path, default=None)
+    if isinstance(data, dict):
+        return data.get("dataHash", "")
     return ""
 
 
 def cache_age_minutes(cache_path: Path) -> float | None:
-    """Return how many minutes ago the cache was last written, or None if missing."""
-    try:
-        if cache_path.exists():
-            mtime = cache_path.stat().st_mtime
-            return (datetime.now().timestamp() - mtime) / 60
-    except Exception:
-        pass
+    """Return how many minutes ago the cache was last written, or None if absent."""
+    ts = store.mtime(cache_path)
+    if ts is not None:
+        return (datetime.now().timestamp() - ts) / 60
     return None
 
 

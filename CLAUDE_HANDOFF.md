@@ -27,8 +27,8 @@ Dann im Browser: `http://127.0.0.1:8080`
 - Lokaler Dev-Server: `server.py` (stdlib ThreadingHTTPServer) — starten via `python3 dev_runner.py`
 - `server_test.py` umbenannt zu `dev_runner.py` (war kein Test, ist ein Launch-Skript)
 - Geteilte Parsing-Logik in `backend/file_utils.py` (war dupliziert in `app.py` und `server.py`)
-- Persistenz-Abstraktion in `backend/persistence.py` (JSON-File-Store, vorbereitet fuer DB-Migration)
-- Tests in `tests/` (pytest: grades_store, notes_store, classwork_cache, API-Endpunkte)
+- Persistenz-Abstraktion in `backend/persistence.py` (JsonFileStore lokal, DbStore mit DATABASE_URL)
+- Tests in `tests/` (pytest: grades_store, notes_store, classwork_cache, persistence, API-Endpunkte)
 - Dashboard-Zusammenbau in `backend/dashboard.py`
 - Dokumentenmonitor in `backend/document_monitor.py`
 - Konfiguration ueber `.env.local`
@@ -37,7 +37,7 @@ Dann im Browser: `http://127.0.0.1:8080`
 
 ### Datenfluss
 
-1. **XLS/XLSX Upload** via `POST /api/classwork/upload` → gespeichert in `data/classwork-cache.json`
+1. **XLS/XLSX Upload** via `POST /api/classwork/upload` → gespeichert in DB (`classwork-cache`) oder `data/classwork-cache.json`
    - Alle Sheets (11 Monate) werden gelesen
    - Upload-Zeitstempel wird angezeigt ("Stand: TT.MM.JJJJ, HH:MM Uhr")
 2. **`data/mock-dashboard.json`** Snapshot (immer im Repo, Fallback fuer Render-Kaltstart)
@@ -50,11 +50,14 @@ Dann im Browser: `http://127.0.0.1:8080`
 - **"📂 Hochladen"** Button im Klassenarbeitsplan-Bereich → XLS/XLSX/CSV auswaehlen
 - Tabelle erscheint sofort mit Monats-Tab-Selektor (autom. aktueller Monat)
 - Upload-Zeitstempel unterm Tabellenkopf
-- Daten bleiben bis zum naechsten Render-Kaltstart erhalten
+- Wenn `DATABASE_URL` gesetzt ist: Daten ueberleben Redeploys/Neustarts
+- Ohne `DATABASE_URL`: Daten gehen beim Render-Kaltstart verloren (Warnung im Log)
 
-### Render Free Tier Hinweis
+### Persistenz-Hinweis
 
-Render Free Tier setzt den Disk nach 15 Min Inaktivitaet zurueck → Upload-Daten weg.
+Wenn `DATABASE_URL` in den Render-Umgebungsvariablen gesetzt ist, werden
+alle Schreibvorgaenge (Noten, Notizen, Klassenarbeitsplan) in PostgreSQL gespeichert.
+Tabelle: `app_state` (wird beim Start automatisch angelegt).
 
 ## API-Endpunkte
 

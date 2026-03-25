@@ -117,6 +117,18 @@ app.config["PROPAGATE_EXCEPTIONS"] = False
 
 CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "*")
 
+# ── Schema initialisation ─────────────────────────────────────────────────────
+# Runs once at startup. For DbStore this creates the app_state table if needed.
+# For JsonFileStore this is a no-op.  Wrapped in try/except so a DB hiccup does
+# not prevent the app from starting (endpoints will fail individually if DB is
+# truly unavailable).
+
+try:
+    from backend.persistence import store as _store
+    _store.init_schema()
+except Exception as _schema_exc:
+    print(f"[app] Schema initialisation warning: {_schema_exc}", flush=True)
+
 
 def _cors(response: Response) -> Response:
     response.headers["Access-Control-Allow-Origin"] = CORS_ORIGIN
