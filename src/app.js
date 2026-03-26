@@ -150,9 +150,11 @@
     webuntisPickerCategoryNote: document.querySelector("#webuntis-picker-category-note"),
     webuntisPickerCategoryResults: document.querySelector("#webuntis-picker-category-results"),
     orgaplanOpenLink: document.querySelector("#orgaplan-open-link"),
+    orgaplanDigestCard: document.querySelector('[aria-labelledby="orgaplan-digest-title"]'),
     orgaplanDigestDetail: document.querySelector("#orgaplan-digest-detail"),
     orgaplanUpcomingList: document.querySelector("#orgaplan-upcoming-list"),
     classworkOpenLink: document.querySelector("#classwork-open-link"),
+    classworkDigestCard: document.querySelector('[aria-labelledby="classwork-digest-title"]'),
     classworkUploadInput: document.querySelector("#classwork-upload-input"),
     classworkBrowserFetchButton: document.querySelector("#classwork-browser-fetch-button"),
     classworkUploadStatus: document.querySelector("#classwork-upload-status"),
@@ -206,6 +208,54 @@
 
   // DashboardManager is extracted to src/modules/dashboard-manager.js (Phase 8d)
   const DashboardManager = window.DashboardManager;
+
+  function isModuleVisible(moduleId) {
+    if (!DashboardManager || typeof DashboardManager.isModuleVisible !== "function") {
+      return true;
+    }
+    return DashboardManager.isModuleVisible(moduleId);
+  }
+
+  function isAnyModuleVisible(moduleIds) {
+    return (moduleIds || []).some((moduleId) => isModuleVisible(moduleId));
+  }
+
+  // Returns true only after DashboardManager has loaded the layout from the API at least once.
+  // Before that point, _modules is empty and isModuleVisible() defaults to true for all modules,
+  // which would cause disabled modules to flash briefly on first render.
+  // renderStats() and renderBriefing() skip module-derived content until this returns true.
+  // Non-module content (priorities, documents, workspace) always renders normally.
+  function isLayoutReady() {
+    if (!DashboardManager || typeof DashboardManager.isLayoutReady !== "function") {
+      // DashboardManager not present (non-multiuser mode) → treat as always ready
+      return true;
+    }
+    return DashboardManager.isLayoutReady();
+  }
+
+  function hasStandaloneDocumentsContent() {
+    const data = getData();
+    const extraDocuments = (data.documents || []).filter((entry) => !isPrimaryPlanDocument(entry));
+    return extraDocuments.length > 0 || (data.documentMonitor || []).length > 0;
+  }
+
+  function isSectionEnabled(sectionId) {
+    switch (sectionId) {
+      case "schedule":
+        return isModuleVisible("webuntis");
+      case "grades":
+        return isModuleVisible("noten");
+      case "inbox":
+        return isAnyModuleVisible(["itslearning", "mail"]);
+      case "documents":
+        return isAnyModuleVisible(["orgaplan", "klassenarbeitsplan"]) || hasStandaloneDocumentsContent();
+      case "overview":
+      case "assistant":
+      case "access":
+      default:
+        return true;
+    }
+  }
 
   // ── SECTION: API / data loading ─────────────────────────────────────────────
 
@@ -633,15 +683,23 @@
   }
 
   function renderSectionFocus() {
-    const active = state.activeSection || "overview";
+    let active = state.activeSection || "overview";
+    if (active !== "overview" && !isSectionEnabled(active)) {
+      active = "overview";
+      state.activeSection = active;
+    }
 
     elements.navLinks.forEach((button) => {
-      button.classList.toggle("active", button.dataset.sectionTarget === active);
+      const sectionId = button.dataset.sectionTarget || "";
+      const isVisible = isSectionEnabled(sectionId);
+      button.hidden = !isVisible;
+      button.classList.toggle("active", sectionId === active);
     });
 
     elements.viewSections.forEach((section) => {
       const sectionId = section.dataset.viewSection;
-      section.hidden = active !== "overview" && sectionId !== active;
+      const isVisible = isSectionEnabled(sectionId);
+      section.hidden = !isVisible || (active !== "overview" && sectionId !== active);
     });
   }
 
@@ -686,29 +744,35 @@
   function renderStats() {
     const data = getData();
     const webuntisEvents = getWebUntisEvents();
+    // Gate module-derived tiles behind isLayoutReady() to prevent first-load flash.
+    // Before the layout API response arrives, _modules is empty and isModuleVisible()
+    // returns true for all modules — so disabled modules would briefly appear.
+    const layoutReady = isLayoutReady();
+    const showWebuntis = layoutReady && isModuleVisible("webuntis");
+    const showInbox = layoutReady && isAnyModuleVisible(["itslearning", "mail"]);
 
     const cards = [
-      {
+      showInbox ? {
         label: "Hinweise",
         value: data.messages.filter((message) => message.unread).length,
         detail: "offene Eintraege",
-      },
+      } : null,
       {
         label: "Prioritaeten",
         value: data.priorities.length,
         detail: "heute im Fokus",
       },
-      {
+      showWebuntis ? {
         label: "WebUntis",
         value: webuntisEvents.length,
         detail: state.webuntisView === "day" ? "Termine heute" : "Termine diese Woche",
-      },
+      } : null,
       {
         label: "Dokumente",
         value: data.documents.length,
         detail: "sichtbar im Cockpit",
       },
-    ];
+    ].filter(Boolean);
 
     elements.statsGrid.innerHTML = cards
       .map(
@@ -725,12 +789,21 @@
 
   function renderBriefing() {
     const data = getData();
-    const nextEvent = findNextLesson(data);
-    const orgaplanItem = pickOrgaplanBriefing(data);
-    const classworkItem = pickClassworkBriefing(data);
-    const inboxItem = pickInboxBriefing(data);
-    const todaySummary = pickTodayScheduleBriefing(data, nextEvent);
-    const weeklyPreview = pickWeeklyPreview(data);
+    // Gate all module-derived briefing items behind isLayoutReady() to prevent first-load flash.
+    // Once the layout API response arrives and dashboard-layout-changed fires, renderAll()
+    // is called again with the correct visibility state.
+    const layoutReady = isLayoutReady();
+    const showWebuntis = layoutReady && isModuleVisible("webuntis");
+    const showOrgaplan = layoutReady && isModuleVisible("orgaplan");
+    const showClasswork = layoutReady && isModuleVisible("klassenarbeitsplan");
+    const showInbox = layoutReady && isAnyModuleVisible(["itslearning", "mail"]);
+
+    const nextEvent = showWebuntis ? findNextLesson(data) : null;
+    const orgaplanItem = showOrgaplan ? pickOrgaplanBriefing(data) : null;
+    const classworkItem = showClasswork ? pickClassworkBriefing(data) : null;
+    const inboxItem = showInbox ? pickInboxBriefing(data) : null;
+    const todaySummary = showWebuntis ? pickTodayScheduleBriefing(data, nextEvent) : null;
+    const weeklyPreview = showWebuntis ? pickWeeklyPreview(data) : null;
     const lead = nextEvent
       ? {
           kicker: isEventCurrent(nextEvent) ? "laeuft gerade" : "naechste Stunde",
@@ -745,14 +818,14 @@
             copy: todaySummary.copy,
             timingClass: "is-upcoming",
           }
-      : orgaplanItem
-        ? {
-            kicker: "heute wichtig",
-            title: orgaplanItem.label || "Orgaplan",
-            copy: orgaplanItem.copy,
-            timingClass: "is-upcoming",
-          }
-        : null;
+        : orgaplanItem
+          ? {
+              kicker: "heute wichtig",
+              title: orgaplanItem.label || "Orgaplan",
+              copy: orgaplanItem.copy,
+              timingClass: "is-upcoming",
+            }
+          : null;
 
     const briefingItems = [
       orgaplanItem
@@ -1022,6 +1095,10 @@
     if (window.LehrerItslearning) return window.LehrerItslearning.renderItslearningConnector();
     // TODO: remove fallback after itslearning.js verified in production
     if (!elements.itslearningConnectCard) return;
+    if (!isModuleVisible("itslearning")) {
+      elements.itslearningConnectCard.hidden = true;
+      return;
+    }
     if (!IS_LOCAL_RUNTIME) {
       elements.itslearningConnectCard.hidden = true;
       return;
@@ -1049,6 +1126,10 @@
 
   function renderNextcloudConnector() {
     if (!elements.nextcloudConnectCard) {
+      return;
+    }
+    if (!isModuleVisible("nextcloud")) {
+      elements.nextcloudConnectCard.hidden = true;
       return;
     }
 
@@ -1315,50 +1396,68 @@
     const digest = getData().planDigest;
     const orgaplan = digest.orgaplan;
     const classwork = digest.classwork;
+    const showOrgaplan = isModuleVisible("orgaplan");
+    const showClasswork = isModuleVisible("klassenarbeitsplan");
     const classes = classwork.classes || [];
     const entries = classwork.entries || [];
 
-    bindExternalLink(elements.orgaplanOpenLink, orgaplan.sourceUrl, "PDF oeffnen");
-    bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Plan online im Viewer oeffnen");
+    if (elements.orgaplanDigestCard) {
+      elements.orgaplanDigestCard.hidden = !showOrgaplan;
+    }
+    if (elements.classworkDigestCard) {
+      elements.classworkDigestCard.hidden = !showClasswork;
+    }
 
-    elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
-    elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
+    if (showOrgaplan) {
+      bindExternalLink(elements.orgaplanOpenLink, orgaplan.sourceUrl, "PDF oeffnen");
+      elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
+    }
+    if (showClasswork) {
+      bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Plan online im Viewer oeffnen");
+      elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
+    }
     elements.classworkUploadFeedback.textContent = state.classworkUploadFeedback;
     elements.classworkUploadFeedback.className = `connect-feedback${state.classworkUploadFeedbackKind ? ` ${state.classworkUploadFeedbackKind}` : ""}`;
 
-    renderClassworkSelector(classes, classwork.defaultClass || "");
-    renderClassworkViewSwitch();
+    if (showClasswork) {
+      renderClassworkSelector(classes, classwork.defaultClass || "");
+      renderClassworkViewSwitch();
+    }
 
     const orgaplanItems = orgaplan.upcoming.length ? orgaplan.upcoming : orgaplan.highlights;
 
-    elements.orgaplanUpcomingList.innerHTML = orgaplanItems.length
-      ? orgaplanItems
-          .map((item) => renderOrgaplanItem(item))
-          .join("")
-      : `<div class="empty-state">Noch keine Orgaplan-Highlights erkannt.</div>`;
+    if (showOrgaplan) {
+      elements.orgaplanUpcomingList.innerHTML = orgaplanItems.length
+        ? orgaplanItems
+            .map((item) => renderOrgaplanItem(item))
+            .join("")
+        : `<div class="empty-state">Noch keine Orgaplan-Highlights erkannt.</div>`;
+    }
 
     const activeClass = getActiveClassworkClass(classes, classwork.defaultClass || "");
     const classEntries = entries
       .filter((entry) => entry.classLabel === activeClass)
       .sort((left, right) => (left.isoDate || "").localeCompare(right.isoDate || ""));
     const visibleClassEntries = getVisiblePanelItems(classEntries, "classwork");
-    setExpandableMeta(elements.classworkPreviewList, classEntries.length, visibleClassEntries.length);
+    if (showClasswork) {
+      setExpandableMeta(elements.classworkPreviewList, classEntries.length, visibleClassEntries.length);
 
-    elements.classworkPreviewList.innerHTML = classEntries.length
-      ? state.classworkView === "calendar"
-        ? renderClassworkCalendar(visibleClassEntries)
-        : renderClassworkList(visibleClassEntries)
-      : classwork.previewRows.length
-        ? classwork.previewRows
-            .map(
-              (row) => `
-                <article class="priority-item">
-                  <p class="priority-copy">${row}</p>
-                </article>
-              `
-            )
-            .join("")
-        : `<div class="empty-state">Noch keine Klassenarbeiten fuer diese Klasse erkannt.</div>`;
+      elements.classworkPreviewList.innerHTML = classEntries.length
+        ? state.classworkView === "calendar"
+          ? renderClassworkCalendar(visibleClassEntries)
+          : renderClassworkList(visibleClassEntries)
+        : classwork.previewRows.length
+          ? classwork.previewRows
+              .map(
+                (row) => `
+                  <article class="priority-item">
+                    <p class="priority-copy">${row}</p>
+                  </article>
+                `
+              )
+              .join("")
+          : `<div class="empty-state">Noch keine Klassenarbeiten fuer diese Klasse erkannt.</div>`;
+    }
   }
 
   // ── SECTION: Classwork ───────────────────────────────────────────────────────
@@ -2281,6 +2380,7 @@
     renderMeta();
     renderRuntimeBanner();
     renderSectionFocus();
+    renderStats();
     renderBriefing();
     renderQuickLinks();
     renderItslearningConnector();
@@ -2555,6 +2655,13 @@
     elements.assistantAnswer.textContent =
       "Frag mich nach der Woche, nach dem Orgaplan, nach Dokumenten oder nach deiner Inbox.";
     registerEvents();
+    window.addEventListener("dashboard-layout-changed", () => {
+      if (state.data) {
+        renderAll();
+      } else {
+        renderSectionFocus();
+      }
+    });
     // Init DashboardManager for multi-user module layout
     DashboardManager.init();
     // Init LehrerGrades with shared state, elements, and render callbacks (Phase 9e)

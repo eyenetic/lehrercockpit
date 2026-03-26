@@ -436,3 +436,356 @@ def test_index_html_admin_link_conditional_on_is_admin(index_html_content):
         "initUserInfo block does not check is_admin. "
         "Admin link visibility must be conditional on is_admin."
     )
+
+
+def test_dashboard_manager_exposes_module_visibility_helper(dashboard_manager_content):
+    """dashboard-manager.js exposes isModuleVisible for UI gating."""
+    assert "isModuleVisible" in dashboard_manager_content, (
+        "dashboard-manager.js does not expose isModuleVisible. "
+        "Expected: UI can query persisted module visibility after layout changes."
+    )
+
+
+def test_app_js_rerenders_on_dashboard_layout_changed(app_js_content):
+    """src/app.js listens for dashboard-layout-changed so layout updates affect the visible UI immediately."""
+    assert "dashboard-layout-changed" in app_js_content, (
+        "src/app.js does not listen for dashboard-layout-changed. "
+        "Expected: dashboard re-renders immediately after module layout changes."
+    )
+
+
+# ── Visibility bug fix tests (dashboard module visibility) ───────────────────
+# These tests validate the end-to-end fix for the bug where disabled modules
+# remained visible on the dashboard after saving layout settings.
+
+def test_app_js_contains_isSectionEnabled(app_js_content):
+    """src/app.js defines isSectionEnabled() for section-level visibility gating."""
+    assert "isSectionEnabled" in app_js_content, (
+        "src/app.js does not define isSectionEnabled(). "
+        "Expected: a function that maps section IDs to module visibility checks."
+    )
+
+
+def test_app_js_isSectionEnabled_maps_schedule_to_webuntis(app_js_content):
+    """src/app.js isSectionEnabled maps 'schedule' to isModuleVisible('webuntis')."""
+    # Both must appear in the same function context in app.js
+    assert '"schedule"' in app_js_content or "'schedule'" in app_js_content, (
+        "src/app.js does not reference 'schedule' section in isSectionEnabled."
+    )
+    assert '"webuntis"' in app_js_content or "'webuntis'" in app_js_content, (
+        "src/app.js does not reference 'webuntis' module in visibility checks."
+    )
+
+
+def test_app_js_isSectionEnabled_maps_grades_to_noten(app_js_content):
+    """src/app.js isSectionEnabled maps 'grades' to isModuleVisible('noten')."""
+    assert '"grades"' in app_js_content or "'grades'" in app_js_content, (
+        "src/app.js does not reference 'grades' section in isSectionEnabled."
+    )
+    assert '"noten"' in app_js_content or "'noten'" in app_js_content, (
+        "src/app.js does not reference 'noten' module in visibility checks."
+    )
+
+
+def test_app_js_isSectionEnabled_maps_documents_to_orgaplan(app_js_content):
+    """src/app.js isSectionEnabled maps 'documents' to orgaplan/klassenarbeitsplan visibility."""
+    assert '"orgaplan"' in app_js_content or "'orgaplan'" in app_js_content, (
+        "src/app.js does not reference 'orgaplan' module in visibility checks."
+    )
+    assert '"klassenarbeitsplan"' in app_js_content or "'klassenarbeitsplan'" in app_js_content, (
+        "src/app.js does not reference 'klassenarbeitsplan' module in visibility checks."
+    )
+
+
+def test_app_js_renderSectionFocus_calls_isSectionEnabled(app_js_content):
+    """src/app.js renderSectionFocus() calls isSectionEnabled() to gate section visibility."""
+    # Both must appear close together in the same function
+    assert "renderSectionFocus" in app_js_content, (
+        "src/app.js does not define renderSectionFocus()."
+    )
+    # Find the renderSectionFocus block and check isSectionEnabled is called inside it
+    start = app_js_content.find("function renderSectionFocus")
+    assert start != -1, "renderSectionFocus function not found in src/app.js"
+    # Check within a reasonable window (800 chars covers the full function body)
+    func_region = app_js_content[start:start + 800]
+    assert "isSectionEnabled" in func_region, (
+        "renderSectionFocus() does not call isSectionEnabled() in its body. "
+        "Expected: section visibility driven by isSectionEnabled() for each section."
+    )
+
+
+def test_app_js_renderPlanDigest_checks_orgaplan_visibility(app_js_content):
+    """src/app.js renderPlanDigest() checks isModuleVisible('orgaplan') to hide the orgaplan card."""
+    start = app_js_content.find("function renderPlanDigest")
+    assert start != -1, "renderPlanDigest function not found in src/app.js"
+    func_region = app_js_content[start:start + 1200]
+    assert "orgaplan" in func_region, (
+        "renderPlanDigest() does not reference 'orgaplan' module. "
+        "Expected: orgaplan digest card hidden when orgaplan module is disabled."
+    )
+    assert "isModuleVisible" in func_region, (
+        "renderPlanDigest() does not call isModuleVisible() to gate the orgaplan card. "
+        "Expected: showOrgaplan = isModuleVisible('orgaplan') controls card visibility."
+    )
+
+
+def test_app_js_renderPlanDigest_checks_klassenarbeitsplan_visibility(app_js_content):
+    """src/app.js renderPlanDigest() checks isModuleVisible('klassenarbeitsplan') to hide that card."""
+    start = app_js_content.find("function renderPlanDigest")
+    assert start != -1, "renderPlanDigest function not found in src/app.js"
+    func_region = app_js_content[start:start + 1200]
+    assert "klassenarbeitsplan" in func_region, (
+        "renderPlanDigest() does not reference 'klassenarbeitsplan' module. "
+        "Expected: classwork digest card hidden when klassenarbeitsplan module is disabled."
+    )
+
+
+def test_dashboard_manager_saveLayout_emits_layout_changed(dashboard_manager_content):
+    """dashboard-manager.js _saveLayout() emits dashboard-layout-changed after persisting.
+
+    This is the save → re-render chain: save succeeds → update local state
+    → _emitLayoutChanged() → app.js renderAll() → sections hidden immediately.
+    """
+    # The function must contain both the API call and the event emit
+    assert "_saveLayout" in dashboard_manager_content, (
+        "dashboard-manager.js does not define _saveLayout(). "
+        "Expected: layout save function that persists to backend and re-emits layout-changed."
+    )
+    # Find _saveLayout function body and verify it calls _emitLayoutChanged
+    start = dashboard_manager_content.find("function _saveLayout")
+    assert start != -1, "_saveLayout function not found in dashboard-manager.js"
+    # Use 2000 chars — the full _saveLayout body including the forEach+map block is ~1400 chars
+    func_region = dashboard_manager_content[start:start + 2000]
+    assert "_emitLayoutChanged" in func_region, (
+        "_saveLayout() does not call _emitLayoutChanged() after saving. "
+        "Expected: layout save triggers immediate re-render via dashboard-layout-changed event."
+    )
+
+
+def test_dashboard_manager_emitLayoutChanged_dispatches_custom_event(dashboard_manager_content):
+    """dashboard-manager.js _emitLayoutChanged() dispatches CustomEvent('dashboard-layout-changed')."""
+    assert "_emitLayoutChanged" in dashboard_manager_content, (
+        "dashboard-manager.js does not define _emitLayoutChanged(). "
+        "Expected: helper that dispatches dashboard-layout-changed CustomEvent."
+    )
+    # Verify it dispatches the correct event name
+    start = dashboard_manager_content.find("_emitLayoutChanged")
+    assert start != -1
+    # Look for the event name in a region that covers the function definition
+    region = dashboard_manager_content[start:start + 300]
+    assert "dashboard-layout-changed" in region, (
+        "_emitLayoutChanged() does not dispatch 'dashboard-layout-changed' CustomEvent. "
+        "Expected: window.dispatchEvent(new CustomEvent('dashboard-layout-changed', ...))."
+    )
+
+
+def test_dashboard_manager_module_section_map_contains_all_visibility_ids(dashboard_manager_content):
+    """dashboard-manager.js MODULE_SECTION_MAP covers all six required module IDs.
+
+    These are the module IDs that must be supported for end-to-end visibility gating:
+    webuntis, noten, itslearning, nextcloud, orgaplan, klassenarbeitsplan.
+    """
+    required_ids = ["webuntis", "noten", "itslearning", "nextcloud", "orgaplan", "klassenarbeitsplan"]
+    for module_id in required_ids:
+        assert module_id in dashboard_manager_content, (
+            f"dashboard-manager.js does not reference module_id '{module_id}'. "
+            f"Expected: MODULE_SECTION_MAP and/or visibility logic covers all required module IDs."
+        )
+
+
+def test_app_js_isModuleVisible_delegates_to_dashboard_manager(app_js_content):
+    """src/app.js isModuleVisible() delegates to DashboardManager.isModuleVisible().
+
+    The local isModuleVisible() wrapper in app.js must call DashboardManager.isModuleVisible()
+    so that the persisted layout state (from _modules) drives section visibility.
+    """
+    start = app_js_content.find("function isModuleVisible")
+    assert start != -1, "isModuleVisible wrapper function not found in src/app.js"
+    func_region = app_js_content[start:start + 300]
+    assert "DashboardManager" in func_region, (
+        "src/app.js isModuleVisible() does not delegate to DashboardManager. "
+        "Expected: return DashboardManager.isModuleVisible(moduleId) so persisted state is used."
+    )
+
+
+# ── Overview/Briefing module visibility gating tests ─────────────────────────
+# These tests verify that the overview section (always visible) correctly gates
+# module-specific content in renderStats() and renderBriefing() by module
+# visibility flags — fixing the bug where disabled modules still appeared in the
+# briefing card and stat tiles on the overview screen.
+
+def test_app_js_renderStats_gates_webuntis_card_by_module_visibility(app_js_content):
+    """src/app.js renderStats() gates the WebUntis stat card by isModuleVisible('webuntis').
+
+    When the webuntis module is disabled, the 'WebUntis' stat card must not be rendered.
+    The fix: check showWebuntis = isModuleVisible('webuntis') before adding the card.
+    """
+    start = app_js_content.find("function renderStats")
+    assert start != -1, "renderStats function not found in src/app.js"
+    func_region = app_js_content[start:start + 1200]
+    assert "isModuleVisible" in func_region or "showWebuntis" in func_region, (
+        "renderStats() does not call isModuleVisible() to gate the WebUntis stat card. "
+        "Expected: showWebuntis = isModuleVisible('webuntis') controls whether the WebUntis tile is rendered."
+    )
+    assert "webuntis" in func_region.lower(), (
+        "renderStats() does not reference 'webuntis' for visibility gating. "
+        "Expected: WebUntis stat card skipped when webuntis module is disabled."
+    )
+
+
+def test_app_js_renderStats_gates_inbox_card_by_module_visibility(app_js_content):
+    """src/app.js renderStats() gates the Hinweise (inbox) stat card by inbox module visibility.
+
+    When both mail and itslearning modules are disabled, the 'Hinweise' stat card must not render.
+    The fix: check showInbox = isAnyModuleVisible(['itslearning', 'mail']) before adding the card.
+    """
+    start = app_js_content.find("function renderStats")
+    assert start != -1, "renderStats function not found in src/app.js"
+    func_region = app_js_content[start:start + 1200]
+    assert "showInbox" in func_region or "isAnyModuleVisible" in func_region, (
+        "renderStats() does not check inbox module visibility for the Hinweise stat card. "
+        "Expected: showInbox = isAnyModuleVisible(['itslearning', 'mail']) gates the Hinweise tile."
+    )
+
+
+def test_app_js_renderBriefing_gates_webuntis_items_by_module_visibility(app_js_content):
+    """src/app.js renderBriefing() gates WebUntis briefing items by isModuleVisible('webuntis').
+
+    When webuntis is disabled: nextEvent, todaySummary, weeklyPreview must all be null/skipped.
+    """
+    start = app_js_content.find("function renderBriefing")
+    assert start != -1, "renderBriefing function not found in src/app.js"
+    func_region = app_js_content[start:start + 2200]
+    assert "showWebuntis" in func_region, (
+        "renderBriefing() does not define showWebuntis visibility flag. "
+        "Expected: showWebuntis = isModuleVisible('webuntis') used to skip WebUntis briefing items."
+    )
+    # nextEvent must only be fetched when webuntis is visible
+    assert "showWebuntis" in func_region[:func_region.find("findNextLesson") + 50 if "findNextLesson" in func_region else len(func_region)], (
+        "renderBriefing() does not guard findNextLesson() with showWebuntis. "
+        "Expected: nextEvent = showWebuntis ? findNextLesson(data) : null."
+    )
+
+
+def test_app_js_renderBriefing_gates_orgaplan_item_by_module_visibility(app_js_content):
+    """src/app.js renderBriefing() gates Orgaplan briefing item by isModuleVisible('orgaplan').
+
+    When orgaplan is disabled, no orgaplan item should appear in the briefing card.
+    """
+    start = app_js_content.find("function renderBriefing")
+    assert start != -1, "renderBriefing function not found in src/app.js"
+    func_region = app_js_content[start:start + 2200]
+    assert "showOrgaplan" in func_region, (
+        "renderBriefing() does not define showOrgaplan visibility flag. "
+        "Expected: showOrgaplan = isModuleVisible('orgaplan') gates the orgaplan briefing item."
+    )
+
+
+def test_app_js_renderBriefing_gates_classwork_item_by_module_visibility(app_js_content):
+    """src/app.js renderBriefing() gates Klassarbeit briefing item by isModuleVisible('klassenarbeitsplan').
+
+    When klassenarbeitsplan is disabled, no classwork item appears in the briefing.
+    """
+    start = app_js_content.find("function renderBriefing")
+    assert start != -1, "renderBriefing function not found in src/app.js"
+    func_region = app_js_content[start:start + 2200]
+    assert "showClasswork" in func_region, (
+        "renderBriefing() does not define showClasswork visibility flag. "
+        "Expected: showClasswork = isModuleVisible('klassenarbeitsplan') gates classwork briefing item."
+    )
+
+
+def test_app_js_renderBriefing_gates_inbox_item_by_module_visibility(app_js_content):
+    """src/app.js renderBriefing() gates Inbox briefing item by inbox module visibility.
+
+    When both mail and itslearning are disabled, no inbox item appears in the briefing.
+    """
+    start = app_js_content.find("function renderBriefing")
+    assert start != -1, "renderBriefing function not found in src/app.js"
+    func_region = app_js_content[start:start + 2200]
+    assert "showInbox" in func_region, (
+        "renderBriefing() does not define showInbox visibility flag. "
+        "Expected: showInbox = isAnyModuleVisible(['itslearning', 'mail']) gates inbox briefing item."
+    )
+
+
+# ── First-load flash fix tests (isLayoutReady guard) ─────────────────────────
+# These tests verify that the first-load flash bug is fixed: before the layout
+# API response arrives, renderStats() and renderBriefing() must not show
+# module-derived content (because isModuleVisible() returns true optimistically
+# when _modules is still empty).
+
+def test_dashboard_manager_exposes_isLayoutReady(dashboard_manager_content):
+    """src/modules/dashboard-manager.js exposes isLayoutReady() method.
+
+    isLayoutReady() returns false until the layout API response has been received
+    at least once. renderStats() and renderBriefing() use this to prevent the
+    first-load flash where disabled modules briefly appear before state is loaded.
+    """
+    assert "isLayoutReady" in dashboard_manager_content, (
+        "dashboard-manager.js does not expose isLayoutReady(). "
+        "Expected: method that returns true only after layout data has loaded from the API."
+    )
+    # Verify it is returned from the public API object
+    return_start = dashboard_manager_content.rfind("return {")
+    assert return_start != -1, "Public API return block not found in dashboard-manager.js"
+    return_region = dashboard_manager_content[return_start:]
+    assert "isLayoutReady" in return_region, (
+        "isLayoutReady is not in the public return object of DashboardManager. "
+        "It must be exported so app.js can call DashboardManager.isLayoutReady()."
+    )
+
+
+def test_app_js_renderStats_checks_isLayoutReady(app_js_content):
+    """src/app.js renderStats() checks isLayoutReady() before rendering module-derived tiles.
+
+    The fix for the first-load flash: when layout state is not yet available,
+    module-dependent stat tiles (WebUntis, Hinweise) must not be rendered.
+    Non-module tiles (Prioritaeten, Dokumente) always render regardless.
+    """
+    start = app_js_content.find("function renderStats")
+    assert start != -1, "renderStats function not found in src/app.js"
+    func_region = app_js_content[start:start + 1400]
+    assert "isLayoutReady" in func_region, (
+        "renderStats() does not call isLayoutReady() to guard module-derived tiles. "
+        "Expected: layoutReady = isLayoutReady() used before showWebuntis / showInbox checks."
+    )
+    assert "layoutReady" in func_region, (
+        "renderStats() does not define a 'layoutReady' local variable. "
+        "Expected: const layoutReady = isLayoutReady(); used to gate module tiles."
+    )
+
+
+def test_app_js_renderBriefing_checks_isLayoutReady(app_js_content):
+    """src/app.js renderBriefing() checks isLayoutReady() before rendering module-derived items.
+
+    The fix for the first-load flash: when layout state is not yet available,
+    module-specific briefing items (WebUntis, Orgaplan, Klassarbeit, Inbox) must not render.
+    """
+    start = app_js_content.find("function renderBriefing")
+    assert start != -1, "renderBriefing function not found in src/app.js"
+    func_region = app_js_content[start:start + 2400]
+    assert "isLayoutReady" in func_region, (
+        "renderBriefing() does not call isLayoutReady() to guard module-derived items. "
+        "Expected: layoutReady = isLayoutReady() used before showWebuntis / showOrgaplan / etc."
+    )
+    assert "layoutReady" in func_region, (
+        "renderBriefing() does not define a 'layoutReady' local variable. "
+        "Expected: const layoutReady = isLayoutReady(); used to gate all module briefing items."
+    )
+
+
+def test_app_js_renderAll_calls_renderStats(app_js_content):
+    """src/app.js renderAll() calls renderStats() so stat tiles update on every re-render.
+
+    renderStats() must be called inside renderAll() so that when dashboard-layout-changed
+    fires (after layout data arrives), the stat tiles are re-rendered with correct visibility.
+    """
+    start = app_js_content.find("function renderAll")
+    assert start != -1, "renderAll function not found in src/app.js"
+    # renderAll is a short function — 400 chars covers the full body
+    func_region = app_js_content[start:start + 400]
+    assert "renderStats" in func_region, (
+        "renderAll() does not call renderStats(). "
+        "Expected: renderStats() called inside renderAll() so stat tiles update correctly."
+    )

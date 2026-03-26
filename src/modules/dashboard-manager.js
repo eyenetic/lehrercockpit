@@ -20,6 +20,10 @@
   var DashboardManager = (function() {
     var _modules = [];   // [{module_id, display_name, is_visible, sort_order, is_configured, requires_config, module_type}]
     var _systemSettings = {};
+    // _layoutReady tracks whether the layout API response has arrived at least once.
+    // Until this is true, isModuleVisible() returns optimistic true (all modules visible),
+    // so callers that need accurate visibility state should check isLayoutReady() first.
+    var _layoutReady = false;
 
     // Module-ID → DOM section id mapping (best-effort)
     var MODULE_SECTION_MAP = {
@@ -57,6 +61,12 @@
       return fetch(_backendBase() + path, opts);
     }
 
+    function _emitLayoutChanged() {
+      window.dispatchEvent(new CustomEvent('dashboard-layout-changed', {
+        detail: { modules: _modules.slice() }
+      }));
+    }
+
     function init() {
       if (!window.MULTIUSER_ENABLED) return;
       _initAsync().catch(function() {});
@@ -72,6 +82,8 @@
               return (a.sort_order || 0) - (b.sort_order || 0);
             });
             _systemSettings = data.system || {};
+            _layoutReady = true;
+            _emitLayoutChanged();
 
             // Show settings button in topbar
             var settingsBtn = document.getElementById('settings-button');
@@ -290,6 +302,7 @@
             return m.module_id === mp.module_id ? Object.assign({}, m, { is_visible: mp.is_visible, sort_order: mp.sort_order }) : m;
           });
         });
+        _emitLayoutChanged();
         setTimeout(function() {
           var overlay = document.getElementById('layout-panel-overlay');
           if (overlay) overlay.hidden = true;
@@ -305,6 +318,13 @@
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // Returns true once the layout has been loaded from the API at least once.
+    // Before this point, _modules is empty and isModuleVisible() defaults to true.
+    // Callers that render module-derived content should skip that content until ready.
+    function isLayoutReady() {
+      return _layoutReady;
+    }
+
     // Phase 11d: Return array of module IDs that are enabled/visible for the current user.
     // If the layout has not yet been loaded (init still pending), returns null so the caller
     // can fall back to fetching all modules rather than skipping them.
@@ -315,7 +335,20 @@
         .map(function(m) { return m.module_id; });
     }
 
-    return { init: init, openLayoutPanel: openLayoutPanel, getActiveModuleIds: getActiveModuleIds };
+    function isModuleVisible(moduleId) {
+      if (!moduleId || !_modules || !_modules.length) return true;
+      var module = _modules.find(function(m) { return m.module_id === moduleId; });
+      if (!module) return true;
+      return module.is_visible !== false && module.enabled !== false;
+    }
+
+    return {
+      init: init,
+      openLayoutPanel: openLayoutPanel,
+      getActiveModuleIds: getActiveModuleIds,
+      isModuleVisible: isModuleVisible,
+      isLayoutReady: isLayoutReady
+    };
   })();
 
   window.DashboardManager = DashboardManager;
