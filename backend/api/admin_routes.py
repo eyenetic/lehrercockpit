@@ -51,12 +51,40 @@ def list_users():
         return error(f"Fehler beim Laden der User: {type(exc).__name__}: {exc}", 500)
 
 
+def _normalize_role_and_admin_request(role: str, is_admin_raw) -> tuple:
+    """Normalizes role + is_admin from API request body (Phase 13 compatibility layer).
+
+    Handles both legacy and new canonical form:
+      - {"role": "admin"}                          → role='teacher', is_admin=True
+      - {"role": "teacher", "is_admin": True}      → role='teacher', is_admin=True  (canonical)
+      - {"role": "teacher", "is_admin": False}     → role='teacher', is_admin=False
+      - {"role": "teacher"}                        → role='teacher', is_admin=False
+
+    Args:
+        role: Raw role string from request body.
+        is_admin_raw: Raw is_admin value from request body (may be None if not sent).
+
+    Returns:
+        Tuple (normalized_role: str, normalized_is_admin: bool)
+    """
+    if role == "admin":
+        # Legacy compatibility: treat role='admin' as is_admin=True, role='teacher'
+        return ("teacher", True)
+    is_admin = bool(is_admin_raw) if is_admin_raw is not None else False
+    return (role, is_admin)
+
+
 @admin_bp.route("/users", methods=["POST"])
 @require_admin
 def create_user():
     """User anlegen.
 
-    Body: {"first_name": "...", "last_name": "...", "role": "teacher", "display_name": "..."}
+    Body: {"first_name": "...", "last_name": "...", "role": "teacher",
+           "is_admin": false, "display_name": "..."}
+
+    Legacy compat: role='admin' is normalized to role='teacher' + is_admin=True.
+    Canonical new form: role='teacher' + is_admin=true/false.
+
     Response 201: {"ok": true, "user": {...}, "access_code": "..."}
     """
     body = request.get_json(silent=True) or {}
@@ -64,7 +92,8 @@ def create_user():
     last_name = str(body.get("last_name", "")).strip()
     # display_name is optional — if only display_name given, split it
     display_name = str(body.get("display_name", "")).strip()
-    role = str(body.get("role", "teacher")).strip() or "teacher"
+    role_raw = str(body.get("role", "teacher")).strip() or "teacher"
+    is_admin_raw = body.get("is_admin", None)
 
     # If first_name/last_name not given but display_name is, split display_name
     if not first_name and not last_name and display_name:
@@ -76,12 +105,15 @@ def create_user():
         return error("Vorname ist erforderlich (first_name oder display_name)", 422)
     if not last_name:
         return error("Nachname ist erforderlich (last_name oder display_name)", 422)
-    if role not in ("teacher", "admin"):
+    if role_raw not in ("teacher", "admin"):
         return error("Ungültige Rolle (teacher oder admin)", 422)
+
+    # Normalize: role='admin' → role='teacher' + is_admin=True (Phase 13 compat)
+    role, is_admin = _normalize_role_and_admin_request(role_raw, is_admin_raw)
 
     try:
         with db_connection() as conn:
-            user, plain_code = create_teacher(conn, first_name, last_name, role)
+            user, plain_code = create_teacher(conn, first_name, last_name, role, is_admin=is_admin)
             initialize_user_modules(conn, user.id)
             try:
                 log_audit_event(
@@ -120,11 +152,16 @@ def get_user(user_id: int):
 def update_user_route(user_id: int):
     """User aktualisieren.
 
-    Body: {"first_name"?: "...", "last_name"?: "...", "role"?: "...", "is_active"?: bool}
+    Body: {"first_name"?: "...", "last_name"?: "...", "role"?: "...",
+           "is_active"?: bool, "is_admin"?: bool}
+
+    Legacy compat: passing role='admin' is normalized to role='teacher' + is_admin=True.
+    Canonical new form: pass role='teacher' and is_admin=true/false independently.
+
     Response: {"ok": true, "user": {...}}
     """
     body = request.get_json(silent=True) or {}
-    allowed_fields = {"first_name", "last_name", "role", "is_active"}
+    allowed_fields = {"first_name", "last_name", "role", "is_active", "is_admin"}
     updates = {}
 
     for field in allowed_fields:
@@ -132,12 +169,18 @@ def update_user_route(user_id: int):
             val = body[field]
             if field in ("first_name", "last_name", "role"):
                 val = str(val).strip()
-            elif field == "is_active":
+            elif field in ("is_active", "is_admin"):
                 val = bool(val)
             updates[field] = val
 
     if "role" in updates and updates["role"] not in ("teacher", "admin"):
         return error("Ungültige Rolle (teacher oder admin)", 422)
+
+    # Compatibility: role='admin' in update → role='teacher' + is_admin=True
+    # (handled in update_user store-layer, but also apply here for clarity)
+    if "role" in updates and updates["role"] == "admin":
+        updates["role"] = "teacher"
+        updates.setdefault("is_admin", True)
 
     try:
         with db_connection() as conn:

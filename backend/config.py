@@ -13,6 +13,12 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 API_URL = os.environ.get("API_URL", "http://localhost:5000")
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")  # Fernet key for module config encryption
 
+# Login rate limiting — ENV-configurable thresholds
+# Set LOGIN_RATE_LIMIT_MAX and LOGIN_RATE_LIMIT_WINDOW_SECONDS in your deployment ENV to tune.
+LOGIN_RATE_LIMIT_MAX = int(os.environ.get("LOGIN_RATE_LIMIT_MAX", "10"))
+LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", "900"))
+LOGIN_RATE_LIMIT_MAX_PER_MINUTE = int(os.environ.get("LOGIN_RATE_LIMIT_MAX_PER_MINUTE", "5"))
+
 
 @dataclass
 class MailSettings:

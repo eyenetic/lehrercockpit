@@ -187,6 +187,73 @@ def test_ensure_bootstrap_admin_advisory_lock_called():
     )
 
 
+# ── Phase 13: Bootstrap uses is_admin=TRUE query ──────────────────────────────
+
+def test_ensure_bootstrap_admin_queries_is_admin_not_role(capsys):
+    """Bootstrap check queries is_admin=TRUE (not role='admin') — Phase 13."""
+    from backend.admin.bootstrap import ensure_bootstrap_admin
+
+    mock_conn = MagicMock()
+    executed_sql = []
+
+    def track_execute(sql, *args, **kwargs):
+        executed_sql.append(sql.strip())
+        mock_result = MagicMock()
+        mock_result.fetchone.return_value = (1,)  # Admin exists
+        return mock_result
+
+    mock_conn.execute.side_effect = track_execute
+
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__ = MagicMock(return_value=mock_conn)
+    mock_ctx.__exit__ = MagicMock(return_value=False)
+
+    with patch("backend.db.db_connection", return_value=mock_ctx):
+        ensure_bootstrap_admin()
+
+    # Find the COUNT SQL (not the advisory lock)
+    count_sqls = [s for s in executed_sql if "COUNT" in s.upper()]
+    assert count_sqls, "Expected at least one COUNT query"
+    count_sql = count_sqls[0]
+    assert "is_admin" in count_sql.lower(), (
+        f"Phase 13: Bootstrap should query is_admin=TRUE, not role='admin'. "
+        f"Got SQL: {count_sql!r}"
+    )
+
+
+def test_ensure_bootstrap_admin_creates_with_is_admin_true(capsys):
+    """Bootstrap creates admin with is_admin=True (canonical Phase 13 form)."""
+    from backend.admin.bootstrap import ensure_bootstrap_admin
+
+    mock_conn = MagicMock()
+    mock_conn.execute.return_value.fetchone.return_value = (0,)
+
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__ = MagicMock(return_value=mock_conn)
+    mock_ctx.__exit__ = MagicMock(return_value=False)
+
+    mock_user = MagicMock()
+    mock_user.id = 99
+    mock_user.full_name = "Bootstrap Admin"
+
+    captured_kwargs = {}
+
+    def mock_create_teacher(conn, first_name, last_name, role="teacher", is_admin=False):
+        captured_kwargs["role"] = role
+        captured_kwargs["is_admin"] = is_admin
+        return mock_user, "bootstrapcode12345678901234567890"
+
+    with patch("backend.db.db_connection", return_value=mock_ctx):
+        with patch("backend.users.user_service.create_teacher",
+                   side_effect=mock_create_teacher):
+            ensure_bootstrap_admin()
+
+    assert captured_kwargs.get("is_admin") is True, (
+        f"Phase 13: Bootstrap admin must be created with is_admin=True, "
+        f"got: {captured_kwargs.get('is_admin')!r}"
+    )
+
+
 # ── DB-backed tests (skipped without DATABASE_URL) ────────────────────────────
 
 @pytest.mark.db

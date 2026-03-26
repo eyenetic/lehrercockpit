@@ -3,6 +3,7 @@ Modul-Daten-Endpunkte: liefert die eigentlichen Modul-Inhalte.
 Enthält auch CRUD-Endpunkte für Modul-Konfigurationen und
 öffentliche Registry-Metadaten (kein Auth erforderlich).
 """
+import dataclasses
 from datetime import datetime, timezone
 from flask import Blueprint, request, g
 
@@ -147,6 +148,7 @@ def delete_module_config_route(module_id: str):
 def itslearning_data():
     """itslearning-Daten abrufen.
 
+    Returns {"ok": true, "data": null, "configured": false} when no credentials are set.
     Response: {"ok": true, "data": {...}}
     """
     try:
@@ -155,19 +157,34 @@ def itslearning_data():
     except Exception as exc:
         return error(f"Fehler beim Laden der Konfiguration: {type(exc).__name__}: {exc}", 500)
 
+    # Graceful: no credentials configured
+    username = config.get("username", "") if config else ""
+    password = config.get("password", "") if config else ""
+    if not username or not password:
+        return success({
+            "data": None,
+            "configured": False,
+            "error": "itslearning nicht konfiguriert",
+        })
+
     try:
         from backend.config import ItslearningSettings
         from backend.itslearning_adapter import fetch_itslearning_sync
 
         settings = ItslearningSettings(
             base_url=config.get("base_url", "https://berlin.itslearning.com"),
-            username=config.get("username", ""),
-            password=config.get("password", ""),
+            username=username,
+            password=password,
             max_updates=int(config.get("max_updates", 6)),
         )
         now = datetime.now(timezone.utc)
-        data = fetch_itslearning_sync(settings, now)
-        return success({"data": data})
+        result = fetch_itslearning_sync(settings, now)
+        # Convert dataclass to dict so Flask's jsonify can serialize it
+        try:
+            data_dict = dataclasses.asdict(result)
+        except Exception as serial_exc:
+            return success({"data": None, "error": f"Serialisierungsfehler: {type(serial_exc).__name__}: {serial_exc}"})
+        return success({"data": data_dict, "configured": True})
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
 
@@ -178,6 +195,9 @@ def webuntis_data():
     """WebUntis-Daten abrufen.
 
     Response: {"ok": true, "data": {...}}
+
+    If no ical_url is configured, returns {"ok": true, "data": null, "configured": false}
+    with HTTP 200 rather than 500.
     """
     try:
         with db_connection() as conn:
@@ -185,14 +205,27 @@ def webuntis_data():
     except Exception as exc:
         return error(f"Fehler beim Laden der Konfiguration: {type(exc).__name__}: {exc}", 500)
 
+    base_url = config.get("base_url", "") if config else ""
+    ical_url = config.get("ical_url", "") if config else ""
+
+    if not ical_url:
+        return success({
+            "data": None,
+            "configured": False,
+            "error": "WebUntis iCal-Link nicht konfiguriert",
+        })
+
     try:
         from backend.webuntis_adapter import fetch_webuntis_sync
 
-        base_url = config.get("base_url", "")
-        ical_url = config.get("ical_url", "")
         now = datetime.now(timezone.utc)
-        data = fetch_webuntis_sync(base_url, ical_url, now)
-        return success({"data": data})
+        result = fetch_webuntis_sync(base_url, ical_url, now)
+        # Convert dataclass to dict so Flask's jsonify can serialize it
+        try:
+            data_dict = dataclasses.asdict(result)
+        except Exception as serial_exc:
+            return success({"data": None, "error": f"Serialisierungsfehler: {type(serial_exc).__name__}: {serial_exc}"})
+        return success({"data": data_dict})
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
 
@@ -202,6 +235,7 @@ def webuntis_data():
 def nextcloud_data():
     """Nextcloud-Daten abrufen.
 
+    Returns {"ok": true, "data": null, "configured": false} when base_url not set.
     Response: {"ok": true, "data": {...}}
     """
     try:
@@ -210,11 +244,42 @@ def nextcloud_data():
     except Exception as exc:
         return error(f"Fehler beim Laden der Konfiguration: {type(exc).__name__}: {exc}", 500)
 
+    # Graceful: no base_url configured at all
+    base_url = config.get("base_url", "") if config else ""
+    workspace_url = config.get("workspace_url", "") if config else ""
+    if not base_url and not workspace_url:
+        return success({
+            "data": None,
+            "configured": False,
+            "error": "Nextcloud nicht konfiguriert",
+        })
+
     try:
+        from backend.config import NextcloudSettings
         from backend.nextcloud_adapter import fetch_nextcloud_sync
 
-        data = fetch_nextcloud_sync(config)
-        return success({"data": data})
+        settings = NextcloudSettings(
+            base_url=config.get("base_url", ""),
+            username=config.get("username", ""),
+            password=config.get("password", ""),
+            workspace_url=config.get("workspace_url", ""),
+            q1q2_url=config.get("q1q2_url", ""),
+            q3q4_url=config.get("q3q4_url", ""),
+            link_1_label=config.get("link_1_label", ""),
+            link_1_url=config.get("link_1_url", ""),
+            link_2_label=config.get("link_2_label", ""),
+            link_2_url=config.get("link_2_url", ""),
+            link_3_label=config.get("link_3_label", ""),
+            link_3_url=config.get("link_3_url", ""),
+        )
+        now = datetime.now(timezone.utc)
+        result = fetch_nextcloud_sync(settings, now)
+        # Convert dataclass to dict so Flask's jsonify can serialize it
+        try:
+            data_dict = dataclasses.asdict(result)
+        except Exception as serial_exc:
+            return success({"data": None, "error": f"Serialisierungsfehler: {type(serial_exc).__name__}: {serial_exc}"})
+        return success({"data": data_dict, "configured": True})
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
 
@@ -222,50 +287,176 @@ def nextcloud_data():
 @module_bp.route("/orgaplan/data", methods=["GET"])
 @require_auth
 def orgaplan_data():
-    """Orgaplan-Daten aus System-Settings abrufen.
+    """Orgaplan-Daten aus System-Settings abrufen (mit geparstem Digest und Caching).
 
-    Response: {"ok": true, "data": {"url": ..., "pdf_url": ...}}
+    Cacht das Ergebnis von build_plan_digest() in system_settings für 60 Minuten.
+    Response: {"ok": true, "data": {"url": ..., "highlights": [...], ...}, "configured": bool}
     """
     try:
         with db_connection() as conn:
             orgaplan_url = get_system_setting(conn, "orgaplan_url", None)
             pdf_url = get_system_setting(conn, "orgaplan_pdf_url", None)
-
-        return success({"data": {
-            "url": orgaplan_url,
-            "pdf_url": pdf_url,
-        }})
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
+
+    # No URL configured
+    effective_url = pdf_url or orgaplan_url
+    if not effective_url:
+        return success({"data": None, "configured": False})
+
+    # Check cache
+    import json as _json
+    now = datetime.now(timezone.utc)
+    try:
+        with db_connection() as conn:
+            cached_raw = get_system_setting(conn, "orgaplan_cache", None)
+            cached_ts_raw = get_system_setting(conn, "orgaplan_cache_ts", None)
+            cached_url = get_system_setting(conn, "orgaplan_cache_url", None)
+    except Exception:
+        cached_raw = None
+        cached_ts_raw = None
+        cached_url = None
+
+    # Determine if cache is still valid (< 60 minutes old and URL unchanged)
+    cache_valid = False
+    if cached_raw and cached_ts_raw:
+        try:
+            from datetime import timezone as _tz
+            ts = datetime.fromisoformat(cached_ts_raw) if isinstance(cached_ts_raw, str) else None
+            if ts:
+                age_minutes = (now - ts.replace(tzinfo=_tz.utc) if ts.tzinfo is None else now - ts).total_seconds() / 60
+                if age_minutes < 60 and cached_url == effective_url:
+                    cache_valid = True
+        except Exception:
+            cache_valid = False
+
+    if cache_valid and cached_raw:
+        digest = cached_raw if isinstance(cached_raw, dict) else {}
+        return success({
+            "data": {
+                "url": orgaplan_url,
+                "pdf_url": pdf_url,
+                "highlights": digest.get("highlights", []),
+                "upcoming": digest.get("upcoming", []),
+                "entries": digest.get("upcoming", []),  # alias for frontend compat
+                "classes": [],
+                "status": digest.get("status", "ok"),
+                "detail": digest.get("detail", ""),
+                "monthLabel": digest.get("monthLabel", ""),
+                "cached_at": cached_ts_raw,
+            },
+            "configured": True,
+        })
+
+    # Parse fresh
+    try:
+        from backend.plan_digest import build_plan_digest
+        full_digest = build_plan_digest(effective_url, None, None, now)
+        orgaplan_digest = full_digest.get("orgaplan", {})
+
+        # Persist cache
+        ts_str = now.isoformat()
+        try:
+            with db_connection() as conn:
+                set_system_setting(conn, "orgaplan_cache", orgaplan_digest)
+                set_system_setting(conn, "orgaplan_cache_ts", ts_str)
+                set_system_setting(conn, "orgaplan_cache_url", effective_url)
+        except Exception:
+            pass  # Cache write failure is non-fatal
+
+        return success({
+            "data": {
+                "url": orgaplan_url,
+                "pdf_url": pdf_url,
+                "highlights": orgaplan_digest.get("highlights", []),
+                "upcoming": orgaplan_digest.get("upcoming", []),
+                "entries": orgaplan_digest.get("upcoming", []),
+                "classes": [],
+                "status": orgaplan_digest.get("status", "ok"),
+                "detail": orgaplan_digest.get("detail", ""),
+                "monthLabel": orgaplan_digest.get("monthLabel", ""),
+                "cached_at": ts_str,
+            },
+            "configured": True,
+        })
+    except Exception as exc:
+        # Return cached data if available despite parse error
+        if cached_raw and isinstance(cached_raw, dict):
+            digest = cached_raw
+            return success({
+                "data": {
+                    "url": orgaplan_url,
+                    "pdf_url": pdf_url,
+                    "highlights": digest.get("highlights", []),
+                    "upcoming": digest.get("upcoming", []),
+                    "entries": digest.get("upcoming", []),
+                    "classes": [],
+                    "status": "warning",
+                    "detail": f"Cached data (parse error: {type(exc).__name__})",
+                    "monthLabel": digest.get("monthLabel", ""),
+                    "cached_at": cached_ts_raw,
+                },
+                "configured": True,
+            })
+        return success({"data": None, "configured": True, "error": "Fehler beim Laden"})
 
 
 @module_bp.route("/klassenarbeitsplan/data", methods=["GET"])
 @require_auth
 def klassenarbeitsplan_data():
-    """Klassenarbeitsplan-Daten abrufen.
+    """Klassenarbeitsplan-Daten abrufen (classwork cache + plan_digest fallback).
 
-    Response: {"ok": true, "data": {"url": ..., "structured_rows": [...]}}
+    Bevorzugt den Playwright-/Upload-Cache aus classwork_cache.
+    Fällt zurück auf build_plan_digest() mit dem konfigurierten URL oder lokaler XLSX.
+    Response: {"ok": true, "data": {"url": ..., "entries": [...], "classes": [...], ...}}
     """
     try:
         with db_connection() as conn:
             url = get_system_setting(conn, "klassenarbeitsplan_url", None)
+    except Exception as exc:
+        return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
 
-        structured_rows = []
-        try:
-            from backend.plan_digest import load_classwork_plan
-            from pathlib import Path
-            import os
+    now = datetime.now(timezone.utc)
 
-            local_path = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-plan-local.xlsx"
-            if local_path.exists():
-                structured_rows = load_classwork_plan(str(local_path))
-        except Exception:
-            pass
+    # 1. Try classwork cache (populated by Playwright scraper or XLSX upload)
+    try:
+        from pathlib import Path
+        from backend.classwork_cache import load_cache
 
-        return success({"data": {
-            "url": url,
-            "structured_rows": structured_rows,
-        }})
+        cache_path = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-cache.json"
+        cached = load_cache(cache_path)
+        if cached.get("status") == "ok" and (
+            cached.get("previewRows") or cached.get("structuredRows") or cached.get("entries")
+        ):
+            return success({"data": {"url": url, **cached}, "configured": True})
+    except Exception:
+        pass
+
+    # 2. Fallback: build_plan_digest with local XLSX or remote URL
+    try:
+        from backend.plan_digest import build_plan_digest
+        from pathlib import Path
+
+        local_xlsx = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-plan-local.xlsx"
+        local_path_str = str(local_xlsx) if local_xlsx.exists() else None
+        full_digest = build_plan_digest(None, url, local_path_str, now.replace(tzinfo=None) if now.tzinfo else now)
+        classwork_digest = full_digest.get("classwork", {})
+
+        return success({
+            "data": {
+                "url": url,
+                "status": classwork_digest.get("status", "warning"),
+                "title": classwork_digest.get("title", "Klassenarbeitsplan"),
+                "detail": classwork_digest.get("detail", ""),
+                "updatedAt": classwork_digest.get("updatedAt", "--:--"),
+                "previewRows": classwork_digest.get("previewRows", []),
+                "classes": classwork_digest.get("classes", []),
+                "entries": classwork_digest.get("entries", []),
+                "defaultClass": classwork_digest.get("defaultClass", ""),
+                "sourceUrl": classwork_digest.get("sourceUrl", url or ""),
+            },
+            "configured": bool(url or local_path_str),
+        })
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
 

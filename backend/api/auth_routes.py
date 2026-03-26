@@ -18,14 +18,31 @@ from backend.api.helpers import (
     error,
     SESSION_COOKIE_NAME,
 )
+from backend.config import (
+    LOGIN_RATE_LIMIT_MAX_PER_MINUTE,
+    LOGIN_RATE_LIMIT_MAX,
+    LOGIN_RATE_LIMIT_WINDOW_SECONDS,
+)
 
 auth_bp = Blueprint("auth", __name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 
+def _login_limit_string() -> str:
+    """Builds a Flask-Limiter limit string from environment config.
+
+    Returns e.g. "5 per minute;10 per 900 seconds".
+    Evaluated at request time so changes to ENV vars take effect on restart.
+    """
+    return (
+        f"{LOGIN_RATE_LIMIT_MAX_PER_MINUTE} per minute;"
+        f"{LOGIN_RATE_LIMIT_MAX} per {LOGIN_RATE_LIMIT_WINDOW_SECONDS} seconds"
+    )
+
+
 @auth_bp.route("/login", methods=["POST"])
-@limiter.limit("5 per minute;20 per hour")
+@limiter.limit(_login_limit_string)  # callable — evaluated at request time
 def login():
     """Login mit Zugangscode.
 

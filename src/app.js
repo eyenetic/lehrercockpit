@@ -210,6 +210,27 @@
   // ── SECTION: API / data loading ─────────────────────────────────────────────
 
   async function loadDashboard(forceRefresh = false) {
+    // ── Phase 12: v2 PRIMARY path ──────────────────────────────────────────
+    // When running in multi-user SaaS mode, call GET /api/v2/dashboard/data
+    // first. The response includes a 'base' section (quickLinks, workspace,
+    // berlinFocus) plus all per-module data. normalizeV2Dashboard() maps the
+    // v2 response to the same shape all render functions expect.
+    // If the v2 call fails for any reason, fall through to the v1 path below.
+    if (window.MULTIUSER_ENABLED && window.LehrerAPI) {
+      try {
+        const resp = await window.LehrerAPI.getDashboardData();
+        if (resp.ok) {
+          const v2Json = await resp.json();
+          if (v2Json.ok) {
+            return normalizeV2Dashboard(v2Json);
+          }
+        }
+      } catch (e) {
+        console.warn('[Dashboard] v2 primary failed, falling back to v1:', e.message);
+      }
+    }
+
+    // ── Fallback: v1 / local path ──────────────────────────────────────────
     const sources = IS_LOCAL_RUNTIME
       ? [`/api/dashboard${forceRefresh ? "?refresh=1" : ""}`, "./data/mock-dashboard.json"]
       : [...PRODUCTION_API_BASES.map((base) => `${base}/api/dashboard${forceRefresh ? "?refresh=1" : ""}`), "./data/mock-dashboard.json"];
@@ -222,10 +243,9 @@
           continue;
         }
 
-        const data = normalizeDashboard(await response.json());
+        let data = normalizeDashboard(await response.json());
 
-        // Phase 9e: After loading the v1 dashboard payload, override grades/notes
-        // with v2 per-user data when running in multi-user SaaS mode.
+        // Phase 9e: override grades/notes with v2 per-user data when available.
         // Fails silently — v1 data (or empty arrays) remain usable as fallback.
         try {
           if (window.LehrerGrades && window.MULTIUSER_ENABLED && window.LehrerAPI) {
@@ -311,6 +331,208 @@
         sourceUrl: "",
       },
     };
+
+    return data;
+  }
+
+  // ── SECTION: v2 Module Data Overlay (Phase 11d) ─────────────────────────────
+  //
+  // overlayV2ModuleData() is called after normalizeDashboard() in loadDashboard().
+  // It fetches the v2 aggregated dashboard data from GET /api/v2/dashboard/data
+  // and overlays per-module fields on top of the v1 base payload.
+  // Each module overlay is independent — a single module failure is silent.
+  // The v1 data always remains the safety net.
+
+  async function overlayV2ModuleData(data) {
+    if (!window.MULTIUSER_ENABLED) return data;
+    if (!window.LehrerAPI || typeof window.LehrerAPI.getDashboardData !== 'function') return data;
+
+    // Get active module IDs from DashboardManager (avoids fetching disabled modules)
+    var activeModuleIds = null;
+    if (window.DashboardManager && typeof window.DashboardManager.getActiveModuleIds === 'function') {
+      activeModuleIds = window.DashboardManager.getActiveModuleIds();
+    }
+
+    var resp, json;
+    try {
+      resp = await window.LehrerAPI.getDashboardData();
+      if (!resp.ok) return data;
+      json = await resp.json();
+    } catch (_e) {
+      return data;  // network error — v1 data remains
+    }
+
+    if (!json || !json.ok || !json.modules) return data;
+    var modules = json.modules;
+
+    // Overlay WebUntis events/schedule
+    if (modules.webuntis && modules.webuntis.ok === true) {
+      if (!activeModuleIds || activeModuleIds.indexOf('webuntis') !== -1) {
+        try { _applyWebuntisV2Data(data, modules.webuntis.data || modules.webuntis); } catch (_e) {}
+      }
+    }
+
+    // Overlay itslearning messages + source
+    if (modules.itslearning && modules.itslearning.ok === true) {
+      if (!activeModuleIds || activeModuleIds.indexOf('itslearning') !== -1) {
+        try { _applyItslearningV2Data(data, modules.itslearning.data || modules.itslearning); } catch (_e) {}
+      }
+    }
+
+    // Overlay orgaplan digest
+    if (modules.orgaplan && modules.orgaplan.ok === true) {
+      if (!activeModuleIds || activeModuleIds.indexOf('orgaplan') !== -1) {
+        try { _applyOrgaplanV2Data(data, modules.orgaplan.data || modules.orgaplan); } catch (_e) {}
+      }
+    }
+
+    // Overlay Klassenarbeitsplan classwork
+    if (modules.klassenarbeitsplan && modules.klassenarbeitsplan.ok === true) {
+      if (!activeModuleIds || activeModuleIds.indexOf('klassenarbeitsplan') !== -1) {
+        try { _applyClassworkV2Data(data, modules.klassenarbeitsplan.data || modules.klassenarbeitsplan); } catch (_e) {}
+      }
+    }
+
+    return data;
+  }
+
+  // v2 → v1 field mapping helpers (private, not exported)
+
+  function _applyWebuntisV2Data(data, v2) {
+    // v2 = WebUntisSyncResult dict: {source, events[], schedule[], priorities[], mode, note}
+    if (!v2) return;
+    data.webuntisCenter = Object.assign({}, data.webuntisCenter, {
+      status: (v2.source && v2.source.status) || data.webuntisCenter.status,
+      note: v2.note || data.webuntisCenter.note,
+      detail: (v2.source && v2.source.detail) || data.webuntisCenter.detail,
+      events: Array.isArray(v2.events) ? v2.events : data.webuntisCenter.events,
+      schedule: Array.isArray(v2.schedule) ? v2.schedule : (data.webuntisCenter.schedule || []),
+    });
+    if (Array.isArray(v2.priorities) && v2.priorities.length) {
+      data.priorities = _mergeV2Priorities(v2.priorities, data.priorities || []);
+    }
+  }
+
+  function _applyItslearningV2Data(data, v2) {
+    // v2 = ItslearningSyncResult dict: {source, messages[], priorities[], mode, note}
+    if (!v2) return;
+    if (Array.isArray(v2.messages)) {
+      // Replace itslearning-channel messages with fresh v2 data; preserve other channels
+      var nonItslearning = (data.messages || []).filter(function(m) { return m.channel !== 'itslearning'; });
+      data.messages = v2.messages.concat(nonItslearning);
+    }
+    if (v2.source) {
+      data.sources = _mergeV2Source(data.sources || [], v2.source);
+    }
+    if (Array.isArray(v2.priorities) && v2.priorities.length) {
+      data.priorities = _mergeV2Priorities(v2.priorities, data.priorities || []);
+    }
+  }
+
+  function _applyOrgaplanV2Data(data, v2) {
+    // v2 = {url, pdf_url, digest: {status, highlights, upcoming, monthLabel, ...}}
+    if (!v2) return;
+    var digest = v2.digest || {};
+    if (digest.status === 'ok') {
+      data.planDigest = data.planDigest || {};
+      data.planDigest.orgaplan = Object.assign({}, data.planDigest.orgaplan, digest);
+    }
+  }
+
+  function _applyClassworkV2Data(data, v2) {
+    // v2 = {url, status, entries[], previewRows[], classes[], ...}
+    if (!v2) return;
+    if (v2.status === 'ok') {
+      data.planDigest = data.planDigest || {};
+      data.planDigest.classwork = Object.assign({}, data.planDigest.classwork, v2);
+    }
+  }
+
+  function _mergeV2Priorities(incoming, existing) {
+    // Incoming priorities replace existing entries for same source, others kept
+    var incomingSources = {};
+    incoming.forEach(function(p) { if (p.source) incomingSources[p.source] = true; });
+    var merged = incoming.concat(
+      existing.filter(function(p) { return !incomingSources[p.source]; })
+    );
+    return merged.slice(0, 8);
+  }
+
+  function _mergeV2Source(existing, sourceUpdate) {
+    // Replace matching source by id, or prepend if new
+    if (!sourceUpdate || !sourceUpdate.id) return existing;
+    var filtered = existing.filter(function(s) { return s.id !== sourceUpdate.id; });
+    return [sourceUpdate].concat(filtered);
+  }
+
+  // ── SECTION: normalizeV2Dashboard (Phase 12) ────────────────────────────────
+  //
+  // Maps a GET /api/v2/dashboard/data response to the same normalized data
+  // shape that normalizeDashboard() produces from the v1 payload.
+  // All render functions (renderWorkspace, renderStats, renderBriefing, etc.)
+  // work unchanged because the output shape is identical.
+
+  function normalizeV2Dashboard(v2) {
+    // Start with the v1 default shape (provides safe defaults for every field)
+    var data = normalizeDashboard({});
+
+    // ── base section → workspace, quickLinks, berlinFocus ──────────────────
+    if (v2.base) {
+      if (v2.base.workspace && typeof v2.base.workspace === 'object') {
+        data.workspace = v2.base.workspace;
+      }
+      if (Array.isArray(v2.base.quick_links)) {
+        data.quickLinks = v2.base.quick_links;
+      }
+      if (Array.isArray(v2.base.berlin_focus)) {
+        data.berlinFocus = v2.base.berlin_focus;
+      }
+      // documents is deferred in Phase 12 — keep the v1 default (empty array)
+    }
+
+    // ── modules section → same overlay logic as overlayV2ModuleData() ──────
+    if (v2.modules) {
+      var modules = v2.modules;
+
+      // WebUntis
+      if (modules.webuntis && modules.webuntis.ok === true) {
+        try { _applyWebuntisV2Data(data, modules.webuntis.data || modules.webuntis); } catch (_e) {}
+      }
+
+      // itslearning
+      if (modules.itslearning && modules.itslearning.ok === true) {
+        try { _applyItslearningV2Data(data, modules.itslearning.data || modules.itslearning); } catch (_e) {}
+      }
+
+      // orgaplan
+      if (modules.orgaplan && modules.orgaplan.ok === true) {
+        try { _applyOrgaplanV2Data(data, modules.orgaplan.data || modules.orgaplan); } catch (_e) {}
+      }
+
+      // klassenarbeitsplan
+      if (modules.klassenarbeitsplan && modules.klassenarbeitsplan.ok === true) {
+        try { _applyClassworkV2Data(data, modules.klassenarbeitsplan.data || modules.klassenarbeitsplan); } catch (_e) {}
+      }
+
+      // grades + notes (noten module)
+      if (modules.noten && modules.noten.ok === true && modules.noten.data) {
+        try {
+          var notenData = modules.noten.data;
+          if (Array.isArray(notenData.grades)) data.grades = notenData.grades;
+          if (Array.isArray(notenData.notes)) data.notes = notenData.notes;
+        } catch (_e) {}
+      }
+    }
+
+    // ── user / meta ─────────────────────────────────────────────────────────
+    if (v2.user && v2.user.display_name) {
+      data.meta = data.meta || {};
+      data.meta.mode = 'live';
+      data.meta.note = 'Daten werden direkt aus der v2 API geladen.';
+    }
+    if (v2.generated_at) {
+      data.generatedAt = v2.generated_at;
+    }
 
     return data;
   }
@@ -796,15 +1018,14 @@
   }
 
   function renderItslearningConnector() {
-    if (!elements.itslearningConnectCard) {
-      return;
-    }
-
+    // Phase 11d: Delegate to LehrerItslearning module if available
+    if (window.LehrerItslearning) return window.LehrerItslearning.renderItslearningConnector();
+    // TODO: remove fallback after itslearning.js verified in production
+    if (!elements.itslearningConnectCard) return;
     if (!IS_LOCAL_RUNTIME) {
       elements.itslearningConnectCard.hidden = true;
       return;
     }
-
     const source = getData().sources.find((item) => item.id === "itslearning");
     const connection = getData().localConnections?.itslearning || {};
     elements.itslearningConnectCard.hidden = false;
@@ -1062,6 +1283,8 @@
   }
 
   function getRelevantInboxMessages(data = getData()) {
+    // Phase 11d: Delegate to LehrerItslearning module if available
+    if (window.LehrerItslearning) return window.LehrerItslearning.getRelevantInboxMessages(data);
     return (data.messages || []).filter((message) => message.channel === "mail" || message.channel === "itslearning");
   }
 
@@ -2092,6 +2315,9 @@
   }
 
   async function saveItslearningCredentials() {
+    // Phase 11d: Delegate to LehrerItslearning module if available
+    if (window.LehrerItslearning) return window.LehrerItslearning.saveItslearningCredentials();
+    // TODO: remove fallback after itslearning.js verified in production
     const username = elements.itslearningUsername?.value.trim() || "";
     const password = elements.itslearningPassword?.value.trim() || "";
 
@@ -2352,6 +2578,17 @@
         startOfWeek: startOfWeek,
         isoWeekNumber: isoWeekNumber,
         bindExternalLink: bindExternalLink,
+      });
+    }
+    // Init LehrerItslearning with shared state, elements, and render callbacks (Phase 11d)
+    if (window.LehrerItslearning) {
+      window.LehrerItslearning.init(state, elements, {
+        getData: getData,
+        renderMessages: renderMessages,
+        renderChannelFilters: renderChannelFilters,
+        renderNavSignals: renderNavSignals,
+        refreshDashboard: refreshDashboard,
+        IS_LOCAL_RUNTIME: IS_LOCAL_RUNTIME,
       });
     }
     refreshDashboard().then(() => {

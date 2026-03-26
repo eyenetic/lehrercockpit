@@ -718,7 +718,10 @@
             const resp = await apiFetch('/api/v2/auth/me');
             if (!resp.ok) { window.location.href = './login.html'; return; }
             const data = await resp.json();
-            if (!data.ok || data.user.role !== 'admin') {
+            // Phase 13: use is_admin flag for authorization (not role field).
+            // Backward compat: also accept role='admin' for pre-migration sessions.
+            const userIsAdmin = data.user.is_admin === true || data.user.role === 'admin';
+            if (!data.ok || !userIsAdmin) {
               window.location.href = './index.html';
               return;
             }
@@ -958,7 +961,9 @@
             + '</tr></thead><tbody>';
 
           users.forEach(function (u) {
-            const roleBadge = u.role === 'admin'
+            // Phase 13: show admin badge based on is_admin flag (+ role compat)
+            const isAdminUser = u.is_admin === true || u.role === 'admin';
+            const roleBadge = isAdminUser
               ? '<span class="badge badge-admin">admin</span>'
               : '<span class="badge badge-teacher">teacher</span>';
             const statusBadge = u.is_active

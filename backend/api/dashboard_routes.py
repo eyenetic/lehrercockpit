@@ -1,6 +1,9 @@
 """
 Dashboard-Endpunkte für Lehrkräfte: Modules-Layout, Daten.
 """
+import dataclasses
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from datetime import datetime, timezone
 from flask import Blueprint, request, g
 
 from backend.db import db_connection
@@ -260,3 +263,426 @@ def complete_onboarding():
         return success()
     except Exception as exc:
         return error(f"Fehler beim Abschließen des Onboardings: {type(exc).__name__}: {exc}", 500)
+
+
+# ── Dashboard Composition Endpoint (Phase 11c / Phase 12) ────────────────────
+
+_MODULE_FETCH_TIMEOUT = 5  # seconds per module fetch
+
+
+def _build_base_quick_links(
+    schoolportal_url: str = "",
+    orgaplan_pdf_url: str = "",
+    itslearning_base_url: str = "",
+) -> list:
+    """Build quick_links list for the v2 base dashboard section."""
+    links: list = [
+        {
+            "id": "schoolportal",
+            "title": "Berliner Schulportal",
+            "url": schoolportal_url or "https://portal.berlin.de",
+            "kind": "Portal",
+            "note": "Zentraler Einstieg fuer Berliner Schuldienste",
+        }
+    ]
+    if itslearning_base_url:
+        links.append({
+            "id": "itslearning",
+            "title": "itslearning",
+            "url": itslearning_base_url,
+            "kind": "Lernen",
+            "note": "Updates und Kursmeldungen",
+        })
+    if orgaplan_pdf_url:
+        links.append({
+            "id": "orgaplan",
+            "title": "Orgaplan",
+            "url": orgaplan_pdf_url,
+            "kind": "PDF",
+            "note": "Aktueller Orgaplan fuer eure Schule",
+        })
+    return links
+
+
+def _fetch_base_data() -> dict:
+    """Fetch base dashboard sections: quick_links, workspace, berlin_focus.
+
+    Reads system_settings from DB first; falls back to load_settings() (local
+    config) for any missing URL fields. Each sub-section is wrapped in its own
+    try/except so a single failure does not block the others.
+
+    documents is DEFERRED in Phase 12 — requires document_monitor state and
+    the full mock-dashboard enrichment pipeline. Returns None for that field.
+
+    Response shape:
+        {"ok": True, "data": {"quick_links": [...], "workspace": {...},
+                               "berlin_focus": [...], "documents": None}}
+    """
+    schoolportal_url = ""
+    orgaplan_pdf_url = ""
+    itslearning_base_url = ""
+    school_name = ""
+
+    # 1. Read system_settings from DB
+    def _safe_str(val: object) -> str:
+        """Return val as str only if it is a real str; otherwise empty string."""
+        return val if isinstance(val, str) else ""
+
+    try:
+        with db_connection() as conn:
+            schoolportal_url = _safe_str(get_system_setting(conn, "schoolportal_url", ""))
+            orgaplan_pdf_url = _safe_str(get_system_setting(conn, "orgaplan_pdf_url", ""))
+            itslearning_base_url = _safe_str(get_system_setting(conn, "itslearning_base_url", ""))
+            school_name = _safe_str(get_system_setting(conn, "school_name", ""))
+    except Exception:
+        pass  # Fall back to local settings below
+
+    # 2. Supplement with local settings (load_settings reads .env.local)
+    try:
+        from backend.config import load_settings as _load_settings
+        _settings = _load_settings()
+        if not schoolportal_url:
+            schoolportal_url = _safe_str(getattr(_settings, "schoolportal_url", ""))
+        if not orgaplan_pdf_url:
+            orgaplan_pdf_url = _safe_str(getattr(_settings, "orgaplan_pdf_url", ""))
+        if not itslearning_base_url:
+            itslearning_base_url = _safe_str(getattr(_settings, "itslearning_base_url", ""))
+        if not school_name:
+            school_name = _safe_str(getattr(_settings, "school_name", ""))
+    except Exception:
+        pass
+
+    if not school_name:
+        school_name = "Ihre Schule"
+
+    # 3. Build each sub-section independently
+    quick_links: list = []
+    try:
+        quick_links = _build_base_quick_links(
+            schoolportal_url=schoolportal_url,
+            orgaplan_pdf_url=orgaplan_pdf_url,
+            itslearning_base_url=itslearning_base_url,
+        )
+    except Exception:
+        quick_links = []
+
+    workspace: dict = {}
+    try:
+        workspace = {
+            "eyebrow": "Berlin Lehrer-Cockpit",
+            "title": f"Dein Tagesstart fuer {school_name}",
+            "description": (
+                "Ein persoenliches Dashboard fuer Berliner Schulportal-Dienste, WebUntis, "
+                "itslearning und eure wichtigsten Schul-Dokumente."
+            ),
+        }
+    except Exception:
+        workspace = {"eyebrow": "Berlin Lehrer-Cockpit", "title": "Dein Tagesstart", "description": ""}
+
+    berlin_focus: list = []
+    try:
+        berlin_focus = [
+            {
+                "title": "SSO-Dienste zuerst",
+                "detail": "WebUntis und itslearning sind bereits als echte Einstiegsquellen im Cockpit hinterlegt.",
+            },
+            {
+                "title": "Dokumente bringen den Mehrwert",
+                "detail": (
+                    "Der konkrete Orgaplan ist schon hinterlegt, sodass wir als Naechstes Aenderungen automatisch vergleichen koennen."
+                    if orgaplan_pdf_url else
+                    "Orgaplan und Klassenarbeitsplan bleiben besonders wichtig, weil PDFs und Share-Links im Alltag schnell verstreut sind."
+                ),
+            },
+            {
+                "title": "Mail vorerst nur Portal-Logik",
+                "detail": "Die Berliner Dienstmail bleibt ohne klassischen IMAP-Weg zunaechst ein Portal-/Hinweis-Modul.",
+            },
+        ]
+    except Exception:
+        berlin_focus = []
+
+    return {
+        "ok": True,
+        "data": {
+            "quick_links": quick_links,
+            "workspace": workspace,
+            "berlin_focus": berlin_focus,
+            "documents": None,  # Deferred: requires document_monitor pipeline
+        },
+    }
+
+
+def _fetch_webuntis_data(user_id: int) -> dict:
+    """Fetch WebUntis data for the given user. Returns module result dict."""
+    try:
+        with db_connection() as conn:
+            config = get_user_module_config(conn, user_id, "webuntis")
+        ical_url = config.get("ical_url", "") if config else ""
+        base_url = config.get("base_url", "") if config else ""
+        if not ical_url:
+            return {"ok": True, "data": None, "configured": False, "error": "WebUntis iCal-Link nicht konfiguriert"}
+        from backend.webuntis_adapter import fetch_webuntis_sync
+        now = datetime.now(timezone.utc)
+        result = fetch_webuntis_sync(base_url, ical_url, now)
+        data_dict = dataclasses.asdict(result)
+        return {"ok": True, "data": data_dict, "configured": True}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _fetch_itslearning_data(user_id: int) -> dict:
+    """Fetch itslearning data for the given user. Returns module result dict."""
+    try:
+        with db_connection() as conn:
+            config = get_user_module_config(conn, user_id, "itslearning")
+        username = config.get("username", "") if config else ""
+        password = config.get("password", "") if config else ""
+        if not username or not password:
+            return {"ok": True, "data": None, "configured": False, "error": "itslearning nicht konfiguriert"}
+        from backend.config import ItslearningSettings
+        from backend.itslearning_adapter import fetch_itslearning_sync
+        settings = ItslearningSettings(
+            base_url=config.get("base_url", "https://berlin.itslearning.com"),
+            username=username,
+            password=password,
+            max_updates=int(config.get("max_updates", 6)),
+        )
+        now = datetime.now(timezone.utc)
+        result = fetch_itslearning_sync(settings, now)
+        data_dict = dataclasses.asdict(result)
+        return {"ok": True, "data": data_dict, "configured": True}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _fetch_orgaplan_data() -> dict:
+    """Fetch orgaplan data from cache or parse fresh. Returns module result dict."""
+    try:
+        with db_connection() as conn:
+            orgaplan_url = get_system_setting(conn, "orgaplan_url", None)
+            pdf_url = get_system_setting(conn, "orgaplan_pdf_url", None)
+            cached_raw = get_system_setting(conn, "orgaplan_cache", None)
+            cached_ts_raw = get_system_setting(conn, "orgaplan_cache_ts", None)
+            cached_url = get_system_setting(conn, "orgaplan_cache_url", None)
+
+        effective_url = pdf_url or orgaplan_url
+        if not effective_url:
+            return {"ok": True, "data": None, "configured": False}
+
+        # Check cache validity
+        now = datetime.now(timezone.utc)
+        cache_valid = False
+        if cached_raw and cached_ts_raw:
+            try:
+                ts = datetime.fromisoformat(cached_ts_raw) if isinstance(cached_ts_raw, str) else None
+                if ts:
+                    ts_aware = ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else ts
+                    age_minutes = (now - ts_aware).total_seconds() / 60
+                    if age_minutes < 60 and cached_url == effective_url:
+                        cache_valid = True
+            except Exception:
+                cache_valid = False
+
+        if cache_valid and isinstance(cached_raw, dict):
+            digest = cached_raw
+            return {"ok": True, "data": {
+                "url": orgaplan_url, "pdf_url": pdf_url,
+                "highlights": digest.get("highlights", []),
+                "upcoming": digest.get("upcoming", []),
+                "entries": digest.get("upcoming", []),
+                "classes": [],
+                "status": digest.get("status", "ok"),
+                "detail": digest.get("detail", ""),
+                "monthLabel": digest.get("monthLabel", ""),
+                "cached_at": cached_ts_raw,
+            }, "configured": True}
+
+        from backend.plan_digest import build_plan_digest
+        full_digest = build_plan_digest(effective_url, None, None, now)
+        orgaplan_digest = full_digest.get("orgaplan", {})
+        ts_str = now.isoformat()
+        try:
+            with db_connection() as conn:
+                set_system_setting(conn, "orgaplan_cache", orgaplan_digest)
+                set_system_setting(conn, "orgaplan_cache_ts", ts_str)
+                set_system_setting(conn, "orgaplan_cache_url", effective_url)
+        except Exception:
+            pass
+        return {"ok": True, "data": {
+            "url": orgaplan_url, "pdf_url": pdf_url,
+            "highlights": orgaplan_digest.get("highlights", []),
+            "upcoming": orgaplan_digest.get("upcoming", []),
+            "entries": orgaplan_digest.get("upcoming", []),
+            "classes": [],
+            "status": orgaplan_digest.get("status", "ok"),
+            "detail": orgaplan_digest.get("detail", ""),
+            "monthLabel": orgaplan_digest.get("monthLabel", ""),
+            "cached_at": ts_str,
+        }, "configured": True}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _fetch_klassenarbeitsplan_data() -> dict:
+    """Fetch klassenarbeitsplan from classwork cache or plan_digest. Returns module result dict."""
+    try:
+        with db_connection() as conn:
+            url = get_system_setting(conn, "klassenarbeitsplan_url", None)
+
+        from pathlib import Path
+        from backend.classwork_cache import load_cache
+        cache_path = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-cache.json"
+        cached = load_cache(cache_path)
+        if cached.get("status") == "ok" and (
+            cached.get("previewRows") or cached.get("structuredRows") or cached.get("entries")
+        ):
+            return {"ok": True, "data": {"url": url, **cached}, "configured": True}
+
+        # Fallback: plan_digest
+        now = datetime.now(timezone.utc)
+        local_xlsx = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-plan-local.xlsx"
+        local_path_str = str(local_xlsx) if local_xlsx.exists() else None
+        from backend.plan_digest import build_plan_digest
+        full_digest = build_plan_digest(None, url, local_path_str, now)
+        classwork_digest = full_digest.get("classwork", {})
+        return {"ok": True, "data": {
+            "url": url,
+            "status": classwork_digest.get("status", "warning"),
+            "title": classwork_digest.get("title", "Klassenarbeitsplan"),
+            "detail": classwork_digest.get("detail", ""),
+            "updatedAt": classwork_digest.get("updatedAt", "--:--"),
+            "previewRows": classwork_digest.get("previewRows", []),
+            "classes": classwork_digest.get("classes", []),
+            "entries": classwork_digest.get("entries", []),
+            "defaultClass": classwork_digest.get("defaultClass", ""),
+            "sourceUrl": classwork_digest.get("sourceUrl", url or ""),
+        }, "configured": bool(url or local_path_str)}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _fetch_noten_data(user_id: int) -> dict:
+    """Fetch grades and notes for user. Returns module result dict."""
+    try:
+        from backend.users.user_service import get_grades, get_notes
+        with db_connection() as conn:
+            grades = get_grades(conn, user_id)
+            notes = get_notes(conn, user_id)
+        return {"ok": True, "data": {"grades": grades, "notes": notes}}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+@dashboard_bp.route("/data", methods=["GET"])
+@require_auth
+def get_dashboard_data():
+    """Aggregiertes Modul-Daten-Payload für alle aktiven Module des Users.
+
+    Ruft Daten für alle sichtbaren Module parallel ab. Jedes Modul schlägt
+    unabhängig fehl — ein Fehler blockiert keine anderen Module.
+
+    Phase 12: Enthält jetzt eine 'base'-Sektion mit quickLinks, workspace und
+    berlinFocus, die unabhängig von den Modul-Daten geladen wird.
+
+    Response:
+    {
+      "ok": true,
+      "base": {
+        "quick_links":  [{label, url, icon}],
+        "workspace":    {"eyebrow": "...", "title": "...", "description": "..."},
+        "berlin_focus": [{"title": "...", "detail": "..."}],
+        "documents":    null  (deferred — requires document_monitor pipeline)
+      },
+      "modules": {
+        "webuntis":          {"ok": true,  "data": {...}, "configured": true},
+        "itslearning":       {"ok": true,  "data": null,  "configured": false, "error": "..."},
+        "orgaplan":          {"ok": true,  "data": {...}, "configured": true},
+        "klassenarbeitsplan":{"ok": true,  "data": {...}, "configured": true},
+        "noten":             {"ok": true,  "data": {"grades": [...], "notes": [...]}}
+      },
+      "user": {"id": 1, "display_name": "..."},
+      "generated_at": "ISO timestamp"
+    }
+    """
+    user_id = g.current_user.id
+
+    # Determine which modules are active/visible for this user
+    try:
+        with db_connection() as conn:
+            user_module_list = get_user_modules(conn, user_id)
+        active_module_ids = {
+            um.module_id
+            for um in user_module_list
+            if um.is_visible
+        }
+    except Exception:
+        # Fallback: fetch all known data modules
+        active_module_ids = {"webuntis", "itslearning", "orgaplan", "klassenarbeitsplan", "noten"}
+
+    # Define which fetchers to run (only for active modules)
+    module_fetchers = {}
+    if "webuntis" in active_module_ids:
+        module_fetchers["webuntis"] = lambda: _fetch_webuntis_data(user_id)
+    if "itslearning" in active_module_ids:
+        module_fetchers["itslearning"] = lambda: _fetch_itslearning_data(user_id)
+    if "orgaplan" in active_module_ids:
+        module_fetchers["orgaplan"] = _fetch_orgaplan_data
+    if "klassenarbeitsplan" in active_module_ids:
+        module_fetchers["klassenarbeitsplan"] = _fetch_klassenarbeitsplan_data
+    if "noten" in active_module_ids:
+        module_fetchers["noten"] = lambda: _fetch_noten_data(user_id)
+
+    modules_result = {}
+    base_result: dict = {}
+
+    # Collect all fetchers: module fetchers + base fetcher (Phase 12)
+    all_fetchers: dict = dict(module_fetchers)
+    all_fetchers["__base__"] = _fetch_base_data
+
+    # Execute fetchers in parallel with per-module timeout
+    with ThreadPoolExecutor(max_workers=len(all_fetchers) or 1) as executor:
+        future_map = {
+            executor.submit(fetcher): fetch_id
+            for fetch_id, fetcher in all_fetchers.items()
+        }
+        for future, fetch_id in future_map.items():
+            try:
+                result = future.result(timeout=_MODULE_FETCH_TIMEOUT)
+                if fetch_id == "__base__":
+                    base_result = result
+                else:
+                    modules_result[fetch_id] = result
+            except FuturesTimeoutError:
+                if fetch_id == "__base__":
+                    base_result = {"ok": False, "error": "timeout"}
+                else:
+                    modules_result[fetch_id] = {"ok": False, "error": "timeout"}
+            except Exception as exc:
+                err_val = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+                if fetch_id == "__base__":
+                    base_result = err_val
+                else:
+                    modules_result[fetch_id] = err_val
+
+    user_dict = g.current_user.to_dict()
+    user_dict["display_name"] = user_dict.get("full_name", "")
+
+    # Build the base section from base_result.data (Phase 12)
+    base_data = base_result.get("data", {}) if base_result.get("ok") else {}
+    base_section = {
+        "quick_links": base_data.get("quick_links", []),
+        "workspace": base_data.get("workspace", {}),
+        "berlin_focus": base_data.get("berlin_focus", []),
+        "documents": base_data.get("documents", None),  # None = deferred
+    }
+
+    return success({
+        "base": base_section,
+        "modules": modules_result,
+        "user": {
+            "id": user_dict.get("id"),
+            "display_name": user_dict.get("display_name", ""),
+        },
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    })

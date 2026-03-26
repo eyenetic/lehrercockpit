@@ -67,7 +67,7 @@
         <div class="sidebar-user-info" id="sidebar-user-info" style="display:none;">
           <span id="sidebar-user-name">Lehrkraft</span>
           <div class="sidebar-user-actions">
-            <a href="./admin.html" id="sidebar-admin-link" style="display:none;">Admin</a>
+            <a href="./admin.html" id="sidebar-admin-link" style="display:none;">⚙ Admin-Bereich</a>
             <button id="sidebar-logout-btn">Abmelden</button>
           </div>
         </div>
@@ -627,12 +627,13 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=36"></script>
-    <script src="./src/api-client.js?v=36"></script>
-    <script src="./src/modules/dashboard-manager.js?v=36"></script>
-    <script src="./src/features/grades.js?v=36"></script>
-    <script src="./src/features/webuntis.js?v=36"></script>
-    <script src="./src/app.js?v=36"></script>
+    <script src="./data/mock-dashboard.js?v=37"></script>
+    <script src="./src/api-client.js?v=37"></script>
+    <script src="./src/modules/dashboard-manager.js?v=37"></script>
+    <script src="./src/features/grades.js?v=37"></script>
+    <script src="./src/features/webuntis.js?v=37"></script>
+    <script src="./src/features/itslearning.js?v=37"></script>
+    <script src="./src/app.js?v=37"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 (function initUserInfo() {
@@ -643,7 +644,9 @@
     const logoutBtn = document.getElementById('sidebar-logout-btn');
     if (info) info.style.display = 'flex';
     if (name) name.textContent = window.CURRENT_USER.full_name || window.CURRENT_USER.first_name;
-    if (adminLink && window.CURRENT_USER.role === 'admin') adminLink.style.display = 'inline';
+    // Phase 13: show admin link based on is_admin flag (+ role compat for pre-migration sessions)
+    const isAdminUser = window.CURRENT_USER.is_admin === true || window.CURRENT_USER.role === 'admin';
+    if (adminLink && isAdminUser) adminLink.style.display = 'inline';
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async function() {
         const backendUrl = window.BACKEND_API_URL || '';

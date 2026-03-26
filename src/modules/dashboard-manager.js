@@ -305,7 +305,17 @@
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    return { init: init, openLayoutPanel: openLayoutPanel };
+    // Phase 11d: Return array of module IDs that are enabled/visible for the current user.
+    // If the layout has not yet been loaded (init still pending), returns null so the caller
+    // can fall back to fetching all modules rather than skipping them.
+    function getActiveModuleIds() {
+      if (!_modules || !_modules.length) return null;
+      return _modules
+        .filter(function(m) { return m.is_visible !== false && m.enabled !== false; })
+        .map(function(m) { return m.module_id; });
+    }
+
+    return { init: init, openLayoutPanel: openLayoutPanel, getActiveModuleIds: getActiveModuleIds };
   })();
 
   window.DashboardManager = DashboardManager;

@@ -198,6 +198,8 @@ def api_health() -> Response:
     return jsonify({"status": "ok"})
 
 
+# DEPRECATED: Use GET /api/v2/dashboard/data instead.
+# Retained for local-runtime backward compatibility only (Phase 12 fallback).
 @app.route("/api/dashboard")
 def api_dashboard() -> Response:
     if _IMPORT_ERROR is not None:
@@ -208,28 +210,42 @@ def api_dashboard() -> Response:
         CLASSWORK_CACHE_PATH,
         WEBUNTIS_CACHE_PATH,
     )
-    return jsonify(payload)
+    resp = jsonify(payload)
+    resp.headers['X-Deprecated'] = 'Use GET /api/v2/dashboard/data'
+    return resp
 
 
+# DEPRECATED: Use GET /api/v2/modules/klassenarbeitsplan/data instead.
+# Retained for local-runtime backward compatibility only.
 @app.route("/api/classwork")
 def api_classwork() -> Response:
     if load_cache is None:
         return jsonify({"status": "error", "detail": "Cache module not available."}), 500
-    return jsonify(load_cache(CLASSWORK_CACHE_PATH))
+    resp = jsonify(load_cache(CLASSWORK_CACHE_PATH))
+    resp.headers['X-Deprecated'] = 'Use /api/v2/modules/klassenarbeitsplan/data'
+    return resp
 
 
+# DEPRECATED: Use GET /api/v2/modules/noten/data instead.
+# Retained for local-runtime backward compatibility only.
 @app.route("/api/grades")
 def api_grades() -> Response:
     if load_gradebook is None:
         return jsonify({"status": "error", "detail": "Grades store not available."}), 500
-    return jsonify(load_gradebook(GRADES_LOCAL_PATH))
+    resp = jsonify(load_gradebook(GRADES_LOCAL_PATH))
+    resp.headers['X-Deprecated'] = 'Use /api/v2/modules/noten/data'
+    return resp
 
 
+# DEPRECATED: Use GET /api/v2/modules/noten/data instead.
+# Retained for local-runtime backward compatibility only.
 @app.route("/api/notes")
 def api_notes() -> Response:
     if load_notes is None:
         return jsonify({"status": "error", "detail": "Notes store not available."}), 500
-    return jsonify(load_notes(NOTES_LOCAL_PATH))
+    resp = jsonify(load_notes(NOTES_LOCAL_PATH))
+    resp.headers['X-Deprecated'] = 'Use /api/v2/modules/noten/data'
+    return resp
 
 
 # ── POST endpoints ────────────────────────────────────────────────────────────
@@ -295,6 +311,8 @@ def api_classwork_browser_fetch() -> Response:
     return jsonify(result)
 
 
+# DEPRECATED: Use PUT /api/v2/modules/itslearning/config instead.
+# Retained for local-runtime backward compatibility only.
 @app.route("/api/local-settings/itslearning", methods=["POST", "OPTIONS"])
 def api_local_settings_itslearning() -> Response:
     if request.method == "OPTIONS":
@@ -324,9 +342,13 @@ def api_local_settings_itslearning() -> Response:
     except Exception as exc:
         return jsonify({"error": "save-failed", "detail": f"{type(exc).__name__}: {exc}"}), 500
 
-    return jsonify({"status": "ok", "detail": "itslearning-Zugang lokal gespeichert.", "username": username, "baseUrl": base_url})
+    resp = jsonify({"status": "ok", "detail": "itslearning-Zugang lokal gespeichert.", "username": username, "baseUrl": base_url})
+    resp.headers['X-Deprecated'] = 'Use PUT /api/v2/modules/itslearning/config'
+    return resp
 
 
+# DEPRECATED: Use PUT /api/v2/modules/nextcloud/config instead.
+# Retained for local-runtime backward compatibility only.
 @app.route("/api/local-settings/nextcloud", methods=["POST", "OPTIONS"])
 def api_local_settings_nextcloud() -> Response:
     if request.method == "OPTIONS":
@@ -372,7 +394,7 @@ def api_local_settings_nextcloud() -> Response:
     except Exception as exc:
         return jsonify({"error": "save-failed", "detail": f"{type(exc).__name__}: {exc}"}), 500
 
-    return jsonify(
+    resp = jsonify(
         {
             "status": "ok",
             "detail": "Nextcloud-Arbeitsbereich lokal gespeichert.",
@@ -389,6 +411,8 @@ def api_local_settings_nextcloud() -> Response:
             "link3Url": link_3_url,
         }
     )
+    resp.headers['X-Deprecated'] = 'Use PUT /api/v2/modules/nextcloud/config'
+    return resp
 
 
 @app.route("/api/local-settings/classwork-upload", methods=["POST", "OPTIONS"])
@@ -496,7 +520,55 @@ try:
     from backend.api.auth_routes import limiter
 
     register_blueprints(app)
+
+    # NOTE: Flask-Limiter uses in-memory storage by default (RATELIMIT_STORAGE_URI not set).
+    # This means rate limit counters are per-worker-process and are NOT shared across processes.
+    # Acceptable for Render.com single-worker deployment (Procfile: gunicorn --workers 1).
+    # For multi-worker or multi-instance deployments, set RATELIMIT_STORAGE_URI to a Redis URL.
     limiter.init_app(app)
+
+    # ── Custom 429 Rate-Limit error handler ──────────────────────────────────
+    # Flask-Limiter raises RateLimitExceeded (a subclass of HTTPException) when a limit
+    # is breached.  We catch it here to return a structured JSON response with a
+    # human-readable German message and a Retry-After header.
+    try:
+        from flask_limiter.errors import RateLimitExceeded as _RateLimitExceeded
+
+        @app.errorhandler(_RateLimitExceeded)
+        def handle_rate_limit_exceeded(e):
+            retry_after = getattr(e, "retry_after", 900)
+            try:
+                retry_after = int(retry_after)
+            except (TypeError, ValueError):
+                retry_after = 900
+            minutes = max(1, int(retry_after // 60))
+            response = jsonify({
+                "error": (
+                    f"Zu viele Anmeldeversuche. "
+                    f"Bitte warte {minutes} Minute(n) und versuche es erneut."
+                ),
+                "retry_after_seconds": retry_after,
+            })
+            response.status_code = 429
+            response.headers["Retry-After"] = str(retry_after)
+            return response
+
+    except ImportError:
+        # Older flask-limiter versions may not expose RateLimitExceeded — fall back to 429
+        @app.errorhandler(429)
+        def handle_rate_limit_exceeded(e):  # type: ignore[misc]
+            retry_after = 900
+            minutes = max(1, int(retry_after // 60))
+            response = jsonify({
+                "error": (
+                    f"Zu viele Anmeldeversuche. "
+                    f"Bitte warte {minutes} Minute(n) und versuche es erneut."
+                ),
+                "retry_after_seconds": retry_after,
+            })
+            response.status_code = 429
+            response.headers["Retry-After"] = str(retry_after)
+            return response
 
     if os.environ.get("DATABASE_URL", "").strip():
         try:

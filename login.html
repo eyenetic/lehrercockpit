@@ -181,18 +181,17 @@
         const submitBtn = document.getElementById('submit-btn');
 
         // Leitet basierend auf Rolle weiter
+        // Phase 13+: All users land on dashboard after login.
+        // is_admin users see an admin link on the dashboard — no auto-redirect to admin.html.
+        // Onboarding takes priority if not complete.
         function redirectByRole(user) {
-          const role = user && user.role;
-          if (role === 'admin') {
-            window.location.href = './admin.html';
-          } else {
-            // Lehrer: Onboarding prüfen wenn Feld vorhanden, sonst Dashboard
-            if (user && user.onboarding_complete === false) {
-              window.location.href = './onboarding.html';
-            } else {
-              window.location.href = './index.html';
-            }
+          // All users: onboarding first if not complete
+          if (user && user.onboarding_complete === false) {
+            window.location.href = './onboarding.html';
+            return;
           }
+          // Everyone lands on the dashboard — admin link shown there for is_admin users
+          window.location.href = './index.html';
         }
 
         // Prüfe ob bereits eingeloggt

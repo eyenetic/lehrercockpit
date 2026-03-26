@@ -45,10 +45,19 @@ app.lehrercockpit.com ─────────► api.lehrercockpit.com ─�
 
 ## Roles
 
+Users have two independent attributes:
+
+1. **Identity `role`** — currently `teacher` (canonical) or `admin` (legacy, normalized on write)
+2. **Authorization `is_admin`** — persisted `BOOLEAN` flag, used for all admin access decisions
+
 | Role | Capabilities |
 |---|---|
-| `admin` | Full `/api/v2/admin/*` access — create/deactivate teachers, regenerate codes, set system settings, manage module defaults. Also has their own personal dashboard. |
-| `teacher` | Access to own dashboard, own module config, own grades/notes data. Cannot access other teachers' data. |
+| `teacher` + `is_admin=true` | Full `/api/v2/admin/*` access — create/deactivate teachers, regenerate codes, set system settings, manage module defaults. Also has their own personal dashboard. A teacher can simultaneously be an admin. |
+| `teacher` + `is_admin=false` | Access to own dashboard, own module config, own grades/notes data. Cannot access other teachers' data. |
+
+**Legacy compatibility:** The old `role='admin'` value still works everywhere. Any API payload, `create_teacher()`, `create_user()`, or `update_user()` call that passes `role='admin'` is automatically normalized to `role='teacher', is_admin=True`. The `role` column is retained in the DB and API responses for display/identity purposes but is **not** used for authorization decisions — only `is_admin` is checked by `@require_admin`.
+
+**New canonical form:** `{"role": "teacher", "is_admin": true}` — both fields are explicit and independent.
 
 ---
 
@@ -114,11 +123,14 @@ Admin panel → **Settings** tab:
 ## Teacher Onboarding
 
 1. Teacher visits `/login` and enters their access code
-2. Dashboard checks `GET /api/v2/dashboard/onboarding-status` — if modules with `requires_config=true` are unconfigured, `needs_onboarding: true`
-3. Teacher is redirected to `/onboarding.html`
-4. Steps: select visible modules → enter credentials for required modules (itslearning URL/username/password, WebUntis iCal URL, etc.)
-5. `POST /api/v2/dashboard/onboarding/complete` marks onboarding done
-6. Redirect to `/` (dashboard)
+2. `login.html` calls `redirectByRole(user)` — **all users** (including `is_admin=true`) land on `index.html` (dashboard); onboarding takes priority if not complete
+3. Dashboard checks `GET /api/v2/dashboard/onboarding-status` — if modules with `requires_config=true` are unconfigured, `needs_onboarding: true`
+4. Teacher is redirected to `/onboarding.html`
+5. Steps: select visible modules → enter credentials for required modules (itslearning URL/username/password, WebUntis iCal URL, etc.)
+6. `POST /api/v2/dashboard/onboarding/complete` marks onboarding done
+7. Redirect to `/` (dashboard)
+
+**Admin post-login UX:** `is_admin=true` users land on the normal dashboard (`index.html`) after login — not on `admin.html`. A clearly visible "⚙ Admin-Bereich" link appears in the sidebar for admin users. `admin.html` still enforces its own auth check (non-admins are redirected to `index.html`).
 
 ---
 
@@ -131,7 +143,7 @@ Admin panel → **Settings** tab:
 - Drag-to-reorder: implemented via number inputs (not HTML5 drag-and-drop)
 - Module visibility and order are stored per-user in `user_modules`
 
-> **Note:** `src/app.js` currently still calls the legacy `GET /api/dashboard` (v1) endpoint for the main dashboard payload alongside the v2 modular API. Full migration to v2 is a planned next step.
+> **Phase 12:** `src/app.js` now uses `GET /api/v2/dashboard/data` (v2) as its **primary** data source when `MULTIUSER_ENABLED=true`. The v2 response includes a `base` section (quickLinks, workspace, berlinFocus) in addition to per-module data. `normalizeV2Dashboard()` maps the v2 response to the same normalized shape all render functions expect. `GET /api/dashboard` (v1) is retained as a **fallback** for local runtime only and is marked deprecated (`X-Deprecated` header).
 
 ---
 
@@ -141,7 +153,7 @@ Admin panel → **Settings** tab:
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | `/api/v2/auth/login` | None | Submit access code → session cookie. Rate-limited: 5/min, 20/hr per IP. Body: `{"code": "..."}` |
+| POST | `/api/v2/auth/login` | None | Submit access code → session cookie. Rate-limited: `5/min + 10/15min` per IP (ENV-configurable). Body: `{"code": "..."}` |
 | POST | `/api/v2/auth/logout` | cookie | Invalidate session, clear cookie |
 | GET | `/api/v2/auth/me` | cookie | Current session info: `{"ok": true, "user": {...}}` |
 
@@ -166,6 +178,8 @@ Admin panel → **Settings** tab:
 | PUT | `/api/v2/admin/settings` | admin | Set a system setting: `{"key": "...", "value": ...}` |
 | PUT | `/api/v2/admin/settings/<key>` | admin | Set setting by URL key |
 | POST | `/api/v2/admin/maintenance/cleanup-sessions` | admin | Delete expired sessions |
+| GET | `/api/v2/admin/audit-log/export.csv` | admin | Export full audit log as CSV (same filters as audit-log) |
+| GET | `/api/v2/admin/maintenance/null-prefix-users` | admin | List active users needing code rotation (NULL code_prefix) |
 
 ### Dashboard — `/api/v2/dashboard/`
 
@@ -189,24 +203,25 @@ Admin panel → **Settings** tab:
 | GET | `/api/v2/modules/<id>/config` | cookie | Get module config (sensitive fields masked as `***`) |
 | PUT | `/api/v2/modules/<id>/config` | cookie | Save module config (only individual modules) |
 | DELETE | `/api/v2/modules/<id>/config` | cookie | Reset module config |
-| GET | `/api/v2/modules/itslearning/data` | cookie | Live itslearning data (uses stored config) |
-| GET | `/api/v2/modules/webuntis/data` | cookie | WebUntis iCal data |
-| GET | `/api/v2/modules/nextcloud/data` | cookie | Nextcloud data |
-| GET | `/api/v2/modules/orgaplan/data` | cookie | Orgaplan URL from system_settings |
-| GET | `/api/v2/modules/klassenarbeitsplan/data` | cookie | Klassenarbeitsplan data |
+| GET | `/api/v2/modules/itslearning/data` | cookie | teacher: itslearning messages + priorities (per-user config); `configured:false` if not set up |
+| GET | `/api/v2/modules/webuntis/data` | cookie | teacher: WebUntis iCal schedule data (`configured:false` if no iCal URL set) |
+| GET | `/api/v2/modules/nextcloud/data` | cookie | teacher: Nextcloud sync result (per-user config); `configured:false` if not set up |
+| GET | `/api/v2/modules/orgaplan/data` | cookie | admin config: orgaplan digest from PDF (server-cached 60min); `configured:false` if no URL |
+| GET | `/api/v2/modules/klassenarbeitsplan/data` | cookie | classwork cache data (Playwright-scraped or XLSX-uploaded); falls back to plan_digest |
+| GET | `/api/v2/dashboard/data` | cookie | teacher: aggregated module data for all active modules (parallel fetch, 5s per-module timeout) |
 | GET | `/api/v2/modules/noten/data` | cookie | teacher: grades + notes for current user |
 | POST | `/api/v2/modules/noten/grades` | cookie | teacher: create/update grade |
 | DELETE | `/api/v2/modules/noten/grades/<id>` | cookie | teacher: delete grade (ownership enforced) |
 | POST | `/api/v2/modules/noten/notes` | cookie | teacher: upsert class note |
 | DELETE | `/api/v2/modules/noten/notes/<class>` | cookie | teacher: delete class note |
-| GET | `/api/v2/admin/audit-log` | admin | admin: paginated audit log with event_type filter |
+| GET | `/api/v2/admin/audit-log` | admin | admin: paginated audit log; filters: `event_type`, `date_from`, `date_to` |
 
 ### Legacy v1 Endpoints (still active)
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/health` | Health check |
-| GET | `/api/dashboard` | Legacy dashboard payload (used by `src/app.js`) |
+| GET | `/api/dashboard` | Legacy dashboard payload (used by `src/app.js` for base payload: quickLinks, workspace, berlinFocus, documents) |
 | GET | `/api/grades` | Grades (local file store) |
 | POST | `/api/local-settings/grades` | Save grades (IP-guarded: localhost only) |
 | GET | `/api/notes` | Notes (local file store) |
@@ -214,6 +229,19 @@ Admin panel → **Settings** tab:
 | POST | `/api/classwork/upload` | Upload XLSX classwork plan |
 | POST | `/api/local-settings/itslearning` | Save itslearning credentials (IP-guarded) |
 | POST | `/api/local-settings/nextcloud` | Save Nextcloud credentials (IP-guarded) |
+
+### Deprecated v1 Endpoints (marked with `X-Deprecated` header)
+
+These endpoints are still functional but deprecated — their v2 replacements should be used:
+
+| Method | Path | `X-Deprecated` header value | v2 Replacement |
+|---|---|---|---|
+| GET | `/api/dashboard` | `Use GET /api/v2/dashboard/data` | `GET /api/v2/dashboard/data` (Phase 12 — now primary) |
+| GET | `/api/classwork` | `Use /api/v2/modules/klassenarbeitsplan/data` | `GET /api/v2/modules/klassenarbeitsplan/data` |
+| GET | `/api/grades` | `Use /api/v2/modules/noten/data` | `GET /api/v2/modules/noten/data` |
+| GET | `/api/notes` | `Use /api/v2/modules/noten/data` | `GET /api/v2/modules/noten/data` |
+| POST | `/api/local-settings/itslearning` | `Use PUT /api/v2/modules/itslearning/config` | `PUT /api/v2/modules/itslearning/config` |
+| POST | `/api/local-settings/nextcloud` | `Use PUT /api/v2/modules/nextcloud/config` | `PUT /api/v2/modules/nextcloud/config` |
 
 ---
 
@@ -232,6 +260,10 @@ Admin panel → **Settings** tab:
 | Variable | Description |
 |---|---|
 | `ENCRYPTION_KEY` | **Optional but strongly recommended** — Fernet key for module config encryption at rest. Generate: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. If not set: app works but passwords are stored as plaintext JSONB. |
+| `LOGIN_RATE_LIMIT_MAX_PER_MINUTE` | Default: `5` — Max login attempts per minute per IP |
+| `LOGIN_RATE_LIMIT_MAX` | Default: `10` — Max login attempts per rate-limit window per IP |
+| `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | Default: `900` — Rate limit window in seconds (15 min) |
+| `RATELIMIT_STORAGE_URI` | Optional — Redis URL for shared rate limiting across multiple workers, e.g. `redis://localhost:6379/0`. Not required for single-worker Render deployments. |
 
 ### Optional
 
@@ -354,12 +386,13 @@ TEST_DATABASE_URL="postgresql://..." python -m pytest tests/ -v --tb=short
 | API responses | Sensitive fields (containing `password`, `secret`, `token`, `credential` in the key name) masked as `***` in all `/api/v2/modules/*/config` and `/api/v2/dashboard/module-config/*` responses |
 | Sessions | `SameSite=None; Secure=True` cookies in production (required for cross-origin Netlify → Render requests) |
 | Bootstrap | PostgreSQL advisory-locked, one-time, logs access code to stdout (Render logs) |
+| Login rate limiting | `5/min + 10/15min` per IP defaults (ENV-configurable via `LOGIN_RATE_LIMIT_*`). In-process memory store (single-worker safe; set `RATELIMIT_STORAGE_URI=redis://...` for multi-worker). Custom 429 JSON response with German error message + `Retry-After` header. |
 
 ---
 
 ## Known Limitations
 
-- **v1 dashboard API still used for main payload:** `src/app.js` calls the legacy `GET /api/dashboard` endpoint for the main dashboard payload (webuntis, itslearning, orgaplan, classwork). Grades/notes now use v2 endpoints. Full migration to per-module v2 data endpoints is a planned next step.
+- **v1 dashboard API still used for base payload:** `src/app.js` calls the legacy `GET /api/dashboard` (v1) for the base payload (quickLinks, workspace, berlinFocus, documents). Per-module data (WebUntis, itslearning, orgaplan, classwork) is now fetched via `GET /api/v2/dashboard/data` and overlaid by `overlayV2ModuleData()`. Full retirement of `GET /api/dashboard` requires v2 equivalents for quickLinks, workspace, berlinFocus (deferred to Phase 12).
 - **DB tests require `TEST_DATABASE_URL`:** Without it, all DB-dependent tests are skipped locally. CI uses a PostgreSQL 15 service container — no secret needed in CI.
 - **Credentials stored as plaintext if `ENCRYPTION_KEY` is not set** — set `ENCRYPTION_KEY` on Render in production.
 - **Existing plaintext values in DB must be backfilled** after `ENCRYPTION_KEY` is set: run `scripts/backfill_encryption.py` (see Scripts & Maintenance section).
@@ -367,10 +400,20 @@ TEST_DATABASE_URL="postgresql://..." python -m pytest tests/ -v --tb=short
 - **No email-based password reset:** By design — access codes are the auth mechanism. Code rotation is admin-initiated via the admin panel.
 - **Drag-to-reorder uses number inputs:** The dashboard module reordering UI uses numeric order inputs, not HTML5 drag-and-drop.
 - **`code_prefix` backfill not possible for existing codes:** argon2id is one-way; old codes can only get a prefix after rotation. Existing NULL-prefix codes still work (fallback to full-scan).
+- **Rate limiting is in-process only:** `flask-limiter` defaults to in-process memory storage. In a multi-worker deployment (`gunicorn -w 4`) each worker maintains an independent counter — rate limits are per-worker, not global. For Render's single-worker free tier this is acceptable. Set `RATELIMIT_STORAGE_URI=redis://...` to enable shared rate limiting across workers.
 
 ---
 
 ## Scripts & Maintenance
+
+### Admin access recovery
+If admin login is inaccessible (lost access code):
+```bash
+# On Render Shell:
+python3 scripts/admin_recovery.py --list
+python3 scripts/admin_recovery.py --rotate-admin <user_id>
+```
+Full instructions: `docs/operations_runbook.md`
 
 ### Encrypt existing module configs
 
@@ -386,14 +429,27 @@ The script is idempotent — it is safe to run multiple times.
 
 ---
 
+## Operations
+
+See [`docs/operations_runbook.md`](docs/operations_runbook.md) for the full operational runbook, including:
+- Post-deploy tasks (set ENV vars, run backfill scripts)
+- Code rotation and `code_prefix` backfill guidance
+- Session cleanup procedures
+- Rate limit monitoring
+- Database backup (Render PostgreSQL)
+- Bootstrap admin recovery
+
 ## Next Steps
 
 1. **Run `scripts/backfill_encryption.py` on Render** to encrypt existing plaintext module configs (after setting `ENCRYPTION_KEY`)
-2. **Migrate remaining v1 `GET /api/dashboard`** payload to v2 per-module data endpoints (webuntis, itslearning, orgaplan, classwork)
-3. **Add WebUntis and itslearning v2 data endpoints** callable from `src/app.js` via `Promise.allSettled()`
-4. **Extract `src/features/webuntis.js`** from the `src/app.js` monolith (~470 lines)
-5. **Rotate existing access codes** to backfill `code_prefix` for faster O(1) login (cannot be backfilled from existing hashes)
-6. Session cleanup job — currently cleanup is only triggered via `POST /api/v2/admin/maintenance/cleanup-sessions`
+2. **(After deploy) Set rate limit ENV vars** if defaults (`5/min + 10/15min`) are too permissive for your school's usage
+3. **(After deploy) Set `RATELIMIT_STORAGE_URI=redis://...`** if scaling to multiple gunicorn workers
+4. **Full retirement of `GET /api/dashboard`** — requires v2 equivalents for quickLinks, workspace, berlinFocus (deferred from Phase 11)
+5. **Extract `src/features/nextcloud.js`** — next logical frontend modularization step after itslearning.js
+6. **Add WebUntis v2 endpoint for full schedule data** — current endpoint returns basic sync result; full v2 for schedule rendering is pending
+7. **Admin UI: orgaplan URL configuration interface** — currently orgaplan URL is set via API only; a UI form in `admin.html` would improve usability
+8. **Rotate existing access codes** to backfill `code_prefix` for faster O(1) login (cannot be backfilled from existing hashes)
+9. Session cleanup job — currently cleanup is only triggered via `POST /api/v2/admin/maintenance/cleanup-sessions`
 
 ---
 
@@ -409,11 +465,13 @@ onboarding.html       — First-run setup wizard
 styles.css            — CSS system
 src/
   api-client.js       — Unified API layer (window.LehrerAPI); all requests use credentials:'include'
-  app.js              — Main dashboard IIFE (delegates grades/notes to LehrerGrades)
+  app.js              — Main dashboard IIFE (delegates grades/notes to LehrerGrades, WebUntis to LehrerWebUntis, itslearning to LehrerItslearning; overlayV2ModuleData() for v2 data)
   features/
     grades.js         — Grades/notes module extracted from app.js (Phase 9e); exposes window.LehrerGrades
+    webuntis.js       — WebUntis timetable module extracted from app.js (Phase 10c); exposes window.LehrerWebUntis
+    itslearning.js    — itslearning module extracted from app.js (Phase 11d); exposes window.LehrerItslearning
   modules/
-    dashboard-manager.js — DashboardManager extracted from app.js (Phase 8d)
+    dashboard-manager.js — DashboardManager extracted from app.js (Phase 8d); getActiveModuleIds() added Phase 11
 backend/
   auth/               — argon2id access codes, session management
   users/              — User CRUD, login business logic

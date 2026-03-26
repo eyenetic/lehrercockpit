@@ -229,6 +229,19 @@ def run_migrations(conn) -> None:
     except Exception as _prefix_exc:
         print(f"[migrations] code_prefix migration skipped (already applied?): {_prefix_exc}", flush=True)
 
+    # ── is_admin flag (Phase 13) ──────────────────────────────────────────────
+    # Separates authorization flag from the identity `role` field.
+    # Backfills existing admin-role users so they keep admin access after migration.
+    try:
+        conn.execute("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE
+        """)
+        conn.execute("""
+            UPDATE users SET is_admin = TRUE WHERE role = 'admin' AND is_admin = FALSE
+        """)
+    except Exception as _is_admin_exc:
+        print(f"[migrations] is_admin migration skipped (already applied?): {_is_admin_exc}", flush=True)
+
     print("[migrations] Alle Migrationen erfolgreich ausgeführt.", flush=True)
 
 

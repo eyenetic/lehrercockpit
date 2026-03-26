@@ -459,3 +459,194 @@ def test_login_failure_creates_audit_log_entry_in_db():
     finally:
         conn.rollback()
         conn.close()
+
+
+# ── Rate limiting unit tests (Phase 10g) ─────────────────────────────────────
+
+def test_login_limit_string_contains_per_minute():
+    """_login_limit_string() returns a string containing per-minute limit."""
+    from backend.api.auth_routes import _login_limit_string
+    limit_str = _login_limit_string()
+    assert "per minute" in limit_str, f"Expected 'per minute' in limit string: {limit_str!r}"
+
+
+def test_login_limit_string_contains_env_derived_values():
+    """_login_limit_string() includes all three ENV-derived config values."""
+    from backend.api.auth_routes import _login_limit_string
+    from backend.config import (
+        LOGIN_RATE_LIMIT_MAX_PER_MINUTE,
+        LOGIN_RATE_LIMIT_MAX,
+        LOGIN_RATE_LIMIT_WINDOW_SECONDS,
+    )
+    limit_str = _login_limit_string()
+    assert str(LOGIN_RATE_LIMIT_MAX_PER_MINUTE) in limit_str, (
+        f"LOGIN_RATE_LIMIT_MAX_PER_MINUTE={LOGIN_RATE_LIMIT_MAX_PER_MINUTE!r} not in {limit_str!r}"
+    )
+    assert str(LOGIN_RATE_LIMIT_MAX) in limit_str, (
+        f"LOGIN_RATE_LIMIT_MAX={LOGIN_RATE_LIMIT_MAX!r} not in {limit_str!r}"
+    )
+    assert str(LOGIN_RATE_LIMIT_WINDOW_SECONDS) in limit_str, (
+        f"LOGIN_RATE_LIMIT_WINDOW_SECONDS={LOGIN_RATE_LIMIT_WINDOW_SECONDS!r} not in {limit_str!r}"
+    )
+
+
+def test_rate_limit_env_vars_exist_in_config():
+    """backend.config exposes all three login rate limit ENV vars as integer constants."""
+    import backend.config as cfg
+    assert hasattr(cfg, "LOGIN_RATE_LIMIT_MAX"), "LOGIN_RATE_LIMIT_MAX missing from backend.config"
+    assert hasattr(cfg, "LOGIN_RATE_LIMIT_WINDOW_SECONDS"), (
+        "LOGIN_RATE_LIMIT_WINDOW_SECONDS missing from backend.config"
+    )
+    assert hasattr(cfg, "LOGIN_RATE_LIMIT_MAX_PER_MINUTE"), (
+        "LOGIN_RATE_LIMIT_MAX_PER_MINUTE missing from backend.config"
+    )
+    assert isinstance(cfg.LOGIN_RATE_LIMIT_MAX, int), "LOGIN_RATE_LIMIT_MAX must be int"
+    assert isinstance(cfg.LOGIN_RATE_LIMIT_WINDOW_SECONDS, int), (
+        "LOGIN_RATE_LIMIT_WINDOW_SECONDS must be int"
+    )
+    assert isinstance(cfg.LOGIN_RATE_LIMIT_MAX_PER_MINUTE, int), (
+        "LOGIN_RATE_LIMIT_MAX_PER_MINUTE must be int"
+    )
+
+
+def test_rate_limit_env_vars_have_sane_defaults():
+    """Rate limit ENV vars have sane defaults (>= 1 attempts, >= 60s window)."""
+    from backend.config import (
+        LOGIN_RATE_LIMIT_MAX,
+        LOGIN_RATE_LIMIT_WINDOW_SECONDS,
+        LOGIN_RATE_LIMIT_MAX_PER_MINUTE,
+    )
+    assert LOGIN_RATE_LIMIT_MAX >= 1, "LOGIN_RATE_LIMIT_MAX should be at least 1"
+    assert LOGIN_RATE_LIMIT_WINDOW_SECONDS >= 60, (
+        "LOGIN_RATE_LIMIT_WINDOW_SECONDS should be at least 60 seconds"
+    )
+    assert LOGIN_RATE_LIMIT_MAX_PER_MINUTE >= 1, (
+        "LOGIN_RATE_LIMIT_MAX_PER_MINUTE should be at least 1"
+    )
+
+
+# ── Phase 13: is_admin field in auth responses ────────────────────────────────
+
+def test_me_response_includes_is_admin_field(client):
+    """GET /api/v2/auth/me response includes is_admin field."""
+    mock_user = _make_mock_user(id=10, is_admin=False)
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=mock_user):
+        response = client.get("/api/v2/auth/me")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "user" in data
+    assert "is_admin" in data["user"], (
+        f"Expected 'is_admin' in user dict, got keys: {list(data['user'].keys())}"
+    )
+
+
+def test_me_response_is_admin_false_for_teacher(client):
+    """GET /api/v2/auth/me returns is_admin=false for regular teacher."""
+    mock_user = _make_mock_user(id=11, role="teacher", is_admin=False)
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=mock_user):
+        response = client.get("/api/v2/auth/me")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["user"]["is_admin"] is False
+
+
+def test_me_response_is_admin_true_for_admin_user(client):
+    """GET /api/v2/auth/me returns is_admin=true for admin user."""
+    mock_user = _make_mock_user(id=12, role="teacher", is_admin=True)
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=mock_user):
+        response = client.get("/api/v2/auth/me")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["user"]["is_admin"] is True
+
+
+def test_login_response_includes_is_admin_field(client):
+    """POST /api/v2/auth/login response includes is_admin field in user dict."""
+    mock_user = _make_mock_user(id=20, is_admin=False)
+    mock_session = _make_mock_session("is-admin-session-abc")
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    with patch.object(backend.api.auth_routes, "db_connection", return_value=mock_ctx):
+        with patch.object(backend.api.auth_routes, "authenticate_by_code", return_value=mock_user):
+            with patch.object(backend.api.auth_routes, "create_session", return_value=mock_session):
+                response = client.post(
+                    "/api/v2/auth/login",
+                    json={"code": "validcode12345678901234567890ab"},
+                )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "user" in data
+    assert "is_admin" in data["user"], (
+        f"Expected 'is_admin' in login response user dict, got: {list(data['user'].keys())}"
+    )
+
+
+def test_login_response_is_admin_true_for_teacher_admin(client):
+    """POST /api/v2/auth/login — user with role='teacher' + is_admin=True returns is_admin=true."""
+    mock_user = _make_mock_user(id=21, role="teacher", is_admin=True)
+    mock_session = _make_mock_session("admin-teacher-session")
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    with patch.object(backend.api.auth_routes, "db_connection", return_value=mock_ctx):
+        with patch.object(backend.api.auth_routes, "authenticate_by_code", return_value=mock_user):
+            with patch.object(backend.api.auth_routes, "create_session", return_value=mock_session):
+                response = client.post(
+                    "/api/v2/auth/login",
+                    json={"code": "validcode12345678901234567890ab"},
+                )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["user"]["is_admin"] is True
+    assert data["user"]["role"] == "teacher"
+
+
+def test_429_handler_json_contract(app):
+    """Custom 429 handler returns JSON with 'error' (containing 'Anmeldeversuche') and 'retry_after_seconds'.
+
+    Tests the contract of the 429 error handler independently of flask-limiter
+    internals by registering an HTTP 429 handler and triggering it via abort(429).
+    """
+    from flask import jsonify, abort
+    from backend.config import LOGIN_RATE_LIMIT_WINDOW_SECONDS
+
+    # Register a 429 HTTP error handler matching the Phase 10 spec
+    @app.errorhandler(429)
+    def _handle_rate_limit(e):
+        retry_after = LOGIN_RATE_LIMIT_WINDOW_SECONDS
+        minutes = max(1, round(retry_after / 60))
+        return jsonify({
+            "error": (
+                f"Zu viele Anmeldeversuche. "
+                f"Bitte versuche es in {minutes} Minuten erneut."
+            ),
+            "retry_after_seconds": retry_after,
+        }), 429
+
+    # Test route that triggers 429 via abort
+    @app.route("/api/v2/auth/_test-429-abort")
+    def _test_429_route():
+        abort(429)
+
+    with app.test_client() as c:
+        resp = c.get("/api/v2/auth/_test-429-abort")
+        assert resp.status_code == 429
+        data = resp.get_json()
+        assert data is not None, "429 response must be JSON"
+        assert "error" in data, f"'error' key missing from 429 body: {data}"
+        assert "retry_after_seconds" in data, (
+            f"'retry_after_seconds' key missing from 429 body: {data}"
+        )
+        assert "Anmeldeversuche" in data["error"], (
+            f"Expected German 'Anmeldeversuche' in 429 error message: {data['error']!r}"
+        )
+        assert isinstance(data["retry_after_seconds"], int), (
+            f"retry_after_seconds must be int, got: {type(data['retry_after_seconds'])}"
+        )

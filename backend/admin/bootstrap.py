@@ -35,13 +35,15 @@ def ensure_bootstrap_admin() -> None:
             conn.execute("SELECT pg_advisory_lock(12345678)")
             try:
                 row = conn.execute(
-                    "SELECT COUNT(*) FROM users WHERE role = 'admin'"
+                    "SELECT COUNT(*) FROM users WHERE is_admin = TRUE"
                 ).fetchone()
                 if row and row[0] > 0:
                     return  # Admin already exists — nothing to do
 
                 # No admin exists: create Bootstrap Admin
-                user, plain_code = create_teacher(conn, "Bootstrap", "Admin", role="admin")
+                # Phase 13: role='teacher' + is_admin=True is the canonical form.
+                # role='admin' also works (compat layer normalizes it), but we use canonical form.
+                user, plain_code = create_teacher(conn, "Bootstrap", "Admin", role="teacher", is_admin=True)
 
                 # Log audit event
                 log_audit_event(

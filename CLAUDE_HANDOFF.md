@@ -1,6 +1,6 @@
 # Claude Handoff — Lehrercockpit
 
-> Last updated: 2026-03-25 (Phase 9h — final documentation update)
+> Last updated: 2026-03-26 (Phase 13 — is_admin flag separation from role field)
 >
 > **Purpose:** This file onboards a new AI assistant to the Lehrercockpit project. Read this first before touching any code. It describes the actual implemented state, not aspirational plans.
 
@@ -24,13 +24,14 @@ Each teacher gets a personal dashboard with individually configured modules (Web
 | Backend | Python 3.11, Flask, gunicorn | ✅ Production-ready |
 | Database | PostgreSQL via psycopg (psycopg3) | ✅ Migrations run at startup |
 | Auth | argon2-cffi (argon2id), custom session table | ✅ Implemented |
-| Rate limiting | flask-limiter | ✅ On login endpoint |
+| Rate limiting | flask-limiter (ENV-driven, custom 429) | ✅ On login endpoint |
 | Frontend host | Netlify (`https://app.lehrercockpit.com`) | ✅ Auto-deploy on `main` |
 | Backend host | Render Docker/gunicorn (`https://api.lehrercockpit.com`) | ✅ |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) | ✅ PostgreSQL 15 service container; full syntax check; encryption key generated |
 
 ### What IS implemented
 
+- **Phase 13 — `is_admin` flag** separate from `role` field — persisted `BOOLEAN` column on `users` table. `role` is retained as an identity/display field; authorization uses `is_admin` exclusively. A user can have `role='teacher'` AND `is_admin=True` simultaneously. Full compatibility layer: `role='admin'` anywhere (API body, `create_teacher()`, `create_user()`, `update_user()`) is automatically normalized to `role='teacher', is_admin=True`. All DB queries (`get_user_by_id`, `get_all_users`, `authenticate_by_code`) return `is_admin`. `require_admin` checks `user.is_admin` (not `user.role`). Bootstrap and recovery scripts use `is_admin=TRUE` query. `GET /api/v2/auth/me` and login response include `is_admin`. Frontend (`login.html`, `admin.html`, `index.html`) checks `is_admin` (with `role='admin'` backward compat). New `tests/test_is_admin_flag.py` (23 tests). Phase 13 tests added to `test_auth_api.py`, `test_admin_routes.py`, `test_bootstrap.py`.
 - DB schema, idempotent migrations, module seed data
 - argon2id access code generation/hashing/verification
 - Session management (create/get/refresh/delete/cleanup)
@@ -38,9 +39,10 @@ Each teacher gets a personal dashboard with individually configured modules (Web
 - Module registry with per-user visibility/order/config (`backend/modules/module_registry.py`)
 - Admin service: system settings, module defaults, user overview (`backend/admin/admin_service.py`)
 - Bootstrap admin creation on first deploy (`backend/admin/bootstrap.py`) — hardened with PostgreSQL advisory lock, writes `bootstrap_completed_at` and `bootstrap_pending_rotation` to `system_settings`, logs `bootstrap_created` to `audit_log`
+- `scripts/admin_recovery.py` — operator CLI for admin access recovery (`--list`, `--rotate-admin`, `--ensure-bootstrap-admin`)
 - All 4 Flask API blueprints: auth, admin, dashboard, module routes
 - Auth decorators: `@require_auth`, `@require_admin`
-- Rate-limited login endpoint (5/min, 20/hr per IP)
+- Rate-limited login endpoint: ENV-driven `LOGIN_RATE_LIMIT_*` vars; defaults `5/min + 10/15min`; custom 429 JSON with German message + `Retry-After` header; in-process memory store (single-worker safe)
 - Cookie management: `Secure=True`, `SameSite=None` in production, `SameSite=Lax` in dev
 - CORS: restricted to configured `CORS_ORIGIN`, with `Access-Control-Allow-Credentials: true`
 - Frontend pages: `login.html` (functional), `admin.html` (1044 lines, full tab UI + audit log tab), `onboarding.html`, `index.html` (`MULTIUSER_ENABLED=true`, auth gate active)
@@ -62,15 +64,42 @@ Each teacher gets a personal dashboard with individually configured modules (Web
 - **Phase 9 — `src/features/grades.js`** extracted from `src/app.js`; exposes `window.LehrerGrades`; all grades/notes functions delegate to it
 - **Phase 9 — Admin audit log UI tab** in `admin.html` (`data-tab="audit"`, `id="tab-audit"`); table + pagination + event_type filter
 - **Phase 9 — `loadDashboard()`** in `src/app.js` overlays v2 grades/notes data on v1 payload
+- **Phase 10 — ENV-driven login rate limiting** via `flask-limiter`; `LOGIN_RATE_LIMIT_MAX`, `LOGIN_RATE_LIMIT_WINDOW_SECONDS`, `LOGIN_RATE_LIMIT_MAX_PER_MINUTE` in `backend/config.py`; custom 429 handler with German error + `retry_after_seconds` JSON key
+- **Phase 10 — WebUntis v2 endpoint fix** (`GET /api/v2/modules/webuntis/data`): `dataclasses.asdict()` applied to `WebUntisSyncResult` before `jsonify`; missing `ical_url` returns `{configured: false}` with HTTP 200
+- **Phase 10 — `src/features/webuntis.js`** extracted from `src/app.js` (~500 lines); exposes `window.LehrerWebUntis`; loaded before `app.js` in `index.html`
+- **Phase 10 — Audit log date range filter**: `date_from` / `date_to` query params added to `GET /api/v2/admin/audit-log`; `_build_audit_query()` helper in `admin_routes.py`
+- **Phase 10 — Audit log CSV export**: `GET /api/v2/admin/audit-log/export.csv` — admin-only, same filters as audit-log, returns `text/csv` with `Content-Disposition: attachment`
+- **Phase 10 — Human-readable German event labels** in audit log UI (`admin.html`)
+- **Phase 10 — `GET /api/v2/admin/maintenance/null-prefix-users`** — lists active users with `code_prefix IS NULL` (need code rotation for O(1) login)
+- **Phase 10 — `docs/operations_runbook.md`** — comprehensive post-deploy and maintenance guide
+- **Phase 11 — Fixed itslearning + nextcloud v2 endpoint serialization** — `dataclasses.asdict()` applied to `ItslearningSyncResult` and `NextcloudSyncResult` before `jsonify`; same fix as Phase 10 webuntis
+- **Phase 11 — Fixed nextcloud constructor mismatch** — `nextcloud_data()` now constructs `NextcloudSettings` from config dict before calling `fetch_nextcloud_sync(settings, now)`
+- **Phase 11 — `orgaplan_data()` returns parsed digest** — calls `build_plan_digest()` internally; caches result in `system_settings` for 60min TTL; returns `highlights`, `upcoming`, `monthLabel`, `status`
+- **Phase 11 — `klassenarbeitsplan_data()` returns classwork cache** — prefers `classwork-cache.json` (Playwright/XLSX); falls back to `build_plan_digest()` with local XLSX
+- **Phase 11 — `GET /api/v2/dashboard/data`** — parallel aggregated module data (`ThreadPoolExecutor`, 5s per-module timeout); fetches only visible modules; `{modules: {webuntis, itslearning, orgaplan, klassenarbeitsplan, noten}, user, generated_at}`
+- **Phase 11 — `overlayV2ModuleData()` in `src/app.js`** — calls `GET /api/v2/dashboard/data`; overlays v2 module data on v1 base payload; fails silently per module
+- **Phase 11 — `DashboardManager.getActiveModuleIds()`** — new method in `src/modules/dashboard-manager.js`; filters to visible + enabled modules; used by `overlayV2ModuleData()`
+- **Phase 11 — `src/features/itslearning.js` extracted** (~130 lines; exposes `window.LehrerItslearning`); loaded before `app.js` in `index.html` (position 5 in load order)
+- **Phase 11 — v1 endpoints marked deprecated** — `X-Deprecated` header added to `GET /api/classwork`, `GET /api/grades`, `GET /api/notes`, `POST /api/local-settings/itslearning`, `POST /api/local-settings/nextcloud`
+- **Phase 12 — `GET /api/v2/dashboard/data` extended with `base` section** — `_fetch_base_data()` in `backend/api/dashboard_routes.py` runs in parallel with module fetchers; returns `{quick_links, workspace, berlin_focus, documents}`. `documents` is deferred (returns `null`). `_safe_str()` guard ensures no MagicMock/non-string values leak into JSON
+- **Phase 12 — `normalizeV2Dashboard(v2)` in `src/app.js`** — maps the full v2 response (`base` + `modules`) to the same normalized data shape all render functions expect. Starts from `normalizeDashboard({})` defaults, then applies `base` fields and calls all existing `_apply*V2Data()` helpers for per-module data
+- **Phase 12 — `loadDashboard()` v2 PRIMARY path** — when `MULTIUSER_ENABLED && window.LehrerAPI`, calls `getDashboardData()` first; on success calls `normalizeV2Dashboard()`; falls through to v1 fallback on failure. The `overlayV2ModuleData()` Phase-11 call is removed from the v1 path (it was redundant — the same v2 call would be made twice)
+- **Phase 12 — `GET /api/dashboard` marked deprecated** — `X-Deprecated: Use GET /api/v2/dashboard/data` response header added; endpoint retained as local-runtime fallback
+- **Phase 12 — 4 new backend tests** in `tests/test_dashboard_routes.py`: `base` key present, `base.quick_links` is list, `base.workspace` is dict, base failure does not crash endpoint
+- **Phase 12 — 3 new frontend tests** in `tests/test_frontend_structure.py`: `normalizeV2Dashboard` in `app.js`, `getDashboardData` call in `app.js`, `X-Deprecated: Use GET /api/v2/dashboard/data` in `app.py`
 
 ### What is NOT yet done (known technical debt)
 
-- `src/app.js` still calls legacy `GET /api/dashboard` (v1) for the main dashboard payload (webuntis, itslearning, orgaplan, classwork) — v2 per-module migration pending
+- `GET /api/dashboard` (v1) is **deprecated** but retained for local-runtime backward compatibility. It is NOT the primary path in SaaS mode (Phase 12 retired it as primary)
+- `base.documents` in `GET /api/v2/dashboard/data` returns `null` (deferred) — requires the full `build_dashboard_payload()` pipeline (`document_monitor`, mock enrichment) to serve correctly in SaaS mode
 - `user_module_configs.config_data` stores credentials as **plaintext JSONB** if `ENCRYPTION_KEY` is not set; run `scripts/backfill_encryption.py` on Render after setting the key
 - `backfill_encryption.py` must be run manually on Render after `ENCRYPTION_KEY` is first set
 - `code_prefix` backfill for existing access codes is impossible (argon2id one-way) — must rotate codes to get prefix-accelerated login
 - No drag-and-drop module reorder (uses number inputs)
 - No email-based password reset (by design — access codes are the auth mechanism)
+- **Rate limit is in-process only** — per-worker, not global. Acceptable for single-worker Render free tier. Set `RATELIMIT_STORAGE_URI=redis://...` for multi-worker scaling.
+- **orgaplan/klassenarbeitsplan data served from server-side cache** — 60min TTL for orgaplan; classwork from `classwork-cache.json` (Playwright/XLSX)
+- **`src/features/nextcloud.js` not yet extracted** — next frontend modularization step after `itslearning.js`
 
 ---
 
@@ -363,22 +392,25 @@ Rate limit: 5/minute, 20/hour per IP (flask-limiter). Returns HTTP 429 on excess
 | GET | `/api/v2/modules/<id>/config` | cookie | **Passwords masked as `***`** |
 | PUT | `/api/v2/modules/<id>/config` | cookie | Rejects `central`/`local` modules (403) |
 | DELETE | `/api/v2/modules/<id>/config` | cookie | Resets to `{}`, sets `is_configured=False` |
-| GET | `/api/v2/modules/itslearning/data` | cookie | Calls `fetch_itslearning_sync()` using stored config |
-| GET | `/api/v2/modules/webuntis/data` | cookie | Calls `fetch_webuntis_sync()` |
-| GET | `/api/v2/modules/nextcloud/data` | cookie | Calls `fetch_nextcloud_sync()` |
-| GET | `/api/v2/modules/orgaplan/data` | cookie | Reads `system_settings.orgaplan_url` + `orgaplan_pdf_url` |
-| GET | `/api/v2/modules/klassenarbeitsplan/data` | cookie | Reads `system_settings.klassenarbeitsplan_url` + local XLSX |
+| GET | `/api/v2/modules/itslearning/data` | cookie | Calls `fetch_itslearning_sync()`; `dataclasses.asdict()` applied (Phase 11 fix); `{configured: false}` if no credentials |
+| GET | `/api/v2/modules/webuntis/data` | cookie | Calls `fetch_webuntis_sync()`; returns `{configured: false}` (HTTP 200) if `ical_url` not set; `dataclasses.asdict()` applied (Phase 10 fix) |
+| GET | `/api/v2/modules/nextcloud/data` | cookie | Constructs `NextcloudSettings` from config dict; `dataclasses.asdict()` applied (Phase 11 fix); `{configured: false}` if no base_url |
+| GET | `/api/v2/modules/orgaplan/data` | cookie | Calls `build_plan_digest()`; 60min cache in `system_settings`; returns `{highlights, upcoming, monthLabel, status}` (Phase 11) |
+| GET | `/api/v2/modules/klassenarbeitsplan/data` | cookie | Prefers `classwork-cache.json`; falls back to `build_plan_digest()`; returns full classwork digest (Phase 11) |
+| GET | `/api/v2/dashboard/data` | cookie | Parallel fetch of all visible modules (`ThreadPoolExecutor`, 5s timeout); `{modules: {...}, user: {id, display_name}, generated_at}` (Phase 11) |
 | GET | `/api/v2/modules/noten/data` | cookie | Returns `{grades: [...], notes: [...]}` for current user (Phase 9) |
 | POST | `/api/v2/modules/noten/grades` | cookie | Body: `{class_name, subject, grade_value, grade_date?, note?, id?}` → `{grade: {...}}` (Phase 9) |
 | DELETE | `/api/v2/modules/noten/grades/<id>` | cookie | Ownership enforced (`AND user_id = %s`) — 404 if wrong user (Phase 9) |
 | POST | `/api/v2/modules/noten/notes` | cookie | Body: `{class_name, note_text}` — upsert by user_id+class_name → `{note: {...}}` (Phase 9) |
 | DELETE | `/api/v2/modules/noten/notes/<class_name>` | cookie | 404 if not found (Phase 9) |
 
-### Admin (additional Phase 9)
+### Admin (additional Phase 9 + Phase 10)
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/api/v2/admin/audit-log` | admin | `{events, total, limit, offset}` — query params: `limit` (max 200), `offset`, `event_type` |
+| GET | `/api/v2/admin/audit-log` | admin | `{events, total, limit, offset}` — query params: `limit` (max 200), `offset`, `event_type`, `date_from`, `date_to` (Phase 10) |
+| GET | `/api/v2/admin/audit-log/export.csv` | admin | CSV export; same filters; `Content-Disposition: attachment` (Phase 10) |
+| GET | `/api/v2/admin/maintenance/null-prefix-users` | admin | `{users: [...], count: int}` — active users with NULL `code_prefix` (Phase 10) |
 
 **Credential masking** — centralized in `backend/api/helpers.py:mask_config()` (Phase 8):
 ```python
@@ -446,7 +478,7 @@ Key functions:
 
 1. Teacher visits `/login.html`
 2. `POST /api/v2/auth/login` with `{"code": "..."}` → session cookie set
-3. `login.html` checks `data.user.role` — if admin: redirect to `admin.html`, else to `index.html`
+3. `login.html` calls `redirectByRole(user)` — all users (including `is_admin=true`) land on `index.html`; onboarding takes priority if `onboarding_complete === false`. Admin-capable users see a visible "⚙ Admin-Bereich" link in the sidebar on `index.html` to reach `admin.html` when they choose.
 4. `index.html` (if `MULTIUSER_ENABLED=true`) calls `GET /api/v2/auth/me` to verify auth
 5. `GET /api/v2/dashboard/onboarding-status` → if `needs_onboarding: true` → redirect to `onboarding.html`
 6. After onboarding: `POST /api/v2/dashboard/onboarding/complete`
@@ -465,15 +497,18 @@ Key functions:
 | [`src/api-client.js`](src/api-client.js) | Unified API layer (`window.LehrerAPI`); all requests use `credentials:'include'`; v2 and v1 legacy paths separated | Loaded first before other scripts |
 | [`src/modules/dashboard-manager.js`](src/modules/dashboard-manager.js) | `DashboardManager` — module layout management, extracted from `src/app.js` (Phase 8d) | Depends on `window.LehrerAPI` |
 | [`src/features/grades.js`](src/features/grades.js) | Grades/notes module (Phase 9e). Exposes `window.LehrerGrades`. All grade/note functions extracted from `src/app.js`. | Depends on `window.LehrerAPI` |
-| [`src/app.js`](src/app.js) | IIFE: dashboard logic, auth check, module rendering. Delegates grades/notes to `window.LehrerGrades`. | `GET /api/dashboard` (legacy v1), noten v2, `PUT /api/v2/modules/*/config` |
+| [`src/features/itslearning.js`](src/features/itslearning.js) | itslearning module (Phase 11d). Exposes `window.LehrerItslearning`. `renderItslearningConnector()`, `saveItslearningCredentials()`, `getRelevantInboxMessages()`, `loadItslearning()`, `applyItslearningData()`. | Depends on `window.LehrerAPI` |
+| [`src/app.js`](src/app.js) | IIFE: dashboard logic, auth check, module rendering. Delegates grades/notes to `window.LehrerGrades`; WebUntis to `window.LehrerWebUntis`; itslearning to `window.LehrerItslearning`. `overlayV2ModuleData()` calls `GET /api/v2/dashboard/data`. | `GET /api/dashboard` (legacy v1 base), `GET /api/v2/dashboard/data` (v2 overlay), `PUT /api/v2/modules/*/config` |
 
-### Script load order in `index.html` (must not change):
+### Script load order in `index.html` (v=37, must not change):
 
 ```html
-<script src="src/api-client.js"></script>              <!-- 1: window.LehrerAPI -->
-<script src="src/modules/dashboard-manager.js"></script>  <!-- 2: window.DashboardManager -->
-<script src="src/features/grades.js"></script>         <!-- 3: window.LehrerGrades (Phase 9) -->
-<script src="src/app.js"></script>                     <!-- 4: main IIFE -->
+<script src="src/api-client.js?v=37"></script>              <!-- 1: window.LehrerAPI -->
+<script src="src/modules/dashboard-manager.js?v=37"></script>  <!-- 2: window.DashboardManager -->
+<script src="src/features/grades.js?v=37"></script>         <!-- 3: window.LehrerGrades (Phase 9) -->
+<script src="src/features/webuntis.js?v=37"></script>       <!-- 4: window.LehrerWebUntis (Phase 10) -->
+<script src="src/features/itslearning.js?v=37"></script>    <!-- 5: window.LehrerItslearning (Phase 11) -->
+<script src="src/app.js?v=37"></script>                     <!-- 6: main IIFE -->
 ```
 
 ### `index.html` flag (Phase 8):
@@ -518,12 +553,14 @@ TEST_DATABASE_URL="postgresql://..." python -m pytest tests/ -v --tb=short
 | `tests/test_session.py` | 7 | Yes | create, get, refresh, delete, cleanup |
 | `tests/test_module_registry.py` | 11 | Yes | Module CRUD, user_modules, config |
 | `tests/test_crypto.py` | 21 | No | encrypt/decrypt/round-trip/backward-compat |
-| `tests/test_frontend_structure.py` | 18 | No | Script extraction, load order + Phase 9 grades.js/audit-log (Phase 9) |
-| `tests/test_auth_api.py` | 8 | No | Mocked DB — login/logout/me + audit log events |
-| `tests/test_admin_routes.py` | varies | No/Yes | Admin endpoint integration + audit-log tests (Phase 9) |
+| `tests/test_frontend_structure.py` | 26 | No | Script extraction, load order + Phase 9 grades.js/audit-log + Phase 10 webuntis.js/runbook |
+| `tests/test_auth_api.py` | 14 | No | Mocked DB — login/logout/me + audit log events + rate limit unit tests (Phase 10) |
+| `tests/test_admin_routes.py` | varies | No/Yes | Admin endpoint integration + audit-log tests + CSV export + null-prefix-users (Phase 10) |
 | `tests/test_admin_service.py` | varies | Yes | System settings, user overview |
 | `tests/test_bootstrap.py` | varies | Yes | Bootstrap + advisory lock + system_settings flags |
-| `tests/test_module_routes.py` | varies | No/Yes | Module config CRUD, encryption, noten v2 endpoints (Phase 9) |
+| `tests/test_module_routes.py` | varies | No/Yes | Module config CRUD, encryption, noten v2 endpoints + WebUntis v2 fix (Phase 10) + itslearning/nextcloud/orgaplan/klassenarbeitsplan v2 tests (Phase 11) |
+| `tests/test_dashboard_routes.py` | 9 | No | `GET /api/v2/dashboard/data` — auth, response shape, module keys, user.id, invisible modules (Phase 11) |
+| `tests/test_frontend_structure.py` | 34 | No | Script extraction, load order, Phase 9 grades.js/audit-log, Phase 10 webuntis.js/runbook, Phase 11 itslearning.js/overlayV2ModuleData/X-Deprecated |
 | `tests/test_grades_notes_v2.py` | varies | Mixed | Service layer unit tests + DB integration (Phase 9) |
 | `tests/test_backfill.py` | varies | No | backfill_encryption.py: compile, dry-run, skip-encrypted, live-update (Phase 9) |
 | `tests/test_api_endpoints.py` | — | No | Legacy v1 endpoint smoke tests |
@@ -626,7 +663,8 @@ DB fixtures auto-skip if `TEST_DATABASE_URL` is not set.
 | `backend/migrations.py` module seed | `ON CONFLICT (id) DO NOTHING` means the initial seed only runs once. Changing a display name or type requires an explicit `UPDATE` statement, not modifying the seed. |
 | `backend/crypto.py` | The `enc:` prefix is a storage contract. Changing or removing it corrupts all existing encrypted records in `user_module_configs.config_data`. |
 | `src/api-client.js` | All frontend pages depend on `window.LehrerAPI`. Changing the public API surface (method names, signatures) breaks the app. |
-| Script load order in `index.html` | `api-client.js` → `dashboard-manager.js` → `grades.js` → `app.js`. Changing this order causes `window.LehrerAPI` or `window.LehrerGrades` to be undefined when later scripts execute. |
+| Script load order in `index.html` | `api-client.js` → `dashboard-manager.js` → `grades.js` → `webuntis.js` → `app.js`. Changing this order causes `window.LehrerAPI`, `window.LehrerGrades`, or `window.LehrerWebUntis` to be undefined when later scripts execute. |
+| `scripts/admin_recovery.py` CLI-only design | The recovery script must NOT gain an HTTP equivalent — the CLI-only design is intentional security. A public endpoint for admin recovery would be a critical vulnerability. |
 
 ### Fragile patterns
 
@@ -638,30 +676,34 @@ DB fixtures auto-skip if `TEST_DATABASE_URL` is not set.
 
 ## 13. Recommended Next Steps
 
-In priority order (Phase 9 completed items are crossed out):
+In priority order (Phase 11 completed items are crossed out):
 
 1. **Run `scripts/backfill_encryption.py` on Render** — After setting `ENCRYPTION_KEY`, existing plaintext configs must be backfilled. Use `--dry-run` first, then without it.
 
-2. **Migrate remaining v1 `GET /api/dashboard`** payload to v2 per-module data endpoints — webuntis, itslearning, orgaplan, classwork are still served from legacy v1. Build `loadDashboardV2()` with `Promise.allSettled()`.
+2. **(After deploy) Set rate limit ENV vars** — If defaults (`5/min + 10/15min`) are too permissive, tune via `LOGIN_RATE_LIMIT_MAX_PER_MINUTE`, `LOGIN_RATE_LIMIT_MAX`, `LOGIN_RATE_LIMIT_WINDOW_SECONDS`.
 
-3. **Add WebUntis and itslearning v2 data endpoints** callable from `src/app.js` directly — `GET /api/v2/modules/webuntis/data` and `GET /api/v2/modules/itslearning/data` already exist; wire them into `loadDashboard()`.
+3. **(After deploy) Set `RATELIMIT_STORAGE_URI=redis://...`** — Only needed if scaling to multiple gunicorn workers. Not required for Render single-worker free tier.
 
-4. ~~**Migrate grades/notes to v2**~~ — **DONE in Phase 9** via `src/features/grades.js` + `/api/v2/modules/noten/*`.
+4. **Full retirement of `GET /api/dashboard`** — Requires v2 equivalents for quickLinks, workspace, berlinFocus. Until then, v1 is the base payload and v2 overlays module data.
 
-5. **Rotate existing access codes** to backfill `code_prefix` — Cannot backfill from existing hashes (one-way). Teachers must rotate to benefit from O(1) login.
+5. **Extract `src/features/nextcloud.js`** — Next logical frontend modularization step after `itslearning.js`.
 
-6. **Extract `src/features/webuntis.js`** — ~470 lines, highest regression risk. Extract after Phase 9 is stable.
+6. **Add WebUntis v2 endpoint for full schedule data** — Current `GET /api/v2/modules/webuntis/data` returns basic sync result; full schedule rendering via v2 is pending.
 
-5. **Add `code_prefix` to auth** — O(1) auth lookup at scale:
-   ```sql
-   ALTER TABLE user_access_codes ADD COLUMN IF NOT EXISTS code_prefix TEXT NOT NULL DEFAULT '';
-   CREATE INDEX IF NOT EXISTS idx_access_codes_prefix ON user_access_codes (code_prefix);
-   ```
+7. **Admin UI: orgaplan URL configuration interface** — Currently `orgaplan_url` / `orgaplan_pdf_url` must be set via `PUT /api/v2/admin/settings`. A UI form in `admin.html` would improve usability.
 
-6. **Split `src/app.js`** — Create `src/state.js`, `src/api.js`, `src/features/` directory. No bundler needed — add `<script>` tags in order.
+8. ~~**Migrate grades/notes to v2**~~ — **DONE in Phase 9** via `src/features/grades.js` + `/api/v2/modules/noten/*`.
 
-7. **Session cleanup automation** — Add 1% probabilistic cleanup in `get_current_user()`.
+9. ~~**Extract `src/features/webuntis.js`**~~ — **DONE in Phase 10c** (~935 lines extracted; exposes `window.LehrerWebUntis`).
 
-8. **Admin display name update** — Add a profile endpoint so admin can change their own name after bootstrap.
+10. ~~**Extract `src/features/itslearning.js`**~~ — **DONE in Phase 11d** (~130 lines extracted; exposes `window.LehrerItslearning`).
 
-9. **Teacher self-service code rotation** — Add `POST /api/v2/auth/rotate-code`.
+11. ~~**Wire v2 module data endpoints into `loadDashboard()`**~~ — **DONE in Phase 11** via `overlayV2ModuleData()` + `GET /api/v2/dashboard/data`.
+
+12. **Rotate existing access codes** to backfill `code_prefix` — Cannot backfill from existing hashes (one-way). Teachers must rotate to benefit from O(1) login. Use `GET /api/v2/admin/maintenance/null-prefix-users` to identify affected users.
+
+13. **Session cleanup automation** — Add 1% probabilistic cleanup in `get_current_user()`.
+
+14. **Admin display name update** — Add a profile endpoint so admin can change their own name after bootstrap.
+
+15. **Teacher self-service code rotation** — Add `POST /api/v2/auth/rotate-code`.

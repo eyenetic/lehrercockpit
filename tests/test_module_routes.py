@@ -507,3 +507,318 @@ def test_db_get_noten_data_returns_empty_for_new_teacher():
     finally:
         conn.rollback()
         conn.close()
+
+
+# ── Phase 10g: WebUntis v2 endpoint tests ────────────────────────────────────
+
+def test_webuntis_data_without_auth_returns_401(client):
+    """GET /api/v2/modules/webuntis/data ohne Auth → 401."""
+    with patch.object(backend.api.helpers, "get_current_user", return_value=None):
+        response = client.get("/api/v2/modules/webuntis/data")
+    assert response.status_code == 401
+
+
+def test_webuntis_data_no_ical_url_returns_200_configured_false(client):
+    """GET /api/v2/modules/webuntis/data mit Teacher-Auth, aber ohne ical_url → 200, configured=false."""
+    teacher = _make_teacher_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    # Config without ical_url
+    mock_config = {}
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.module_routes, "get_user_module_config", return_value=mock_config
+            ):
+                response = client.get("/api/v2/modules/webuntis/data")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+    assert data.get("configured") is False, (
+        f"Expected configured=false when ical_url is absent, got: {data}"
+    )
+
+
+def test_webuntis_data_with_ical_url_returns_serializable_json(client):
+    """GET /api/v2/modules/webuntis/data mit ical_url → 200, JSON-serialisierbares data."""
+    import dataclasses
+    teacher = _make_teacher_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    # Config with ical_url set
+    mock_config = {
+        "base_url": "https://heliobas.webuntis.com/WebUntis",
+        "ical_url": "https://heliobas.webuntis.com/WebUntis/Ical.do?token=test",
+    }
+
+    # Build a minimal WebUntisSyncResult-like dataclass for the mock
+    @dataclasses.dataclass
+    class _MockSyncResult:
+        source: dict = dataclasses.field(default_factory=lambda: {"id": "webuntis", "status": "ok"})
+        schedule: list = dataclasses.field(default_factory=list)
+        events: list = dataclasses.field(default_factory=list)
+        priorities: list = dataclasses.field(default_factory=list)
+
+    mock_result = _MockSyncResult()
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.module_routes, "get_user_module_config", return_value=mock_config
+            ):
+                with patch(
+                    "backend.webuntis_adapter.fetch_webuntis_sync",
+                    return_value=mock_result,
+                ):
+                    response = client.get("/api/v2/modules/webuntis/data")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data is not None, "Response must be valid JSON (not a 500)"
+    assert data.get("ok") is True
+    # The 'data' key must be a dict (not a raw dataclass object)
+    assert "data" in data
+    assert isinstance(data["data"], dict), (
+        f"Expected data['data'] to be a dict (dataclasses.asdict applied), "
+        f"got: {type(data['data'])}"
+    )
+
+
+# ── Phase 11f: itslearning v2 endpoint tests ─────────────────────────────────
+
+def test_itslearning_data_without_auth_returns_401(client):
+    """GET /api/v2/modules/itslearning/data ohne Auth → 401."""
+    with patch.object(backend.api.helpers, "get_current_user", return_value=None):
+        response = client.get("/api/v2/modules/itslearning/data")
+    assert response.status_code == 401
+
+
+def test_itslearning_data_no_config_returns_200_configured_false(client):
+    """GET /api/v2/modules/itslearning/data mit Teacher-Auth, kein Config → 200, configured=false."""
+    teacher = _make_teacher_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    # Empty config → no username/password
+    mock_config = {}
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.module_routes, "get_user_module_config", return_value=mock_config
+            ):
+                response = client.get("/api/v2/modules/itslearning/data")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+    assert data.get("configured") is False, (
+        f"Expected configured=false when no credentials, got: {data}"
+    )
+
+
+def test_itslearning_data_with_config_returns_serializable_json(client):
+    """GET /api/v2/modules/itslearning/data mit Credentials → 200, JSON-serialisierbares data dict."""
+    import dataclasses
+    teacher = _make_teacher_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    mock_config = {
+        "base_url": "https://berlin.itslearning.com",
+        "username": "lehrer@schule.de",
+        "password": "secret",
+        "max_updates": 6,
+    }
+
+    # Minimal ItslearningSyncResult-like dataclass
+    @dataclasses.dataclass
+    class _MockItslearningResult:
+        source: dict = dataclasses.field(default_factory=lambda: {"id": "itslearning", "status": "ok"})
+        messages: list = dataclasses.field(default_factory=list)
+        priorities: list = dataclasses.field(default_factory=list)
+        mode: str = "live"
+        note: str = ""
+
+    mock_result = _MockItslearningResult()
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.module_routes, "get_user_module_config", return_value=mock_config
+            ):
+                with patch(
+                    "backend.itslearning_adapter.fetch_itslearning_sync",
+                    return_value=mock_result,
+                ):
+                    response = client.get("/api/v2/modules/itslearning/data")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data is not None, "Response must be valid JSON"
+    assert data.get("ok") is True
+    assert "data" in data
+    assert isinstance(data["data"], dict), (
+        f"Expected data['data'] to be a dict (dataclasses.asdict applied), got: {type(data['data'])}"
+    )
+
+
+# ── Phase 11f: nextcloud v2 endpoint tests ───────────────────────────────────
+
+def test_nextcloud_data_without_auth_returns_401(client):
+    """GET /api/v2/modules/nextcloud/data ohne Auth → 401."""
+    with patch.object(backend.api.helpers, "get_current_user", return_value=None):
+        response = client.get("/api/v2/modules/nextcloud/data")
+    assert response.status_code == 401
+
+
+def test_nextcloud_data_no_config_returns_200_configured_false(client):
+    """GET /api/v2/modules/nextcloud/data mit Teacher-Auth, kein Config → 200, configured=false."""
+    teacher = _make_teacher_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    # No base_url or workspace_url configured
+    mock_config = {}
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.module_routes, "get_user_module_config", return_value=mock_config
+            ):
+                response = client.get("/api/v2/modules/nextcloud/data")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+    assert data.get("configured") is False, (
+        f"Expected configured=false when no base_url/workspace_url, got: {data}"
+    )
+
+
+# ── Phase 11f: orgaplan v2 endpoint tests ────────────────────────────────────
+
+def test_orgaplan_data_without_auth_returns_401(client):
+    """GET /api/v2/modules/orgaplan/data ohne Auth → 401."""
+    with patch.object(backend.api.helpers, "get_current_user", return_value=None):
+        response = client.get("/api/v2/modules/orgaplan/data")
+    assert response.status_code == 401
+
+
+def test_orgaplan_data_no_url_returns_200_configured_false(client):
+    """GET /api/v2/modules/orgaplan/data mit Auth, kein URL → 200, configured=false."""
+    teacher = _make_teacher_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    # No orgaplan_url or orgaplan_pdf_url configured
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.module_routes, "get_system_setting", return_value=None
+            ):
+                response = client.get("/api/v2/modules/orgaplan/data")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+    assert data.get("configured") is False, (
+        f"Expected configured=false when no URL set, got: {data}"
+    )
+
+
+def test_orgaplan_data_with_url_and_mocked_digest_returns_200(client):
+    """GET /api/v2/modules/orgaplan/data mit URL + gemocktem build_plan_digest → 200 mit data."""
+    teacher = _make_teacher_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    mock_digest_full = {
+        "orgaplan": {
+            "status": "ok",
+            "highlights": ["Test highlight"],
+            "upcoming": [{"date": "2026-04-01", "text": "Konferenz"}],
+            "monthLabel": "April 2026",
+            "detail": "",
+        }
+    }
+
+    def _mock_get_system_setting(conn, key, default=None):
+        if key == "orgaplan_pdf_url":
+            return "https://example.com/orgaplan.pdf"
+        if key == "orgaplan_url":
+            return "https://example.com/orgaplan"
+        # Cache keys → no cache (force fresh parse)
+        return None
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.module_routes,
+                "get_system_setting",
+                side_effect=_mock_get_system_setting,
+            ):
+                with patch(
+                    "backend.plan_digest.build_plan_digest",
+                    return_value=mock_digest_full,
+                ):
+                    response = client.get("/api/v2/modules/orgaplan/data")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+    assert data.get("configured") is True
+    assert "data" in data
+    result_data = data["data"]
+    assert isinstance(result_data, dict), f"Expected dict, got: {type(result_data)}"
+    assert result_data.get("status") == "ok"
+    assert "highlights" in result_data
+
+
+# ── Phase 11f: klassenarbeitsplan v2 endpoint tests ──────────────────────────
+
+def test_klassenarbeitsplan_data_without_auth_returns_401(client):
+    """GET /api/v2/modules/klassenarbeitsplan/data ohne Auth → 401."""
+    with patch.object(backend.api.helpers, "get_current_user", return_value=None):
+        response = client.get("/api/v2/modules/klassenarbeitsplan/data")
+    assert response.status_code == 401
+
+
+def test_klassenarbeitsplan_data_empty_cache_returns_200(client):
+    """GET /api/v2/modules/klassenarbeitsplan/data mit Teacher-Auth + leerer Cache → 200, kein Crash."""
+    teacher = _make_teacher_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    # Cache returns empty/warning status → triggers fallback
+    mock_cache = {"status": "warning", "previewRows": [], "entries": []}
+    # plan_digest fallback also returns empty classwork
+    mock_digest_full = {
+        "classwork": {
+            "status": "warning",
+            "title": "Klassenarbeitsplan",
+            "detail": "Keine Daten",
+            "updatedAt": "--:--",
+            "previewRows": [],
+            "classes": [],
+            "entries": [],
+            "defaultClass": "",
+            "sourceUrl": "",
+        }
+    }
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.module_routes, "get_system_setting", return_value=None
+            ):
+                with patch(
+                    "backend.classwork_cache.load_cache",
+                    return_value=mock_cache,
+                ):
+                    with patch(
+                        "backend.plan_digest.build_plan_digest",
+                        return_value=mock_digest_full,
+                    ):
+                        response = client.get("/api/v2/modules/klassenarbeitsplan/data")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+    assert "data" in data

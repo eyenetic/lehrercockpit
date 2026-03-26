@@ -395,3 +395,207 @@ def test_get_audit_log_default_limit_is_50(client):
     data = response.get_json()
     assert data["limit"] == 50
     assert data["offset"] == 0
+
+
+# ── Phase 10g: Audit log improvements ────────────────────────────────────────
+
+def test_get_audit_log_with_date_filter_returns_200(client):
+    """GET /api/v2/admin/audit-log?date_from=2024-01-01&date_to=2024-12-31 with admin → 200."""
+    admin = _make_admin_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    mock_conn.execute.return_value.fetchone.return_value = (0,)
+    mock_conn.execute.return_value.fetchall.return_value = []
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        with patch.object(backend.api.admin_routes, "db_connection", return_value=mock_ctx):
+            response = client.get(
+                "/api/v2/admin/audit-log?date_from=2024-01-01&date_to=2024-12-31"
+            )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+    assert "events" in data
+    assert "total" in data
+
+
+def test_export_audit_log_csv_without_auth_returns_401(client):
+    """GET /api/v2/admin/audit-log/export.csv ohne Auth → 401."""
+    with patch.object(backend.api.helpers, "get_current_user", return_value=None):
+        response = client.get("/api/v2/admin/audit-log/export.csv")
+    assert response.status_code == 401
+
+
+def test_export_audit_log_csv_with_teacher_returns_403(client):
+    """GET /api/v2/admin/audit-log/export.csv mit Teacher → 403."""
+    teacher = _make_teacher_user()
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
+        response = client.get("/api/v2/admin/audit-log/export.csv")
+    assert response.status_code == 403
+
+
+def test_export_audit_log_csv_with_admin_returns_200_with_csv_content_type(client):
+    """GET /api/v2/admin/audit-log/export.csv mit Admin → 200, Content-Type: text/csv."""
+    admin = _make_admin_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    mock_conn.execute.return_value.fetchall.return_value = []
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        with patch.object(backend.api.admin_routes, "db_connection", return_value=mock_ctx):
+            response = client.get("/api/v2/admin/audit-log/export.csv")
+
+    assert response.status_code == 200
+    content_type = response.headers.get("Content-Type", "")
+    assert "text/csv" in content_type, (
+        f"Expected text/csv Content-Type, got: {content_type!r}"
+    )
+
+
+def test_get_null_prefix_users_without_auth_returns_401(client):
+    """GET /api/v2/admin/maintenance/null-prefix-users ohne Auth → 401."""
+    with patch.object(backend.api.helpers, "get_current_user", return_value=None):
+        response = client.get("/api/v2/admin/maintenance/null-prefix-users")
+    assert response.status_code == 401
+
+
+def test_get_null_prefix_users_with_admin_returns_200_with_users_list(client):
+    """GET /api/v2/admin/maintenance/null-prefix-users mit Admin → 200, 'users' list."""
+    admin = _make_admin_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    mock_conn.execute.return_value.fetchall.return_value = []
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        with patch.object(backend.api.admin_routes, "db_connection", return_value=mock_ctx):
+            response = client.get("/api/v2/admin/maintenance/null-prefix-users")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+    assert "users" in data
+    assert isinstance(data["users"], list)
+
+
+# ── Phase 13: is_admin flag + require_admin + normalization ───────────────────
+
+def _make_teacher_with_admin_flag(**kwargs):
+    """Teacher user with is_admin=True (Phase 13 canonical form)."""
+    user = MagicMock()
+    user.id = kwargs.get("id", 50)
+    user.first_name = "Admin"
+    user.last_name = "Teacher"
+    user.full_name = "Admin Teacher"
+    user.role = "teacher"      # identity: teacher
+    user.is_active = True
+    user.is_admin = True       # authorization: admin
+    user.to_dict.return_value = {
+        "id": user.id,
+        "first_name": "Admin",
+        "last_name": "Teacher",
+        "full_name": "Admin Teacher",
+        "role": "teacher",
+        "is_active": True,
+        "is_admin": True,
+    }
+    return user
+
+
+def test_require_admin_allows_teacher_with_is_admin_true(client):
+    """require_admin allows user with role='teacher' + is_admin=True (Phase 13)."""
+    teacher_admin = _make_teacher_with_admin_flag()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher_admin):
+        with patch.object(backend.api.admin_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(backend.api.admin_routes, "get_user_overview", return_value=[]):
+                response = client.get("/api/v2/admin/users")
+
+    assert response.status_code == 200, (
+        f"Expected 200 for teacher+is_admin=True, got {response.status_code}"
+    )
+
+
+def test_require_admin_blocks_teacher_with_is_admin_false(client):
+    """require_admin blocks user with role='teacher' + is_admin=False."""
+    plain_teacher = _make_teacher_user()  # is_admin=False
+    with patch.object(backend.api.helpers, "get_current_user", return_value=plain_teacher):
+        response = client.get("/api/v2/admin/users")
+    assert response.status_code == 403
+
+
+def test_post_users_with_admin_role_sets_is_admin_true(client):
+    """POST /api/v2/admin/users with role='admin' → create_teacher called with is_admin=True."""
+    admin = _make_admin_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    mock_new_user = MagicMock()
+    mock_new_user.id = 55
+    mock_new_user.to_dict.return_value = {
+        "id": 55, "first_name": "New", "last_name": "Admin",
+        "role": "teacher", "is_active": True, "is_admin": True,
+    }
+
+    captured = {}
+
+    def mock_create(conn, first_name, last_name, role="teacher", is_admin=False):
+        captured["role"] = role
+        captured["is_admin"] = is_admin
+        return mock_new_user, "testcode1234567890abcdef12345678"
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        with patch.object(backend.api.admin_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(backend.api.admin_routes, "create_teacher", side_effect=mock_create):
+                with patch.object(backend.api.admin_routes, "initialize_user_modules"):
+                    response = client.post(
+                        "/api/v2/admin/users",
+                        json={"first_name": "New", "last_name": "Admin", "role": "admin"},
+                    )
+
+    assert response.status_code == 201
+    # Normalization: role='admin' → role='teacher' + is_admin=True
+    assert captured.get("role") == "teacher", (
+        f"Expected normalized role='teacher', got: {captured.get('role')!r}"
+    )
+    assert captured.get("is_admin") is True, (
+        f"Expected is_admin=True after normalization, got: {captured.get('is_admin')!r}"
+    )
+
+
+def test_post_users_with_teacher_role_and_is_admin_true(client):
+    """POST /api/v2/admin/users with role='teacher' + is_admin=True → canonical new form."""
+    admin = _make_admin_user()
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    mock_new_user = MagicMock()
+    mock_new_user.id = 56
+    mock_new_user.to_dict.return_value = {
+        "id": 56, "first_name": "Power", "last_name": "Teacher",
+        "role": "teacher", "is_active": True, "is_admin": True,
+    }
+
+    captured = {}
+
+    def mock_create(conn, first_name, last_name, role="teacher", is_admin=False):
+        captured["role"] = role
+        captured["is_admin"] = is_admin
+        return mock_new_user, "testcode1234567890abcdef12345679"
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        with patch.object(backend.api.admin_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(backend.api.admin_routes, "create_teacher", side_effect=mock_create):
+                with patch.object(backend.api.admin_routes, "initialize_user_modules"):
+                    response = client.post(
+                        "/api/v2/admin/users",
+                        json={
+                            "first_name": "Power",
+                            "last_name": "Teacher",
+                            "role": "teacher",
+                            "is_admin": True,
+                        },
+                    )
+
+    assert response.status_code == 201
+    assert captured.get("role") == "teacher"
+    assert captured.get("is_admin") is True

@@ -80,6 +80,36 @@ This event is logged as `bootstrap_created` in the audit log.
 
 ---
 
+## Admin Access Recovery
+
+If the bootstrap admin access code is lost and no admin can log in, use the recovery script from the Render shell.
+
+### Step 1: List current admin users
+```bash
+python3 scripts/admin_recovery.py --list
+```
+This shows all admin users and whether they have an access code configured.
+
+### Step 2: Rotate an admin's access code
+```bash
+python3 scripts/admin_recovery.py --rotate-admin <user_id>
+```
+Replace `<user_id>` with the ID from Step 1. The new access code is printed ONCE — save it immediately.
+
+### Step 3: If no admin exists at all
+```bash
+python3 scripts/admin_recovery.py --ensure-bootstrap-admin
+```
+Creates a recovery admin user and prints the access code once.
+
+### Security notes
+- This script requires database access (Render Shell or server SSH)
+- No recovery endpoint exists via HTTP — this is intentional
+- All code rotations are logged in the audit_log table
+- After recovery, rename "Recovery Admin" to your real name via the admin panel
+
+---
+
 ### 4. Activating `code_prefix` Optimization for Existing Users
 
 Users created before Phase 9c have `code_prefix IS NULL` in `user_access_codes`. These users use a slower authentication path (full table scan + argon2 verify for all users).

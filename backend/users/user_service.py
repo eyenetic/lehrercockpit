@@ -9,7 +9,11 @@ from ..auth.access_code import generate_code, hash_code, verify_code, get_code_p
 
 
 def create_teacher(
-    conn, first_name: str, last_name: str, role: str = "teacher"
+    conn,
+    first_name: str,
+    last_name: str,
+    role: str = "teacher",
+    is_admin: bool = False,
 ) -> Tuple[User, str]:
     """Erstellt eine neue Lehrkraft mit einem generierten Zugangscode.
 
@@ -20,12 +24,14 @@ def create_teacher(
         conn: psycopg3 DB-Verbindung.
         first_name: Vorname der Lehrkraft.
         last_name: Nachname der Lehrkraft.
-        role: 'teacher' (Standard) oder 'admin'.
+        role: 'teacher' (Standard) oder 'admin' (legacy — normalized to 'teacher'+is_admin=True).
+        is_admin: Admin-Berechtigung (Phase 13). Defaults to False.
+                  Automatically True if role='admin' is passed (compatibility layer).
 
     Returns:
         Tuple aus (User, plain_code) – plain_code nur einmalig verfügbar.
     """
-    user = create_user(conn, first_name, last_name, role)
+    user = create_user(conn, first_name, last_name, role, is_admin=is_admin)
     plain_code = generate_code()
     code_hash = hash_code(plain_code)
     prefix = get_code_prefix(plain_code)
@@ -75,7 +81,7 @@ def authenticate_by_code(conn, plain_code: str) -> Optional[User]:
     rows = conn.execute(
         """
         SELECT u.id, u.first_name, u.last_name, u.role, u.is_active,
-               u.created_at, u.updated_at, uac.code_hash
+               u.created_at, u.updated_at, uac.code_hash, u.is_admin
         FROM users u
         INNER JOIN user_access_codes uac ON uac.user_id = u.id
         WHERE u.is_active = TRUE
@@ -96,6 +102,7 @@ def authenticate_by_code(conn, plain_code: str) -> Optional[User]:
                 is_active=row[4],
                 created_at=row[5],
                 updated_at=row[6],
+                is_admin=bool(row[8]) if len(row) > 8 else False,
             )
             return user
 

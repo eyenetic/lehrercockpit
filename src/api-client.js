@@ -58,6 +58,12 @@
 
     // ---- Modules v2 ----
     getModules: function() { return apiFetch('/api/v2/modules'); },
+    getModuleData: function(moduleId) {
+      return apiFetch('/api/v2/modules/' + moduleId + '/data');
+    },
+
+    // ---- Dashboard composition v2 (Phase 11c) ----
+    getDashboardData: function() { return apiFetch('/api/v2/dashboard/data'); },
 
     // ---- Admin v2 ----
     admin: {
