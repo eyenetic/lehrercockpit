@@ -93,6 +93,9 @@ def login():
 def logout():
     """Logout: Session löschen und Cookie entfernen.
 
+    Sends Clear-Site-Data: "cache", "cookies", "storage" so the browser
+    discards all cached assets, session cookies and localStorage on logout.
+
     Response 200: {"ok": true}
     """
     session_id = request.cookies.get(SESSION_COOKIE_NAME)
@@ -106,6 +109,9 @@ def logout():
     resp_tuple = success()
     resp = resp_tuple[0]
     clear_session_cookie(resp)
+    # Tell the browser to wipe cache, cookies and storage for this origin on logout.
+    # Supported in Chrome/Edge/Firefox; Safari ignores the header gracefully.
+    resp.headers["Clear-Site-Data"] = '"cache", "cookies", "storage"'
     return resp, resp_tuple[1]
 
 
