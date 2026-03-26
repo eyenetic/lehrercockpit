@@ -256,7 +256,7 @@
       var list = document.getElementById('layout-module-list');
       if (!list) return;
       list.innerHTML = '';
-      _modules.forEach(function(m, idx) {
+      _modules.forEach(function(m) {
         var row = document.createElement('div');
         row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.25rem;border-bottom:1px solid var(--line);';
         row.innerHTML =
@@ -264,7 +264,7 @@
           (m.is_visible ? 'checked' : '') + ' style="cursor:pointer;accent-color:var(--accent);width:16px;height:16px;" />' +
           '<label for="lm-enabled-' + _esc(m.module_id) + '" style="flex:1;font-size:0.85rem;color:var(--ink);cursor:pointer;">' +
           _esc(m.display_name) + '</label>' +
-          '<input type="number" min="1" value="' + (idx + 1) + '" id="lm-order-' + _esc(m.module_id) + '" ' +
+          '<input type="number" min="1" value="' + (m.sort_order || 0) + '" id="lm-order-' + _esc(m.module_id) + '" ' +
           'data-module-id="' + _esc(m.module_id) + '" ' +
           'style="width:50px;padding:0.25rem 0.4rem;border:1px solid var(--line-strong);border-radius:var(--radius-sm);' +
           'background:var(--panel-soft);color:var(--ink);font-size:0.82rem;text-align:center;" />';

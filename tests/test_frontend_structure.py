@@ -789,3 +789,64 @@ def test_app_js_renderAll_calls_renderStats(app_js_content):
         "renderAll() does not call renderStats(). "
         "Expected: renderStats() called inside renderAll() so stat tiles update correctly."
     )
+
+
+# ── Sparse sort_order fix tests ───────────────────────────────────────────────
+# Regression tests for the bug where modules with sparse sort_order values
+# (e.g. 4, 5, 6, 7 when earlier modules are disabled) were rendered with the
+# wrong order value (idx+1 = 1, 2, 3, 4) in the layout panel. Any "Save"
+# without manually correcting those numbers silently re-normalised the DB to
+# 1–4, breaking the stored order and causing later-only enabled modules to
+# appear in wrong positions or not at all.
+
+def test_dashboard_manager_renderLayoutPanelContent_uses_sort_order_not_idx(dashboard_manager_content):
+    """_renderLayoutPanelContent() must use m.sort_order, NOT idx+1, as the sort-order input value.
+
+    Bug: with sparse sort_orders (e.g. 4, 5, 6, 7 when earlier modules are
+    disabled) the old code wrote `value="' + (idx + 1) + '"` which displayed
+    1, 2, 3, 4. Any save without manual correction silently overwrote the DB
+    with those wrong values and the later-only enabled modules stopped rendering
+    in the correct order.
+
+    Fix: use `m.sort_order` so the panel always reflects the actual stored value.
+    """
+    start = dashboard_manager_content.find("function _renderLayoutPanelContent")
+    assert start != -1, "_renderLayoutPanelContent function not found in dashboard-manager.js"
+    # The value= input attribute is deep in the innerHTML string — use 1400 chars
+    func_region = dashboard_manager_content[start:start + 1400]
+
+    # Must NOT use idx+1 as the order value
+    assert "(idx + 1)" not in func_region, (
+        "_renderLayoutPanelContent() still uses (idx + 1) as the sort-order input value. "
+        "This causes sparse sort_orders (e.g. 4,5,6,7) to be rendered as 1,2,3,4 and "
+        "silently overwritten on save. Use m.sort_order instead."
+    )
+
+    # Must use m.sort_order
+    assert "m.sort_order" in func_region, (
+        "_renderLayoutPanelContent() does not use m.sort_order as the sort-order input value. "
+        "Expected: value='\" + (m.sort_order || 0) + \"' so the panel always reflects the real "
+        "stored sort_order, preserving sparse values when earlier modules are disabled."
+    )
+
+
+def test_dashboard_manager_renderLayoutPanelContent_forEach_no_idx_param(dashboard_manager_content):
+    """_renderLayoutPanelContent() forEach callback does not need the unused idx parameter.
+
+    After the fix the idx parameter is no longer required. Its presence is not
+    an error, but its use as an order value is. This test is a belt-and-suspenders
+    check that the fix did not re-introduce the idx-based value in a different form.
+    """
+    start = dashboard_manager_content.find("function _renderLayoutPanelContent")
+    assert start != -1, "_renderLayoutPanelContent function not found in dashboard-manager.js"
+    func_region = dashboard_manager_content[start:start + 1400]
+    # idx+1 must be absent as a value string (the critical form that caused the bug)
+    assert "(idx + 1)" not in func_region, (
+        "_renderLayoutPanelContent still constructs sort-order value with (idx + 1). "
+        "Sparse sort_orders (e.g. 4,5,6,7) would be rendered as 1,2,3,4 and overwritten on save."
+    )
+    # The correct pattern must be present
+    assert "m.sort_order" in func_region, (
+        "m.sort_order not found in _renderLayoutPanelContent — "
+        "sparse sort_order fix may have been lost."
+    )
