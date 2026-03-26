@@ -278,9 +278,9 @@ def test_ensure_bootstrap_admin_db_idempotent():
         ensure_bootstrap_admin()
         ensure_bootstrap_admin()
 
-        # Count admin users
+        # Count admin-capable users via persisted authorization flag (Phase 13)
         row = conn.execute(
-            "SELECT COUNT(*) FROM users WHERE role = 'admin'"
+            "SELECT COUNT(*) FROM users WHERE is_admin = TRUE"
         ).fetchone()
         admin_count = row[0]
         assert admin_count >= 1, "At least one admin should exist after bootstrap"
