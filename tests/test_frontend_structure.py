@@ -421,19 +421,19 @@ def test_index_html_admin_link_conditional_on_is_admin(index_html_content):
     assert "is_admin" in index_html_content, (
         "index.html does not reference is_admin anywhere."
     )
-    # The JS initUserInfo block must reference both sidebar-admin-link (as getElementById)
-    # and is_admin together — verify they co-occur in the same script block
-    js_block_start = index_html_content.find("initUserInfo")
+    # The JS initUserInfo function body must reference both sidebar-admin-link and is_admin.
+    # Anchor on "function initUserInfo" to skip any earlier comment/call-site occurrences.
+    js_block_start = index_html_content.find("function initUserInfo")
     assert js_block_start != -1, (
-        "index.html does not contain initUserInfo JS block for user info setup."
+        "index.html does not contain 'function initUserInfo' definition for user info setup."
     )
     js_block = index_html_content[js_block_start:js_block_start + 1200]
     assert "sidebar-admin-link" in js_block, (
-        "initUserInfo block does not reference sidebar-admin-link. "
-        "Admin link must be shown/hidden in the user-info setup block."
+        "initUserInfo function body does not reference sidebar-admin-link. "
+        "Admin link must be shown/hidden inside initUserInfo()."
     )
     assert "is_admin" in js_block, (
-        "initUserInfo block does not check is_admin. "
+        "initUserInfo function body does not check is_admin. "
         "Admin link visibility must be conditional on is_admin."
     )
 
@@ -827,6 +827,58 @@ def test_dashboard_manager_renderLayoutPanelContent_uses_sort_order_not_idx(dash
         "_renderLayoutPanelContent() does not use m.sort_order as the sort-order input value. "
         "Expected: value='\" + (m.sort_order || 0) + \"' so the panel always reflects the real "
         "stored sort_order, preserving sparse values when earlier modules are disabled."
+    )
+
+
+def test_index_html_checkAuth_calls_initUserInfo_after_setting_current_user(index_html_content):
+    """index.html checkAuth() calls initUserInfo() after window.CURRENT_USER is set.
+
+    Bug: initUserInfo() was a self-executing IIFE that ran synchronously before the
+    async checkAuth fetch completed, so window.CURRENT_USER was always undefined and
+    the admin link was never shown for admin users.
+
+    Fix: initUserInfo is now a plain function called explicitly from checkAuth() right
+    after 'window.CURRENT_USER = data.user' so the admin link always renders with the
+    correct is_admin value from the session.
+    """
+    # checkAuth must contain a call to initUserInfo() after CURRENT_USER is assigned
+    checkauth_start = index_html_content.find("async function checkAuth")
+    assert checkauth_start != -1, "checkAuth async function not found in index.html"
+    checkauth_region = index_html_content[checkauth_start:checkauth_start + 1800]
+    assert "initUserInfo" in checkauth_region, (
+        "checkAuth() does not call initUserInfo(). "
+        "Expected: initUserInfo() called inside checkAuth() after window.CURRENT_USER is set, "
+        "so the admin link is shown with the correct is_admin flag."
+    )
+    # The call must come after CURRENT_USER assignment
+    current_user_pos = checkauth_region.find("CURRENT_USER = data.user")
+    init_call_pos = checkauth_region.find("initUserInfo", current_user_pos)
+    assert current_user_pos != -1, "window.CURRENT_USER assignment not found in checkAuth()"
+    assert init_call_pos != -1, (
+        "initUserInfo() is not called after 'window.CURRENT_USER = data.user' in checkAuth(). "
+        "The call must come after the assignment so CURRENT_USER is populated when initUserInfo runs."
+    )
+
+
+def test_index_html_initUserInfo_is_not_iife(index_html_content):
+    """index.html initUserInfo is defined as a plain function, NOT a self-executing IIFE.
+
+    The old form '(function initUserInfo() { ... })()' ran synchronously before the
+    async fetch in checkAuth() completed, so window.CURRENT_USER was undefined.
+
+    The fix converts it to 'function initUserInfo() { ... }' (no auto-invocation)
+    so it only runs when explicitly called from checkAuth() with CURRENT_USER already set.
+    """
+    # Must NOT contain the IIFE invocation pattern for initUserInfo
+    assert "(function initUserInfo()" not in index_html_content, (
+        "index.html still defines initUserInfo as an IIFE '(function initUserInfo() { ... })()'. "
+        "This causes the admin link to never appear because CURRENT_USER is not yet set when it runs. "
+        "Fix: use 'function initUserInfo() { ... }' and call it from checkAuth() after CURRENT_USER is set."
+    )
+    # Must contain the plain function declaration
+    assert "function initUserInfo()" in index_html_content, (
+        "index.html does not define 'function initUserInfo()' as a plain named function. "
+        "Expected: function initUserInfo() { ... } called from checkAuth() after CURRENT_USER is set."
     )
 
 

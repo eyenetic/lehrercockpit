@@ -597,6 +597,8 @@
 
     <script>
 // Auth-Check: wenn nicht eingeloggt → Login
+// initUserInfo() is defined in the next script block and called here — after the async
+// fetch resolves — so that window.CURRENT_USER is already set when it runs.
 (async function checkAuth() {
   try {
     const backendUrl = window.BACKEND_API_URL || 'https://lehrercockpit.onrender.com';
@@ -611,6 +613,10 @@
       const data = await resp.json();
       if (data.ok) {
         window.CURRENT_USER = data.user;
+        // Render user info (name, admin link, logout) now that CURRENT_USER is available.
+        // initUserInfo is defined in the script block below; by the time this await resolves,
+        // all subsequent synchronous <script> tags have already been parsed and executed.
+        if (typeof initUserInfo === 'function') initUserInfo();
         // Onboarding prüfen
         const onbResp = await fetch(backendUrl + '/api/v2/dashboard/onboarding-status', {credentials: 'include'});
         if (onbResp.ok) {
@@ -636,7 +642,9 @@
     <script src="./src/app.js?v=37"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
-(function initUserInfo() {
+// NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
+// so the admin link and user name are always rendered with the correct data.
+function initUserInfo() {
   if (window.CURRENT_USER) {
     const info = document.getElementById('sidebar-user-info');
     const name = document.getElementById('sidebar-user-name');
@@ -655,7 +663,7 @@
       });
     }
   }
-})();
+}
     </script>
   </body>
 </html>
