@@ -27,7 +27,7 @@
       ];
     </script>
     <script>window.MULTIUSER_ENABLED = true; /* Multi-User SaaS-Modus aktiv */</script>
-    <link rel="stylesheet" href="./styles.css?v=34" />
+    <link rel="stylesheet" href="./styles.css?v=40" />
   </head>
   <body>
     <div class="app-shell">
@@ -44,7 +44,7 @@
         <div class="runtime-banner" id="runtime-banner" hidden></div>
 
         <nav class="sidebar-nav" aria-label="Bereiche">
-          <button class="nav-link active" type="button" data-section-target="overview">Heute</button>
+          <button class="nav-link active" type="button" data-section-target="overview">Heute<span id="today-nav-badge" class="nav-day-badge"></span></button>
           <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
           <button class="nav-link" type="button" data-section-target="grades">Noten</button>
           <button class="nav-link" type="button" data-section-target="inbox">Inbox</button>
@@ -74,27 +74,33 @@
       </aside>
 
       <main class="app-main">
-        <header class="topbar" id="overview">
-          <div class="topbar-copy">
-            <p class="eyebrow">Arbeitsansicht</p>
-            <h1 id="workspace-title">Ein Bildschirm fuer den Schultag</h1>
-            <p class="hero-text" id="workspace-description">
-              Das Cockpit soll Kanaele verringern, nicht neue schaffen.
-            </p>
+        <header class="day-masthead" id="overview">
+          <div class="masthead-left">
+            <div class="masthead-date-block">
+              <span id="today-weekday" class="masthead-weekday">Heute</span>
+              <span id="today-date-display" class="masthead-date"></span>
+            </div>
+            <div class="masthead-rule" aria-hidden="true"></div>
+            <div class="masthead-copy">
+              <h1 id="workspace-title">Lehrer-Cockpit</h1>
+              <p class="masthead-tagline" id="workspace-description">ruhig &middot; kompakt &middot; relevant</p>
+            </div>
           </div>
-          <div class="topbar-actions">
-            <button class="primary-button" id="briefing-button" type="button">Aktualisieren</button>
-            <button class="secondary-link" id="settings-button" type="button" style="display:none;">⚙ Einstellungen</button>
-            <p class="hero-note" id="hero-note">Initialisiere Quellen und Tagesbriefing</p>
+          <div class="masthead-actions">
+            <p class="hero-note" id="hero-note">Initialisiere Tagesbriefing</p>
+            <div class="masthead-buttons">
+              <button class="primary-button" id="briefing-button" type="button">Aktualisieren</button>
+              <button class="secondary-link" id="settings-button" type="button" style="display:none;">⚙ Einstellungen</button>
+            </div>
           </div>
         </header>
 
         <section class="overview-grid" data-view-section="overview">
           <section class="card briefing-card tone-overview" aria-labelledby="briefing-title">
-            <div class="section-head">
-              <div>
-                <p class="card-kicker">Heute</p>
-                <h2 id="briefing-title">Tagesbriefing</h2>
+            <div class="briefing-card-head">
+              <div class="briefing-card-label">
+                <p class="card-kicker">Tagesbriefing</p>
+                <h2 id="briefing-title">Was heute wichtig ist</h2>
               </div>
               <span class="pill pill-live">Live</span>
             </div>
@@ -103,6 +109,10 @@
 
           <section class="stats-grid" id="stats-grid" aria-label="Kennzahlen" hidden></section>
         </section>
+
+        <div class="area-divider" data-view-section="overview">
+          <span class="area-divider-label">Unterricht &amp; Tagesplan</span>
+        </div>
 
         <section class="content-grid primary-grid" data-view-section="schedule">
           <article class="card" aria-labelledby="priorities-title" hidden>
@@ -155,6 +165,10 @@
           </article>
         </section>
 
+        <div class="area-divider" data-view-section="overview">
+          <span class="area-divider-label">Kommunikation &amp; Updates</span>
+        </div>
+
         <section class="content-grid single-grid" data-view-section="inbox">
           <article class="card tone-inbox" id="inbox-section" aria-labelledby="inbox-title">
             <div class="section-head section-head-wrap">
@@ -169,6 +183,10 @@
             <div id="message-list" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
           </article>
         </section>
+
+        <div class="area-divider" data-view-section="overview">
+          <span class="area-divider-label">Noten &amp; Bewertung</span>
+        </div>
 
         <section class="content-grid single-grid" data-view-section="grades">
           <article class="card tone-grades" id="grades-section" aria-labelledby="grades-title">
@@ -306,6 +324,10 @@
           </article>
         </section>
 
+        <div class="area-divider" data-view-section="overview">
+          <span class="area-divider-label">Schule &amp; Organisation</span>
+        </div>
+
         <section class="content-grid single-grid" data-view-section="documents">
           <article class="card tone-documents" id="documents-section" aria-labelledby="docs-title">
             <div class="section-head section-head-wrap">
@@ -410,6 +432,10 @@
           </article>
         </section>
 
+        <div class="area-divider" data-view-section="overview">
+          <span class="area-divider-label">Assistenz</span>
+        </div>
+
         <section class="assistant-row" data-view-section="assistant">
           <article class="card assistant-card tone-assistant" aria-labelledby="assistant-title">
             <div class="section-head">
@@ -435,6 +461,10 @@
             <div id="assistant-answer" class="assistant-answer"></div>
           </article>
         </section>
+
+        <div class="area-divider" data-view-section="overview">
+          <span class="area-divider-label">Werkzeuge &amp; Zugaenge</span>
+        </div>
 
         <section class="content-grid compact-grid" id="access-section" data-view-section="access">
           <article class="card compact-panel tone-access" aria-labelledby="quicklinks-title">
@@ -633,13 +663,17 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=38"></script>
-    <script src="./src/api-client.js?v=38"></script>
-    <script src="./src/modules/dashboard-manager.js?v=38"></script>
-    <script src="./src/features/grades.js?v=38"></script>
-    <script src="./src/features/webuntis.js?v=38"></script>
-    <script src="./src/features/itslearning.js?v=38"></script>
-    <script src="./src/app.js?v=38"></script>
+    <script src="./data/mock-dashboard.js?v=41"></script>
+    <script src="./src/api-client.js?v=41"></script>
+    <script src="./src/modules/dashboard-manager.js?v=41"></script>
+    <script src="./src/features/grades.js?v=41"></script>
+    <script src="./src/features/webuntis.js?v=41"></script>
+    <script src="./src/features/itslearning.js?v=41"></script>
+    <script src="./src/features/nextcloud.js?v=41"></script>
+    <script src="./src/features/documents.js?v=41"></script>
+    <script src="./src/features/classwork.js?v=41"></script>
+    <script src="./src/features/inbox.js?v=41"></script>
+    <script src="./src/app.js?v=41"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,

@@ -25,7 +25,7 @@
   const WEBUNTIS_FAVORITES_KEY = "lehrerCockpit.webuntis.favorites";
   const ACTIVE_WEBUNTIS_PLAN_KEY = "lehrerCockpit.webuntis.activePlan";
   const THEME_KEY = "lehrerCockpit.theme";
-  const NEXTCLOUD_LAST_OPENED_KEY = "lehrerCockpit.nextcloud.lastOpened";
+  // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const AUTO_REFRESH_MS = 180000;
   const PANEL_COLLAPSE_LIMITS = {
@@ -787,11 +787,87 @@
       .join("");
   }
 
+  // ── Briefing helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Build the lead item object from available data sources.
+   * Returns { kicker, title, copy, timingClass } or null.
+   */
+  function buildBriefingLead({ nextEvent, todaySummary, orgaplanItem }) {
+    if (nextEvent) {
+      return {
+        kicker: isEventCurrent(nextEvent) ? "laeuft gerade" : "naechste Stunde",
+        title: nextEvent.title,
+        copy: `${nextEvent.time}${nextEvent.location ? ` · ${nextEvent.location}` : ""}${nextEvent.description ? ` · ${nextEvent.description}` : ""}`,
+        timingClass: getEventTimingClass(nextEvent),
+      };
+    }
+    if (todaySummary) {
+      return { kicker: "heute", title: todaySummary.title, copy: todaySummary.copy, timingClass: "is-upcoming" };
+    }
+    if (orgaplanItem) {
+      return { kicker: "heute wichtig", title: orgaplanItem.label || "Orgaplan", copy: orgaplanItem.copy, timingClass: "is-upcoming" };
+    }
+    return null;
+  }
+
+  /**
+   * Build the compact secondary briefing items array (max 3).
+   */
+  function buildBriefingItems({ orgaplanItem, classworkItem, inboxItem, weeklyPreview }) {
+    return [
+      orgaplanItem ? { title: "Orgaplan", copy: `${orgaplanItem.label}: ${orgaplanItem.copy}`, tone: "orgaplan", section: "documents" } : null,
+      classworkItem ? { title: "Klassenarbeiten", copy: classworkItem, tone: "classwork", section: "documents" } : null,
+      inboxItem ? { title: "Inbox", copy: inboxItem, tone: "inbox", section: "inbox" } : null,
+      weeklyPreview ? { title: "Wochenvorschau", copy: weeklyPreview, tone: "week", section: "schedule" } : null,
+    ].filter(Boolean).slice(0, 3);
+  }
+
+  /**
+   * Build the compact metadata line beneath the lead title.
+   * Returns a "·"-joined string of up to 3 operational tokens.
+   */
+  function buildLeadMeta(data, { showWebuntis, showInbox, showClasswork, nextEvent }) {
+    const todayEventCount = showWebuntis
+      ? (data.webuntisCenter?.events || []).filter((ev) => {
+          if (!ev.startsAt) return false;
+          return isSameDay(new Date(ev.startsAt), new Date(data.generatedAt || Date.now()));
+        }).length
+      : 0;
+
+    const unreadCount = showInbox
+      ? (data.messages || []).filter((m) => m.unread).length
+      : 0;
+
+    let classworkMeta = null;
+    if (showClasswork && data.planDigest?.classwork?.entries) {
+      const now = new Date();
+      const todayIso = now.toISOString().slice(0, 10);
+      const tomorrowIso = (() => { const d = new Date(now); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+      const weekEndIso = (() => { const d = new Date(now); d.setDate(d.getDate() + 6); return d.toISOString().slice(0, 10); })();
+      const upcoming = (data.planDigest.classwork.entries || []).filter((e) => e.isoDate && e.isoDate > todayIso);
+      const tomorrow = upcoming.filter((e) => e.isoDate === tomorrowIso);
+      const week = upcoming.filter((e) => e.isoDate <= weekEndIso);
+      if (tomorrow.length === 1) {
+        classworkMeta = `morgen: ${tomorrow[0].classLabel || tomorrow[0].title || "Klassenarbeit"}`;
+      } else if (tomorrow.length > 1) {
+        classworkMeta = `${tomorrow.length} Arbeiten morgen`;
+      } else if (week.length > 0) {
+        classworkMeta = `${week.length} Arbeit${week.length === 1 ? "" : "en"} diese Woche`;
+      }
+    }
+
+    return [
+      todayEventCount > 0 ? `${todayEventCount} Stunde${todayEventCount === 1 ? "" : "n"} heute` : null,
+      nextEvent && isEventCurrent(nextEvent) ? "läuft gerade" : null,
+      unreadCount > 0 ? `${unreadCount} ungelesen` : null,
+      classworkMeta,
+    ].filter(Boolean).slice(0, 3).join(" · ");
+  }
+
   function renderBriefing() {
     const data = getData();
     // Gate all module-derived briefing items behind isLayoutReady() to prevent first-load flash.
-    // Once the layout API response arrives and dashboard-layout-changed fires, renderAll()
-    // is called again with the correct visibility state.
     const layoutReady = isLayoutReady();
     const showWebuntis = layoutReady && isModuleVisible("webuntis");
     const showOrgaplan = layoutReady && isModuleVisible("orgaplan");
@@ -804,83 +880,35 @@
     const inboxItem = showInbox ? pickInboxBriefing(data) : null;
     const todaySummary = showWebuntis ? pickTodayScheduleBriefing(data, nextEvent) : null;
     const weeklyPreview = showWebuntis ? pickWeeklyPreview(data) : null;
-    const lead = nextEvent
-      ? {
-          kicker: isEventCurrent(nextEvent) ? "laeuft gerade" : "naechste Stunde",
-          title: nextEvent.title,
-          copy: `${nextEvent.time}${nextEvent.location ? ` · ${nextEvent.location}` : ""}${nextEvent.description ? ` · ${nextEvent.description}` : ""}`,
-          timingClass: getEventTimingClass(nextEvent),
-        }
-      : todaySummary
-        ? {
-            kicker: "heute",
-            title: todaySummary.title,
-            copy: todaySummary.copy,
-            timingClass: "is-upcoming",
-          }
-        : orgaplanItem
-          ? {
-              kicker: "heute wichtig",
-              title: orgaplanItem.label || "Orgaplan",
-              copy: orgaplanItem.copy,
-              timingClass: "is-upcoming",
-            }
-          : null;
 
-    const briefingItems = [
-      orgaplanItem
-        ? {
-            title: "Orgaplan",
-            copy: `${orgaplanItem.label}: ${orgaplanItem.copy}`,
-            tone: "orgaplan",
-          }
-        : null,
-      classworkItem
-        ? {
-            title: "Klassenarbeiten",
-            copy: classworkItem,
-            tone: "classwork",
-          }
-        : null,
-      inboxItem
-        ? {
-            title: "Inbox",
-            copy: inboxItem,
-            tone: "inbox",
-          }
-        : null,
-      weeklyPreview
-        ? {
-            title: "Wochenvorschau",
-            copy: weeklyPreview,
-            tone: "week",
-          }
-        : null,
-    ]
-      .filter(Boolean)
-      .slice(0, 3);
+    const lead = buildBriefingLead({ nextEvent, todaySummary, orgaplanItem });
+    const briefingItems = buildBriefingItems({ orgaplanItem, classworkItem, inboxItem, weeklyPreview });
+    const leadMeta = buildLeadMeta(data, { showWebuntis, showInbox, showClasswork, nextEvent });
+    const leadSection = nextEvent || todaySummary ? "schedule" : orgaplanItem ? "documents" : null;
 
     elements.briefingOutput.innerHTML = lead || briefingItems.length
       ? `
         ${lead ? `
-          <article class="briefing-lead ${lead.timingClass}">
+          <article class="briefing-lead ${lead.timingClass}"${leadSection && isSectionEnabled(leadSection) ? ` data-briefing-target="${leadSection}" role="button" tabindex="0"` : ""}>
             <span class="briefing-lead-kicker">${lead.kicker}</span>
             <strong>${lead.title}</strong>
             <p>${lead.copy}</p>
+            ${leadMeta ? `<span class="briefing-lead-meta">${leadMeta}</span>` : ""}
           </article>
         ` : ""}
+        ${briefingItems.length ? `
         <div class="briefing-grid">
           ${briefingItems
             .map(
               (item) => `
-                <article class="briefing-item briefing-item-${item.tone || "default"}">
+                <article class="briefing-item briefing-item-${item.tone || "default"}"${item.section && isSectionEnabled(item.section) ? ` data-briefing-target="${item.section}" role="button" tabindex="0"` : ""}>
                   <strong>${item.title}</strong>
                   <span>${item.copy}</span>
                 </article>
               `
             )
             .join("")}
-        </div>
+        </div>` : ""}
       `
       : `<div class="empty-state">Noch keine Briefing-Daten verfuegbar.</div>`;
   }
@@ -1124,110 +1152,9 @@
     }
   }
 
+  // Phase 14: Delegate to LehrerNextcloud module if available
   function renderNextcloudConnector() {
-    if (!elements.nextcloudConnectCard) {
-      return;
-    }
-    if (!isModuleVisible("nextcloud")) {
-      elements.nextcloudConnectCard.hidden = true;
-      return;
-    }
-
-    if (!IS_LOCAL_RUNTIME) {
-      elements.nextcloudConnectCard.hidden = true;
-      return;
-    }
-
-    const source = getData().sources.find((item) => item.id === "nextcloud");
-    const connection = getData().localConnections?.nextcloud || {};
-    const workspaceUrl = connection.workspaceUrl || connection.baseUrl || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/";
-    const q1q2Url = connection.q1q2Url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901";
-    const q3q4Url = connection.q3q4Url || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900";
-    const workspaceLinks = Array.isArray(connection.workspaceLinks) ? connection.workspaceLinks : [];
-    const lastOpened = loadNextcloudLastOpened();
-
-    elements.nextcloudConnectCard.hidden = false;
-    elements.nextcloudConnectStatus.className = `pill ${
-      source?.status === "ok" ? "pill-live" : connection.configured ? "pill-attention" : "pill-positive"
-    }`;
-    elements.nextcloudConnectStatus.textContent =
-      source?.status === "ok"
-        ? (connection.configured ? "verbunden" : "bereit")
-        : connection.configured
-          ? "gespeichert"
-          : "lokal";
-    elements.nextcloudConnectCopy.textContent =
-      source?.detail ||
-      "Nextcloud ist als Arbeitsbereich vorbereitet. Von hier aus oeffnest du die Fehlzeiten-Dateien direkt im Browser.";
-
-    if (elements.nextcloudOpenRoot) {
-      elements.nextcloudOpenRoot.href = workspaceUrl;
-    }
-    if (elements.nextcloudOpenQ1Q2) {
-      elements.nextcloudOpenQ1Q2.href = q1q2Url;
-    }
-    if (elements.nextcloudOpenQ3Q4) {
-      elements.nextcloudOpenQ3Q4.href = q3q4Url;
-    }
-    if (elements.nextcloudCustomLinks) {
-      elements.nextcloudCustomLinks.hidden = !workspaceLinks.length;
-      elements.nextcloudCustomLinks.innerHTML = workspaceLinks
-        .map(
-          (link) => `
-            <a class="nextcloud-work-card" href="${link.url}" target="_blank" rel="noreferrer" data-nextcloud-link="${link.id}">
-              <span class="meta-tag low">Arbeitslink</span>
-              <strong>${link.label}</strong>
-              <p>Direkt in Nextcloud oeffnen</p>
-              <span class="quick-link-action">oeffnen</span>
-            </a>
-          `
-        )
-        .join("");
-      elements.nextcloudCustomLinks.querySelectorAll("[data-nextcloud-link]").forEach((link) => {
-        link.addEventListener("click", () => {
-          saveNextcloudLastOpened(link.dataset.nextcloudLink, link.querySelector("strong")?.textContent || link.textContent);
-          renderNextcloudConnector();
-        });
-      });
-    }
-    if (elements.nextcloudLastOpened) {
-      elements.nextcloudLastOpened.textContent = lastOpened
-        ? `${lastOpened.label} - ${lastOpened.when}`
-        : "Noch kein Zugriff gespeichert";
-    }
-    if (elements.nextcloudWorkspaceUrl && !elements.nextcloudWorkspaceUrl.value) {
-      elements.nextcloudWorkspaceUrl.value = workspaceUrl;
-    }
-    if (!elements.nextcloudUsername.value && connection.username) {
-      elements.nextcloudUsername.value = connection.username;
-    }
-    if (elements.nextcloudQ1Q2UrlInput && !elements.nextcloudQ1Q2UrlInput.value) {
-      elements.nextcloudQ1Q2UrlInput.value = q1q2Url;
-    }
-    if (elements.nextcloudQ3Q4UrlInput && !elements.nextcloudQ3Q4UrlInput.value) {
-      elements.nextcloudQ3Q4UrlInput.value = q3q4Url;
-    }
-    if (elements.nextcloudLink1Label && !elements.nextcloudLink1Label.value) {
-      elements.nextcloudLink1Label.value = workspaceLinks[0]?.label || "";
-    }
-    if (elements.nextcloudLink1Url && !elements.nextcloudLink1Url.value) {
-      elements.nextcloudLink1Url.value = workspaceLinks[0]?.url || "";
-    }
-    if (elements.nextcloudLink2Label && !elements.nextcloudLink2Label.value) {
-      elements.nextcloudLink2Label.value = workspaceLinks[1]?.label || "";
-    }
-    if (elements.nextcloudLink2Url && !elements.nextcloudLink2Url.value) {
-      elements.nextcloudLink2Url.value = workspaceLinks[1]?.url || "";
-    }
-    if (elements.nextcloudLink3Label && !elements.nextcloudLink3Label.value) {
-      elements.nextcloudLink3Label.value = workspaceLinks[2]?.label || "";
-    }
-    if (elements.nextcloudLink3Url && !elements.nextcloudLink3Url.value) {
-      elements.nextcloudLink3Url.value = workspaceLinks[2]?.url || "";
-    }
-    if (connection.configured) {
-      elements.nextcloudPassword.placeholder = "Passwort lokal gespeichert";
-    }
+    if (window.LehrerNextcloud) return window.LehrerNextcloud.renderNextcloudConnector();
   }
 
   function renderBerlinFocus() {
@@ -1249,344 +1176,66 @@
       : `<div class="empty-state">Noch keine Berlin-Hinweise verfuegbar.</div>`;
   }
 
-  // ── SECTION: Inbox (priorities, sources, messages) ──────────────────────────
+  // ── SECTION: Inbox — delegated to window.LehrerInbox ────────────────────────
 
   function renderPriorities() {
-    const data = getData();
-    elements.priorityList.innerHTML = data.priorities.length
-      ? data.priorities
-          .map(
-            (item) => `
-              <article class="priority-item">
-                <div class="priority-top">
-                  <strong>${item.title}</strong>
-                  <span class="meta-tag ${item.priority}">${priorityLabel(item.priority)}</span>
-                </div>
-                <p class="priority-copy">${item.detail}</p>
-                <div class="meta-row">
-                  <span class="meta-tag">${item.source}</span>
-                  <span class="meta-tag">${item.due}</span>
-                </div>
-              </article>
-            `
-          )
-          .join("")
-      : `<div class="empty-state">Noch keine priorisierten Hinweise verfuegbar.</div>`;
+    if (window.LehrerInbox) return window.LehrerInbox.renderPriorities();
   }
 
   function renderSources() {
-    const data = getData();
-    elements.sourceList.innerHTML = data.sources.length
-      ? data.sources
-          .map(
-            (source) => `
-              <article class="source-item">
-                <div class="source-top">
-                  <div>
-                    <strong>${source.name}</strong>
-                    <p class="source-detail">${source.type} - letzter Sync ${source.lastSync} - ${source.cadence}</p>
-                  </div>
-                  <span class="source-status ${source.status}">${statusLabel(source.status)}</span>
-                </div>
-                <p class="source-detail">${source.detail}</p>
-                <p class="source-detail"><strong>Naechster Schritt:</strong> ${source.nextStep}</p>
-              </article>
-            `
-          )
-          .join("")
-      : `<div class="empty-state">Noch keine Quellen eingerichtet.</div>`;
+    if (window.LehrerInbox) return window.LehrerInbox.renderSources();
   }
 
   function renderChannelFilters() {
-    const availableChannels = getRelevantInboxMessages()
-      .map((message) => message.channel)
-      .filter((channel, index, array) => channel && array.indexOf(channel) === index);
-
-    if (!availableChannels.length) {
-      elements.channelFilters.hidden = true;
-      elements.channelFilters.innerHTML = "";
-      return;
-    }
-
-    if (!availableChannels.includes(state.selectedChannel)) {
-      state.selectedChannel = availableChannels[0];
-    }
-
-    elements.channelFilters.hidden = availableChannels.length <= 1;
-    elements.channelFilters.innerHTML = availableChannels
-      .map(
-        (id) => `
-          <button class="filter-button ${state.selectedChannel === id ? "active" : ""}" type="button" data-channel="${id}">
-            ${channelLabels[id]}
-          </button>
-        `
-      )
-      .join("");
-
-    elements.channelFilters.querySelectorAll("[data-channel]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.selectedChannel = button.dataset.channel;
-        renderChannelFilters();
-        renderMessages();
-      });
-    });
+    if (window.LehrerInbox) return window.LehrerInbox.renderChannelFilters();
   }
 
   function renderMessages() {
-    const filteredMessages = getRelevantInboxMessages()
-      .filter((message) => message.channel === state.selectedChannel)
-      .sort((left, right) => compareMessageTime(right.timestamp, left.timestamp));
-    const visibleMessages = getVisiblePanelItems(filteredMessages, "inbox");
-    setExpandableMeta(elements.messageList, filteredMessages.length, visibleMessages.length);
-
-    elements.messageList.innerHTML = filteredMessages.length
-      ? visibleMessages
-          .map(
-            (message) => `
-              <article class="message-item">
-                <div class="message-top">
-                  <div>
-                    <strong>${message.title}</strong>
-                    <p class="message-snippet">${message.sender} - ${message.timestamp}</p>
-                  </div>
-                  <span class="meta-tag ${messagePriorityClass(message.priority)}">${message.unread ? "neu" : "gesehen"}</span>
-                </div>
-                <p class="message-snippet">${message.snippet}</p>
-                <div class="meta-row">
-                  <span class="meta-tag">${message.channelLabel}</span>
-                  <span class="meta-tag">${priorityLabel(message.priority)}</span>
-                </div>
-              </article>
-            `
-          )
-          .join("")
-      : `<div class="empty-state">Fuer diesen Kanal liegen gerade keine Hinweise vor.</div>`;
+    if (window.LehrerInbox) return window.LehrerInbox.renderMessages();
   }
 
-  function getRelevantInboxMessages(data = getData()) {
+  function getRelevantInboxMessages(data) {
     // Phase 11d: Delegate to LehrerItslearning module if available
-    if (window.LehrerItslearning) return window.LehrerItslearning.getRelevantInboxMessages(data);
-    return (data.messages || []).filter((message) => message.channel === "mail" || message.channel === "itslearning");
+    const d = data || getData();
+    if (window.LehrerItslearning) return window.LehrerItslearning.getRelevantInboxMessages(d);
+    return (d.messages || []).filter((message) => message.channel === "mail" || message.channel === "itslearning");
   }
 
   function renderDocumentMonitor() {
-    const data = getData();
-    elements.monitorList.innerHTML = data.documentMonitor.length
-      ? data.documentMonitor
-          .map(
-            (item) => `
-              <article class="priority-item">
-                <div class="priority-top">
-                  <strong>${item.title}</strong>
-                  <span class="meta-tag ${monitorStatusClass(item.status)}">${monitorStatusLabel(item.status)}</span>
-                </div>
-                <p class="priority-copy">${item.detail}</p>
-                <div class="meta-row">
-                  <span class="meta-tag">${item.type}</span>
-                  <span class="meta-tag">${item.checkedAt}</span>
-                </div>
-              </article>
-            `
-          )
-          .join("")
-      : `<div class="empty-state">Noch keine beobachteten Dokumente konfiguriert.</div>`;
+    if (window.LehrerInbox) return window.LehrerInbox.renderDocumentMonitor();
   }
+
+  // ── Classwork rendering — delegated to window.LehrerClasswork ───────────────
 
   function renderPlanDigest() {
-    const digest = getData().planDigest;
-    const orgaplan = digest.orgaplan;
-    const classwork = digest.classwork;
-    const showOrgaplan = isModuleVisible("orgaplan");
-    const showClasswork = isModuleVisible("klassenarbeitsplan");
-    const classes = classwork.classes || [];
-    const entries = classwork.entries || [];
-
-    if (elements.orgaplanDigestCard) {
-      elements.orgaplanDigestCard.hidden = !showOrgaplan;
-    }
-    if (elements.classworkDigestCard) {
-      elements.classworkDigestCard.hidden = !showClasswork;
-    }
-
-    if (showOrgaplan) {
-      bindExternalLink(elements.orgaplanOpenLink, orgaplan.sourceUrl, "PDF oeffnen");
-      elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
-    }
-    if (showClasswork) {
-      bindExternalLink(elements.classworkOpenLink, classwork.sourceUrl, "Plan online im Viewer oeffnen");
-      elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
-    }
-    elements.classworkUploadFeedback.textContent = state.classworkUploadFeedback;
-    elements.classworkUploadFeedback.className = `connect-feedback${state.classworkUploadFeedbackKind ? ` ${state.classworkUploadFeedbackKind}` : ""}`;
-
-    if (showClasswork) {
-      renderClassworkSelector(classes, classwork.defaultClass || "");
-      renderClassworkViewSwitch();
-    }
-
-    const orgaplanItems = orgaplan.upcoming.length ? orgaplan.upcoming : orgaplan.highlights;
-
-    if (showOrgaplan) {
-      elements.orgaplanUpcomingList.innerHTML = orgaplanItems.length
-        ? orgaplanItems
-            .map((item) => renderOrgaplanItem(item))
-            .join("")
-        : `<div class="empty-state">Noch keine Orgaplan-Highlights erkannt.</div>`;
-    }
-
-    const activeClass = getActiveClassworkClass(classes, classwork.defaultClass || "");
-    const classEntries = entries
-      .filter((entry) => entry.classLabel === activeClass)
-      .sort((left, right) => (left.isoDate || "").localeCompare(right.isoDate || ""));
-    const visibleClassEntries = getVisiblePanelItems(classEntries, "classwork");
-    if (showClasswork) {
-      setExpandableMeta(elements.classworkPreviewList, classEntries.length, visibleClassEntries.length);
-
-      elements.classworkPreviewList.innerHTML = classEntries.length
-        ? state.classworkView === "calendar"
-          ? renderClassworkCalendar(visibleClassEntries)
-          : renderClassworkList(visibleClassEntries)
-        : classwork.previewRows.length
-          ? classwork.previewRows
-              .map(
-                (row) => `
-                  <article class="priority-item">
-                    <p class="priority-copy">${row}</p>
-                  </article>
-                `
-              )
-              .join("")
-          : `<div class="empty-state">Noch keine Klassenarbeiten fuer diese Klasse erkannt.</div>`;
-    }
-  }
-
-  // ── SECTION: Classwork ───────────────────────────────────────────────────────
-
-  function renderClassworkSelector(classes, defaultClass) {
-    if (!elements.classworkClassFilter) {
-      return;
-    }
-
-    const activeClass = getActiveClassworkClass(classes, defaultClass);
-    elements.classworkClassFilter.disabled = !classes.length;
-
-    if (!classes.length) {
-      elements.classworkClassFilter.innerHTML = `<option value="">Keine Klasse erkannt</option>`;
-      return;
-    }
-
-    elements.classworkClassFilter.innerHTML = classes
-      .map(
-        (classLabel) => `
-          <option value="${classLabel}" ${classLabel === activeClass ? "selected" : ""}>${classLabel}</option>
-        `
-      )
-      .join("");
+    if (window.LehrerClasswork) return window.LehrerClasswork.renderPlanDigest();
   }
 
   function getActiveClassworkClass(classes, defaultClass) {
-    if (!classes.length) {
-      state.classworkSelectedClass = "";
-      return "";
-    }
-
-    if (state.classworkSelectedClass && classes.includes(state.classworkSelectedClass)) {
-      return state.classworkSelectedClass;
-    }
-
-    state.classworkSelectedClass = defaultClass && classes.includes(defaultClass) ? defaultClass : classes[0];
-    return state.classworkSelectedClass;
-  }
-
-  function renderClassworkViewSwitch() {
-    if (!elements.classworkViewSwitch) {
-      return;
-    }
-
-    const options = [
-      { id: "list", label: "Liste" },
-      { id: "calendar", label: "Kalender" },
-    ];
-
-    elements.classworkViewSwitch.innerHTML = options
-      .map(
-        (option) => `
-          <button class="filter-button ${state.classworkView === option.id ? "active" : ""}" type="button" data-classwork-view="${option.id}">
-            ${option.label}
-          </button>
-        `
-      )
-      .join("");
-
-    elements.classworkViewSwitch.querySelectorAll("[data-classwork-view]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.classworkView = button.dataset.classworkView;
-        renderPlanDigest();
-      });
-    });
+    if (window.LehrerClasswork) return window.LehrerClasswork.getActiveClassworkClass(classes, defaultClass);
+    return "";
   }
 
   function renderClassworkList(entries) {
-    return entries
-      .map(
-        (entry) => `
-          <article class="classwork-entry">
-            <div class="classwork-entry-top">
-              <div>
-                <strong>${entry.dateLabel}</strong>
-                <p>${weekdayLabel(entry.weekdayLabel)}</p>
-              </div>
-              <span class="meta-tag low">${entry.kind}</span>
-            </div>
-            <p class="classwork-entry-title">${entry.summary || entry.title}</p>
-            <div class="meta-row">
-              <span class="meta-tag">${entry.classLabel}</span>
-            </div>
-          </article>
-        `
-      )
-      .join("");
+    if (window.LehrerClasswork) return window.LehrerClasswork.renderClassworkList(entries);
+    return "";
   }
 
   function renderClassworkCalendar(entries) {
-    const grouped = new Map();
-    entries.forEach((entry) => {
-      const key = entry.isoDate;
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
-      }
-      grouped.get(key).push(entry);
-    });
-
-    return `
-      <div class="classwork-calendar">
-        ${Array.from(grouped.entries())
-          .map(
-            ([isoDate, dayEntries]) => `
-              <section class="classwork-day">
-                <div class="classwork-day-head">
-                  <span class="webuntis-weekday">${weekdayLabel(dayEntries[0].weekdayLabel)}</span>
-                  <strong>${dayEntries[0].dateLabel}</strong>
-                </div>
-                <div class="classwork-day-items">
-                  ${dayEntries
-                    .map(
-                      (entry) => `
-                        <article class="classwork-calendar-item">
-                          <span class="meta-tag low">${entry.kind}</span>
-                          <strong>${entry.summary || entry.title}</strong>
-                        </article>
-                      `
-                    )
-                    .join("")}
-                </div>
-              </section>
-            `
-          )
-          .join("")}
-      </div>
-    `;
+    if (window.LehrerClasswork) return window.LehrerClasswork.renderClassworkCalendar(entries);
+    return "";
   }
+
+  // ── Grades data accessors (future extraction seam) ───────────────────────────
+  //
+  // Next extraction: src/features/grades-render.js
+  // Target functions: getGradebookData, getGradeClasses, getActiveGradeClass,
+  //   summarizeGrades, renderGradeItem, renderGradeClassOptions, renderClassNotes,
+  //   renderGrades, getNoteClasses, getNotesData, getActiveNoteClass.
+  //
+  // Blocker: getGradeClasses() reads both state.gradesData (grades) and
+  //   data.planDigest.classwork.classes (classwork). Both getData and getGradebookData
+  //   must be injected as callbacks. Straightforward once scoped.
 
   function getGradebookData() {
     return (
@@ -1644,6 +1293,11 @@
     elements.gradesSummaryCount.textContent = String(entries.length);
     elements.gradesSummaryAverage.textContent = summary.averageLabel;
     elements.gradesSummaryRisk.textContent = String(summary.riskCount);
+    // Risk-aware visual signaling: toggle has-risk on the parent stat card
+    const riskCard = elements.gradesSummaryRisk?.closest(".grades-stat-card");
+    if (riskCard) {
+      riskCard.classList.toggle("has-risk", summary.riskCount > 0);
+    }
     elements.gradesFeedback.textContent = state.gradesFeedback;
     elements.gradesFeedback.className = `connect-feedback${state.gradesFeedbackKind ? ` ${state.gradesFeedbackKind}` : ""}`;
 
@@ -1846,72 +1500,16 @@
     }
   }
 
+  // ── Orgaplan + classwork utilities — delegated to window.LehrerClasswork ────
+
   function renderOrgaplanItem(item) {
-    const sections = [
-      { label: "Allgemein", value: item.general },
-      { label: "Mittelstufe", value: joinOrgaplanSection(item.middle, item.middleNotes) },
-      { label: "Oberstufe", value: joinOrgaplanSection(item.upper, item.upperNotes) },
-    ].filter((section) => section.value);
-
-    if (!sections.length) {
-      return `
-        <article class="priority-item">
-          <div class="priority-top">
-            <strong>${item.title}</strong>
-            <span class="meta-tag low">${item.dateLabel}</span>
-          </div>
-          <p class="priority-copy">${item.detail || item.text}</p>
-        </article>
-      `;
-    }
-
-    return `
-      <article class="orgaplan-entry">
-        <div class="orgaplan-entry-head">
-          <strong class="orgaplan-entry-date">${item.dateLabel}</strong>
-          <span class="meta-tag low">${item.title || "Orgaplan"}</span>
-        </div>
-        <div class="orgaplan-entry-copy">
-          ${sections
-            .map(
-              (section) => `
-                <div class="orgaplan-row">
-                  <span class="orgaplan-label">${section.label}</span>
-                  <p>${truncateText(section.value, 220)}</p>
-                </div>
-              `
-            )
-            .join("")}
-        </div>
-      </article>
-    `;
+    if (window.LehrerClasswork) return window.LehrerClasswork.renderOrgaplanItem(item);
+    return "";
   }
 
-  function joinOrgaplanSection(primary, notes) {
-    if (!primary && !notes) {
-      return "";
-    }
-
-    if (primary && notes) {
-      return `${primary} (${notes})`;
-    }
-
-    return primary || notes;
-  }
-
-  function summarizeOrgaplanDigest(orgaplan) {
-    const count = (orgaplan.upcoming || []).length || (orgaplan.highlights || []).length;
-    const month = orgaplan.monthLabel || "diesem Monat";
-    return `${count} relevante Hinweise fuer ${month}. Hier stehen nur die naechsten Punkte, nicht der ganze Plan.`;
-  }
-
-  function summarizeClassworkDigest(classwork) {
-    if (classwork.status === "ok") {
-      const classCount = (classwork.classes || []).length;
-      const entryCount = (classwork.entries || []).length;
-      return `${entryCount} Eintraege fuer ${classCount} Klassen erkannt. Unten arbeitest du nur mit der Klasse, die du gerade brauchst.`;
-    }
-    return truncateText(classwork.detail || "Der Klassenarbeitsplan ist verlinkt, aber noch nicht automatisch lesbar.", 140);
+  function truncateText(value, maxLength) {
+    if (window.LehrerClasswork) return window.LehrerClasswork.truncateText(value, maxLength);
+    return String(value || "").slice(0, maxLength);
   }
 
   function weekdayLabel(value) {
@@ -1926,62 +1524,15 @@
     return value || "";
   }
 
-  function truncateText(value, maxLength) {
-    const clean = String(value || "").replace(/\s+/g, " ").trim();
-    if (clean.length <= maxLength) {
-      return clean;
-    }
-    return `${clean.slice(0, maxLength - 1).trimEnd()}…`;
-  }
-
-  // ── SECTION: Documents ───────────────────────────────────────────────────────
+  // ── Documents rendering — delegated to window.LehrerDocuments ───────────────
 
   function renderDocuments() {
-    const data = getData();
-    const query = state.documentSearch.trim().toLowerCase();
-    const changedDocuments = new Set((data.documentMonitor || []).filter((item) => item.changed).map((item) => item.id));
-    const extraDocuments = data.documents.filter((entry) => !isPrimaryPlanDocument(entry));
-    const filteredDocuments = extraDocuments.filter((entry) => {
-      const haystack = `${entry.title} ${entry.source} ${entry.summary} ${entry.tags.join(" ")}`.toLowerCase();
-      return haystack.includes(query);
-    });
-    const visibleDocuments = getVisiblePanelItems(filteredDocuments, "documents");
-    setExpandableMeta(elements.documentList, filteredDocuments.length, visibleDocuments.length);
-    // Always show the search input once there are extra documents to search through.
-    elements.documentSearchWrap.hidden = extraDocuments.length === 0;
-    // Keep the extra-documents block visible even on zero results so the empty-
-    // state message inside it is shown instead of silently hiding the whole area.
-    elements.documentsExtraBlock.hidden = extraDocuments.length === 0;
-
-    elements.documentList.innerHTML = filteredDocuments.length
-      ? visibleDocuments
-          .map(
-            (entry) => `
-              <article class="document-item">
-                <div class="document-top">
-                  <div>
-                    <strong>${entry.title}</strong>
-                    <p class="message-snippet">${entry.source} - Stand ${entry.updatedAt}</p>
-                  </div>
-                  <span class="meta-tag ${changedDocuments.has(entry.id === "doc-1" ? "orgaplan" : entry.id) ? "warning" : "low"}">
-                    ${changedDocuments.has(entry.id === "doc-1" ? "orgaplan" : entry.id) ? "neu" : "bereit"}
-                  </span>
-                </div>
-                <p class="document-summary">${entry.summary}</p>
-                <div class="meta-row">
-                  ${entry.tags.map((tag) => `<span class="meta-tag">${tag}</span>`).join("")}
-                </div>
-              </article>
-            `
-          )
-          .join("")
-      : `<div class="empty-state">Kein Dokument passt gerade zu deiner Suche.</div>`;
+    if (window.LehrerDocuments) return window.LehrerDocuments.renderDocuments();
   }
 
   function isPrimaryPlanDocument(entry) {
-    const title = String(entry.title || "").toLowerCase();
-    const source = String(entry.source || "").toLowerCase();
-    return title.includes("orgaplan") || title.includes("klassenarbeitsplan") || source.includes("orgaplan");
+    if (window.LehrerDocuments) return window.LehrerDocuments.isPrimaryPlanDocument(entry);
+    return false;
   }
 
   // ── SECTION: WebUntis (controls, picker, watchlist, schedule) ───────────────
@@ -2170,6 +1721,35 @@
   function registerEvents() {
     elements.briefingButton.addEventListener("click", async () => {
       await refreshDashboard(true);
+    });
+
+    // Briefing-to-section scroll anchors: delegate clicks on data-briefing-target
+    elements.briefingOutput.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-briefing-target]");
+      if (!target) return;
+      const sectionId = target.dataset.briefingTarget;
+      if (!sectionId || !isSectionEnabled(sectionId)) return;
+      // Tap feedback: brief visual acknowledgment before/during scroll
+      target.classList.add("is-tapping");
+      setTimeout(() => target.classList.remove("is-tapping"), 280);
+      state.activeSection = sectionId;
+      renderSectionFocus();
+      // Scroll to section card (desktop) or top (mobile)
+      const sectionEl = document.querySelector(`[data-view-section="${sectionId}"]`);
+      if (sectionEl) {
+        sectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+
+    // Keyboard support for briefing anchors
+    elements.briefingOutput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const target = event.target.closest("[data-briefing-target]");
+      if (!target) return;
+      event.preventDefault();
+      target.click();
     });
 
     elements.navLinks.forEach((button) => {
@@ -2445,50 +2025,18 @@
     }
   }
 
+  // Phase 14: Delegate to LehrerNextcloud module if available
   async function saveNextcloudCredentials() {
-    const username = elements.nextcloudUsername?.value.trim() || "";
-    const password = elements.nextcloudPassword?.value.trim() || "";
-    const workspaceUrl = elements.nextcloudWorkspaceUrl?.value.trim() || "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/";
-
-    elements.nextcloudConnectFeedback.textContent = "Speichere Nextcloud-Arbeitsbereich ...";
-    elements.nextcloudConnectFeedback.className = "connect-feedback";
-
-    // MULTIUSER_ENABLED = true — always use v2 API (Phase 8d: if/else removed)
-    try {
-      const resp = await window.LehrerAPI.saveModuleConfig("nextcloud", { server_url: workspaceUrl, username, password });
-      const payload = await resp.json();
-      if (!resp.ok) throw new Error(payload.error || "Speichern fehlgeschlagen.");
-      elements.nextcloudConnectFeedback.textContent = "Nextcloud-Arbeitsbereich gespeichert.";
-      elements.nextcloudConnectFeedback.className = "connect-feedback success";
-      elements.nextcloudPassword.value = "";
-      await refreshDashboard(true);
-    } catch (error) {
-      elements.nextcloudConnectFeedback.textContent = error.message || "Nextcloud-Zugang konnte nicht gespeichert werden.";
-      elements.nextcloudConnectFeedback.className = "connect-feedback warning";
-    }
+    if (window.LehrerNextcloud) return window.LehrerNextcloud.saveNextcloudCredentials();
   }
 
   function loadNextcloudLastOpened() {
-    try {
-      const raw = localStorage.getItem(NEXTCLOUD_LAST_OPENED_KEY);
-      if (!raw) return null;
-      const payload = JSON.parse(raw);
-      if (!payload || !payload.label || !payload.when) return null;
-      return payload;
-    } catch (_error) {
-      return null;
-    }
+    if (window.LehrerNextcloud) return window.LehrerNextcloud.loadNextcloudLastOpened();
+    return null;
   }
 
   function saveNextcloudLastOpened(id, label) {
-    const normalizedLabel =
-      id === "root" ? "Nextcloud" : id === "q1q2" ? "Q1 / Q2" : id === "q3q4" ? "Q3 / Q4" : (label || "Nextcloud");
-    const payload = {
-      id: id || "nextcloud",
-      label: normalizedLabel,
-      when: formatTime(new Date()),
-    };
-    localStorage.setItem(NEXTCLOUD_LAST_OPENED_KEY, JSON.stringify(payload));
+    if (window.LehrerNextcloud) return window.LehrerNextcloud.saveNextcloudLastOpened(id, label);
   }
 
   async function uploadClassworkFile(file) {
@@ -2649,7 +2197,24 @@
 
   // ── SECTION: Bootstrap / initialize ──────────────────────────────────────────
 
+  // ── Today-date / badge initialisation ──────────────────────────────────────
+  // Formerly an inline <script> in index.html; moved here so it lives inside
+  // the module pattern and is not scattered across the HTML file.
+
+  function initTodayDisplay() {
+    const now = new Date();
+    const weekday = now.toLocaleDateString("de-DE", { weekday: "long" });
+    const date = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const weekdayEl = document.getElementById("today-weekday");
+    const dateEl = document.getElementById("today-date-display");
+    const badgeEl = document.getElementById("today-nav-badge");
+    if (weekdayEl) weekdayEl.textContent = weekday;
+    if (dateEl) dateEl.textContent = date;
+    if (badgeEl) badgeEl.textContent = now.getDate();
+  }
+
   function initialize() {
+    initTodayDisplay();
     normalizeLocalWebUntisState();
     applyTheme();
     elements.assistantAnswer.textContent =
@@ -2696,6 +2261,44 @@
         renderNavSignals: renderNavSignals,
         refreshDashboard: refreshDashboard,
         IS_LOCAL_RUNTIME: IS_LOCAL_RUNTIME,
+      });
+    }
+    // Init LehrerNextcloud with shared state, elements, and render callbacks (Phase 14)
+    if (window.LehrerNextcloud) {
+      window.LehrerNextcloud.init(state, elements, {
+        getData: getData,
+        refreshDashboard: refreshDashboard,
+        isModuleVisible: isModuleVisible,
+        formatTime: formatTime,
+        IS_LOCAL_RUNTIME: IS_LOCAL_RUNTIME,
+      });
+    }
+    // Init LehrerClasswork with shared state, elements, and render callbacks
+    if (window.LehrerClasswork) {
+      window.LehrerClasswork.init(state, elements, {
+        getData: getData,
+        bindExternalLink: bindExternalLink,
+        isModuleVisible: isModuleVisible,
+        getVisiblePanelItems: getVisiblePanelItems,
+        setExpandableMeta: setExpandableMeta,
+        weekdayLabel: weekdayLabel,
+      });
+    }
+    // Init LehrerDocuments with shared state, elements, and render callbacks
+    if (window.LehrerDocuments) {
+      window.LehrerDocuments.init(state, elements, {
+        getData: getData,
+        getVisiblePanelItems: getVisiblePanelItems,
+        setExpandableMeta: setExpandableMeta,
+      });
+    }
+    // Init LehrerInbox with shared state, elements, and render callbacks
+    if (window.LehrerInbox) {
+      window.LehrerInbox.init(state, elements, {
+        getData: getData,
+        getRelevantInboxMessages: getRelevantInboxMessages,
+        getVisiblePanelItems: getVisiblePanelItems,
+        setExpandableMeta: setExpandableMeta,
       });
     }
     refreshDashboard().then(() => {
@@ -3304,65 +2907,8 @@
     return false;
   }
 
-  function priorityLabel(priority) {
-    return (
-      {
-        critical: "kritisch",
-        high: "wichtig",
-        medium: "mittel",
-        low: "niedrig",
-      }[priority] || priority
-    );
-  }
-
-  function messagePriorityClass(priority) {
-    return (
-      {
-        critical: "critical",
-        high: "high",
-        medium: "",
-        low: "low",
-      }[priority] || ""
-    );
-  }
-
-  function compareMessageTime(left, right) {
-    const [leftHour = 0, leftMinute = 0] = String(left || "00:00").split(":").map((value) => Number(value) || 0);
-    const [rightHour = 0, rightMinute = 0] = String(right || "00:00").split(":").map((value) => Number(value) || 0);
-    return leftHour * 60 + leftMinute - (rightHour * 60 + rightMinute);
-  }
-
-  function statusLabel(status) {
-    return (
-      {
-        ok: "bereit",
-        warning: "vorbereitet",
-        error: "blockiert",
-      }[status] || status
-    );
-  }
-
-  function monitorStatusLabel(status) {
-    return (
-      {
-        tracked: "beobachtet",
-        changed: "geaendert",
-        warning: "blockiert",
-        error: "offline",
-      }[status] || status
-    );
-  }
-
-  function monitorStatusClass(status) {
-    return (
-      {
-        tracked: "low",
-        changed: "high",
-        warning: "high",
-        error: "critical",
-      }[status] || ""
-    );
-  }
+  // priorityLabel, messagePriorityClass, compareMessageTime, statusLabel,
+  // monitorStatusLabel, monitorStatusClass moved to src/features/inbox.js
 
   function watchStatusLabel(status) {
     return (

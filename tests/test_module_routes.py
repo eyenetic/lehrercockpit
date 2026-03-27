@@ -1,4 +1,6 @@
 """Tests für Module-API-Endpunkte (backend/api/module_routes.py) – Flask Test-Client + Mocks."""
+import sys
+import types
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -755,10 +757,10 @@ def test_orgaplan_data_with_url_and_mocked_digest_returns_200(client):
                 "get_system_setting",
                 side_effect=_mock_get_system_setting,
             ):
-                with patch(
-                    "backend.plan_digest.build_plan_digest",
-                    return_value=mock_digest_full,
-                ):
+                fake_plan_digest = types.SimpleNamespace(
+                    build_plan_digest=MagicMock(return_value=mock_digest_full)
+                )
+                with patch.dict(sys.modules, {"backend.plan_digest": fake_plan_digest}):
                     response = client.get("/api/v2/modules/orgaplan/data")
 
     assert response.status_code == 200
@@ -812,10 +814,10 @@ def test_klassenarbeitsplan_data_empty_cache_returns_200(client):
                     "backend.classwork_cache.load_cache",
                     return_value=mock_cache,
                 ):
-                    with patch(
-                        "backend.plan_digest.build_plan_digest",
-                        return_value=mock_digest_full,
-                    ):
+                    fake_plan_digest = types.SimpleNamespace(
+                        build_plan_digest=MagicMock(return_value=mock_digest_full)
+                    )
+                    with patch.dict(sys.modules, {"backend.plan_digest": fake_plan_digest}):
                         response = client.get("/api/v2/modules/klassenarbeitsplan/data")
 
     assert response.status_code == 200

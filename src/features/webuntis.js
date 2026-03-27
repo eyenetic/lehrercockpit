@@ -487,6 +487,7 @@
       if (!byKey.has(key)) byKey.set(key, []);
       byKey.get(key).push(event);
     });
+    var todayKey = new Date().toISOString().slice(0, 10);
     return Array.from({ length: 5 }, function (_, index) {
       var day = new Date(weekStart);
       day.setDate(weekStart.getDate() + index);
@@ -496,6 +497,7 @@
         weekday: day.toLocaleDateString('de-DE', { weekday: 'short' }),
         date: _formatDate(day),
         isoDate: key,
+        isToday: key === todayKey,
         events: byKey.get(key) || [],
       };
     });
@@ -649,10 +651,13 @@
       + '</div>'
       + '<div class="webuntis-week-columns">'
       + columns.map(function (column) {
-        return '<section class="webuntis-week-column">'
+        return '<section class="webuntis-week-column' + (column.isToday ? ' is-today' : '') + '">'
           + '<div class="webuntis-week-column-head">'
-          + '<span class="webuntis-weekday">' + column.weekday + '</span>'
-          + '<strong>' + column.date + '</strong>'
+          + '<div class="webuntis-week-column-head-row">'
+          + '<span class="webuntis-weekday' + (column.isToday ? ' is-today' : '') + '">' + column.weekday + '</span>'
+          + (column.isToday ? '<span class="webuntis-today-chip" aria-label="Heute">Heute</span>' : '')
+          + '</div>'
+          + '<strong class="webuntis-week-column-date">' + column.date + '</strong>'
           + '</div>'
           + '<div class="webuntis-week-column-items">'
           + (column.events.length ? column.events.map(renderWeekEvent).join('') : renderEmptyWeekColumn(column, hasAnyWeekEvents))

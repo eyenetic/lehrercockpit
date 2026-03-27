@@ -1,0 +1,167 @@
+/**
+ * styles.admin.css — Admin page styles
+ *
+ * Loaded only by: admin.html
+ * Shared design tokens come from styles.css (loaded first).
+ */
+
+/* ── Admin Page ──────────────────────────────────────────────────────────── */
+.admin-page {
+  margin: 0;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.admin-tab {
+  padding: 0.45rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.admin-tab:hover {
+  background: var(--panel-soft);
+  color: var(--ink);
+}
+
+.admin-tab.active {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--accent);
+}
+
+/* ── User Table ──────────────────────────────────────────────────────────── */
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.user-table thead tr {
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.user-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.user-table td {
+  padding: 0.55rem 0.75rem;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+/* ── Access Code Display ─────────────────────────────────────────────────── */
+.access-code-display {
+  background: var(--panel-soft);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.access-code-value {
+  font-family: "Geist Mono", monospace;
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: 0.08em;
+  word-break: break-all;
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-overlay[hidden] {
+  display: none !important;
+}
+
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Admin table ─────────────────────────────────────────────────────────── */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.admin-table thead tr {
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 0.55rem 0.75rem;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tr:hover td {
+  background: var(--panel-soft);
+}
+
+/* ── Audit log ───────────────────────────────────────────────────────────── */
+.audit-event-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.78em;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #4a5568;
+  white-space: nowrap;
+}
+
+.audit-login-success         { background: #c6f6d5; color: #276749; }
+.audit-login-failure         { background: #fed7d7; color: #822727; }
+.audit-teacher-created       { background: #bee3f8; color: #2a69ac; }
+.audit-teacher-deactivated   { background: #feebc8; color: #7b341e; }
+.audit-code-rotated          { background: #e9d8fd; color: #553c9a; }
+.audit-bootstrap-created     { background: #fefcbf; color: #7b6000; }

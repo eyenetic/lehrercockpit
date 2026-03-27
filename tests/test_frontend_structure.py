@@ -514,28 +514,37 @@ def test_app_js_renderSectionFocus_calls_isSectionEnabled(app_js_content):
     )
 
 
-def test_app_js_renderPlanDigest_checks_orgaplan_visibility(app_js_content):
-    """src/app.js renderPlanDigest() checks isModuleVisible('orgaplan') to hide the orgaplan card."""
-    start = app_js_content.find("function renderPlanDigest")
-    assert start != -1, "renderPlanDigest function not found in src/app.js"
-    func_region = app_js_content[start:start + 1200]
+def test_app_js_renderPlanDigest_checks_orgaplan_visibility():
+    """classwork.js renderPlanDigest() checks isModuleVisible('orgaplan') to hide the orgaplan card.
+
+    After extraction, the logic lives in src/features/classwork.js rather than app.js.
+    """
+    with open("src/features/classwork.js", "r", encoding="utf-8") as f:
+        classwork_content = f.read()
+    start = classwork_content.find("function renderPlanDigest")
+    assert start != -1, "renderPlanDigest function not found in src/features/classwork.js"
+    func_region = classwork_content[start:start + 1400]
     assert "orgaplan" in func_region, (
-        "renderPlanDigest() does not reference 'orgaplan' module. "
+        "renderPlanDigest() in classwork.js does not reference 'orgaplan' module. "
         "Expected: orgaplan digest card hidden when orgaplan module is disabled."
     )
-    assert "isModuleVisible" in func_region, (
-        "renderPlanDigest() does not call isModuleVisible() to gate the orgaplan card. "
-        "Expected: showOrgaplan = isModuleVisible('orgaplan') controls card visibility."
+    assert "_isModuleVisible" in func_region, (
+        "renderPlanDigest() in classwork.js does not call _isModuleVisible() to gate the orgaplan card."
     )
 
 
-def test_app_js_renderPlanDigest_checks_klassenarbeitsplan_visibility(app_js_content):
-    """src/app.js renderPlanDigest() checks isModuleVisible('klassenarbeitsplan') to hide that card."""
-    start = app_js_content.find("function renderPlanDigest")
-    assert start != -1, "renderPlanDigest function not found in src/app.js"
-    func_region = app_js_content[start:start + 1200]
+def test_app_js_renderPlanDigest_checks_klassenarbeitsplan_visibility():
+    """classwork.js renderPlanDigest() checks isModuleVisible('klassenarbeitsplan') to hide that card.
+
+    After extraction, the logic lives in src/features/classwork.js rather than app.js.
+    """
+    with open("src/features/classwork.js", "r", encoding="utf-8") as f:
+        classwork_content = f.read()
+    start = classwork_content.find("function renderPlanDigest")
+    assert start != -1, "renderPlanDigest function not found in src/features/classwork.js"
+    func_region = classwork_content[start:start + 1400]
     assert "klassenarbeitsplan" in func_region, (
-        "renderPlanDigest() does not reference 'klassenarbeitsplan' module. "
+        "renderPlanDigest() in classwork.js does not reference 'klassenarbeitsplan' module. "
         "Expected: classwork digest card hidden when klassenarbeitsplan module is disabled."
     )
 
@@ -901,4 +910,244 @@ def test_dashboard_manager_renderLayoutPanelContent_forEach_no_idx_param(dashboa
     assert "m.sort_order" in func_region, (
         "m.sort_order not found in _renderLayoutPanelContent — "
         "sparse sort_order fix may have been lost."
+    )
+
+
+# ── JS extraction: documents.js and classwork.js ─────────────────────────────
+
+def test_documents_js_exists():
+    """src/features/documents.js exists (maintainability extraction)."""
+    assert os.path.isfile("src/features/documents.js"), "src/features/documents.js not found"
+
+
+def test_classwork_js_exists():
+    """src/features/classwork.js exists (maintainability extraction)."""
+    assert os.path.isfile("src/features/classwork.js"), "src/features/classwork.js not found"
+
+
+def test_index_html_contains_documents_js_script(index_html_content):
+    """index.html contains src/features/documents.js in a <script> tag."""
+    assert "src/features/documents.js" in index_html_content, (
+        "index.html does not contain a reference to src/features/documents.js"
+    )
+
+
+def test_index_html_contains_classwork_js_script(index_html_content):
+    """index.html contains src/features/classwork.js in a <script> tag."""
+    assert "src/features/classwork.js" in index_html_content, (
+        "index.html does not contain a reference to src/features/classwork.js"
+    )
+
+
+def test_index_html_documents_js_before_app_js(index_html_content):
+    """index.html loads documents.js before app.js."""
+    documents_pos = index_html_content.find("src/features/documents.js")
+    app_js_pos = index_html_content.find("src/app.js")
+    assert documents_pos != -1, "src/features/documents.js not found in index.html"
+    assert app_js_pos != -1, "src/app.js not found in index.html"
+    assert documents_pos < app_js_pos, (
+        f"documents.js (pos {documents_pos}) must appear before app.js (pos {app_js_pos})"
+    )
+
+
+def test_index_html_classwork_js_before_app_js(index_html_content):
+    """index.html loads classwork.js before app.js."""
+    classwork_pos = index_html_content.find("src/features/classwork.js")
+    app_js_pos = index_html_content.find("src/app.js")
+    assert classwork_pos != -1, "src/features/classwork.js not found in index.html"
+    assert app_js_pos != -1, "src/app.js not found in index.html"
+    assert classwork_pos < app_js_pos, (
+        f"classwork.js (pos {classwork_pos}) must appear before app.js (pos {app_js_pos})"
+    )
+
+
+def test_documents_js_exports_window_lehrerDocuments():
+    """src/features/documents.js assigns window.LehrerDocuments."""
+    with open("src/features/documents.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "window.LehrerDocuments" in content, (
+        "src/features/documents.js does not assign window.LehrerDocuments"
+    )
+
+
+def test_classwork_js_exports_window_lehrerClasswork():
+    """src/features/classwork.js assigns window.LehrerClasswork."""
+    with open("src/features/classwork.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "window.LehrerClasswork" in content, (
+        "src/features/classwork.js does not assign window.LehrerClasswork"
+    )
+
+
+def test_app_js_delegates_renderDocuments_to_lehrerDocuments(app_js_content):
+    """src/app.js renderDocuments() delegates to window.LehrerDocuments."""
+    start = app_js_content.find("function renderDocuments")
+    assert start != -1, "renderDocuments function not found in src/app.js"
+    func_region = app_js_content[start:start + 200]
+    assert "LehrerDocuments" in func_region, (
+        "renderDocuments() in app.js does not delegate to LehrerDocuments"
+    )
+
+
+def test_app_js_delegates_renderPlanDigest_to_lehrerClasswork(app_js_content):
+    """src/app.js renderPlanDigest() delegates to window.LehrerClasswork."""
+    start = app_js_content.find("function renderPlanDigest")
+    assert start != -1, "renderPlanDigest function not found in src/app.js"
+    func_region = app_js_content[start:start + 200]
+    assert "LehrerClasswork" in func_region, (
+        "renderPlanDigest() in app.js does not delegate to LehrerClasswork"
+    )
+
+
+# ── CSS split tests: styles.auth.css and styles.admin.css ────────────────────
+
+def test_styles_auth_css_exists():
+    """styles.auth.css exists (CSS split for auth pages)."""
+    assert os.path.isfile("styles.auth.css"), "styles.auth.css not found"
+
+
+def test_styles_admin_css_exists():
+    """styles.admin.css exists (CSS split for admin page)."""
+    assert os.path.isfile("styles.admin.css"), "styles.admin.css not found"
+
+
+@pytest.fixture(scope="module")
+def login_html_raw_content():
+    with open("login.html", "r", encoding="utf-8") as f:
+        return f.read()
+
+
+@pytest.fixture(scope="module")
+def onboarding_html_raw_content():
+    with open("onboarding.html", "r", encoding="utf-8") as f:
+        return f.read()
+
+
+@pytest.fixture(scope="module")
+def admin_html_raw_content():
+    with open("admin.html", "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def test_login_html_loads_auth_css(login_html_raw_content):
+    """login.html loads styles.auth.css."""
+    assert "styles.auth.css" in login_html_raw_content, (
+        "login.html does not reference styles.auth.css"
+    )
+
+
+def test_onboarding_html_loads_auth_css(onboarding_html_raw_content):
+    """onboarding.html loads styles.auth.css."""
+    assert "styles.auth.css" in onboarding_html_raw_content, (
+        "onboarding.html does not reference styles.auth.css"
+    )
+
+
+def test_admin_html_loads_admin_css(admin_html_raw_content):
+    """admin.html loads styles.admin.css."""
+    assert "styles.admin.css" in admin_html_raw_content, (
+        "admin.html does not reference styles.admin.css"
+    )
+
+
+def test_styles_auth_css_contains_login_card():
+    """styles.auth.css contains .login-card rule."""
+    with open("styles.auth.css", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert ".login-card" in content, "styles.auth.css is missing .login-card"
+
+
+def test_styles_admin_css_contains_admin_table():
+    """styles.admin.css contains .admin-table rule."""
+    with open("styles.admin.css", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert ".admin-table" in content, "styles.admin.css is missing .admin-table"
+
+
+def test_styles_css_does_not_contain_login_card():
+    """styles.css no longer contains .login-card (moved to styles.auth.css)."""
+    with open("styles.css", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert ".login-card" not in content, (
+        "styles.css still contains .login-card — should be in styles.auth.css"
+    )
+
+
+# ── JS extraction: inbox.js ───────────────────────────────────────────────────
+
+def test_inbox_js_exists():
+    """src/features/inbox.js exists (maintainability extraction)."""
+    assert os.path.isfile("src/features/inbox.js"), "src/features/inbox.js not found"
+
+
+def test_index_html_contains_inbox_js_script(index_html_content):
+    """index.html contains src/features/inbox.js in a <script> tag."""
+    assert "src/features/inbox.js" in index_html_content, (
+        "index.html does not contain a reference to src/features/inbox.js"
+    )
+
+
+def test_index_html_inbox_js_before_app_js(index_html_content):
+    """index.html loads inbox.js before app.js."""
+    inbox_pos = index_html_content.find("src/features/inbox.js")
+    app_js_pos = index_html_content.find("src/app.js")
+    assert inbox_pos != -1, "src/features/inbox.js not found in index.html"
+    assert app_js_pos != -1, "src/app.js not found in index.html"
+    assert inbox_pos < app_js_pos, (
+        f"inbox.js (pos {inbox_pos}) must appear before app.js (pos {app_js_pos})"
+    )
+
+
+def test_inbox_js_exports_window_lehrerInbox():
+    """src/features/inbox.js assigns window.LehrerInbox."""
+    with open("src/features/inbox.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "window.LehrerInbox" in content, (
+        "src/features/inbox.js does not assign window.LehrerInbox"
+    )
+
+
+def test_inbox_js_contains_renderMessages():
+    """src/features/inbox.js defines renderMessages()."""
+    with open("src/features/inbox.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "function renderMessages" in content, (
+        "src/features/inbox.js does not define renderMessages()"
+    )
+
+
+def test_app_js_delegates_renderMessages_to_lehrerInbox(app_js_content):
+    """src/app.js renderMessages() delegates to window.LehrerInbox."""
+    start = app_js_content.find("function renderMessages")
+    assert start != -1, "renderMessages function not found in src/app.js"
+    func_region = app_js_content[start:start + 150]
+    assert "LehrerInbox" in func_region, (
+        "renderMessages() in app.js does not delegate to LehrerInbox"
+    )
+
+
+def test_app_js_delegates_renderPriorities_to_lehrerInbox(app_js_content):
+    """src/app.js renderPriorities() delegates to window.LehrerInbox."""
+    start = app_js_content.find("function renderPriorities")
+    assert start != -1, "renderPriorities function not found in src/app.js"
+    func_region = app_js_content[start:start + 150]
+    assert "LehrerInbox" in func_region, (
+        "renderPriorities() in app.js does not delegate to LehrerInbox"
+    )
+
+
+def test_app_js_contains_grades_seam_comment(app_js_content):
+    """src/app.js contains the grades extraction seam comment."""
+    assert "grades-render.js" in app_js_content or "future extraction seam" in app_js_content, (
+        "src/app.js does not contain the grades extraction seam comment. "
+        "Expected: seam comment documenting the next extraction boundary for grades."
+    )
+
+
+def test_styles_css_does_not_contain_admin_table():
+    """styles.css no longer contains .admin-table (moved to styles.admin.css)."""
+    with open("styles.css", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert ".admin-table" not in content, (
+        "styles.css still contains .admin-table — should be in styles.admin.css"
     )
