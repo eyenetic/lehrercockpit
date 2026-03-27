@@ -1136,11 +1136,26 @@ def test_app_js_delegates_renderPriorities_to_lehrerInbox(app_js_content):
     )
 
 
-def test_app_js_contains_grades_seam_comment(app_js_content):
-    """src/app.js contains the grades extraction seam comment."""
-    assert "grades-render.js" in app_js_content or "future extraction seam" in app_js_content, (
-        "src/app.js does not contain the grades extraction seam comment. "
-        "Expected: seam comment documenting the next extraction boundary for grades."
+def test_app_js_grades_rendering_delegated_to_lehrerGrades(app_js_content):
+    """src/app.js renderGrades() delegates to window.LehrerGrades (Phase 15 extraction complete).
+
+    The old 'future extraction seam' comment is gone because the extraction is done.
+    Both renderGrades() and renderClassNotes() must delegate to LehrerGrades.
+    """
+    start_rg = app_js_content.find("function renderGrades")
+    assert start_rg != -1, "renderGrades function not found in src/app.js"
+    rg_region = app_js_content[start_rg:start_rg + 150]
+    assert "LehrerGrades" in rg_region, (
+        "renderGrades() in app.js does not delegate to LehrerGrades. "
+        "Expected: if (window.LehrerGrades) return window.LehrerGrades.renderGrades();"
+    )
+
+    start_rcn = app_js_content.find("function renderClassNotes")
+    assert start_rcn != -1, "renderClassNotes function not found in src/app.js"
+    rcn_region = app_js_content[start_rcn:start_rcn + 150]
+    assert "LehrerGrades" in rcn_region, (
+        "renderClassNotes() in app.js does not delegate to LehrerGrades. "
+        "Expected: if (window.LehrerGrades) return window.LehrerGrades.renderClassNotes(...);"
     )
 
 
@@ -1150,4 +1165,196 @@ def test_styles_css_does_not_contain_admin_table():
         content = f.read()
     assert ".admin-table" not in content, (
         "styles.css still contains .admin-table — should be in styles.admin.css"
+    )
+
+
+# ── Phase 15: grades rendering extraction tests ──────────────────────────────
+
+@pytest.fixture(scope="module")
+def grades_js_content():
+    with open("src/features/grades.js", "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def test_grades_js_contains_renderGrades(grades_js_content):
+    """src/features/grades.js defines renderGrades() (Phase 15 extraction)."""
+    assert "function renderGrades" in grades_js_content, (
+        "src/features/grades.js does not define renderGrades(). "
+        "Expected: full renderGrades() implementation extracted from app.js."
+    )
+
+
+def test_grades_js_contains_renderClassNotes(grades_js_content):
+    """src/features/grades.js defines renderClassNotes() (Phase 15 extraction)."""
+    assert "function renderClassNotes" in grades_js_content, (
+        "src/features/grades.js does not define renderClassNotes(). "
+        "Expected: full renderClassNotes() implementation extracted from app.js."
+    )
+
+
+def test_grades_js_contains_getGradebookData(grades_js_content):
+    """src/features/grades.js defines getGradebookData() (Phase 15 extraction)."""
+    assert "function getGradebookData" in grades_js_content, (
+        "src/features/grades.js does not define getGradebookData()."
+    )
+
+
+def test_grades_js_contains_getNotesData(grades_js_content):
+    """src/features/grades.js defines getNotesData() (Phase 15 extraction)."""
+    assert "function getNotesData" in grades_js_content, (
+        "src/features/grades.js does not define getNotesData()."
+    )
+
+
+def test_grades_js_contains_summarizeGrades(grades_js_content):
+    """src/features/grades.js defines summarizeGrades() (Phase 15 extraction)."""
+    assert "function summarizeGrades" in grades_js_content, (
+        "src/features/grades.js does not define summarizeGrades()."
+    )
+
+
+def test_grades_js_contains_getGradeClasses(grades_js_content):
+    """src/features/grades.js defines getGradeClasses() (Phase 15 extraction)."""
+    assert "function getGradeClasses" in grades_js_content, (
+        "src/features/grades.js does not define getGradeClasses()."
+    )
+
+
+def test_grades_js_exports_renderGrades_in_public_api(grades_js_content):
+    """src/features/grades.js exports renderGrades in window.LehrerGrades public API."""
+    return_start = grades_js_content.rfind("window.LehrerGrades = {")
+    assert return_start != -1, "window.LehrerGrades public API not found in grades.js"
+    api_block = grades_js_content[return_start:]
+    assert "renderGrades" in api_block, (
+        "window.LehrerGrades does not expose renderGrades in public API."
+    )
+    assert "renderClassNotes" in api_block, (
+        "window.LehrerGrades does not expose renderClassNotes in public API."
+    )
+    assert "getGradebookData" in api_block, (
+        "window.LehrerGrades does not expose getGradebookData in public API."
+    )
+    assert "getNotesData" in api_block, (
+        "window.LehrerGrades does not expose getNotesData in public API."
+    )
+    assert "summarizeGrades" in api_block, (
+        "window.LehrerGrades does not expose summarizeGrades in public API."
+    )
+
+
+def test_app_js_getGradebookData_delegates_to_lehrerGrades(app_js_content):
+    """src/app.js getGradebookData() delegates to window.LehrerGrades (Phase 15)."""
+    start = app_js_content.find("function getGradebookData")
+    assert start != -1, "getGradebookData not found in src/app.js"
+    region = app_js_content[start:start + 150]
+    assert "LehrerGrades" in region, (
+        "getGradebookData() in app.js does not delegate to LehrerGrades."
+    )
+
+
+def test_app_js_getNotesData_delegates_to_lehrerGrades(app_js_content):
+    """src/app.js getNotesData() delegates to window.LehrerGrades (Phase 15)."""
+    start = app_js_content.find("function getNotesData")
+    assert start != -1, "getNotesData not found in src/app.js"
+    region = app_js_content[start:start + 150]
+    assert "LehrerGrades" in region, (
+        "getNotesData() in app.js does not delegate to LehrerGrades."
+    )
+
+
+def test_app_js_summarizeGrades_delegates_to_lehrerGrades(app_js_content):
+    """src/app.js summarizeGrades() delegates to window.LehrerGrades (Phase 15)."""
+    start = app_js_content.find("function summarizeGrades")
+    assert start != -1, "summarizeGrades not found in src/app.js"
+    region = app_js_content[start:start + 150]
+    assert "LehrerGrades" in region, (
+        "summarizeGrades() in app.js does not delegate to LehrerGrades."
+    )
+
+
+def test_grades_js_init_accepts_getData_callback(grades_js_content):
+    """src/features/grades.js init() uses getData callback (Phase 15 interface)."""
+    assert "getData" in grades_js_content, (
+        "grades.js does not reference getData callback. "
+        "Expected: getData injected via init() so getGradeClasses() can read classwork classes."
+    )
+
+
+# ── JS extraction: nextcloud.js (Phase 14) ───────────────────────────────────
+
+def test_nextcloud_js_exists():
+    """src/features/nextcloud.js exists (Phase 14 extraction)."""
+    assert os.path.isfile("src/features/nextcloud.js"), "src/features/nextcloud.js not found"
+
+
+def test_index_html_contains_nextcloud_js_script(index_html_content):
+    """index.html contains src/features/nextcloud.js in a <script> tag."""
+    assert "src/features/nextcloud.js" in index_html_content, (
+        "index.html does not contain a reference to src/features/nextcloud.js"
+    )
+
+
+def test_index_html_nextcloud_js_before_app_js(index_html_content):
+    """index.html loads nextcloud.js before app.js."""
+    nextcloud_pos = index_html_content.find("src/features/nextcloud.js")
+    app_js_pos = index_html_content.find("src/app.js")
+    assert nextcloud_pos != -1, "src/features/nextcloud.js not found in index.html"
+    assert app_js_pos != -1, "src/app.js not found in index.html"
+    assert nextcloud_pos < app_js_pos, (
+        f"nextcloud.js (pos {nextcloud_pos}) must appear before app.js (pos {app_js_pos})"
+    )
+
+
+def test_nextcloud_js_exports_window_lehrerNextcloud():
+    """src/features/nextcloud.js assigns window.LehrerNextcloud."""
+    with open("src/features/nextcloud.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "window.LehrerNextcloud" in content, (
+        "src/features/nextcloud.js does not assign window.LehrerNextcloud"
+    )
+
+
+def test_nextcloud_js_contains_renderNextcloudConnector():
+    """src/features/nextcloud.js defines renderNextcloudConnector()."""
+    with open("src/features/nextcloud.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "function renderNextcloudConnector" in content, (
+        "src/features/nextcloud.js does not define renderNextcloudConnector()"
+    )
+
+
+def test_nextcloud_js_contains_saveNextcloudCredentials():
+    """src/features/nextcloud.js defines saveNextcloudCredentials()."""
+    with open("src/features/nextcloud.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "function saveNextcloudCredentials" in content or "saveNextcloudCredentials" in content, (
+        "src/features/nextcloud.js does not define saveNextcloudCredentials()"
+    )
+
+
+def test_app_js_delegates_renderNextcloudConnector_to_lehrerNextcloud(app_js_content):
+    """src/app.js renderNextcloudConnector() delegates to window.LehrerNextcloud."""
+    start = app_js_content.find("function renderNextcloudConnector")
+    assert start != -1, "renderNextcloudConnector function not found in src/app.js"
+    func_region = app_js_content[start:start + 200]
+    assert "LehrerNextcloud" in func_region, (
+        "renderNextcloudConnector() in app.js does not delegate to LehrerNextcloud"
+    )
+
+
+def test_app_js_delegates_saveNextcloudCredentials_to_lehrerNextcloud(app_js_content):
+    """src/app.js saveNextcloudCredentials() delegates to window.LehrerNextcloud."""
+    start = app_js_content.find("function saveNextcloudCredentials")
+    assert start != -1, "saveNextcloudCredentials function not found in src/app.js"
+    func_region = app_js_content[start:start + 150]
+    assert "LehrerNextcloud" in func_region, (
+        "saveNextcloudCredentials() in app.js does not delegate to LehrerNextcloud"
+    )
+
+
+def test_app_js_references_window_lehrerNextcloud(app_js_content):
+    """src/app.js references window.LehrerNextcloud (extraction confirmation)."""
+    assert "window.LehrerNextcloud" in app_js_content, (
+        "src/app.js does not reference window.LehrerNextcloud. "
+        "Expected delegates calling window.LehrerNextcloud.*() after Phase 14 extraction."
     )

@@ -1226,278 +1226,38 @@
     return "";
   }
 
-  // ── Grades data accessors (future extraction seam) ───────────────────────────
-  //
-  // Next extraction: src/features/grades-render.js
-  // Target functions: getGradebookData, getGradeClasses, getActiveGradeClass,
-  //   summarizeGrades, renderGradeItem, renderGradeClassOptions, renderClassNotes,
-  //   renderGrades, getNoteClasses, getNotesData, getActiveNoteClass.
-  //
-  // Blocker: getGradeClasses() reads both state.gradesData (grades) and
-  //   data.planDigest.classwork.classes (classwork). Both getData and getGradebookData
-  //   must be injected as callbacks. Straightforward once scoped.
+  // ── Grades data accessors + rendering — delegated to window.LehrerGrades (Phase 15) ─
+  // Full implementations are in src/features/grades.js.
 
+  // Phase 15: Delegate to LehrerGrades module if available
   function getGradebookData() {
-    return (
-      state.gradesData || {
-        status: "empty",
-        detail: "Noch keine lokalen Noten erfasst.",
-        updatedAt: "",
-        entries: [],
-        classes: [],
-      }
-    );
+    if (window.LehrerGrades) return window.LehrerGrades.getGradebookData();
+    return state.gradesData || { status: 'empty', detail: '', updatedAt: '', entries: [], classes: [] };
   }
 
   function getGradeClasses() {
-    const gradeClasses = getGradebookData().classes || [];
-    const classworkClasses = getData().planDigest?.classwork?.classes || [];
-    return Array.from(new Set([...gradeClasses, ...classworkClasses])).sort();
+    if (window.LehrerGrades) return window.LehrerGrades.getGradeClasses();
+    return [];
   }
 
-  function getActiveGradeClass(classes) {
-    if (!classes.length) {
-      state.gradesSelectedClass = "";
-      return "";
-    }
+  function getNotesData() {
+    if (window.LehrerGrades) return window.LehrerGrades.getNotesData();
+    return state.notesData || { status: 'empty', detail: '', updatedAt: '', notes: [], classes: [] };
+  }
 
-    if (state.gradesSelectedClass && classes.includes(state.gradesSelectedClass)) {
-      return state.gradesSelectedClass;
-    }
-
-    state.gradesSelectedClass = classes[0];
-    return state.gradesSelectedClass;
+  function summarizeGrades(entries) {
+    if (window.LehrerGrades) return window.LehrerGrades.summarizeGrades(entries);
+    return { averageLabel: '-', riskCount: 0 };
   }
 
   // ── SECTION: Grades & notes ──────────────────────────────────────────────────
 
   function renderGrades() {
-    if (!elements.gradesList) {
-      return;
-    }
-
-    const gradebook = getGradebookData();
-    const classes = getGradeClasses();
-    const activeClass = getActiveGradeClass(classes);
-    const entries = (gradebook.entries || [])
-      .filter((entry) => !activeClass || entry.classLabel === activeClass)
-      .sort((left, right) => (right.date || "").localeCompare(left.date || ""));
-    const visibleEntries = getVisiblePanelItems(entries, "grades");
-
-    const summary = summarizeGrades(entries);
-
-    elements.gradesDetail.textContent = gradebook.updatedAt
-      ? `${gradebook.detail} Letzter lokaler Stand: ${gradebook.updatedAt}.`
-      : gradebook.detail;
-    elements.gradesSummaryClass.textContent = activeClass || "Keine Klasse";
-    elements.gradesSummaryCount.textContent = String(entries.length);
-    elements.gradesSummaryAverage.textContent = summary.averageLabel;
-    elements.gradesSummaryRisk.textContent = String(summary.riskCount);
-    // Risk-aware visual signaling: toggle has-risk on the parent stat card
-    const riskCard = elements.gradesSummaryRisk?.closest(".grades-stat-card");
-    if (riskCard) {
-      riskCard.classList.toggle("has-risk", summary.riskCount > 0);
-    }
-    elements.gradesFeedback.textContent = state.gradesFeedback;
-    elements.gradesFeedback.className = `connect-feedback${state.gradesFeedbackKind ? ` ${state.gradesFeedbackKind}` : ""}`;
-
-    renderGradeClassOptions(elements.gradesClassInput, classes, activeClass, true);
-    renderGradeClassOptions(elements.gradesClassFilter, classes, activeClass, false);
-    renderClassNotes(classes, activeClass);
-
-    if (elements.gradesDateInput && !elements.gradesDateInput.value) {
-      elements.gradesDateInput.value = new Date().toISOString().slice(0, 10);
-    }
-
-    setExpandableMeta(elements.gradesList, entries.length, visibleEntries.length);
-    elements.gradesList.innerHTML = entries.length
-      ? visibleEntries.map((entry) => renderGradeItem(entry)).join("")
-      : `<div class="empty-state">Noch keine lokalen Noten fuer diese Klasse erfasst.</div>`;
-  }
-
-  function getNotesData() {
-    return (
-      state.notesData || {
-        status: "empty",
-        detail: "Noch keine Klassen-Notizen erfasst.",
-        updatedAt: "",
-        notes: [],
-        classes: [],
-      }
-    );
-  }
-
-  function getNoteClasses() {
-    const notesClasses = getNotesData().classes || [];
-    return Array.from(new Set([...getGradeClasses(), ...notesClasses])).sort();
-  }
-
-  function getActiveNoteClass(classes, suggestedClass) {
-    if (!classes.length) {
-      state.notesSelectedClass = "";
-      return "";
-    }
-
-    if (state.notesSelectedClass && classes.includes(state.notesSelectedClass)) {
-      return state.notesSelectedClass;
-    }
-
-    if (suggestedClass && classes.includes(suggestedClass)) {
-      state.notesSelectedClass = suggestedClass;
-      return suggestedClass;
-    }
-
-    state.notesSelectedClass = classes[0];
-    return state.notesSelectedClass;
+    if (window.LehrerGrades) return window.LehrerGrades.renderGrades();
   }
 
   function renderClassNotes(classes, suggestedClass) {
-    if (!elements.notesList) {
-      return;
-    }
-
-    const notesData = getNotesData();
-    const noteClasses = getNoteClasses();
-    const activeClass = getActiveNoteClass(noteClasses, suggestedClass);
-    const notes = (notesData.notes || [])
-      .slice()
-      .sort((left, right) => String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")));
-    const currentNote = notes.find((item) => item.classLabel === activeClass) || null;
-
-    renderGradeClassOptions(elements.notesClassFilter, noteClasses, activeClass, false);
-    if (elements.notesInput && !elements.notesInput.matches(":focus")) {
-      elements.notesInput.value = currentNote?.text || "";
-    }
-
-    elements.notesFeedback.textContent = state.notesFeedback;
-    elements.notesFeedback.className = `connect-feedback${state.notesFeedbackKind ? ` ${state.notesFeedbackKind}` : ""}`;
-
-    const prioritizedNotes = currentNote
-      ? [currentNote, ...notes.filter((item) => item.classLabel !== activeClass)]
-      : notes.slice();
-    const visibleNotes = getVisiblePanelItems(prioritizedNotes, "notes");
-    setExpandableMeta(elements.notesList, prioritizedNotes.length, visibleNotes.length);
-
-    elements.notesList.innerHTML = visibleNotes.length
-      ? visibleNotes
-          .map(
-            (note) => `
-              <article class="grade-item note-item ${note.classLabel === activeClass ? "active" : ""}">
-                <div class="grade-item-top">
-                  <div>
-                    <strong>${note.classLabel}</strong>
-                    <p class="message-snippet">${formatNoteTimestamp(note.updatedAt)}</p>
-                  </div>
-                  <span class="meta-tag low">${note.classLabel === activeClass ? "aktiv" : "notiz"}</span>
-                </div>
-                <p class="classwork-entry-title">${note.text}</p>
-              </article>
-            `
-          )
-          .join("")
-      : `<div class="empty-state">Noch keine Klassen-Notizen erfasst.</div>`;
-  }
-
-  function renderGradeClassOptions(element, classes, activeClass, includePlaceholder) {
-    if (!element) {
-      return;
-    }
-
-    if (!classes.length) {
-      element.innerHTML = includePlaceholder
-        ? `<option value="">Klasse waehlen</option>`
-        : `<option value="">Keine Klasse</option>`;
-      element.disabled = !includePlaceholder;
-      return;
-    }
-
-    element.disabled = false;
-    element.innerHTML = `${includePlaceholder ? `<option value="">Klasse waehlen</option>` : ""}${classes
-      .map(
-        (classLabel) => `<option value="${classLabel}" ${classLabel === activeClass ? "selected" : ""}>${classLabel}</option>`
-      )
-      .join("")}`;
-  }
-
-  function summarizeGrades(entries) {
-    const numericGrades = entries
-      .map((entry) => parseGradeValue(entry.gradeValue))
-      .filter((value) => Number.isFinite(value));
-    const average = numericGrades.length
-      ? numericGrades.reduce((sum, value) => sum + value, 0) / numericGrades.length
-      : null;
-    const riskCount = numericGrades.filter((value) => value >= 4).length;
-    return {
-      averageLabel: average ? average.toFixed(2).replace(".", ",") : "-",
-      riskCount,
-    };
-  }
-
-  function parseGradeValue(value) {
-    const token = String(value || "").trim();
-    if (!token) {
-      return Number.NaN;
-    }
-
-    const mapping = {
-      "1+": 0.7,
-      "1": 1,
-      "1-": 1.3,
-      "2+": 1.7,
-      "2": 2,
-      "2-": 2.3,
-      "3+": 2.7,
-      "3": 3,
-      "3-": 3.3,
-      "4+": 3.7,
-      "4": 4,
-      "4-": 4.3,
-      "5+": 4.7,
-      "5": 5,
-      "5-": 5.3,
-      "6": 6,
-    };
-
-    if (mapping[token] !== undefined) {
-      return mapping[token];
-    }
-
-    const numeric = Number(token.replace(",", "."));
-    return Number.isFinite(numeric) ? numeric : Number.NaN;
-  }
-
-  function renderGradeItem(entry) {
-    return `
-      <article class="grade-item">
-        <div class="grade-item-top">
-          <div>
-            <strong>${entry.studentName}</strong>
-            <p class="message-snippet">${entry.classLabel} · ${entry.type} · ${formatGradeDate(entry.date)}</p>
-          </div>
-          <div class="grade-item-actions">
-            <span class="meta-tag low">${entry.gradeValue || "-"}</span>
-            <button class="filter-button" type="button" data-grade-delete="${entry.id}">Entfernen</button>
-          </div>
-        </div>
-        <p class="classwork-entry-title">${entry.title}</p>
-        <div class="meta-row">
-          ${entry.points ? `<span class="meta-tag">${entry.points}</span>` : ""}
-          ${entry.comment ? `<span class="meta-tag">${entry.comment}</span>` : ""}
-        </div>
-      </article>
-    `;
-  }
-
-  function formatGradeDate(value) {
-    if (!value) {
-      return "ohne Datum";
-    }
-    try {
-      const date = new Date(`${value}T00:00:00`);
-      return date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
-    } catch (_error) {
-      return value;
-    }
+    if (window.LehrerGrades) return window.LehrerGrades.renderClassNotes(classes, suggestedClass);
   }
 
   // ── Orgaplan + classwork utilities — delegated to window.LehrerClasswork ────
@@ -2229,13 +1989,13 @@
     });
     // Init DashboardManager for multi-user module layout
     DashboardManager.init();
-    // Init LehrerGrades with shared state, elements, and render callbacks (Phase 9e)
+    // Init LehrerGrades with shared state, elements, and render callbacks (Phase 9e → 15)
     if (window.LehrerGrades) {
       window.LehrerGrades.init(state, elements, {
-        renderGrades: renderGrades,
-        renderClassNotes: renderClassNotes,
+        getData: getData,
+        getVisiblePanelItems: getVisiblePanelItems,
+        setExpandableMeta: setExpandableMeta,
         renderNavSignals: renderNavSignals,
-        getGradeClasses: getGradeClasses,
       });
     }
     // Init LehrerWebUntis with shared state, elements, and utility callbacks (Phase 10c)
@@ -3084,17 +2844,7 @@
     return haystack ? haystack.map((token) => token.toUpperCase()) : [];
   }
 
-  function formatNoteTimestamp(value) {
-    if (!value) {
-      return "ohne Zeitstempel";
-    }
-    try {
-      const date = new Date(value);
-      return `zuletzt aktualisiert ${date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })} · ${date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
-    } catch (_error) {
-      return value;
-    }
-  }
+  // formatNoteTimestamp moved to src/features/grades.js (Phase 15)
 
   initialize();
 })();

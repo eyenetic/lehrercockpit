@@ -1,6 +1,6 @@
 # Claude Handoff — Lehrercockpit
 
-> Last updated: 2026-03-26 (Phase 13 — is_admin flag separation from role field)
+> Last updated: 2026-03-27 (Phase 15 — grades rendering extraction into `src/features/grades.js`)
 >
 > **Purpose:** This file onboards a new AI assistant to the Lehrercockpit project. Read this first before touching any code. It describes the actual implemented state, not aspirational plans.
 
@@ -61,7 +61,7 @@ Each teacher gets a personal dashboard with individually configured modules (Web
 - **Phase 9 — `GET /api/v2/admin/audit-log`** with pagination (`limit`/`offset`) and `event_type` filter; returns `{events, total, limit, offset}`
 - **Phase 9 — Audit events** for `teacher_created`, `teacher_deactivated`, `code_rotated` in `admin_routes.py`
 - **Phase 9 — `scripts/backfill_encryption.py`** — idempotent, `--dry-run`, `--verbose`, round-trip verified, safe to re-run
-- **Phase 9 — `src/features/grades.js`** extracted from `src/app.js`; exposes `window.LehrerGrades`; all grades/notes functions delegate to it
+- **Phase 9 — `src/features/grades.js`** extracted from `src/app.js`; exposes `window.LehrerGrades`; all grades/notes **data loading and mutation** functions extracted (`loadGradebook`, `loadNotes`, `saveGradeEntry`, `deleteGradeEntry`, `saveClassNote`, `clearClassNote`)
 - **Phase 9 — Admin audit log UI tab** in `admin.html` (`data-tab="audit"`, `id="tab-audit"`); table + pagination + event_type filter
 - **Phase 9 — `loadDashboard()`** in `src/app.js` overlays v2 grades/notes data on v1 payload
 - **Phase 10 — ENV-driven login rate limiting** via `flask-limiter`; `LOGIN_RATE_LIMIT_MAX`, `LOGIN_RATE_LIMIT_WINDOW_SECONDS`, `LOGIN_RATE_LIMIT_MAX_PER_MINUTE` in `backend/config.py`; custom 429 handler with German error + `retry_after_seconds` JSON key
@@ -87,6 +87,8 @@ Each teacher gets a personal dashboard with individually configured modules (Web
 - **Phase 12 — `GET /api/dashboard` marked deprecated** — `X-Deprecated: Use GET /api/v2/dashboard/data` response header added; endpoint retained as local-runtime fallback
 - **Phase 12 — 4 new backend tests** in `tests/test_dashboard_routes.py`: `base` key present, `base.quick_links` is list, `base.workspace` is dict, base failure does not crash endpoint
 - **Phase 12 — 3 new frontend tests** in `tests/test_frontend_structure.py`: `normalizeV2Dashboard` in `app.js`, `getDashboardData` call in `app.js`, `X-Deprecated: Use GET /api/v2/dashboard/data` in `app.py`
+- **Phase 14 — `src/features/nextcloud.js` extracted** (~260 lines; exposes `window.LehrerNextcloud`); loaded after `itslearning.js` in `index.html` (position 7 in load order). Contains: `renderNextcloudConnector()`, `saveNextcloudCredentials()`, `loadNextcloudLastOpened()`, `saveNextcloudLastOpened()`. `NEXTCLOUD_LAST_OPENED_KEY` constant moved into the module. `app.js` now has thin delegation wrappers for all four functions. `init()` receives `{getData, refreshDashboard, isModuleVisible, formatTime, IS_LOCAL_RUNTIME}` callbacks. 9 new tests in `tests/test_frontend_structure.py`. Index.html bumped to v=41.
+- **Phase 15 — grades rendering extracted into `src/features/grades.js`** (~280 net new lines added to `grades.js`; ~270 lines removed from `app.js`). Moved: `getGradebookData()`, `getNotesData()`, `getGradeClasses()`, `summarizeGrades()`, `renderGrades()`, `renderClassNotes()`, plus all private helpers (`_getActiveGradeClass`, `_getActiveNoteClass`, `_getNoteClasses`, `_renderGradeItem`, `_renderGradeClassOptions`, `_parseGradeValue`, `_formatGradeDate`, `_formatNoteTimestamp`). `formatNoteTimestamp` removed from `app.js`. `LehrerGrades.init()` callbacks changed from `{renderGrades, renderClassNotes, getGradeClasses, renderNavSignals}` to `{getData, getVisiblePanelItems, setExpandableMeta, renderNavSignals}` — eliminating circular callback pattern. `app.js` retains thin delegation wrappers: `renderGrades()`, `renderClassNotes()`, `getGradebookData()`, `getNotesData()`, `getGradeClasses()`, `summarizeGrades()`. 12 new/updated tests in `tests/test_frontend_structure.py`.
 
 ### What is NOT yet done (known technical debt)
 
@@ -99,7 +101,6 @@ Each teacher gets a personal dashboard with individually configured modules (Web
 - No email-based password reset (by design — access codes are the auth mechanism)
 - **Rate limit is in-process only** — per-worker, not global. Acceptable for single-worker Render free tier. Set `RATELIMIT_STORAGE_URI=redis://...` for multi-worker scaling.
 - **orgaplan/klassenarbeitsplan data served from server-side cache** — 60min TTL for orgaplan; classwork from `classwork-cache.json` (Playwright/XLSX)
-- **`src/features/nextcloud.js` not yet extracted** — next frontend modularization step after `itslearning.js`
 
 ---
 
@@ -496,19 +497,24 @@ Key functions:
 | [`index.html`](index.html) | Main cockpit dashboard | `GET /api/v2/auth/me`, legacy `GET /api/dashboard` |
 | [`src/api-client.js`](src/api-client.js) | Unified API layer (`window.LehrerAPI`); all requests use `credentials:'include'`; v2 and v1 legacy paths separated | Loaded first before other scripts |
 | [`src/modules/dashboard-manager.js`](src/modules/dashboard-manager.js) | `DashboardManager` — module layout management, extracted from `src/app.js` (Phase 8d) | Depends on `window.LehrerAPI` |
-| [`src/features/grades.js`](src/features/grades.js) | Grades/notes module (Phase 9e). Exposes `window.LehrerGrades`. All grade/note functions extracted from `src/app.js`. | Depends on `window.LehrerAPI` |
+| [`src/features/grades.js`](src/features/grades.js) | Grades/notes module (Phase 9e + 15). Exposes `window.LehrerGrades`. Data loading/mutation (Phase 9e) + full rendering (Phase 15): `renderGrades()`, `renderClassNotes()`, `getGradebookData()`, `getNotesData()`, `getGradeClasses()`, `summarizeGrades()`, all CRUD ops. | Depends on `window.LehrerAPI` |
 | [`src/features/itslearning.js`](src/features/itslearning.js) | itslearning module (Phase 11d). Exposes `window.LehrerItslearning`. `renderItslearningConnector()`, `saveItslearningCredentials()`, `getRelevantInboxMessages()`, `loadItslearning()`, `applyItslearningData()`. | Depends on `window.LehrerAPI` |
-| [`src/app.js`](src/app.js) | IIFE: dashboard logic, auth check, module rendering. Delegates grades/notes to `window.LehrerGrades`; WebUntis to `window.LehrerWebUntis`; itslearning to `window.LehrerItslearning`. `overlayV2ModuleData()` calls `GET /api/v2/dashboard/data`. | `GET /api/dashboard` (legacy v1 base), `GET /api/v2/dashboard/data` (v2 overlay), `PUT /api/v2/modules/*/config` |
+| [`src/features/nextcloud.js`](src/features/nextcloud.js) | Nextcloud module (Phase 14). Exposes `window.LehrerNextcloud`. `renderNextcloudConnector()`, `saveNextcloudCredentials()`, `loadNextcloudLastOpened()`, `saveNextcloudLastOpened()`. `NEXTCLOUD_LAST_OPENED_KEY` lives here. | Depends on `window.LehrerAPI` |
+| [`src/app.js`](src/app.js) | IIFE: dashboard logic, auth check, module rendering. Delegates grades/notes to `window.LehrerGrades`; WebUntis to `window.LehrerWebUntis`; itslearning to `window.LehrerItslearning`; Nextcloud to `window.LehrerNextcloud`. `overlayV2ModuleData()` calls `GET /api/v2/dashboard/data`. | `GET /api/dashboard` (legacy v1 base), `GET /api/v2/dashboard/data` (v2 overlay), `PUT /api/v2/modules/*/config` |
 
-### Script load order in `index.html` (v=37, must not change):
+### Script load order in `index.html` (v=41, must not change):
 
 ```html
-<script src="src/api-client.js?v=37"></script>              <!-- 1: window.LehrerAPI -->
-<script src="src/modules/dashboard-manager.js?v=37"></script>  <!-- 2: window.DashboardManager -->
-<script src="src/features/grades.js?v=37"></script>         <!-- 3: window.LehrerGrades (Phase 9) -->
-<script src="src/features/webuntis.js?v=37"></script>       <!-- 4: window.LehrerWebUntis (Phase 10) -->
-<script src="src/features/itslearning.js?v=37"></script>    <!-- 5: window.LehrerItslearning (Phase 11) -->
-<script src="src/app.js?v=37"></script>                     <!-- 6: main IIFE -->
+<script src="src/api-client.js?v=41"></script>                 <!-- 1: window.LehrerAPI -->
+<script src="src/modules/dashboard-manager.js?v=41"></script>  <!-- 2: window.DashboardManager -->
+<script src="src/features/grades.js?v=41"></script>            <!-- 3: window.LehrerGrades (Phase 9) -->
+<script src="src/features/webuntis.js?v=41"></script>          <!-- 4: window.LehrerWebUntis (Phase 10) -->
+<script src="src/features/itslearning.js?v=41"></script>       <!-- 5: window.LehrerItslearning (Phase 11) -->
+<script src="src/features/nextcloud.js?v=41"></script>         <!-- 6: window.LehrerNextcloud (Phase 14) -->
+<script src="src/features/documents.js?v=41"></script>         <!-- 7: window.LehrerDocuments -->
+<script src="src/features/classwork.js?v=41"></script>         <!-- 8: window.LehrerClasswork -->
+<script src="src/features/inbox.js?v=41"></script>             <!-- 9: window.LehrerInbox -->
+<script src="src/app.js?v=41"></script>                        <!-- 10: main IIFE -->
 ```
 
 ### `index.html` flag (Phase 8):
@@ -521,7 +527,7 @@ window.MULTIUSER_ENABLED = true; // ← set in Phase 8f; auth gate is now active
 
 - Single IIFE pattern — all state, rendering, and events in one closure
 - Auth check, user context, and logout button gated by `MULTIUSER_ENABLED` (now `true`)
-- Grades/notes functions delegate to `window.LehrerGrades` (Phase 9): `loadGradebook()`, `loadNotes()`, `saveGradeEntry()`, `deleteGradeEntry()`, `saveClassNote()`, `clearClassNote()`
+- Grades/notes fully delegate to `window.LehrerGrades` (Phase 9+15): all CRUD, rendering (`renderGrades()`, `renderClassNotes()`), and accessors (`getGradebookData()`, `getNotesData()`, `getGradeClasses()`, `summarizeGrades()`)
 - `saveItslearningCredentials()` / `saveNextcloudCredentials()` always use v2 path (`PUT /api/v2/modules/*/config`)
 - `loadDashboard()` overlays v2 noten data on v1 payload after loading
 - Further extraction (`src/features/webuntis.js`) is a documented next step
@@ -686,7 +692,7 @@ In priority order (Phase 11 completed items are crossed out):
 
 4. **Full retirement of `GET /api/dashboard`** — Requires v2 equivalents for quickLinks, workspace, berlinFocus. Until then, v1 is the base payload and v2 overlays module data.
 
-5. **Extract `src/features/nextcloud.js`** — Next logical frontend modularization step after `itslearning.js`.
+5. ~~**Extract `src/features/nextcloud.js`**~~ — **DONE in Phase 14** (`window.LehrerNextcloud`; 9 tests added).
 
 6. **Add WebUntis v2 endpoint for full schedule data** — Current `GET /api/v2/modules/webuntis/data` returns basic sync result; full schedule rendering via v2 is pending.
 
