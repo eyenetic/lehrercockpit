@@ -1469,3 +1469,115 @@ def test_app_js_no_todo_split_comment(app_js_content):
         "src/app.js still contains the obsolete 'TODO: Split this file' comment. "
         "All module extractions are complete; Phase 17 updates the header."
     )
+
+
+# ── Phase 18: Dashboard UI polish tests ──────────────────────────────────────
+
+@pytest.fixture(scope="module")
+def styles_css_content():
+    with open("styles.css", "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def test_styles_css_area_divider_desktop_rule(styles_css_content):
+    """styles.css defines .area-divider desktop rule (Phase 18 UI polish).
+
+    The area-divider had no desktop CSS — only a mobile override margin.
+    Phase 18 adds the real rule: horizontal line + uppercase label.
+    """
+    assert ".area-divider {" in styles_css_content, (
+        "styles.css does not define a .area-divider rule. "
+        "Expected: layout rule with line + label for section framing."
+    )
+    assert ".area-divider-label {" in styles_css_content, (
+        "styles.css does not define .area-divider-label. "
+        "Expected: uppercase, spaced, muted label style."
+    )
+
+
+def test_index_html_area_dividers_have_data_divider_for(index_html_content):
+    """index.html area-divider elements targeting optional sections have data-divider-for attributes.
+
+    The JS uses data-divider-for to hide dividers when their section is disabled
+    (e.g. 'Unterricht & Tagesplan' hidden when webuntis module is off).
+    The four module-gated sections (schedule, inbox, grades, documents) must each
+    have a matching data-divider-for on their preceding area-divider.
+    """
+    for section in ["schedule", "inbox", "grades", "documents"]:
+        assert f'data-divider-for="{section}"' in index_html_content, (
+            f"index.html area-divider for section '{section}' is missing "
+            f'data-divider-for="{section}" attribute. Phase 18 adds these for '
+            "conditional hiding when the section is disabled."
+        )
+
+
+def test_app_js_viewDividers_in_elements(app_js_content):
+    """src/app.js elements object includes viewDividers list (Phase 18).
+
+    viewDividers holds all [data-divider-for] elements so renderSectionFocus()
+    can hide the ones whose target section is disabled.
+    """
+    assert "viewDividers" in app_js_content, (
+        "src/app.js does not reference viewDividers. "
+        "Expected: elements.viewDividers used in renderSectionFocus() for divider hiding."
+    )
+
+
+def test_app_js_renderSectionFocus_hides_dividers(app_js_content):
+    """src/app.js renderSectionFocus() hides area dividers when their section is disabled (Phase 18)."""
+    start = app_js_content.find("function renderSectionFocus")
+    assert start != -1, "renderSectionFocus not found in src/app.js"
+    func_region = app_js_content[start:start + 1400]
+    assert "viewDividers" in func_region, (
+        "renderSectionFocus() does not reference viewDividers. "
+        "Expected: dividers hidden when their target section is disabled."
+    )
+    # dataset.dividerFor is the camelCase JS accessor for data-divider-for
+    assert "dividerFor" in func_region, (
+        "renderSectionFocus() does not read dataset.dividerFor. "
+        "Expected: divider.dataset.dividerFor used to identify target section."
+    )
+
+
+def test_app_js_renderStats_unhides_stats_grid(app_js_content):
+    """src/app.js renderStats() explicitly shows/hides statsGrid element (Phase 18).
+
+    The stats-grid is hidden by default in HTML. Before Phase 18 renderStats()
+    never called statsGrid.hidden = false, so stat tiles were never displayed.
+    """
+    start = app_js_content.find("function renderStats")
+    assert start != -1, "renderStats not found in src/app.js"
+    func_region = app_js_content[start:start + 2000]
+    # elements.statsGrid.hidden is the pattern in app.js
+    assert "statsGrid.hidden" in func_region, (
+        "renderStats() does not set elements.statsGrid.hidden. "
+        "Expected: statsGrid.hidden = false when cards exist, true when empty."
+    )
+
+
+def test_styles_css_briefing_empty_and_loading_states(styles_css_content):
+    """styles.css defines .briefing-empty and .briefing-loading states (Phase 18).
+
+    These replace the generic .empty-state in the briefing output to provide
+    a less jarring empty/loading appearance while data is loading.
+    """
+    assert ".briefing-loading" in styles_css_content, (
+        "styles.css does not define .briefing-loading. "
+        "Expected: subtle italic loading placeholder for briefing."
+    )
+    assert ".briefing-empty" in styles_css_content, (
+        "styles.css does not define .briefing-empty. "
+        "Expected: clean empty-state style for briefing with no content."
+    )
+
+
+def test_app_js_briefing_uses_briefing_loading_class(app_js_content):
+    """src/app.js renderBriefing() uses briefing-loading class for pre-layout placeholder."""
+    assert "briefing-loading" in app_js_content, (
+        "src/app.js renderBriefing() does not use 'briefing-loading' class. "
+        "Expected: pre-layout flash suppressed with a distinct loading placeholder."
+    )
+    assert "briefing-empty" in app_js_content, (
+        "src/app.js renderBriefing() does not use 'briefing-empty' class. "
+        "Expected: briefing empty state uses briefing-empty instead of generic empty-state."
+    )

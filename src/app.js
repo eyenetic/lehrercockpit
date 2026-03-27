@@ -77,6 +77,7 @@
     themeToggleLabel: document.querySelector(".theme-toggle-label"),
     navLinks: Array.from(document.querySelectorAll("[data-section-target]")),
     viewSections: Array.from(document.querySelectorAll("[data-view-section]")),
+    viewDividers: Array.from(document.querySelectorAll("[data-divider-for]")),
     expandToggles: Array.from(document.querySelectorAll("[data-expand-toggle]")),
     workspaceEyebrow: document.querySelector("#workspace-eyebrow"),
     workspaceTitle: document.querySelector("#workspace-title"),
@@ -695,6 +696,17 @@
       const isVisible = isSectionEnabled(sectionId);
       section.hidden = !isVisible || (active !== "overview" && sectionId !== active);
     });
+
+    // Hide area dividers when their target section is not enabled or not visible.
+    // This prevents dangling section labels with no content beneath them when
+    // modules are disabled (e.g. "Unterricht & Tagesplan" with no WebUntis).
+    elements.viewDividers.forEach((divider) => {
+      const targetSection = divider.dataset.dividerFor;
+      if (!targetSection) return;
+      const sectionEnabled = isSectionEnabled(targetSection);
+      const sectionVisible = active === "overview" && sectionEnabled;
+      divider.hidden = !sectionVisible;
+    });
   }
 
   function renderMeta() {
@@ -768,17 +780,23 @@
       },
     ].filter(Boolean);
 
-    elements.statsGrid.innerHTML = cards
-      .map(
-        (card) => `
-          <article class="stat-card">
-            <p class="stat-label">${card.label}</p>
-            <strong>${card.value}</strong>
-            <p>${card.detail}</p>
-          </article>
-        `
-      )
-      .join("");
+    if (cards.length) {
+      elements.statsGrid.hidden = false;
+      elements.statsGrid.innerHTML = cards
+        .map(
+          (card) => `
+            <article class="stat-card">
+              <p class="stat-label">${card.label}</p>
+              <strong>${card.value}</strong>
+              <p>${card.detail}</p>
+            </article>
+          `
+        )
+        .join("");
+    } else {
+      elements.statsGrid.hidden = true;
+      elements.statsGrid.innerHTML = "";
+    }
   }
 
   // ── Briefing helpers ────────────────────────────────────────────────────────
@@ -904,7 +922,9 @@
             .join("")}
         </div>` : ""}
       `
-      : `<div class="empty-state">Noch keine Briefing-Daten verfuegbar.</div>`;
+      : (!layoutReady
+          ? `<div class="briefing-loading">Lade Briefing&hellip;</div>`
+          : `<div class="briefing-empty"><span>Heute liegen keine hervorgehobenen Eintraege vor.</span></div>`);
   }
 
   function findNextLesson(data) {
