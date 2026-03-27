@@ -1581,3 +1581,73 @@ def test_app_js_briefing_uses_briefing_loading_class(app_js_content):
         "src/app.js renderBriefing() does not use 'briefing-empty' class. "
         "Expected: briefing empty state uses briefing-empty instead of generic empty-state."
     )
+
+
+# ── Phase 19: CSS consistency + density polish tests ─────────────────────────
+
+def test_styles_css_empty_state_min_height_reduced(styles_css_content):
+    """styles.css empty-state min-height is ≤56px (Phase 19: reduced from 84px).
+
+    Large empty-state boxes felt imposing in sparse dashboards. The reduced
+    height keeps them visible but less dominant.
+    """
+    import re
+    # Find the .empty-state block and check min-height value
+    match = re.search(r'\.empty-state\s*\{[^}]+min-height:\s*(\d+)px', styles_css_content, re.DOTALL)
+    # Also accept webuntis-week-empty grouped rule
+    if not match:
+        match = re.search(r'\.webuntis-week-empty,\s*\.empty-state\s*\{[^}]+min-height:\s*(\d+)px', styles_css_content, re.DOTALL)
+    assert match is not None, "styles.css does not define min-height on .empty-state"
+    height_value = int(match.group(1))
+    assert height_value <= 64, (
+        f"styles.css empty-state min-height is {height_value}px, expected ≤64px. "
+        "Phase 19 reduces it so empty states feel less imposing in sparse dashboards."
+    )
+
+
+def test_styles_css_briefing_output_has_min_height(styles_css_content):
+    """styles.css .briefing-output has a min-height (Phase 19: prevents card collapse).
+
+    Without a min-height the briefing card collapses when content is sparse or
+    not yet loaded, creating an awkward flat header-only card.
+    The rule may appear in a combined selector or a standalone .briefing-output block.
+    """
+    # Find any occurrence of min-height within 60 chars of briefing-output in the same rule block
+    import re
+    # Match standalone .briefing-output { ... min-height: ... } rule
+    match = re.search(r'\.briefing-output\s*\{[^}]*min-height', styles_css_content, re.DOTALL)
+    assert match is not None, (
+        "styles.css .briefing-output does not have min-height in its rule block. "
+        "Expected: briefing card maintains visual weight when content is sparse."
+    )
+
+
+def test_styles_css_stat_card_has_hover_transition(styles_css_content):
+    """styles.css .stat-card has a transition rule for subtle hover interactivity (Phase 19)."""
+    stat_card_start = styles_css_content.find(".stat-card {")
+    assert stat_card_start != -1, ".stat-card rule not found in styles.css"
+    stat_region = styles_css_content[stat_card_start:stat_card_start + 300]
+    assert "transition" in stat_region, (
+        "styles.css .stat-card does not have a transition property. "
+        "Expected: subtle hover transition for micro-interaction quality."
+    )
+
+
+def test_styles_css_briefing_item_has_hover_state(styles_css_content):
+    """styles.css .briefing-item[data-briefing-target]:hover is defined (Phase 19)."""
+    assert "briefing-item[data-briefing-target]:hover" in styles_css_content, (
+        "styles.css does not define .briefing-item[data-briefing-target]:hover. "
+        "Expected: hover state for clickable briefing secondary items."
+    )
+
+
+def test_styles_css_section_appear_animation(styles_css_content):
+    """styles.css defines section-appear keyframe animation for section fade-in (Phase 19)."""
+    assert "section-appear" in styles_css_content, (
+        "styles.css does not define 'section-appear' animation. "
+        "Expected: subtle fade-in when sections become visible after module toggle."
+    )
+    assert "@keyframes section-appear" in styles_css_content, (
+        "styles.css does not define @keyframes section-appear. "
+        "Expected: keyframe definition for the section appear animation."
+    )
