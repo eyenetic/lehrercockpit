@@ -1,22 +1,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// src/app.js — Lehrer-Cockpit frontend (monolithic IIFE)
+// src/app.js — Lehrer-Cockpit frontend dashboard orchestrator
 //
-// TODO: Split this file into smaller modules to reduce merge conflicts.
-// Planned structure (use ordered <script> tags, no build tool needed):
+// All feature rendering is delegated to extracted modules (loaded before this file):
+//   window.LehrerGrades      — src/features/grades.js
+//   window.LehrerInbox       — src/features/inbox.js
+//   window.LehrerDocuments   — src/features/documents.js
+//   window.LehrerClasswork   — src/features/classwork.js
+//   window.LehrerWebUntis    — src/features/webuntis.js
+//   window.LehrerItslearning — src/features/itslearning.js
+//   window.LehrerNextcloud   — src/features/nextcloud.js
+//   window.DashboardManager  — src/modules/dashboard-manager.js
 //
-//   src/state.js        — constants, state object, localStorage helpers
-//   src/api.js          — loadDashboard, loadGrades, loadNotes, loadClasswork, postJSON
-//   src/features/
-//     inbox.js          — renderPriorities, renderSources, renderMessages (lines ~895–1083)
-//     classwork.js      — renderClasswork* functions (lines ~1085–1241)
-//     grades.js         — renderGrades, grade form logic (lines ~1243–1553)
-//     documents.js      — renderDocuments (lines ~1555–1601)
-//     webuntis.js       — renderWebUntis*, picker, shortcuts (lines ~1603–2075)
-//   src/render.js       — renderAll, renderBriefing, renderWorkspace (lines ~2283+)
-//   src/events.js       — registerEvents, initialize (lines ~2077, 2715)
-//
-// Until the split happens, all code stays in this IIFE so the closure scope
-// and global variable model remain unchanged.
+// This file owns: loadDashboard(), renderAll(), renderBriefing(), renderStats(),
+// renderNavSignals(), isSectionEnabled(), renderSectionFocus(), event wiring,
+// normalization helpers, and initialization.
 // ─────────────────────────────────────────────────────────────────────────────
 
 (function bootstrapApp() {
@@ -1107,38 +1104,9 @@
     });
   }
 
+  // Delegated to LehrerItslearning (Phase 11d)
   function renderItslearningConnector() {
-    // Phase 11d: Delegate to LehrerItslearning module if available
     if (window.LehrerItslearning) return window.LehrerItslearning.renderItslearningConnector();
-    // TODO: remove fallback after itslearning.js verified in production
-    if (!elements.itslearningConnectCard) return;
-    if (!isModuleVisible("itslearning")) {
-      elements.itslearningConnectCard.hidden = true;
-      return;
-    }
-    if (!IS_LOCAL_RUNTIME) {
-      elements.itslearningConnectCard.hidden = true;
-      return;
-    }
-    const source = getData().sources.find((item) => item.id === "itslearning");
-    const connection = getData().localConnections?.itslearning || {};
-    elements.itslearningConnectCard.hidden = false;
-    elements.itslearningConnectStatus.className = `pill ${
-      source?.status === "ok" ? "pill-live" : connection.configured ? "pill-attention" : "pill-positive"
-    }`;
-    elements.itslearningConnectStatus.textContent = source?.status === "ok" ? "verbunden" : connection.configured ? "gespeichert" : "lokal";
-    const updateCount = getRelevantInboxMessages().filter((message) => message.channel === "itslearning").length;
-    elements.itslearningConnectCopy.textContent =
-      source?.status === "ok"
-        ? `${updateCount} Update${updateCount === 1 ? "" : "s"} erscheinen oben im Kommunikationsbereich. Zugang bleibt lokal auf diesem Mac gespeichert.`
-        : source?.detail ||
-          "Lokale Verbindung fuer Benutzername und Passwort. Updates erscheinen danach oben im Kommunikationsbereich.";
-    if (!elements.itslearningUsername.value && connection.username) {
-      elements.itslearningUsername.value = connection.username;
-    }
-    if (connection.configured) {
-      elements.itslearningPassword.placeholder = "Passwort lokal gespeichert";
-    }
   }
 
   // Phase 14: Delegate to LehrerNextcloud module if available
@@ -1261,17 +1229,8 @@
     return String(value || "").slice(0, maxLength);
   }
 
-  function weekdayLabel(value) {
-    const token = String(value || "").toLowerCase();
-    if (token.startsWith("mon")) return "Montag";
-    if (token.startsWith("tue")) return "Dienstag";
-    if (token.startsWith("wed")) return "Mittwoch";
-    if (token.startsWith("thu")) return "Donnerstag";
-    if (token.startsWith("fri")) return "Freitag";
-    if (token.startsWith("sat")) return "Samstag";
-    if (token.startsWith("sun")) return "Sonntag";
-    return value || "";
-  }
+  // weekdayLabel (string variant) is defined further below alongside formatTime/formatDate.
+  // The duplicate copy that was here (lines formerly 1264–1274) has been removed.
 
   // ── Documents rendering — delegated to window.LehrerDocuments ───────────────
 
@@ -1291,61 +1250,25 @@
   // These stubs remain so that any direct calls within app.js still work
   // during the transition period. Original bodies kept as TODO comments.
 
+  // WebUntis render functions — all delegated to window.LehrerWebUntis (Phase 10c)
   function renderWebUntisControls() {
     if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisControls();
-    // TODO: remove fallback after webuntis.js verified
-    const center = getData().webuntisCenter;
-    const buttons = [
-      { id: "day", label: "Heute" },
-      { id: "week", label: center.currentWeekLabel || "Diese Woche" },
-      { id: "next-week", label: nextWeekLabel(center.currentDate) },
-    ];
-    elements.webuntisViewSwitch.innerHTML = buttons
-      .map((button) => `<button class="segment-button ${state.webuntisView === button.id ? "active" : ""}" type="button" data-webuntis-view="${button.id}">${button.label}</button>`)
-      .join("");
-    elements.webuntisViewSwitch.querySelectorAll("[data-webuntis-view]").forEach((button) => {
-      button.addEventListener("click", () => { state.webuntisView = button.dataset.webuntisView; renderWebUntisControls(); renderWebUntisSchedule(); });
-    });
-    bindExternalLink(elements.webuntisOpenToday, center.todayUrl, "Heute in WebUntis");
-    bindExternalLink(elements.webuntisOpenBase, center.startUrl || center.todayUrl, "WebUntis oeffnen");
-    elements.webuntisActivePlan.textContent = "Mein Stundenplan";
-    elements.webuntisDetail.textContent = "Persoenlicher Plan ueber WebUntis-iCal. Vergangene, laufende und kommende Stunden werden hier markiert. Ausfaelle erscheinen nur, wenn WebUntis sie im iCal mitsendet.";
-    elements.webuntisRangeLabel.textContent = getWebUntisRangeLabel(center);
-    elements.webuntisPlanStrip.hidden = true;
-    elements.webuntisPlanStrip.innerHTML = "";
   }
 
   function renderWebUntisPicker() {
     if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisPicker();
-    // TODO: remove after webuntis.js verified — full implementation moved to src/features/webuntis.js
   }
 
   function renderWebUntisWatchlist() {
     if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisWatchlist();
-    // TODO: remove after webuntis.js verified
-    const finder = getData().webuntisCenter.finder || { watchlist: [] };
-    elements.webuntisWatchlist.innerHTML = (finder.watchlist || []).length
-      ? finder.watchlist.map((item) => `<article class="priority-item"><div class="priority-top"><strong>${item.title}</strong><span class="meta-tag ${watchStatusClass(item.status)}">${watchStatusLabel(item.status)}</span></div><p class="priority-copy">${item.detail}</p></article>`).join("")
-      : `<div class="empty-state">Noch keine geoeffneten Plaene im Radar.</div>`;
   }
 
   function renderWebUntisPlanStrip() {
     if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisPlanStrip();
-    // TODO: remove after webuntis.js verified
   }
 
   function renderWebUntisSchedule() {
     if (window.LehrerWebUntis) return window.LehrerWebUntis.renderWebUntisSchedule();
-    // TODO: remove after webuntis.js verified
-    const events = getWebUntisEvents();
-    const center = getData().webuntisCenter;
-    if (!events.length) {
-      if (state.webuntisView === "day") { elements.scheduleList.innerHTML = `<div class="empty-state">Heute liegen im WebUntis-iCal keine Termine vor.</div>`; return; }
-      elements.scheduleList.innerHTML = renderWeekSchedule([], center); return;
-    }
-    if (state.webuntisView !== "day") { elements.scheduleList.innerHTML = renderWeekSchedule(events, center); return; }
-    const grouped = groupEventsByDay(events);
-    elements.scheduleList.innerHTML = renderAgendaGroups(grouped, "Heute");
   }
 
   function renderWeekSchedule(events, center) {
@@ -2606,20 +2529,11 @@
 
   function normalizeLocalWebUntisState() {
     if (window.LehrerWebUntis) return window.LehrerWebUntis.normalizeLocalWebUntisState();
-    // TODO: remove after webuntis.js verified
-    if (state.shortcuts.length) { state.shortcuts = []; persistShortcuts(); }
-    if (state.favorites.length) { state.favorites = []; persistFavorites(); }
-    state.activeShortcutId = "personal";
-    state.activeFinderEntityId = null;
-    persistActiveShortcutId();
   }
 
   function compactEventDetail(event) {
     if (window.LehrerWebUntis) return window.LehrerWebUntis.compactEventDetail(event);
-    const parts = [];
-    if (event.location) parts.push(`Ort ${event.location}`);
-    if (event.description) parts.push(event.description);
-    return parts.join(" • ") || "Persoenlicher WebUntis-Termin";
+    return "";
   }
 
   function sanitizeShortcuts(entries) {

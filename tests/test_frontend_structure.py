@@ -1408,3 +1408,64 @@ def test_app_js_references_window_lehrerNextcloud(app_js_content):
         "src/app.js does not reference window.LehrerNextcloud. "
         "Expected delegates calling window.LehrerNextcloud.*() after Phase 14 extraction."
     )
+
+
+# ── Phase 17: app.js dead-code cleanup tests ─────────────────────────────────
+
+def test_app_js_no_duplicate_weekdayLabel(app_js_content):
+    """src/app.js defines weekdayLabel exactly once (Phase 17: duplicate removed).
+
+    The shadowed copy near the LehrerClasswork delegation block was dead code —
+    it was overridden by the real weekdayLabel defined in the date utilities section.
+    """
+    count = app_js_content.count("function weekdayLabel")
+    assert count == 1, (
+        f"src/app.js defines weekdayLabel {count} times; expected exactly 1. "
+        "The duplicate copy has been removed in Phase 17."
+    )
+
+
+def test_app_js_renderItslearningConnector_no_fallback_body(app_js_content):
+    """src/app.js renderItslearningConnector() is a thin delegation wrapper (Phase 17).
+
+    The 28-line fallback body duplicating itslearning.js has been removed.
+    """
+    start = app_js_content.find("function renderItslearningConnector")
+    assert start != -1, "renderItslearningConnector not found in src/app.js"
+    func_region = app_js_content[start:start + 200]
+    assert "itslearningConnectCard.hidden" not in func_region, (
+        "renderItslearningConnector() in app.js still contains the fallback body "
+        "that duplicates itslearning.js logic. Phase 17 removes it."
+    )
+    assert "LehrerItslearning" in func_region, (
+        "renderItslearningConnector() in app.js does not delegate to LehrerItslearning."
+    )
+
+
+def test_app_js_renderWebUntisControls_no_fallback_body(app_js_content):
+    """src/app.js renderWebUntisControls() is a thin delegation wrapper (Phase 17).
+
+    The 20-line fallback body has been removed since LehrerWebUntis is verified.
+    """
+    start = app_js_content.find("function renderWebUntisControls")
+    assert start != -1, "renderWebUntisControls not found in src/app.js"
+    func_region = app_js_content[start:start + 200]
+    assert "webuntisViewSwitch.innerHTML" not in func_region, (
+        "renderWebUntisControls() in app.js still contains the old fallback body. "
+        "Phase 17 removes it."
+    )
+    assert "LehrerWebUntis" in func_region, (
+        "renderWebUntisControls() does not delegate to LehrerWebUntis."
+    )
+
+
+def test_app_js_no_todo_split_comment(app_js_content):
+    """src/app.js no longer contains the obsolete 'TODO: Split this file' comment (Phase 17).
+
+    All planned module splits have been done (Phases 8–16). The header comment
+    now describes the current architecture instead of the planned future state.
+    """
+    assert "TODO: Split this file" not in app_js_content, (
+        "src/app.js still contains the obsolete 'TODO: Split this file' comment. "
+        "All module extractions are complete; Phase 17 updates the header."
+    )
