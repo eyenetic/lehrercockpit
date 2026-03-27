@@ -1,6 +1,6 @@
 # Claude Handoff — Lehrercockpit
 
-> Last updated: 2026-03-27 (Phase 15 — grades rendering extraction into `src/features/grades.js`)
+> Last updated: 2026-03-27 (Phase 16 — inbox finishing pass: `pickInboxBriefing` moved to `inbox.js`)
 >
 > **Purpose:** This file onboards a new AI assistant to the Lehrercockpit project. Read this first before touching any code. It describes the actual implemented state, not aspirational plans.
 
@@ -88,6 +88,7 @@ Each teacher gets a personal dashboard with individually configured modules (Web
 - **Phase 12 — 4 new backend tests** in `tests/test_dashboard_routes.py`: `base` key present, `base.quick_links` is list, `base.workspace` is dict, base failure does not crash endpoint
 - **Phase 12 — 3 new frontend tests** in `tests/test_frontend_structure.py`: `normalizeV2Dashboard` in `app.js`, `getDashboardData` call in `app.js`, `X-Deprecated: Use GET /api/v2/dashboard/data` in `app.py`
 - **Phase 14 — `src/features/nextcloud.js` extracted** (~260 lines; exposes `window.LehrerNextcloud`); loaded after `itslearning.js` in `index.html` (position 7 in load order). Contains: `renderNextcloudConnector()`, `saveNextcloudCredentials()`, `loadNextcloudLastOpened()`, `saveNextcloudLastOpened()`. `NEXTCLOUD_LAST_OPENED_KEY` constant moved into the module. `app.js` now has thin delegation wrappers for all four functions. `init()` receives `{getData, refreshDashboard, isModuleVisible, formatTime, IS_LOCAL_RUNTIME}` callbacks. 9 new tests in `tests/test_frontend_structure.py`. Index.html bumped to v=41.
+- **Phase 16 — inbox finishing pass**: `pickInboxBriefing()` moved from `app.js` into `src/features/inbox.js` (public API: `window.LehrerInbox.pickInboxBriefing(data)`). Dead `channelLabels` constant removed from `app.js`. Delegation wrapper added. 4 new tests in `tests/test_frontend_structure.py`.
 - **Phase 15 — grades rendering extracted into `src/features/grades.js`** (~280 net new lines added to `grades.js`; ~270 lines removed from `app.js`). Moved: `getGradebookData()`, `getNotesData()`, `getGradeClasses()`, `summarizeGrades()`, `renderGrades()`, `renderClassNotes()`, plus all private helpers (`_getActiveGradeClass`, `_getActiveNoteClass`, `_getNoteClasses`, `_renderGradeItem`, `_renderGradeClassOptions`, `_parseGradeValue`, `_formatGradeDate`, `_formatNoteTimestamp`). `formatNoteTimestamp` removed from `app.js`. `LehrerGrades.init()` callbacks changed from `{renderGrades, renderClassNotes, getGradeClasses, renderNavSignals}` to `{getData, getVisiblePanelItems, setExpandableMeta, renderNavSignals}` — eliminating circular callback pattern. `app.js` retains thin delegation wrappers: `renderGrades()`, `renderClassNotes()`, `getGradebookData()`, `getNotesData()`, `getGradeClasses()`, `summarizeGrades()`. 12 new/updated tests in `tests/test_frontend_structure.py`.
 
 ### What is NOT yet done (known technical debt)

@@ -197,6 +197,25 @@ var LehrerInbox = (function () {
       : '<div class="empty-state">Noch keine beobachteten Dokumente konfiguriert.</div>';
   }
 
+  // ── Briefing helper ──────────────────────────────────────────────────────────
+
+  /**
+   * Pick a short inbox briefing string from dashboard data.
+   * Used by renderBriefing() in app.js to build the overview card.
+   * @param {object} data - dashboard data
+   * @returns {string} briefing text, or "" if no unread messages
+   */
+  function pickInboxBriefing(data) {
+    var unread = (data.messages || []).filter(function (message) { return message.unread; });
+    if (!unread.length) return '';
+    var mailMessages = unread.filter(function (message) { return message.channel === 'mail'; });
+    if (mailMessages.length) {
+      return mailMessages.length + ' neue Mail' + (mailMessages.length === 1 ? '' : 's') +
+        ', zuerst: ' + mailMessages[0].title + '.';
+    }
+    return unread.length + ' neue Hinweise, zuerst: ' + unread[0].title + '.';
+  }
+
   return {
     init: init,
     renderPriorities: renderPriorities,
@@ -204,6 +223,7 @@ var LehrerInbox = (function () {
     renderChannelFilters: renderChannelFilters,
     renderMessages: renderMessages,
     renderDocumentMonitor: renderDocumentMonitor,
+    pickInboxBriefing: pickInboxBriefing,
   };
 })();
 

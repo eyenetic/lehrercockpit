@@ -1136,6 +1136,56 @@ def test_app_js_delegates_renderPriorities_to_lehrerInbox(app_js_content):
     )
 
 
+# ── Phase 16: pickInboxBriefing extraction tests ─────────────────────────────
+
+def test_inbox_js_contains_pickInboxBriefing():
+    """src/features/inbox.js defines pickInboxBriefing() (Phase 16 extraction)."""
+    with open("src/features/inbox.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "function pickInboxBriefing" in content, (
+        "src/features/inbox.js does not define pickInboxBriefing(). "
+        "Expected: briefing helper moved from app.js to inbox.js."
+    )
+
+
+def test_inbox_js_exports_pickInboxBriefing():
+    """src/features/inbox.js exports pickInboxBriefing in window.LehrerInbox."""
+    with open("src/features/inbox.js", "r", encoding="utf-8") as f:
+        content = f.read()
+    return_start = content.rfind("return {")
+    assert return_start != -1, "Public API return block not found in inbox.js"
+    api_block = content[return_start:]
+    assert "pickInboxBriefing" in api_block, (
+        "window.LehrerInbox does not expose pickInboxBriefing in public API."
+    )
+
+
+def test_app_js_pickInboxBriefing_delegates_to_lehrerInbox(app_js_content):
+    """src/app.js pickInboxBriefing() delegates to window.LehrerInbox (Phase 16)."""
+    start = app_js_content.find("function pickInboxBriefing")
+    assert start != -1, "pickInboxBriefing not found in src/app.js"
+    func_region = app_js_content[start:start + 150]
+    assert "LehrerInbox" in func_region, (
+        "pickInboxBriefing() in app.js does not delegate to LehrerInbox. "
+        "Expected: if (window.LehrerInbox) return window.LehrerInbox.pickInboxBriefing(data);"
+    )
+
+
+def test_app_js_no_dead_channelLabels_constant(app_js_content):
+    """src/app.js no longer defines the channelLabels constant (moved to inbox.js).
+
+    The channelLabels object (mail: 'Dienstmail', itslearning: 'itslearning') was a
+    dead constant in app.js after the inbox rendering was extracted. Phase 16 removes it.
+    """
+    # channelLabels definition must not appear as an assignment in app.js
+    import re
+    pattern = re.compile(r'const\s+channelLabels\s*=\s*\{')
+    assert not pattern.search(app_js_content), (
+        "src/app.js still defines 'const channelLabels = {...}'. "
+        "This dead constant was moved to src/features/inbox.js in Phase 16."
+    )
+
+
 def test_app_js_grades_rendering_delegated_to_lehrerGrades(app_js_content):
     """src/app.js renderGrades() delegates to window.LehrerGrades (Phase 15 extraction complete).
 

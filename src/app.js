@@ -195,10 +195,7 @@
     assistantAnswer: document.querySelector("#assistant-answer"),
   };
 
-  const channelLabels = {
-    mail: "Dienstmail",
-    itslearning: "itslearning",
-  };
+  // channelLabels moved to src/features/inbox.js (Phase 16)
 
   // ── SECTION: DashboardManager (Multi-User) ──────────────────────────────────
   //
@@ -1060,18 +1057,10 @@
     return copy;
   }
 
+  // Phase 16: Delegate to LehrerInbox module if available
   function pickInboxBriefing(data) {
-    const unread = (data.messages || []).filter((message) => message.unread);
-    if (!unread.length) {
-      return "";
-    }
-
-    const mailMessages = unread.filter((message) => message.channel === "mail");
-    if (mailMessages.length) {
-      return `${mailMessages.length} neue Mail${mailMessages.length === 1 ? "" : "s"}, zuerst: ${mailMessages[0].title}.`;
-    }
-
-    return `${unread.length} neue Hinweise, zuerst: ${unread[0].title}.`;
+    if (window.LehrerInbox) return window.LehrerInbox.pickInboxBriefing(data);
+    return "";
   }
 
   function renderQuickLinks() {
