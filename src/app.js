@@ -1095,7 +1095,7 @@
 
   function renderQuickLinks() {
     const data = getData();
-    const quickLinks = (data.quickLinks || []).filter((link) => !String(link.id || "").startsWith("nextcloud-"));
+    const quickLinks = data.quickLinks || [];
     const visibleQuickLinks = getVisiblePanelItems(quickLinks, "access");
     setExpandableMeta(elements.quickLinkGrid, quickLinks.length, visibleQuickLinks.length);
     elements.quickLinkGrid.innerHTML = quickLinks.length
@@ -1114,7 +1114,7 @@
       : `<div class="empty-state">Noch keine Direktzugriffe konfiguriert.</div>`;
 
     if (elements.todayQuickLinkGrid) {
-      const todayLinks = quickLinks.slice(0, 4);
+      const todayLinks = quickLinks;
       elements.todayQuickLinkGrid.innerHTML = todayLinks.length
         ? todayLinks
             .map(

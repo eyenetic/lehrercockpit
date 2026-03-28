@@ -340,6 +340,17 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
         }
     ]
 
+    if settings.mail.local_account:
+        links.append(
+            {
+                "id": "dienstmail",
+                "title": "Dienstmail",
+                "url": f"mailto:{settings.mail.local_account}",
+                "kind": "Mail",
+                "note": "Direkter Sprung in deine Dienstmail-Adresse",
+            }
+        )
+
     optional_links = [
         ("nextcloud-root", "Nextcloud", settings.nextcloud.workspace_url or settings.nextcloud.base_url, "Nextcloud", "Dateien und Teamordner direkt in Nextcloud oeffnen"),
         ("webuntis", "WebUntis", settings.webuntis_base_url, "Planung", "Stundenplan, Vertretung und Heute"),
