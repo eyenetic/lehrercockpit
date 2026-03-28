@@ -167,7 +167,7 @@
             var settingsBtn = document.getElementById('settings-button');
             if (settingsBtn) {
               settingsBtn.style.display = '';
-              settingsBtn.textContent = 'Heute personalisieren';
+              settingsBtn.textContent = 'Heute anpassen';
             }
 
             // Inject config banners for unconfigured individual modules

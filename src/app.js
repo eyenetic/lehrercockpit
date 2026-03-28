@@ -866,7 +866,7 @@
       `
       : (!layoutReady
           ? `<div class="briefing-loading">Lade Briefing&hellip;</div>`
-          : `<div class="briefing-empty"><span>Heute liegen keine hervorgehobenen Eintraege vor.</span></div>`);
+          : `<div class="briefing-empty"><span>Heute keine Eintraege - guter Tag.</span></div>`);
 
     renderTodayBriefingFocus(data, {
       todaySummary,
@@ -1114,7 +1114,7 @@
       : `<div class="empty-state">Noch keine Direktzugriffe konfiguriert.</div>`;
 
     if (elements.todayQuickLinkGrid) {
-      const todayLinks = quickLinks.slice(0, 6);
+      const todayLinks = quickLinks.slice(0, 4);
       elements.todayQuickLinkGrid.innerHTML = todayLinks.length
         ? todayLinks
             .map(
@@ -1195,7 +1195,7 @@
   function renderTodayUpdates() {
     if (!elements.todayUpdatesList) return;
     const data = getData();
-    const updates = (data.berlinFocus || []).slice(0, 5);
+    const updates = (data.berlinFocus || []).slice(0, 4);
     elements.todayUpdatesList.innerHTML = updates.length
       ? updates
           .map(
@@ -1210,7 +1210,7 @@
             `
           )
           .join("")
-      : `<div class="empty-state">Noch keine Website-Updates fuer die letzte Woche erkannt.</div>`;
+      : `<div class="empty-state">Gerade keine neuen Hinweise aus der Schulwebsite.</div>`;
   }
 
   // ── SECTION: Inbox — delegated to window.LehrerInbox ────────────────────────
@@ -2248,11 +2248,21 @@
     elements.navLinks.forEach((button) => {
       const target = button.dataset.sectionTarget || "";
       const statusKind = statuses[target] || "";
+      const baseLabel = button.dataset.baseLabel || (target === "overview" ? "Heute" : button.textContent.replace(/\s*·\s*\d+$/, "").trim());
+      button.dataset.baseLabel = baseLabel;
       button.classList.toggle("has-status", Boolean(statusKind));
       if (statusKind) {
         button.dataset.statusKind = statusKind;
       } else {
         delete button.dataset.statusKind;
+      }
+
+      if (target === "inbox") {
+        button.textContent = unreadCount > 0 ? `${baseLabel} · ${unreadCount}` : baseLabel;
+      } else if (target === "overview") {
+        button.innerHTML = `${baseLabel}<span id="today-nav-badge" class="nav-day-badge">${new Date().getDate()}</span>`;
+      } else {
+        button.textContent = baseLabel;
       }
     });
   }

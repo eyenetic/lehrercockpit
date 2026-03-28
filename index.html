@@ -27,7 +27,7 @@
       ];
     </script>
     <script>window.MULTIUSER_ENABLED = true; /* Multi-User SaaS-Modus aktiv */</script>
-    <link rel="stylesheet" href="./styles.css?v=42" />
+    <link rel="stylesheet" href="./styles.css?v=43" />
   </head>
   <body>
     <div class="app-shell">
@@ -48,7 +48,7 @@
           <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
           <button class="nav-link" type="button" data-section-target="inbox">Inbox</button>
           <button class="nav-link" type="button" data-section-target="documents">Plaene</button>
-          <button class="nav-link" type="button" data-section-target="access">Services</button>
+          <button class="nav-link" type="button" data-section-target="access">Zugaenge</button>
           <button class="nav-link" type="button" data-section-target="assistant">Assistenz</button>
         </nav>
 
@@ -89,7 +89,7 @@
             <p class="hero-note" id="hero-note">Initialisiere Tagesbriefing</p>
             <div class="masthead-buttons">
               <button class="primary-button" id="briefing-button" type="button">Aktualisieren</button>
-              <button class="secondary-link" id="settings-button" type="button" style="display:none;">⚙ Einstellungen</button>
+              <button class="secondary-link" id="settings-button" type="button" style="display:none;">Heute anpassen</button>
             </div>
           </div>
         </header>
@@ -110,8 +110,8 @@
           <section class="card tone-inbox today-module-card" data-today-module="updates" aria-labelledby="today-updates-title">
             <div class="section-head section-head-wrap">
               <div>
-                <p class="card-kicker">Webseite</p>
-                <h2 id="today-updates-title">Updates der letzten Woche</h2>
+                <p class="card-kicker">Schulwebsite</p>
+                <h2 id="today-updates-title">Hinweise der letzten Woche</h2>
               </div>
               <span class="pill">7 Tage</span>
             </div>
@@ -440,13 +440,13 @@
             <div class="section-head">
               <div>
                 <p class="card-kicker">Assistenz</p>
-                <h2 id="assistant-title">Lokale Cockpit-Hilfe</h2>
+                <h2 id="assistant-title">Suche im Cockpit</h2>
               </div>
               <span class="pill pill-positive">lokal</span>
             </div>
             <form id="assistant-form" class="assistant-form">
               <label for="assistant-input" class="assistant-label">
-                Fragt nur in den Cockpit-Daten nach: Stundenplan, Dokumente, Dienstmail und aktuelle Hinweise.
+                Sucht nur in den Cockpit-Daten: Stundenplan, Plaene, Inbox, Zugaenge und aktuelle Hinweise.
               </label>
               <textarea
                 id="assistant-input"
@@ -465,8 +465,8 @@
           <article class="card compact-panel tone-access" aria-labelledby="quicklinks-title">
             <div class="section-head section-head-compact">
               <div>
-                <p class="card-kicker">Services</p>
-                <h2 id="quicklinks-title">Zugaenge zu weiteren Services</h2>
+                <p class="card-kicker">Zugaenge</p>
+                <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
               </div>
             </div>
             <div id="quick-link-grid" class="link-grid compact-link-grid expandable-scroll" data-expand-panel="access"></div>
@@ -658,17 +658,17 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=42"></script>
-    <script src="./src/api-client.js?v=42"></script>
-    <script src="./src/modules/dashboard-manager.js?v=42"></script>
-    <script src="./src/features/grades.js?v=42"></script>
-    <script src="./src/features/webuntis.js?v=42"></script>
-    <script src="./src/features/itslearning.js?v=42"></script>
-    <script src="./src/features/nextcloud.js?v=42"></script>
-    <script src="./src/features/documents.js?v=42"></script>
-    <script src="./src/features/classwork.js?v=42"></script>
-    <script src="./src/features/inbox.js?v=42"></script>
-    <script src="./src/app.js?v=42"></script>
+    <script src="./data/mock-dashboard.js?v=43"></script>
+    <script src="./src/api-client.js?v=43"></script>
+    <script src="./src/modules/dashboard-manager.js?v=43"></script>
+    <script src="./src/features/grades.js?v=43"></script>
+    <script src="./src/features/webuntis.js?v=43"></script>
+    <script src="./src/features/itslearning.js?v=43"></script>
+    <script src="./src/features/nextcloud.js?v=43"></script>
+    <script src="./src/features/documents.js?v=43"></script>
+    <script src="./src/features/classwork.js?v=43"></script>
+    <script src="./src/features/inbox.js?v=43"></script>
+    <script src="./src/app.js?v=43"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
