@@ -50,8 +50,9 @@
           <button class="nav-link active" type="button" data-section-target="overview">Heute<span id="today-nav-badge" class="nav-day-badge"></span></button>
           <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
           <button class="nav-link" type="button" data-section-target="inbox">Inbox</button>
-          <button class="nav-link" type="button" data-section-target="documents">Plaene</button>
-          <button class="nav-link" type="button" data-section-target="access">Zugaenge</button>
+          <button class="nav-link" type="button" data-section-target="documents">Pläne</button>
+          <button class="nav-link" type="button" data-section-target="grades">Noten</button>
+          <button class="nav-link" type="button" data-section-target="access">Zugänge</button>
           <button class="nav-link" type="button" data-section-target="assistant">Assistenz</button>
         </nav>
 
@@ -69,7 +70,9 @@
         <div class="sidebar-user-info" id="sidebar-user-info" style="display:none;">
           <span id="sidebar-user-name">Lehrkraft</span>
           <div class="sidebar-user-actions">
-            <a href="./admin.html" id="sidebar-admin-link" style="display:none;">⚙ Admin-Bereich</a>
+            <a href="./admin.html" id="sidebar-admin-link" style="display:none;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Admin-Bereich
+            </a>
             <button id="sidebar-logout-btn">Abmelden</button>
           </div>
         </div>
@@ -607,18 +610,20 @@
     </div>
 
     <!-- Module Layout Panel Overlay (Multi-User) -->
-    <div id="layout-panel-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:2000;padding:1rem;">
+    <div id="layout-panel-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="layout-panel-title">
       <div class="layout-panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <h2 id="layout-panel-title" style="margin:0;font-size:1rem;font-weight:700;color:var(--ink);">Heute personalisieren</h2>
-          <button id="layout-panel-close" type="button" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;line-height:1;padding:0 0.25rem;">✕</button>
+        <div class="layout-panel-header">
+          <h2 id="layout-panel-title" class="layout-panel-title">Heute personalisieren</h2>
+          <button id="layout-panel-close" type="button" class="layout-panel-close" aria-label="Panel schließen">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
-        <p id="layout-panel-description" style="font-size:0.82rem;color:var(--muted);margin:0 0 1rem;">Ordne nur die Startseite Heute neu. Ziehe die Bereiche an die passende Stelle oder blende sie aus.</p>
-        <div id="layout-module-list" style="display:flex;flex-direction:column;gap:0.5rem;max-height:50vh;overflow-y:auto;margin-bottom:1rem;"></div>
-        <div id="layout-panel-feedback" style="min-height:1.4rem;font-size:0.82rem;margin-bottom:0.75rem;"></div>
-        <div style="display:flex;gap:0.75rem;justify-content:flex-end;border-top:1px solid var(--line);padding-top:0.75rem;">
-          <button type="button" id="layout-panel-cancel" style="padding:0.5rem 1rem;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:transparent;color:var(--muted);font-size:0.85rem;cursor:pointer;">Abbrechen</button>
-          <button type="button" id="layout-panel-save" style="padding:0.5rem 1.25rem;border:none;border-radius:var(--radius-md);background:var(--accent);color:#fff;font-size:0.85rem;font-weight:600;cursor:pointer;">Speichern</button>
+        <p id="layout-panel-description" class="layout-panel-description">Ordne nur die Startseite Heute neu. Ziehe die Bereiche an die passende Stelle oder blende sie aus.</p>
+        <div id="layout-module-list" class="layout-module-list"></div>
+        <div id="layout-panel-feedback" class="layout-panel-feedback" aria-live="polite"></div>
+        <div class="layout-panel-actions">
+          <button type="button" id="layout-panel-cancel" class="layout-panel-cancel">Abbrechen</button>
+          <button type="button" id="layout-panel-save" class="layout-panel-save">Speichern</button>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@
   --line: rgba(0, 0, 0, 0.07);
   --line-strong: rgba(0, 0, 0, 0.12);
   --ink: #111110;
-  --muted: #6b6b6b;
+  --muted: #595959;
   --accent: #1a56db;
   --accent-soft: rgba(26, 86, 219, 0.1);
   --success: #16a34a;
@@ -191,7 +191,7 @@ a {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -876,7 +876,7 @@ a {
   color: color-mix(in srgb, var(--tone-overview) 75%, var(--muted));
   text-transform: uppercase;
   letter-spacing: 0.13em;
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -1248,7 +1248,7 @@ a {
 
 .plan-chip-type {
   color: var(--muted);
-  font-size: 0.67rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -2701,10 +2701,13 @@ a {
   font-size: 0.75rem;
   color: var(--accent);
   text-decoration: none;
-  padding: 2px 6px;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--accent);
   transition: background 120ms ease;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .sidebar-user-actions a:hover {
@@ -2717,9 +2720,10 @@ a {
   background: none;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  padding: 2px 6px;
+  padding: 6px 10px;
   cursor: pointer;
   transition: color 120ms ease, border-color 120ms ease;
+  min-height: 32px;
 }
 
 .sidebar-user-actions button:hover {
@@ -2730,6 +2734,18 @@ a {
 /* ── Multi-User: Layout Panel ────────────────────────────────────────────── */
 #layout-panel-overlay[hidden] {
   display: none !important;
+}
+
+/* Overlay backdrop styles (moved from inline) */
+#layout-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
 }
 
 .layout-panel {
@@ -2743,6 +2759,102 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+.layout-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.layout-panel-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.layout-panel-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color 120ms ease, background-color 120ms ease;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.layout-panel-close:hover {
+  color: var(--ink);
+  background: var(--panel-soft);
+}
+
+.layout-panel-description {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+
+.layout-module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.layout-panel-feedback {
+  min-height: 1.4rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+}
+
+.layout-panel-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+}
+
+.layout-panel-cancel {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.layout-panel-cancel:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.layout-panel-save {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.layout-panel-save:hover {
+  opacity: 0.88;
 }
 
 .layout-module-row {
@@ -2814,11 +2926,28 @@ a {
   display: none !important;
 }
 
-.audit-bootstrap-created  { background: #fefcbf; color: #7b6000; }
+.audit-bootstrap-created {
+  background: color-mix(in srgb, var(--warning) 12%, var(--panel));
+  color: var(--warning);
+  border: 1px solid color-mix(in srgb, var(--warning) 24%, var(--line));
+}
 
 @media (max-width: 1100px) {
   .overview-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  
+  /* ─── Reduced Motion ─────────────────────────────────────────────────────── */
+  
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   .today-module-card[data-today-module="briefing"] {

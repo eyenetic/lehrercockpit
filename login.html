@@ -98,8 +98,17 @@
       }
 
       .login-form input[type="text"]:focus {
-        outline: none;
         border-color: var(--accent);
+      }
+
+      .login-form input[type="text"]:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 0;
+        border-color: var(--accent);
+      }
+
+      .login-form input[type="text"]:focus:not(:focus-visible) {
+        outline: none;
       }
 
       .login-hint {
@@ -168,7 +177,7 @@
           />
         </label>
         <p class="login-hint">Deinen Code bekommst du von der Schuladministration.</p>
-        <p id="error-message" hidden class="login-error"></p>
+        <p id="error-message" hidden class="login-error" role="alert" aria-live="assertive"></p>
         <button type="submit" id="submit-btn" class="login-submit">Anmelden</button>
       </form>
     </div>
