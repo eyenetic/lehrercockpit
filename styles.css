@@ -190,8 +190,8 @@ a {
 
 .sidebar-nav {
   display: grid;
-  gap: 4px;
-  margin-top: 4px;
+  gap: 3px;
+  margin-top: 2px;
 }
 
 .nav-link {
@@ -202,8 +202,8 @@ a {
   background: transparent;
   color: var(--muted);
   text-align: left;
-  padding: 10px 12px;
-  font-size: 0.86rem;
+  padding: 9px 11px;
+  font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
@@ -551,7 +551,8 @@ a {
 }
 
 .overview-grid {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+  align-items: start;
 }
 
 .primary-grid {
@@ -579,6 +580,11 @@ a {
   border-radius: var(--radius-lg);
   padding: 20px;
   box-shadow: var(--shadow-soft);
+}
+
+.today-module-card[data-today-module="briefing"] {
+  grid-column: 1;
+  grid-row: 1 / span 2;
 }
 
 .tone-overview,
@@ -756,6 +762,74 @@ a {
 .connect-grid {
   display: flex;
   gap: 10px;
+}
+
+.today-briefing-focus {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.today-focus-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--section-tone, var(--line)) 14%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel) 97%, var(--section-tone, var(--accent)) 3%);
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.today-focus-card:hover {
+  border-color: color-mix(in srgb, var(--section-tone, var(--accent)) 28%, var(--line));
+  transform: translateY(-1px);
+}
+
+.today-focus-card strong {
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.today-focus-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.today-focus-card-schedule {
+  --section-tone: var(--tone-schedule);
+}
+
+.today-focus-card-orgaplan {
+  --section-tone: var(--tone-orgaplan);
+}
+
+.today-focus-card-classwork {
+  --section-tone: var(--tone-classwork);
+}
+
+.today-focus-meta {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.today-quick-link-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.today-quick-link-card p {
+  display: none;
 }
 
 .briefing-output {
@@ -1515,6 +1589,11 @@ a {
   /* Remove browser default outline — replaced with border-color on :focus */
   outline: none;
   transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.classwork-select-field select[multiple] {
+  min-height: 132px;
+  padding-block: 8px;
 }
 
 /* Re-add focus ring for keyboard navigation via :focus-visible */
@@ -2649,6 +2728,52 @@ a {
   gap: 0;
 }
 
+.layout-module-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+}
+
+.layout-module-row + .layout-module-row {
+  margin-top: 8px;
+}
+
+.layout-module-row.is-dragging {
+  opacity: 0.55;
+  border-color: var(--accent);
+}
+
+.layout-drag-handle {
+  color: var(--muted);
+  cursor: grab;
+  user-select: none;
+  letter-spacing: -0.1em;
+  padding-top: 2px;
+}
+
+.layout-module-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.layout-module-meta strong {
+  color: var(--ink);
+  font-size: 0.86rem;
+}
+
+.layout-module-meta span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 /* ── Multi-User: Module config banner ────────────────────────────────────── */
 .module-config-banner {
   display: flex;
@@ -2673,3 +2798,29 @@ a {
 }
 
 .audit-bootstrap-created  { background: #fefcbf; color: #7b6000; }
+
+@media (max-width: 1100px) {
+  .overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .today-module-card[data-today-module="briefing"] {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .today-briefing-focus {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .today-quick-link-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-module-row {
+    grid-template-columns: auto auto 1fr;
+    gap: 10px;
+  }
+}

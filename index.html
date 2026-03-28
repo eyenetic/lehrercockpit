@@ -27,7 +27,7 @@
       ];
     </script>
     <script>window.MULTIUSER_ENABLED = true; /* Multi-User SaaS-Modus aktiv */</script>
-    <link rel="stylesheet" href="./styles.css?v=40" />
+    <link rel="stylesheet" href="./styles.css?v=42" />
   </head>
   <body>
     <div class="app-shell">
@@ -46,10 +46,9 @@
         <nav class="sidebar-nav" aria-label="Bereiche">
           <button class="nav-link active" type="button" data-section-target="overview">Heute<span id="today-nav-badge" class="nav-day-badge"></span></button>
           <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
-          <button class="nav-link" type="button" data-section-target="grades">Noten</button>
           <button class="nav-link" type="button" data-section-target="inbox">Inbox</button>
-          <button class="nav-link" type="button" data-section-target="documents">Dokumente</button>
-          <button class="nav-link" type="button" data-section-target="access">Zugaenge</button>
+          <button class="nav-link" type="button" data-section-target="documents">Plaene</button>
+          <button class="nav-link" type="button" data-section-target="access">Services</button>
           <button class="nav-link" type="button" data-section-target="assistant">Assistenz</button>
         </nav>
 
@@ -95,8 +94,8 @@
           </div>
         </header>
 
-        <section class="overview-grid" data-view-section="overview">
-          <section class="card briefing-card tone-overview" aria-labelledby="briefing-title">
+        <section class="overview-grid" id="today-overview-grid" data-view-section="overview">
+          <section class="card briefing-card tone-overview today-module-card" data-today-module="briefing" aria-labelledby="briefing-title">
             <div class="briefing-card-head">
               <div class="briefing-card-label">
                 <p class="card-kicker">Tagesbriefing</p>
@@ -105,14 +104,30 @@
               <span class="pill pill-live">Live</span>
             </div>
             <div id="briefing-output" class="briefing-output"></div>
+            <div id="today-briefing-focus" class="today-briefing-focus"></div>
           </section>
 
-          <section class="stats-grid" id="stats-grid" aria-label="Kennzahlen" hidden></section>
-        </section>
+          <section class="card tone-inbox today-module-card" data-today-module="updates" aria-labelledby="today-updates-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Webseite</p>
+                <h2 id="today-updates-title">Updates der letzten Woche</h2>
+              </div>
+              <span class="pill">7 Tage</span>
+            </div>
+            <div id="today-updates-list" class="stack-list compact-list"></div>
+          </section>
 
-        <div class="area-divider" data-view-section="overview" data-divider-for="schedule">
-          <span class="area-divider-label">Unterricht &amp; Tagesplan</span>
-        </div>
+          <section class="card compact-panel tone-access today-module-card" data-today-module="access" aria-labelledby="today-access-title">
+            <div class="section-head section-head-compact">
+              <div>
+                <p class="card-kicker">Direktzugriffe</p>
+                <h2 id="today-access-title">Alle Zugaenge</h2>
+              </div>
+            </div>
+            <div id="today-quick-link-grid" class="link-grid compact-link-grid today-quick-link-grid"></div>
+          </section>
+        </section>
 
         <section class="content-grid primary-grid" data-view-section="schedule">
           <article class="card" aria-labelledby="priorities-title" hidden>
@@ -165,10 +180,6 @@
           </article>
         </section>
 
-        <div class="area-divider" data-view-section="overview" data-divider-for="inbox">
-          <span class="area-divider-label">Kommunikation &amp; Updates</span>
-        </div>
-
         <section class="content-grid single-grid" data-view-section="inbox">
           <article class="card tone-inbox" id="inbox-section" aria-labelledby="inbox-title">
             <div class="section-head section-head-wrap">
@@ -183,10 +194,6 @@
             <div id="message-list" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
           </article>
         </section>
-
-        <div class="area-divider" data-view-section="overview" data-divider-for="grades">
-          <span class="area-divider-label">Noten &amp; Bewertung</span>
-        </div>
 
         <section class="content-grid single-grid" data-view-section="grades">
           <article class="card tone-grades" id="grades-section" aria-labelledby="grades-title">
@@ -324,16 +331,12 @@
           </article>
         </section>
 
-        <div class="area-divider" data-view-section="overview" data-divider-for="documents">
-          <span class="area-divider-label">Schule &amp; Organisation</span>
-        </div>
-
         <section class="content-grid single-grid" data-view-section="documents">
           <article class="card tone-documents" id="documents-section" aria-labelledby="docs-title">
             <div class="section-head section-head-wrap">
               <div>
-                <p class="card-kicker">Dokumente</p>
-                <h2 id="docs-title">Orgaplan und Klassenarbeiten</h2>
+                <p class="card-kicker">Plaene</p>
+                <h2 id="docs-title">Orgaplan und Klassenarbeitsplan</h2>
               </div>
               <label class="search-box" id="document-search-wrap">
                 <span class="sr-only">Dokumente filtern</span>
@@ -372,8 +375,8 @@
                 <p id="classwork-digest-detail" class="source-detail"></p>
                 <div class="classwork-controls">
                   <label class="classwork-select-field" for="classwork-class-filter">
-                    <span>Klasse</span>
-                    <select id="classwork-class-filter"></select>
+                    <span>Klassen</span>
+                    <select id="classwork-class-filter" multiple></select>
                   </label>
                   <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
                 </div>
@@ -432,10 +435,6 @@
           </article>
         </section>
 
-        <div class="area-divider" data-view-section="overview">
-          <span class="area-divider-label">Assistenz</span>
-        </div>
-
         <section class="assistant-row" data-view-section="assistant">
           <article class="card assistant-card tone-assistant" aria-labelledby="assistant-title">
             <div class="section-head">
@@ -462,16 +461,12 @@
           </article>
         </section>
 
-        <div class="area-divider" data-view-section="overview">
-          <span class="area-divider-label">Werkzeuge &amp; Zugaenge</span>
-        </div>
-
         <section class="content-grid compact-grid" id="access-section" data-view-section="access">
           <article class="card compact-panel tone-access" aria-labelledby="quicklinks-title">
             <div class="section-head section-head-compact">
               <div>
-                <p class="card-kicker">Schnellzugriffe</p>
-                <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
+                <p class="card-kicker">Services</p>
+                <h2 id="quicklinks-title">Zugaenge zu weiteren Services</h2>
               </div>
             </div>
             <div id="quick-link-grid" class="link-grid compact-link-grid expandable-scroll" data-expand-panel="access"></div>
@@ -612,10 +607,10 @@
     <div id="layout-panel-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:2000;padding:1rem;">
       <div class="layout-panel">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <h2 style="margin:0;font-size:1rem;font-weight:700;color:var(--ink);">Module verwalten</h2>
+          <h2 id="layout-panel-title" style="margin:0;font-size:1rem;font-weight:700;color:var(--ink);">Heute personalisieren</h2>
           <button id="layout-panel-close" type="button" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;line-height:1;padding:0 0.25rem;">✕</button>
         </div>
-        <p style="font-size:0.82rem;color:var(--muted);margin:0 0 1rem;">Aktiviere oder deaktiviere Module und passe die Reihenfolge an.</p>
+        <p id="layout-panel-description" style="font-size:0.82rem;color:var(--muted);margin:0 0 1rem;">Ordne nur die Startseite Heute neu. Ziehe die Bereiche an die passende Stelle oder blende sie aus.</p>
         <div id="layout-module-list" style="display:flex;flex-direction:column;gap:0.5rem;max-height:50vh;overflow-y:auto;margin-bottom:1rem;"></div>
         <div id="layout-panel-feedback" style="min-height:1.4rem;font-size:0.82rem;margin-bottom:0.75rem;"></div>
         <div style="display:flex;gap:0.75rem;justify-content:flex-end;border-top:1px solid var(--line);padding-top:0.75rem;">
@@ -663,17 +658,17 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=41"></script>
-    <script src="./src/api-client.js?v=41"></script>
-    <script src="./src/modules/dashboard-manager.js?v=41"></script>
-    <script src="./src/features/grades.js?v=41"></script>
-    <script src="./src/features/webuntis.js?v=41"></script>
-    <script src="./src/features/itslearning.js?v=41"></script>
-    <script src="./src/features/nextcloud.js?v=41"></script>
-    <script src="./src/features/documents.js?v=41"></script>
-    <script src="./src/features/classwork.js?v=41"></script>
-    <script src="./src/features/inbox.js?v=41"></script>
-    <script src="./src/app.js?v=41"></script>
+    <script src="./data/mock-dashboard.js?v=42"></script>
+    <script src="./src/api-client.js?v=42"></script>
+    <script src="./src/modules/dashboard-manager.js?v=42"></script>
+    <script src="./src/features/grades.js?v=42"></script>
+    <script src="./src/features/webuntis.js?v=42"></script>
+    <script src="./src/features/itslearning.js?v=42"></script>
+    <script src="./src/features/nextcloud.js?v=42"></script>
+    <script src="./src/features/documents.js?v=42"></script>
+    <script src="./src/features/classwork.js?v=42"></script>
+    <script src="./src/features/inbox.js?v=42"></script>
+    <script src="./src/app.js?v=42"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,

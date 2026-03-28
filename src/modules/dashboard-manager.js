@@ -35,6 +35,24 @@
       noten:              'grades',
       mail:               'inbox',
     };
+    var TODAY_LAYOUT_DEFINITION = [
+      {
+        id: 'briefing',
+        label: 'Tagesbriefing',
+        description: 'Stundenplan, Orgaplan und Klassenarbeiten fuer den aktuellen Tag.'
+      },
+      {
+        id: 'updates',
+        label: 'Updates aus der Webseite',
+        description: 'Kompakter Block fuer die letzte Woche.'
+      },
+      {
+        id: 'access',
+        label: 'Alle Zugaenge',
+        description: 'Kleine Sammlung der wichtigsten Arbeitslinks fuer heute.'
+      }
+    ];
+    var _todayLayout = null;
 
     function _backendBase() {
       return (window.BACKEND_API_URL || window.LEHRER_COCKPIT_API_URL || '').trim();
@@ -63,12 +81,72 @@
 
     function _emitLayoutChanged() {
       window.dispatchEvent(new CustomEvent('dashboard-layout-changed', {
-        detail: { modules: _modules.slice() }
+        detail: { modules: _modules.slice(), todayLayout: getTodayLayout() }
       }));
+    }
+
+    function _todayLayoutKey() {
+      var userId = window.CURRENT_USER && window.CURRENT_USER.id ? window.CURRENT_USER.id : 'local';
+      return 'lehrerCockpit.todayLayout.v2.' + userId;
+    }
+
+    function _defaultTodayLayout() {
+      return {
+        order: TODAY_LAYOUT_DEFINITION.map(function(item) { return item.id; }),
+        visibility: TODAY_LAYOUT_DEFINITION.reduce(function(acc, item) {
+          acc[item.id] = true;
+          return acc;
+        }, {}),
+      };
+    }
+
+    function _sanitizeTodayLayout(layout) {
+      var base = _defaultTodayLayout();
+      if (!layout || typeof layout !== 'object') return base;
+
+      var knownIds = TODAY_LAYOUT_DEFINITION.map(function(item) { return item.id; });
+      var order = Array.isArray(layout.order) ? layout.order.filter(function(id) { return knownIds.indexOf(id) !== -1; }) : [];
+      knownIds.forEach(function(id) {
+        if (order.indexOf(id) === -1) order.push(id);
+      });
+
+      var visibility = Object.assign({}, base.visibility);
+      if (layout.visibility && typeof layout.visibility === 'object') {
+        knownIds.forEach(function(id) {
+          if (typeof layout.visibility[id] === 'boolean') {
+            visibility[id] = layout.visibility[id];
+          }
+        });
+      }
+
+      return { order: order, visibility: visibility };
+    }
+
+    function _loadTodayLayout() {
+      try {
+        var raw = localStorage.getItem(_todayLayoutKey());
+        return _sanitizeTodayLayout(raw ? JSON.parse(raw) : null);
+      } catch (_error) {
+        return _defaultTodayLayout();
+      }
+    }
+
+    function _persistTodayLayout() {
+      try {
+        localStorage.setItem(_todayLayoutKey(), JSON.stringify(_todayLayout));
+      } catch (_error) {
+        // ignore storage failures
+      }
+    }
+
+    function getTodayLayout() {
+      if (!_todayLayout) _todayLayout = _loadTodayLayout();
+      return _sanitizeTodayLayout(_todayLayout);
     }
 
     function init() {
       if (!window.MULTIUSER_ENABLED) return;
+      _todayLayout = _loadTodayLayout();
       _initAsync().catch(function() {});
     }
 
@@ -87,7 +165,10 @@
 
             // Show settings button in topbar
             var settingsBtn = document.getElementById('settings-button');
-            if (settingsBtn) settingsBtn.style.display = '';
+            if (settingsBtn) {
+              settingsBtn.style.display = '';
+              settingsBtn.textContent = 'Heute personalisieren';
+            }
 
             // Inject config banners for unconfigured individual modules
             _injectConfigBanners();
@@ -230,7 +311,7 @@
     function _wireSettingsButton() {
       var btn = document.getElementById('settings-button');
       if (!btn) return;
-      btn.addEventListener('click', function() { openLayoutPanel(); });
+      btn.onclick = function() { openLayoutPanel(); };
     }
 
     function openLayoutPanel() {
@@ -253,65 +334,89 @@
     }
 
     function _renderLayoutPanelContent() {
+      var title = document.getElementById('layout-panel-title');
+      var description = document.getElementById('layout-panel-description');
       var list = document.getElementById('layout-module-list');
       if (!list) return;
+      if (title) title.textContent = 'Heute personalisieren';
+      if (description) {
+        description.textContent = 'Ziehe die Bereiche in die richtige Reihenfolge. Diese Einstellung gilt nur fuer die Startseite Heute.';
+      }
       list.innerHTML = '';
-      _modules.forEach(function(m) {
+      var layout = getTodayLayout();
+      (layout.order || []).forEach(function(moduleId) {
+        var definition = TODAY_LAYOUT_DEFINITION.find(function(item) { return item.id === moduleId; });
+        if (!definition) return;
         var row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.25rem;border-bottom:1px solid var(--line);';
+        row.className = 'layout-module-row';
+        row.draggable = true;
+        row.dataset.todayModuleId = definition.id;
         row.innerHTML =
-          '<input type="checkbox" id="lm-enabled-' + _esc(m.module_id) + '" ' +
-          (m.is_visible ? 'checked' : '') + ' style="cursor:pointer;accent-color:var(--accent);width:16px;height:16px;" />' +
-          '<label for="lm-enabled-' + _esc(m.module_id) + '" style="flex:1;font-size:0.85rem;color:var(--ink);cursor:pointer;">' +
-          _esc(m.display_name) + '</label>' +
-          '<input type="number" min="1" value="' + (m.sort_order || 0) + '" id="lm-order-' + _esc(m.module_id) + '" ' +
-          'data-module-id="' + _esc(m.module_id) + '" ' +
-          'style="width:50px;padding:0.25rem 0.4rem;border:1px solid var(--line-strong);border-radius:var(--radius-sm);' +
-          'background:var(--panel-soft);color:var(--ink);font-size:0.82rem;text-align:center;" />';
+          '<span class="layout-drag-handle" aria-hidden="true">⋮⋮</span>' +
+          '<input type="checkbox" id="lm-enabled-' + _esc(definition.id) + '" ' +
+          (layout.visibility[definition.id] !== false ? 'checked' : '') + ' style="cursor:pointer;accent-color:var(--accent);width:16px;height:16px;" />' +
+          '<label class="layout-module-meta" for="lm-enabled-' + _esc(definition.id) + '">' +
+          '<strong>' + _esc(definition.label) + '</strong>' +
+          '<span>' + _esc(definition.description) + '</span>' +
+          '</label>';
+        row.addEventListener('dragstart', function() {
+          row.classList.add('is-dragging');
+        });
+        row.addEventListener('dragend', function() {
+          row.classList.remove('is-dragging');
+        });
         list.appendChild(row);
       });
+
+      list.ondragover = function(event) {
+        event.preventDefault();
+        var dragging = list.querySelector('.layout-module-row.is-dragging');
+        if (!dragging) return;
+        var afterElement = _getDragAfterElement(list, event.clientY);
+        if (!afterElement) {
+          list.appendChild(dragging);
+          return;
+        }
+        list.insertBefore(dragging, afterElement);
+      };
     }
 
     function _saveLayout(saveBtn) {
       var feedbackEl = document.getElementById('layout-panel-feedback');
       if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Speichern…'; }
 
-      var modulesPayload = _modules.map(function(m) {
-        var enabledEl = document.getElementById('lm-enabled-' + m.module_id);
-        var orderEl = document.getElementById('lm-order-' + m.module_id);
-        return {
-          module_id: m.module_id,
-          is_visible: enabledEl ? enabledEl.checked : m.is_visible,
-          sort_order: orderEl ? (parseInt(orderEl.value, 10) || m.sort_order) : m.sort_order,
-        };
+      var list = document.getElementById('layout-module-list');
+      var order = Array.from(list.querySelectorAll('.layout-module-row')).map(function(row) {
+        return row.dataset.todayModuleId;
+      });
+      var visibility = {};
+      TODAY_LAYOUT_DEFINITION.forEach(function(item) {
+        var enabledEl = document.getElementById('lm-enabled-' + item.id);
+        visibility[item.id] = enabledEl ? enabledEl.checked : true;
       });
 
-      _apiFetch('/api/v2/dashboard/layout', {
-        method: 'PUT',
-        body: { modules: modulesPayload },
-      }).then(function(resp) {
-        if (!resp.ok) {
-          return resp.json().catch(function() { return {}; }).then(function(err) {
-            if (feedbackEl) feedbackEl.textContent = err.error || 'Fehler beim Speichern.';
-          });
-        }
-        if (feedbackEl) feedbackEl.textContent = '✓ Layout gespeichert.';
-        // Update local state
-        modulesPayload.forEach(function(mp) {
-          _modules = _modules.map(function(m) {
-            return m.module_id === mp.module_id ? Object.assign({}, m, { is_visible: mp.is_visible, sort_order: mp.sort_order }) : m;
-          });
-        });
-        _emitLayoutChanged();
-        setTimeout(function() {
-          var overlay = document.getElementById('layout-panel-overlay');
-          if (overlay) overlay.hidden = true;
-        }, 1000);
-      }).catch(function() {
-        if (feedbackEl) feedbackEl.textContent = 'Verbindungsfehler.';
-      }).finally(function() {
+      _todayLayout = _sanitizeTodayLayout({ order: order, visibility: visibility });
+      _persistTodayLayout();
+      if (feedbackEl) feedbackEl.textContent = '✓ Heute-Seite gespeichert.';
+      _emitLayoutChanged();
+      setTimeout(function() {
+        var overlay = document.getElementById('layout-panel-overlay');
+        if (overlay) overlay.hidden = true;
         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Speichern'; }
-      });
+      }, 450);
+    }
+
+    function _getDragAfterElement(container, y) {
+      var draggableElements = Array.from(container.querySelectorAll('.layout-module-row:not(.is-dragging)'));
+
+      return draggableElements.reduce(function(closest, child) {
+        var box = child.getBoundingClientRect();
+        var offset = y - box.top - (box.height / 2);
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        }
+        return closest;
+      }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
     }
 
     function _esc(str) {
@@ -347,7 +452,8 @@
       openLayoutPanel: openLayoutPanel,
       getActiveModuleIds: getActiveModuleIds,
       isModuleVisible: isModuleVisible,
-      isLayoutReady: isLayoutReady
+      isLayoutReady: isLayoutReady,
+      getTodayLayout: getTodayLayout
     };
   })();
 

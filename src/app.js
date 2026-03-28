@@ -22,6 +22,7 @@
   const WEBUNTIS_FAVORITES_KEY = "lehrerCockpit.webuntis.favorites";
   const ACTIVE_WEBUNTIS_PLAN_KEY = "lehrerCockpit.webuntis.activePlan";
   const THEME_KEY = "lehrerCockpit.theme";
+  const CLASSWORK_SELECTED_CLASSES_KEY = "lehrerCockpit.classwork.selectedClasses";
   // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const AUTO_REFRESH_MS = 180000;
@@ -54,7 +55,7 @@
     activeFinderEntityId: null,
     classworkUploadFeedback: "",
     classworkUploadFeedbackKind: "",
-    classworkSelectedClass: "",
+    classworkSelectedClasses: loadStoredClassworkClasses(),
     classworkView: "list",
     gradesData: null,
     gradesSelectedClass: "",
@@ -71,6 +72,9 @@
   const elements = {
     briefingButton: document.querySelector("#briefing-button"),
     briefingOutput: document.querySelector("#briefing-output"),
+    todayBriefingFocus: document.querySelector("#today-briefing-focus"),
+    todayUpdatesList: document.querySelector("#today-updates-list"),
+    todayQuickLinkGrid: document.querySelector("#today-quick-link-grid"),
     heroNote: document.querySelector("#hero-note"),
     runtimeBanner: document.querySelector("#runtime-banner"),
     themeToggle: document.querySelector("#theme-toggle"),
@@ -78,13 +82,14 @@
     navLinks: Array.from(document.querySelectorAll("[data-section-target]")),
     viewSections: Array.from(document.querySelectorAll("[data-view-section]")),
     viewDividers: Array.from(document.querySelectorAll("[data-divider-for]")),
+    todayOverviewGrid: document.querySelector("#today-overview-grid"),
+    todayModuleCards: Array.from(document.querySelectorAll("[data-today-module]")),
     expandToggles: Array.from(document.querySelectorAll("[data-expand-toggle]")),
     workspaceEyebrow: document.querySelector("#workspace-eyebrow"),
     workspaceTitle: document.querySelector("#workspace-title"),
     workspaceDescription: document.querySelector("#workspace-description"),
     statsGrid: document.querySelector("#stats-grid"),
     quickLinkGrid: document.querySelector("#quick-link-grid"),
-    berlinFocusList: document.querySelector("#berlin-focus-list"),
     itslearningConnectCard: document.querySelector("#itslearning-connect-card"),
     itslearningConnectStatus: document.querySelector("#itslearning-connect-status"),
     itslearningConnectCopy: document.querySelector("#itslearning-connect-copy"),
@@ -236,15 +241,12 @@
 
   function isSectionEnabled(sectionId) {
     switch (sectionId) {
-      case "schedule":
-        return isModuleVisible("webuntis");
       case "grades":
-        return isModuleVisible("noten");
-      case "inbox":
-        return isAnyModuleVisible(["itslearning", "mail"]);
-      case "documents":
-        return isAnyModuleVisible(["orgaplan", "klassenarbeitsplan"]) || hasStandaloneDocumentsContent();
+        return false;
       case "overview":
+      case "schedule":
+      case "inbox":
+      case "documents":
       case "assistant":
       case "access":
       default:
@@ -694,18 +696,11 @@
     elements.viewSections.forEach((section) => {
       const sectionId = section.dataset.viewSection;
       const isVisible = isSectionEnabled(sectionId);
-      section.hidden = !isVisible || (active !== "overview" && sectionId !== active);
+      section.hidden = !isVisible || sectionId !== active;
     });
 
-    // Hide area dividers when their target section is not enabled or not visible.
-    // This prevents dangling section labels with no content beneath them when
-    // modules are disabled (e.g. "Unterricht & Tagesplan" with no WebUntis).
     elements.viewDividers.forEach((divider) => {
-      const targetSection = divider.dataset.dividerFor;
-      if (!targetSection) return;
-      const sectionEnabled = isSectionEnabled(targetSection);
-      const sectionVisible = active === "overview" && sectionEnabled;
-      divider.hidden = !sectionVisible;
+      divider.hidden = true;
     });
   }
 
@@ -748,55 +743,9 @@
   }
 
   function renderStats() {
-    const data = getData();
-    const webuntisEvents = getWebUntisEvents();
-    // Gate module-derived tiles behind isLayoutReady() to prevent first-load flash.
-    // Before the layout API response arrives, _modules is empty and isModuleVisible()
-    // returns true for all modules — so disabled modules would briefly appear.
-    const layoutReady = isLayoutReady();
-    const showWebuntis = layoutReady && isModuleVisible("webuntis");
-    const showInbox = layoutReady && isAnyModuleVisible(["itslearning", "mail"]);
-
-    const cards = [
-      showInbox ? {
-        label: "Hinweise",
-        value: data.messages.filter((message) => message.unread).length,
-        detail: "offene Eintraege",
-      } : null,
-      {
-        label: "Prioritaeten",
-        value: data.priorities.length,
-        detail: "heute im Fokus",
-      },
-      showWebuntis ? {
-        label: "WebUntis",
-        value: webuntisEvents.length,
-        detail: state.webuntisView === "day" ? "Termine heute" : "Termine diese Woche",
-      } : null,
-      {
-        label: "Dokumente",
-        value: data.documents.length,
-        detail: "sichtbar im Cockpit",
-      },
-    ].filter(Boolean);
-
-    if (cards.length) {
-      elements.statsGrid.hidden = false;
-      elements.statsGrid.innerHTML = cards
-        .map(
-          (card) => `
-            <article class="stat-card">
-              <p class="stat-label">${card.label}</p>
-              <strong>${card.value}</strong>
-              <p>${card.detail}</p>
-            </article>
-          `
-        )
-        .join("");
-    } else {
-      elements.statsGrid.hidden = true;
-      elements.statsGrid.innerHTML = "";
-    }
+    if (!elements.statsGrid) return;
+    elements.statsGrid.hidden = true;
+    elements.statsGrid.innerHTML = "";
   }
 
   // ── Briefing helpers ────────────────────────────────────────────────────────
@@ -826,13 +775,8 @@
   /**
    * Build the compact secondary briefing items array (max 3).
    */
-  function buildBriefingItems({ orgaplanItem, classworkItem, inboxItem, weeklyPreview }) {
-    return [
-      orgaplanItem ? { title: "Orgaplan", copy: `${orgaplanItem.label}: ${orgaplanItem.copy}`, tone: "orgaplan", section: "documents" } : null,
-      classworkItem ? { title: "Klassenarbeiten", copy: classworkItem, tone: "classwork", section: "documents" } : null,
-      inboxItem ? { title: "Inbox", copy: inboxItem, tone: "inbox", section: "inbox" } : null,
-      weeklyPreview ? { title: "Wochenvorschau", copy: weeklyPreview, tone: "week", section: "schedule" } : null,
-    ].filter(Boolean).slice(0, 3);
+  function buildBriefingItems() {
+    return [];
   }
 
   /**
@@ -889,12 +833,10 @@
     const nextEvent = showWebuntis ? findNextLesson(data) : null;
     const orgaplanItem = showOrgaplan ? pickOrgaplanBriefing(data) : null;
     const classworkItem = showClasswork ? pickClassworkBriefing(data) : null;
-    const inboxItem = showInbox ? pickInboxBriefing(data) : null;
     const todaySummary = showWebuntis ? pickTodayScheduleBriefing(data, nextEvent) : null;
-    const weeklyPreview = showWebuntis ? pickWeeklyPreview(data) : null;
 
     const lead = buildBriefingLead({ nextEvent, todaySummary, orgaplanItem });
-    const briefingItems = buildBriefingItems({ orgaplanItem, classworkItem, inboxItem, weeklyPreview });
+    const briefingItems = buildBriefingItems();
     const leadMeta = buildLeadMeta(data, { showWebuntis, showInbox, showClasswork, nextEvent });
     const leadSection = nextEvent || todaySummary ? "schedule" : orgaplanItem ? "documents" : null;
 
@@ -925,6 +867,77 @@
       : (!layoutReady
           ? `<div class="briefing-loading">Lade Briefing&hellip;</div>`
           : `<div class="briefing-empty"><span>Heute liegen keine hervorgehobenen Eintraege vor.</span></div>`);
+
+    renderTodayBriefingFocus(data, {
+      todaySummary,
+      orgaplanItem,
+      classworkItem,
+      showWebuntis,
+      showOrgaplan,
+      showClasswork,
+    });
+  }
+
+  function renderTodayBriefingFocus(data, context) {
+    if (!elements.todayBriefingFocus) return;
+
+    const classwork = data.planDigest?.classwork || {};
+    const selectedClasses = context.showClasswork
+      ? getSelectedClassworkClasses(classwork.classes || [], classwork.defaultClass || "")
+      : [];
+    const todayIso = data.webuntisCenter?.currentDate || new Date(data.generatedAt || Date.now()).toISOString().slice(0, 10);
+    const todayClassworkEntries = (classwork.entries || [])
+      .filter((entry) => entry.isoDate === todayIso && (!selectedClasses.length || selectedClasses.includes(entry.classLabel)))
+      .sort((left, right) => `${left.classLabel || ""}${left.summary || left.title || ""}`.localeCompare(`${right.classLabel || ""}${right.summary || right.title || ""}`));
+
+    const classSelectionLabel = selectedClasses.length
+      ? (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewaehlt`)
+      : "Noch keine Klasse gewaehlt";
+
+    const cards = [
+      {
+        title: "Stundenplan fuer den Tag",
+        tone: "schedule",
+        section: "schedule",
+        copy: context.showWebuntis && context.todaySummary
+          ? `${context.todaySummary.title}. ${context.todaySummary.copy}`
+          : "Noch kein Tagesplan aus WebUntis verfuegbar.",
+      },
+      {
+        title: "Orgaplan fuer den aktuellen Tag",
+        tone: "orgaplan",
+        section: "documents",
+        copy: context.showOrgaplan && context.orgaplanItem
+          ? `${context.orgaplanItem.label}: ${context.orgaplanItem.copy}`
+          : "Heute wurde noch kein gesonderter Orgaplan-Hinweis erkannt.",
+      },
+      {
+        title: "Klassenarbeiten fuer den aktuellen Tag",
+        tone: "classwork",
+        section: "documents",
+        meta: classSelectionLabel,
+        copy: context.showClasswork
+          ? (
+              todayClassworkEntries.length
+                ? todayClassworkEntries
+                    .map((entry) => `${entry.classLabel}: ${entry.summary || entry.title}`)
+                    .slice(0, 3)
+                    .join(" · ")
+                : `Heute keine Klassenarbeiten fuer ${classSelectionLabel.toLowerCase()}.`
+            )
+          : "Noch kein Klassenarbeitsplan verbunden.",
+      },
+    ];
+
+    elements.todayBriefingFocus.innerHTML = cards
+      .map((card) => `
+        <article class="today-focus-card today-focus-card-${card.tone}"${card.section ? ` data-briefing-target="${card.section}" role="button" tabindex="0"` : ""}>
+          <strong>${card.title}</strong>
+          ${card.meta ? `<span class="today-focus-meta">${card.meta}</span>` : ""}
+          <p>${card.copy}</p>
+        </article>
+      `)
+      .join("");
   }
 
   function findNextLesson(data) {
@@ -1099,6 +1112,51 @@
           )
           .join("")
       : `<div class="empty-state">Noch keine Direktzugriffe konfiguriert.</div>`;
+
+    if (elements.todayQuickLinkGrid) {
+      const todayLinks = quickLinks.slice(0, 6);
+      elements.todayQuickLinkGrid.innerHTML = todayLinks.length
+        ? todayLinks
+            .map(
+              (link) => `
+                <a class="quick-link-card today-quick-link-card" href="${link.url}" target="_blank" rel="noreferrer">
+                  <span class="meta-tag low">${link.kind}</span>
+                  <strong>${link.title}</strong>
+                  <span class="quick-link-action">oeffnen</span>
+                </a>
+              `
+            )
+            .join("")
+        : `<div class="empty-state">Noch keine Zugaenge hinterlegt.</div>`;
+    }
+  }
+
+  function renderTodayModuleLayout() {
+    if (!elements.todayOverviewGrid || !elements.todayModuleCards.length) return;
+    const layout = DashboardManager && typeof DashboardManager.getTodayLayout === "function"
+      ? DashboardManager.getTodayLayout()
+      : {
+          order: ["briefing", "updates", "access"],
+          visibility: { briefing: true, updates: true, access: true },
+        };
+
+    const cardMap = new Map(
+      elements.todayModuleCards.map((card) => [card.dataset.todayModule || "", card])
+    );
+
+    (layout.order || []).forEach((moduleId) => {
+      const card = cardMap.get(moduleId);
+      if (!card) return;
+      card.hidden = layout.visibility && layout.visibility[moduleId] === false;
+      elements.todayOverviewGrid.appendChild(card);
+    });
+
+    elements.todayModuleCards.forEach((card) => {
+      const moduleId = card.dataset.todayModule || "";
+      if ((layout.order || []).includes(moduleId)) return;
+      card.hidden = false;
+      elements.todayOverviewGrid.appendChild(card);
+    });
   }
 
   function renderExpandableSections() {
@@ -1134,23 +1192,25 @@
     if (window.LehrerNextcloud) return window.LehrerNextcloud.renderNextcloudConnector();
   }
 
-  function renderBerlinFocus() {
+  function renderTodayUpdates() {
+    if (!elements.todayUpdatesList) return;
     const data = getData();
-    elements.berlinFocusList.innerHTML = data.berlinFocus.length
-      ? data.berlinFocus
+    const updates = (data.berlinFocus || []).slice(0, 5);
+    elements.todayUpdatesList.innerHTML = updates.length
+      ? updates
           .map(
             (item) => `
-              <article class="priority-item">
+              <article class="priority-item today-update-item">
                 <div class="priority-top">
                   <strong>${item.title}</strong>
-                  <span class="meta-tag low">Berlin</span>
+                  <span class="meta-tag low">Webseite</span>
                 </div>
                 <p class="priority-copy">${item.detail}</p>
               </article>
             `
           )
           .join("")
-      : `<div class="empty-state">Noch keine Berlin-Hinweise verfuegbar.</div>`;
+      : `<div class="empty-state">Noch keine Website-Updates fuer die letzte Woche erkannt.</div>`;
   }
 
   // ── SECTION: Inbox — delegated to window.LehrerInbox ────────────────────────
@@ -1585,8 +1645,12 @@
 
     if (elements.classworkClassFilter) {
       elements.classworkClassFilter.addEventListener("change", (event) => {
-        state.classworkSelectedClass = event.target.value;
+        state.classworkSelectedClasses = Array.from(event.target.selectedOptions || [])
+          .map((option) => option.value)
+          .filter(Boolean);
+        persistClassworkSelectedClasses();
         renderPlanDigest();
+        renderBriefing();
       });
     }
 
@@ -1651,9 +1715,11 @@
     renderWorkspace();
     renderMeta();
     renderRuntimeBanner();
+    renderTodayModuleLayout();
     renderSectionFocus();
     renderStats();
     renderBriefing();
+    renderTodayUpdates();
     renderQuickLinks();
     renderItslearningConnector();
     renderNextcloudConnector();
@@ -1974,6 +2040,7 @@
         getVisiblePanelItems: getVisiblePanelItems,
         setExpandableMeta: setExpandableMeta,
         weekdayLabel: weekdayLabel,
+        getSelectedClassworkClasses: getSelectedClassworkClasses,
       });
     }
     // Init LehrerDocuments with shared state, elements, and render callbacks
@@ -2058,6 +2125,49 @@
     return "light";
   }
 
+  function loadStoredClassworkClasses() {
+    try {
+      const raw = localStorage.getItem(CLASSWORK_SELECTED_CLASSES_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function persistClassworkSelectedClasses() {
+    try {
+      localStorage.setItem(
+        CLASSWORK_SELECTED_CLASSES_KEY,
+        JSON.stringify((state.classworkSelectedClasses || []).filter(Boolean))
+      );
+    } catch (_error) {
+      // ignore local storage errors
+    }
+  }
+
+  function getSelectedClassworkClasses(classes, defaultClass = "") {
+    const availableClasses = Array.isArray(classes) ? classes.filter(Boolean) : [];
+    if (!availableClasses.length) {
+      state.classworkSelectedClasses = [];
+      return [];
+    }
+
+    const sanitized = (state.classworkSelectedClasses || []).filter((label) => availableClasses.includes(label));
+    if (sanitized.length) {
+      state.classworkSelectedClasses = sanitized;
+      return sanitized;
+    }
+
+    const nextSelection = defaultClass && availableClasses.includes(defaultClass)
+      ? [defaultClass]
+      : [availableClasses[0]];
+
+    state.classworkSelectedClasses = nextSelection;
+    persistClassworkSelectedClasses();
+    return nextSelection;
+  }
+
   async function loadClassworkCache() {
     try {
       const resp = await window.LehrerAPI.legacy.getClasswork();
@@ -2111,6 +2221,7 @@
       ...data,
     };
     renderPlanDigest();
+    renderBriefing();
   }
 
   function renderNavSignals() {

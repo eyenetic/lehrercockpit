@@ -35,6 +35,7 @@ var LehrerClasswork = (function () {
   var _getVisiblePanelItems = null;
   var _setExpandableMeta = null;
   var _weekdayLabel = null;
+  var _getSelectedClassworkClasses = null;
 
   function init(state, elements, callbacks) {
     _state = state;
@@ -45,6 +46,7 @@ var LehrerClasswork = (function () {
     _getVisiblePanelItems = callbacks.getVisiblePanelItems;
     _setExpandableMeta = callbacks.setExpandableMeta;
     _weekdayLabel = callbacks.weekdayLabel;
+    _getSelectedClassworkClasses = callbacks.getSelectedClassworkClasses;
   }
 
   // ── Utility ─────────────────────────────────────────────────────────────────
@@ -78,30 +80,40 @@ var LehrerClasswork = (function () {
 
   // ── Classwork class selection ────────────────────────────────────────────────
 
-  function getActiveClassworkClass(classes, defaultClass) {
+  function getSelectedClasses(classes, defaultClass) {
+    if (_getSelectedClassworkClasses) {
+      return _getSelectedClassworkClasses(classes, defaultClass);
+    }
     if (!classes.length) {
-      _state.classworkSelectedClass = '';
-      return '';
+      _state.classworkSelectedClasses = [];
+      return [];
     }
-    if (_state.classworkSelectedClass && classes.includes(_state.classworkSelectedClass)) {
-      return _state.classworkSelectedClass;
+    if (Array.isArray(_state.classworkSelectedClasses) && _state.classworkSelectedClasses.length) {
+      var selected = _state.classworkSelectedClasses.filter(function (label) {
+        return classes.includes(label);
+      });
+      if (selected.length) {
+        _state.classworkSelectedClasses = selected;
+        return selected;
+      }
     }
-    _state.classworkSelectedClass = (defaultClass && classes.includes(defaultClass)) ? defaultClass : classes[0];
-    return _state.classworkSelectedClass;
+    _state.classworkSelectedClasses = [(defaultClass && classes.includes(defaultClass)) ? defaultClass : classes[0]];
+    return _state.classworkSelectedClasses;
   }
 
   // ── Selector + view switch ───────────────────────────────────────────────────
 
   function renderClassworkSelector(classes, defaultClass) {
     if (!_elements.classworkClassFilter) return;
-    var activeClass = getActiveClassworkClass(classes, defaultClass);
+    var activeClasses = getSelectedClasses(classes, defaultClass);
     _elements.classworkClassFilter.disabled = !classes.length;
     if (!classes.length) {
       _elements.classworkClassFilter.innerHTML = '<option value="">Keine Klasse erkannt</option>';
       return;
     }
+    _elements.classworkClassFilter.size = Math.min(Math.max(classes.length, 3), 8);
     _elements.classworkClassFilter.innerHTML = classes.map(function (classLabel) {
-      return '<option value="' + classLabel + '"' + (classLabel === activeClass ? ' selected' : '') + '>' + classLabel + '</option>';
+      return '<option value="' + classLabel + '"' + (activeClasses.includes(classLabel) ? ' selected' : '') + '>' + classLabel + '</option>';
     }).join('');
   }
 
@@ -236,9 +248,9 @@ var LehrerClasswork = (function () {
         : '<div class="empty-state">Noch keine Orgaplan-Highlights erkannt.</div>';
     }
 
-    var activeClass = getActiveClassworkClass(classes, classwork.defaultClass || '');
+    var activeClasses = getSelectedClasses(classes, classwork.defaultClass || '');
     var classEntries = entries
-      .filter(function (entry) { return entry.classLabel === activeClass; })
+      .filter(function (entry) { return !activeClasses.length || activeClasses.includes(entry.classLabel); })
       .sort(function (left, right) { return (left.isoDate || '').localeCompare(right.isoDate || ''); });
     var visibleClassEntries = _getVisiblePanelItems(classEntries, 'classwork');
 
@@ -252,7 +264,7 @@ var LehrerClasswork = (function () {
           ? classwork.previewRows.map(function (row) {
               return '<article class="priority-item"><p class="priority-copy">' + row + '</p></article>';
             }).join('')
-          : '<div class="empty-state">Noch keine Klassenarbeiten fuer diese Klasse erkannt.</div>';
+          : '<div class="empty-state">Noch keine Klassenarbeiten fuer diese Auswahl erkannt.</div>';
     }
   }
 
@@ -262,7 +274,9 @@ var LehrerClasswork = (function () {
     renderClassworkList: renderClassworkList,
     renderClassworkCalendar: renderClassworkCalendar,
     renderOrgaplanItem: renderOrgaplanItem,
-    getActiveClassworkClass: getActiveClassworkClass,
+    getActiveClassworkClass: function (classes, defaultClass) {
+      return getSelectedClasses(classes, defaultClass)[0] || '';
+    },
     truncateText: truncateText,
   };
 })();
