@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Cockpit" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#f0f4ff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
     <link rel="apple-touch-icon" href="/icons/icon-180.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
@@ -27,13 +27,16 @@
       ];
     </script>
     <script>window.MULTIUSER_ENABLED = true; /* Multi-User SaaS-Modus aktiv */</script>
-    <link rel="stylesheet" href="./styles.css?v=43" />
+    <link rel="stylesheet" href="./styles.css?v=44" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="app-sidebar">
         <div class="brand-block">
-          <div class="brand-mark">U</div>
+          <div class="brand-mark" aria-hidden="true">
+            <img class="brand-mark-icon brand-mark-light" src="./icons/icon-192.png" alt="" />
+            <img class="brand-mark-icon brand-mark-dark" src="./icons/icon-192-dark.png" alt="" />
+          </div>
           <div class="brand-copy">
             <p class="eyebrow" id="workspace-eyebrow">Berlin Lehrer-Cockpit</p>
             <strong class="brand-title">Lehrer-Cockpit</strong>
