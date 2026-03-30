@@ -2043,7 +2043,7 @@
 
     var panel = document.getElementById('heute-anpassen-panel');
     var modulesContainer = document.getElementById('heute-anpassen-modules');
-    var openBtn = document.getElementById('heute-anpassen-btn');
+    var openBtn = document.getElementById('settings-button');
     var closeBtn = document.getElementById('heute-anpassen-close');
     var saveBtn = document.getElementById('heute-anpassen-save');
     if (!panel || !modulesContainer) return;
