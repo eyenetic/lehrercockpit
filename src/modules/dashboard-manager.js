@@ -196,18 +196,11 @@
             _layoutReady = true;
             _emitLayoutChanged();
 
-            // Show settings button in topbar
-            var settingsBtn = document.getElementById('settings-button');
-            if (settingsBtn) {
-              settingsBtn.style.display = '';
-              settingsBtn.textContent = 'Heute anpassen';
-            }
+            // Note: #settings-button (old panel trigger) is intentionally kept hidden.
+            // Phase 14 uses #heute-anpassen-btn inside the overview section instead.
 
             // Inject config banners for unconfigured individual modules
             _injectConfigBanners();
-
-            // Wire settings button
-            _wireSettingsButton();
           });
         })
         .catch(function() {

@@ -129,16 +129,9 @@
             <div id="today-updates-list" class="stack-list compact-list"></div>
           </section>
 
-          <section class="card compact-panel tone-access today-module-card" data-today-module="access" aria-labelledby="today-access-title">
-            <div class="section-head section-head-compact">
-              <div>
-                <p class="card-kicker">Direktzugriffe</p>
-                <h2 id="today-access-title">Alle Zugaenge</h2>
-              </div>
-            </div>
-            <div id="today-quick-link-grid" class="link-grid compact-link-grid today-quick-link-grid"></div>
-            </section>
-  
+          <!-- #today-quick-link-grid kept hidden for JS compatibility (renderQuickLinks writes to it) -->
+          <div id="today-quick-link-grid" hidden></div>
+
             <div id="heute-zugaenge-container" class="heute-module-slot"></div>
             <div id="heute-wichtige-termine-container" class="heute-module-slot"></div>
           </section>
@@ -719,19 +712,19 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=46"></script>
-    <script src="./src/api-client.js?v=46"></script>
-    <script src="./src/modules/dashboard-manager.js?v=46"></script>
-    <script src="./src/features/grades.js?v=46"></script>
-    <script src="./src/features/webuntis.js?v=46"></script>
-    <script src="./src/features/itslearning.js?v=46"></script>
-    <script src="./src/features/nextcloud.js?v=46"></script>
-    <script src="./src/features/documents.js?v=46"></script>
-    <script src="./src/features/classwork.js?v=46"></script>
-    <script src="./src/features/inbox.js?v=46"></script>
-    <script src="./src/features/zugaenge.js?v=46"></script>
-    <script src="./src/features/wichtige-termine.js?v=46"></script>
-    <script src="./src/app.js?v=46"></script>
+    <script src="./data/mock-dashboard.js?v=47"></script>
+    <script src="./src/api-client.js?v=47"></script>
+    <script src="./src/modules/dashboard-manager.js?v=47"></script>
+    <script src="./src/features/grades.js?v=47"></script>
+    <script src="./src/features/webuntis.js?v=47"></script>
+    <script src="./src/features/itslearning.js?v=47"></script>
+    <script src="./src/features/nextcloud.js?v=47"></script>
+    <script src="./src/features/documents.js?v=47"></script>
+    <script src="./src/features/classwork.js?v=47"></script>
+    <script src="./src/features/inbox.js?v=47"></script>
+    <script src="./src/features/zugaenge.js?v=47"></script>
+    <script src="./src/features/wichtige-termine.js?v=47"></script>
+    <script src="./src/app.js?v=47"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,

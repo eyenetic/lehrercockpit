@@ -1209,14 +1209,13 @@
           btn.disabled = true;
           btn.textContent = 'Speichern…';
 
-          const payload = {
-            // Slice 4 Part A: app title
+          // PUT /api/v2/admin/settings/<key> expects {value: ...} — iterate per key
+          const entries = {
             app_title: document.getElementById('s-app-title').value.trim(),
             schulname: document.getElementById('s-schulname').value.trim(),
             orgaplan_url: document.getElementById('s-orgaplan-url').value.trim(),
             orgaplan_pdf_url: document.getElementById('s-orgaplan-pdf').value.trim(),
             classwork_url: document.getElementById('s-classwork-url').value.trim(),
-            // Slice 4 Part B: new URL settings
             webuntis_url: document.getElementById('s-webuntis-url').value.trim(),
             fehlzeiten_11_url: document.getElementById('s-fehlzeiten-11').value.trim(),
             fehlzeiten_12_url: document.getElementById('s-fehlzeiten-12').value.trim(),
@@ -1224,10 +1223,16 @@
           };
 
           try {
-            const resp = await apiFetch('/api/v2/admin/settings', { method: 'PUT', body: payload });
-            const data = await resp.json();
-            if (!resp.ok) {
-              setFeedback('settings-feedback', data.error || 'Fehler beim Speichern.', 'error');
+            let lastErr = null;
+            for (const [key, value] of Object.entries(entries)) {
+              const resp = await apiFetch('/api/v2/admin/settings/' + key, { method: 'PUT', body: { value } });
+              if (!resp.ok) {
+                const data = await resp.json();
+                lastErr = data.error || 'Fehler beim Speichern von ' + key;
+              }
+            }
+            if (lastErr) {
+              setFeedback('settings-feedback', lastErr, 'error');
             } else {
               setFeedback('settings-feedback', 'Einstellungen gespeichert.', 'success');
             }
