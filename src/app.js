@@ -242,7 +242,7 @@
   function isSectionEnabled(sectionId) {
     switch (sectionId) {
       case "grades":
-        return false;
+        return DashboardManager.isModuleVisible('noten');
       case "overview":
       case "schedule":
       case "inbox":
