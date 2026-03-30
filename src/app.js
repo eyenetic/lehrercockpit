@@ -120,7 +120,6 @@
     nextcloudLastOpened: document.querySelector("#nextcloud-last-opened"),
     priorityList: document.querySelector("#priority-list"),
     sourceList: document.querySelector("#source-list"),
-    channelFilters: document.querySelector("#channel-filters"),
     messageList: document.querySelector("#message-list"),
     monitorList: document.querySelector("#monitor-list"),
     scheduleList: document.querySelector("#schedule-list"),
@@ -242,7 +241,9 @@
   function isSectionEnabled(sectionId) {
     switch (sectionId) {
       case "grades":
-        return DashboardManager.isModuleVisible('noten');
+        return DashboardManager && typeof DashboardManager.isModuleVisible === 'function'
+          ? DashboardManager.isModuleVisible('noten')
+          : false;
       case "overview":
       case "schedule":
       case "inbox":
@@ -1235,10 +1236,6 @@
     if (window.LehrerInbox) return window.LehrerInbox.renderSources();
   }
 
-  function renderChannelFilters() {
-    if (window.LehrerInbox) return window.LehrerInbox.renderChannelFilters();
-  }
-
   function renderMessages() {
     if (window.LehrerInbox) return window.LehrerInbox.renderMessages();
   }
@@ -1765,7 +1762,6 @@
     renderHeuteWichtigeTermine();
     renderItslearningConnector();
     renderNextcloudConnector();
-    renderChannelFilters();
     renderMessages();
     // Slice 3: wire inbox tabs and update unread badges
     if (window.LehrerInbox && typeof window.LehrerInbox.initInboxTabs === 'function') {
@@ -2190,7 +2186,6 @@
       window.LehrerItslearning.init(state, elements, {
         getData: getData,
         renderMessages: renderMessages,
-        renderChannelFilters: renderChannelFilters,
         renderNavSignals: renderNavSignals,
         refreshDashboard: refreshDashboard,
         IS_LOCAL_RUNTIME: IS_LOCAL_RUNTIME,

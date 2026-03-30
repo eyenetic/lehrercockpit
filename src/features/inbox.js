@@ -120,38 +120,6 @@ var LehrerInbox = (function () {
       : '<div class="empty-state">Noch keine Quellen eingerichtet.</div>';
   }
 
-  function renderChannelFilters() {
-    if (!_elements || !_elements.channelFilters) return;
-    var availableChannels = _getRelevantInboxMessages()
-      .map(function (msg) { return msg.channel; })
-      .filter(function (ch, idx, arr) { return ch && arr.indexOf(ch) === idx; });
-
-    if (!availableChannels.length) {
-      _elements.channelFilters.hidden = true;
-      _elements.channelFilters.innerHTML = '';
-      return;
-    }
-
-    if (!availableChannels.includes(_state.selectedChannel)) {
-      _state.selectedChannel = availableChannels[0];
-    }
-
-    _elements.channelFilters.hidden = availableChannels.length <= 1;
-    _elements.channelFilters.innerHTML = availableChannels.map(function (id) {
-      return '<button class="filter-button ' + (_state.selectedChannel === id ? 'active' : '') + '" type="button" data-channel="' + id + '">'
-        + (channelLabels[id] || id)
-        + '</button>';
-    }).join('');
-
-    _elements.channelFilters.querySelectorAll('[data-channel]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        _state.selectedChannel = button.dataset.channel;
-        renderChannelFilters();
-        renderMessages();
-      });
-    });
-  }
-
   function renderMessages() {
     if (!_elements || !_elements.messageList) return;
     var filteredMessages = _getRelevantInboxMessages()
@@ -334,7 +302,6 @@ var LehrerInbox = (function () {
     init: init,
     renderPriorities: renderPriorities,
     renderSources: renderSources,
-    renderChannelFilters: renderChannelFilters,
     renderMessages: renderMessages,
     renderDocumentMonitor: renderDocumentMonitor,
     pickInboxBriefing: pickInboxBriefing,

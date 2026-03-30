@@ -299,6 +299,7 @@ def create_teacher(
     last_name: str,
     role: str = "teacher",
     display_name: Optional[str] = None,
+    is_admin: bool = False,
 ) -> Tuple[Any, str]:
     """Erstellt eine neue Lehrkraft mit Zugangscode und initialisiert Module.
 
@@ -310,13 +311,14 @@ def create_teacher(
         last_name: Nachname.
         role: 'teacher' oder 'admin'.
         display_name: Ignoriert (nur für API-Kompatibilität; full_name wird aus first+last gebaut).
+        is_admin: Admin-Berechtigung (Phase 13). Defaults to False.
 
     Returns:
         Tuple aus (User, plain_code) — plain_code nur einmalig.
     """
     from backend.users.user_service import create_teacher as _create_teacher
     from backend.modules.module_registry import initialize_user_modules
-    user, plain_code = _create_teacher(conn, first_name, last_name, role)
+    user, plain_code = _create_teacher(conn, first_name, last_name, role, is_admin=is_admin)
     initialize_user_modules(conn, user.id)
     return user, plain_code
 
@@ -347,12 +349,13 @@ def get_user_overview(conn) -> List[Dict[str, Any]]:
             u.created_at,
             u.updated_at,
             COUNT(um.id) FILTER (WHERE um.is_configured = TRUE) AS module_count,
-            (uac.user_id IS NOT NULL) AS has_access_code
+            (uac.user_id IS NOT NULL) AS has_access_code,
+            u.is_admin
         FROM users u
         LEFT JOIN user_modules um ON um.user_id = u.id
         LEFT JOIN user_access_codes uac ON uac.user_id = u.id
         GROUP BY u.id, u.first_name, u.last_name, u.role, u.is_active,
-                 u.created_at, u.updated_at, uac.user_id
+                 u.created_at, u.updated_at, uac.user_id, u.is_admin
         ORDER BY u.last_name, u.first_name
         """
     ).fetchall()
@@ -367,7 +370,7 @@ def get_user_overview(conn) -> List[Dict[str, Any]]:
             "full_name": f"{row[1]} {row[2]}",
             "role": row[3],
             "is_active": row[4],
-            "is_admin": row[3] == "admin",
+            "is_admin": bool(row[9]),
             "created_at": row[5].isoformat(),
             "updated_at": row[6].isoformat(),
             "module_count": row[7],

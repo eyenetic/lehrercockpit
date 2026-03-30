@@ -193,7 +193,6 @@
                 <h2 id="inbox-title">Dienstmail und Updates</h2>
               </div>
               <div class="section-head-actions">
-                <div id="channel-filters" class="filter-row" hidden></div>
               </div>
             </div>
 
@@ -443,18 +442,7 @@
           </article>
         </section>
 
-        <section class="content-grid tertiary-grid" id="sources-section" hidden>
-          <article class="card" aria-labelledby="sources-title">
-            <div class="section-head">
-              <div>
-                <p class="card-kicker">Verbindungen</p>
-                <h2 id="sources-title">Quellenstatus</h2>
-              </div>
-              <span class="pill">sync</span>
-            </div>
-            <div id="source-list" class="source-list"></div>
-          </article>
-
+        <section class="content-grid tertiary-grid">
           <article class="card" aria-labelledby="monitor-title">
             <div class="section-head">
               <div>
@@ -635,25 +623,6 @@
       </main>
     </div>
 
-    <!-- Module Layout Panel Overlay (Multi-User) -->
-    <div id="layout-panel-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="layout-panel-title">
-      <div class="layout-panel">
-        <div class="layout-panel-header">
-          <h2 id="layout-panel-title" class="layout-panel-title">Heute personalisieren</h2>
-          <button id="layout-panel-close" type="button" class="layout-panel-close" aria-label="Panel schließen">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <p id="layout-panel-description" class="layout-panel-description">Ordne nur die Startseite Heute neu. Ziehe die Bereiche an die passende Stelle oder blende sie aus.</p>
-        <div id="layout-module-list" class="layout-module-list"></div>
-        <div id="layout-panel-feedback" class="layout-panel-feedback" aria-live="polite"></div>
-        <div class="layout-panel-actions">
-          <button type="button" id="layout-panel-cancel" class="layout-panel-cancel">Abbrechen</button>
-          <button type="button" id="layout-panel-save" class="layout-panel-save">Speichern</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Heute anpassen Panel (Phase 14 / Slice 1) -->
     <div id="heute-anpassen-panel" class="heute-anpassen-panel" hidden>
       <div class="heute-anpassen-panel__header">
@@ -711,19 +680,19 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=49"></script>
-    <script src="./src/api-client.js?v=49"></script>
-    <script src="./src/modules/dashboard-manager.js?v=49"></script>
-    <script src="./src/features/grades.js?v=49"></script>
-    <script src="./src/features/webuntis.js?v=49"></script>
-    <script src="./src/features/itslearning.js?v=49"></script>
-    <script src="./src/features/nextcloud.js?v=49"></script>
-    <script src="./src/features/documents.js?v=49"></script>
-    <script src="./src/features/classwork.js?v=49"></script>
-    <script src="./src/features/inbox.js?v=49"></script>
-    <script src="./src/features/zugaenge.js?v=49"></script>
-    <script src="./src/features/wichtige-termine.js?v=49"></script>
-    <script src="./src/app.js?v=49"></script>
+    <script src="./data/mock-dashboard.js?v=50"></script>
+    <script src="./src/api-client.js?v=50"></script>
+    <script src="./src/modules/dashboard-manager.js?v=50"></script>
+    <script src="./src/features/grades.js?v=50"></script>
+    <script src="./src/features/webuntis.js?v=50"></script>
+    <script src="./src/features/itslearning.js?v=50"></script>
+    <script src="./src/features/nextcloud.js?v=50"></script>
+    <script src="./src/features/documents.js?v=50"></script>
+    <script src="./src/features/classwork.js?v=50"></script>
+    <script src="./src/features/inbox.js?v=50"></script>
+    <script src="./src/features/zugaenge.js?v=50"></script>
+    <script src="./src/features/wichtige-termine.js?v=50"></script>
+    <script src="./src/app.js?v=50"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,

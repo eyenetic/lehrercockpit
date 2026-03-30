@@ -4,10 +4,11 @@
  * Extracted from src/app.js (Phase 8d).
  * Activated when window.MULTIUSER_ENABLED === true.
  *
- * Fetches GET /api/v2/dashboard, stores module layout, wires the settings
- * panel (layout management), and injects module-config banners.
+ * Fetches GET /api/v2/dashboard, stores module layout, and injects
+ * module-config banners.
  *
- * Public API: { init, openLayoutPanel }
+ * Public API: { init, isModuleVisible, isLayoutReady, getActiveModuleIds,
+ *               getModules, getTodayLayout, isMandatoryModule, saveHeuteLayout }
  *
  * Depends on:
  *   - window.LehrerAPI  (from src/api-client.js, loaded first)
@@ -334,137 +335,6 @@
       });
     }
 
-    function _wireSettingsButton() {
-      var btn = document.getElementById('settings-button');
-      if (!btn) return;
-      btn.onclick = function() { openLayoutPanel(); };
-    }
-
-    function openLayoutPanel() {
-      var overlay = document.getElementById('layout-panel-overlay');
-      if (!overlay) return;
-      _renderLayoutPanelContent();
-      overlay.hidden = false;
-
-      var closeBtn = document.getElementById('layout-panel-close');
-      var cancelBtn = document.getElementById('layout-panel-cancel');
-      var saveBtn = document.getElementById('layout-panel-save');
-
-      function closePanel() { overlay.hidden = true; }
-      if (closeBtn) closeBtn.onclick = closePanel;
-      if (cancelBtn) cancelBtn.onclick = closePanel;
-      overlay.onclick = function(e) { if (e.target === overlay) closePanel(); };
-      if (saveBtn) {
-        saveBtn.onclick = function() { _saveLayout(saveBtn); };
-      }
-    }
-
-    function _renderLayoutPanelContent() {
-      var title = document.getElementById('layout-panel-title');
-      var description = document.getElementById('layout-panel-description');
-      var list = document.getElementById('layout-module-list');
-      if (!list) return;
-      if (title) title.textContent = 'Heute personalisieren';
-      if (description) {
-        description.textContent = 'Ordne die optionalen Bereiche in der gewuenschten Reihenfolge. Tagesbriefing und Zugaenge sind immer sichtbar und koennen nicht entfernt werden.';
-      }
-      list.innerHTML = '';
-      var layout = getTodayLayout();
-      (layout.order || []).forEach(function(moduleId) {
-        var definition = TODAY_LAYOUT_DEFINITION.find(function(item) { return item.id === moduleId; });
-        if (!definition) return;
-        var m = (_modules || []).find(function(mod) { return mod.module_id === moduleId; }) || { sort_order: 0 };
-        var sortOrder = m.sort_order || 0;
-        var isMandatory = definition.mandatory === true;
-        var row = document.createElement('div');
-        row.className = 'layout-module-row' + (isMandatory ? ' layout-module-row-mandatory' : '');
-        row.draggable = !isMandatory;
-        row.dataset.todayModuleId = definition.id;
-        if (isMandatory) {
-          // Mandatory modules: locked checkbox (always checked, disabled) + "Fest" badge
-          row.innerHTML =
-            '<span class="layout-drag-handle layout-drag-handle-locked" aria-hidden="true">⋮⋮</span>' +
-            '<input type="checkbox" id="lm-enabled-' + _esc(definition.id) + '" ' +
-            'checked disabled style="cursor:not-allowed;accent-color:var(--accent);width:16px;height:16px;opacity:0.5;" />' +
-            '<label class="layout-module-meta" for="lm-enabled-' + _esc(definition.id) + '">' +
-            '<strong>' + _esc(definition.label) + '</strong>' +
-            '<span>' + _esc(definition.description) + '</span>' +
-            '</label>' +
-            '<span class="layout-module-mandatory-badge" title="Pflichtmodul — kann nicht entfernt werden">Fest</span>';
-        } else {
-          // Optional modules: normal draggable row with active checkbox + hidden sort_order input
-          row.innerHTML =
-            '<span class="layout-drag-handle" aria-hidden="true">⋮⋮</span>' +
-            '<input type="checkbox" id="lm-enabled-' + _esc(definition.id) + '" ' +
-            (layout.visibility[definition.id] !== false ? 'checked' : '') + ' style="cursor:pointer;accent-color:var(--accent);width:16px;height:16px;" />' +
-            '<input type="hidden" id="lm-order-' + _esc(definition.id) + '" value="' + (m.sort_order || 0) + '" />' +
-            '<label class="layout-module-meta" for="lm-enabled-' + _esc(definition.id) + '">' +
-            '<strong>' + _esc(definition.label) + '</strong>' +
-            '<span>' + _esc(definition.description) + '</span>' +
-            '</label>';
-        }
-        if (!isMandatory) {
-          row.addEventListener('dragstart', function() {
-            row.classList.add('is-dragging');
-          });
-          row.addEventListener('dragend', function() {
-            row.classList.remove('is-dragging');
-          });
-        }
-        list.appendChild(row);
-      });
-
-      list.ondragover = function(event) {
-        event.preventDefault();
-        var dragging = list.querySelector('.layout-module-row.is-dragging');
-        if (!dragging) return;
-        var afterElement = _getDragAfterElement(list, event.clientY);
-        if (!afterElement) {
-          list.appendChild(dragging);
-          return;
-        }
-        list.insertBefore(dragging, afterElement);
-      };
-    }
-
-    function _saveLayout(saveBtn) {
-      var feedbackEl = document.getElementById('layout-panel-feedback');
-      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Speichern…'; }
-
-      var list = document.getElementById('layout-module-list');
-      var order = Array.from(list.querySelectorAll('.layout-module-row')).map(function(row) {
-        return row.dataset.todayModuleId;
-      });
-      var visibility = {};
-      TODAY_LAYOUT_DEFINITION.forEach(function(item) {
-        var enabledEl = document.getElementById('lm-enabled-' + item.id);
-        visibility[item.id] = enabledEl ? enabledEl.checked : true;
-      });
-
-      _todayLayout = _sanitizeTodayLayout({ order: order, visibility: visibility });
-      _persistTodayLayout();
-      if (feedbackEl) feedbackEl.textContent = '✓ Heute-Seite gespeichert.';
-      _emitLayoutChanged();
-      setTimeout(function() {
-        var overlay = document.getElementById('layout-panel-overlay');
-        if (overlay) overlay.hidden = true;
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Speichern'; }
-      }, 450);
-    }
-
-    function _getDragAfterElement(container, y) {
-      var draggableElements = Array.from(container.querySelectorAll('.layout-module-row:not(.is-dragging)'));
-
-      return draggableElements.reduce(function(closest, child) {
-        var box = child.getBoundingClientRect();
-        var offset = y - box.top - (box.height / 2);
-        if (offset < 0 && offset > closest.offset) {
-          return { offset: offset, element: child };
-        }
-        return closest;
-      }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
-    }
-
     function _esc(str) {
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
@@ -516,7 +386,6 @@
 
     return {
       init: init,
-      openLayoutPanel: openLayoutPanel,
       getActiveModuleIds: getActiveModuleIds,
       getModules: getModules,
       isModuleVisible: isModuleVisible,

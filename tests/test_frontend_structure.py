@@ -550,24 +550,29 @@ def test_app_js_renderPlanDigest_checks_klassenarbeitsplan_visibility():
 
 
 def test_dashboard_manager_saveLayout_emits_layout_changed(dashboard_manager_content):
-    """dashboard-manager.js _saveLayout() emits dashboard-layout-changed after persisting.
+    """dashboard-manager.js dead panel functions have been removed (I-001 cleanup).
 
-    This is the save → re-render chain: save succeeds → update local state
-    → _emitLayoutChanged() → app.js renderAll() → sections hidden immediately.
+    _saveLayout, openLayoutPanel, _renderLayoutPanelContent, _wireSettingsButton,
+    and _getDragAfterElement were removed as part of I-001. The active layout
+    persistence is now saveHeuteLayout().
     """
-    # The function must contain both the API call and the event emit
-    assert "_saveLayout" in dashboard_manager_content, (
-        "dashboard-manager.js does not define _saveLayout(). "
-        "Expected: layout save function that persists to backend and re-emits layout-changed."
+    # Dead panel functions must be absent
+    assert "function _saveLayout" not in dashboard_manager_content, (
+        "_saveLayout() is dead code and should have been removed (I-001). "
+        "Active layout persistence is saveHeuteLayout()."
     )
-    # Find _saveLayout function body and verify it calls _emitLayoutChanged
-    start = dashboard_manager_content.find("function _saveLayout")
-    assert start != -1, "_saveLayout function not found in dashboard-manager.js"
-    # Use 2000 chars — the full _saveLayout body including the forEach+map block is ~1400 chars
-    func_region = dashboard_manager_content[start:start + 2000]
-    assert "_emitLayoutChanged" in func_region, (
-        "_saveLayout() does not call _emitLayoutChanged() after saving. "
-        "Expected: layout save triggers immediate re-render via dashboard-layout-changed event."
+    assert "function openLayoutPanel" not in dashboard_manager_content, (
+        "openLayoutPanel() is dead code and should have been removed (I-001). "
+        "The active panel is #heute-anpassen-panel."
+    )
+    # Active replacement must be present
+    assert "saveHeuteLayout" in dashboard_manager_content, (
+        "saveHeuteLayout() not found in dashboard-manager.js. "
+        "Expected: active heute layout persistence function."
+    )
+    # _emitLayoutChanged must still be present (used by _initAsync)
+    assert "_emitLayoutChanged" in dashboard_manager_content, (
+        "_emitLayoutChanged() was removed but is still needed by _initAsync(). "
     )
 
 
@@ -809,33 +814,21 @@ def test_app_js_renderAll_calls_renderStats(app_js_content):
 # appear in wrong positions or not at all.
 
 def test_dashboard_manager_renderLayoutPanelContent_uses_sort_order_not_idx(dashboard_manager_content):
-    """_renderLayoutPanelContent() must use m.sort_order, NOT idx+1, as the sort-order input value.
+    """_renderLayoutPanelContent() has been removed as dead code (I-001 cleanup).
 
-    Bug: with sparse sort_orders (e.g. 4, 5, 6, 7 when earlier modules are
-    disabled) the old code wrote `value="' + (idx + 1) + '"` which displayed
-    1, 2, 3, 4. Any save without manual correction silently overwrote the DB
-    with those wrong values and the later-only enabled modules stopped rendering
-    in the correct order.
-
-    Fix: use `m.sort_order` so the panel always reflects the actual stored value.
+    The old overlay panel (#layout-panel-overlay) and all its functions were
+    removed. The active heute layout panel is #heute-anpassen-panel managed
+    outside dashboard-manager.js.
     """
-    start = dashboard_manager_content.find("function _renderLayoutPanelContent")
-    assert start != -1, "_renderLayoutPanelContent function not found in dashboard-manager.js"
-    # The value= input attribute is deep in the innerHTML string — use 1400 chars
-    func_region = dashboard_manager_content[start:start + 1400]
-
-    # Must NOT use idx+1 as the order value
-    assert "(idx + 1)" not in func_region, (
-        "_renderLayoutPanelContent() still uses (idx + 1) as the sort-order input value. "
-        "This causes sparse sort_orders (e.g. 4,5,6,7) to be rendered as 1,2,3,4 and "
-        "silently overwritten on save. Use m.sort_order instead."
+    # Dead panel function must be absent
+    assert "function _renderLayoutPanelContent" not in dashboard_manager_content, (
+        "_renderLayoutPanelContent() is dead code and should have been removed (I-001). "
+        "Active panel: #heute-anpassen-panel."
     )
-
-    # Must use m.sort_order
-    assert "m.sort_order" in func_region, (
-        "_renderLayoutPanelContent() does not use m.sort_order as the sort-order input value. "
-        "Expected: value='\" + (m.sort_order || 0) + \"' so the panel always reflects the real "
-        "stored sort_order, preserving sparse values when earlier modules are disabled."
+    # (idx + 1) bug must also be absent
+    assert "(idx + 1)" not in dashboard_manager_content, (
+        "The (idx + 1) sort-order bug still exists in dashboard-manager.js. "
+        "Expected: removed together with _renderLayoutPanelContent."
     )
 
 
@@ -892,24 +885,18 @@ def test_index_html_initUserInfo_is_not_iife(index_html_content):
 
 
 def test_dashboard_manager_renderLayoutPanelContent_forEach_no_idx_param(dashboard_manager_content):
-    """_renderLayoutPanelContent() forEach callback does not need the unused idx parameter.
+    """_renderLayoutPanelContent() has been removed as dead code (I-001 cleanup).
 
-    After the fix the idx parameter is no longer required. Its presence is not
-    an error, but its use as an order value is. This test is a belt-and-suspenders
-    check that the fix did not re-introduce the idx-based value in a different form.
+    Belt-and-suspenders: confirms the (idx + 1) bug is gone and that the dead
+    function is absent from dashboard-manager.js.
     """
-    start = dashboard_manager_content.find("function _renderLayoutPanelContent")
-    assert start != -1, "_renderLayoutPanelContent function not found in dashboard-manager.js"
-    func_region = dashboard_manager_content[start:start + 1400]
-    # idx+1 must be absent as a value string (the critical form that caused the bug)
-    assert "(idx + 1)" not in func_region, (
-        "_renderLayoutPanelContent still constructs sort-order value with (idx + 1). "
-        "Sparse sort_orders (e.g. 4,5,6,7) would be rendered as 1,2,3,4 and overwritten on save."
+    # Dead function must be absent
+    assert "function _renderLayoutPanelContent" not in dashboard_manager_content, (
+        "_renderLayoutPanelContent() is dead code and should have been removed (I-001)."
     )
-    # The correct pattern must be present
-    assert "m.sort_order" in func_region, (
-        "m.sort_order not found in _renderLayoutPanelContent — "
-        "sparse sort_order fix may have been lost."
+    # (idx + 1) bug must also be absent from the whole file
+    assert "(idx + 1)" not in dashboard_manager_content, (
+        "The (idx + 1) sort-order bug still exists in dashboard-manager.js."
     )
 
 
@@ -1737,12 +1724,16 @@ def test_dashboard_manager_sanitize_layout_enforces_mandatory_modules(dashboard_
 
 
 def test_styles_css_layout_module_mandatory_badge(styles_css_content):
-    """styles.css defines .layout-module-mandatory-badge (Package A: mandatory lock UI).
+    """styles.css .layout-module-mandatory-badge and .layout-panel* CSS removed (I-001 cleanup).
 
-    The layout panel renders a 'Fest' badge on mandatory modules to communicate
-    to users that these modules are locked. The badge needs styling.
+    The old #layout-panel-overlay and all its CSS were dead code and have been
+    removed. The active panel is #heute-anpassen-panel.
     """
-    assert ".layout-module-mandatory-badge" in styles_css_content, (
-        "styles.css does not define .layout-module-mandatory-badge. "
-        "Expected: styling for the 'Fest' locked indicator in the layout panel."
+    assert ".layout-module-mandatory-badge" not in styles_css_content, (
+        "styles.css still defines .layout-module-mandatory-badge — "
+        "this is dead CSS for the removed #layout-panel-overlay and should be absent (I-001)."
+    )
+    assert ".layout-panel" not in styles_css_content, (
+        "styles.css still defines .layout-panel* CSS — "
+        "this is dead CSS for the removed #layout-panel-overlay and should be absent (I-001)."
     )
