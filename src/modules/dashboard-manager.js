@@ -39,7 +39,8 @@
       {
         id: 'briefing',
         label: 'Tagesbriefing',
-        description: 'Stundenplan, Orgaplan und Klassenarbeiten fuer den aktuellen Tag.'
+        description: 'Stundenplan, Orgaplan und Klassenarbeiten fuer den aktuellen Tag.',
+        mandatory: true
       },
       {
         id: 'updates',
@@ -49,7 +50,8 @@
       {
         id: 'access',
         label: 'Alle Zugaenge',
-        description: 'Kleine Sammlung der wichtigsten Arbeitslinks fuer heute.'
+        description: 'Kleine Sammlung der wichtigsten Arbeitslinks fuer heute.',
+        mandatory: true
       }
     ];
     var _todayLayout = null;
@@ -118,6 +120,13 @@
           }
         });
       }
+
+      // Mandatory modules are always visible — cannot be disabled by the user.
+      TODAY_LAYOUT_DEFINITION.forEach(function(item) {
+        if (item.mandatory) {
+          visibility[item.id] = true;
+        }
+      });
 
       return { order: order, visibility: visibility };
     }
@@ -340,31 +349,48 @@
       if (!list) return;
       if (title) title.textContent = 'Heute personalisieren';
       if (description) {
-        description.textContent = 'Ziehe die Bereiche in die richtige Reihenfolge. Diese Einstellung gilt nur fuer die Startseite Heute.';
+        description.textContent = 'Ordne die optionalen Bereiche in der gewuenschten Reihenfolge. Tagesbriefing und Zugaenge sind immer sichtbar und koennen nicht entfernt werden.';
       }
       list.innerHTML = '';
       var layout = getTodayLayout();
       (layout.order || []).forEach(function(moduleId) {
         var definition = TODAY_LAYOUT_DEFINITION.find(function(item) { return item.id === moduleId; });
         if (!definition) return;
+        var isMandatory = definition.mandatory === true;
         var row = document.createElement('div');
-        row.className = 'layout-module-row';
-        row.draggable = true;
+        row.className = 'layout-module-row' + (isMandatory ? ' layout-module-row-mandatory' : '');
+        row.draggable = !isMandatory;
         row.dataset.todayModuleId = definition.id;
-        row.innerHTML =
-          '<span class="layout-drag-handle" aria-hidden="true">⋮⋮</span>' +
-          '<input type="checkbox" id="lm-enabled-' + _esc(definition.id) + '" ' +
-          (layout.visibility[definition.id] !== false ? 'checked' : '') + ' style="cursor:pointer;accent-color:var(--accent);width:16px;height:16px;" />' +
-          '<label class="layout-module-meta" for="lm-enabled-' + _esc(definition.id) + '">' +
-          '<strong>' + _esc(definition.label) + '</strong>' +
-          '<span>' + _esc(definition.description) + '</span>' +
-          '</label>';
-        row.addEventListener('dragstart', function() {
-          row.classList.add('is-dragging');
-        });
-        row.addEventListener('dragend', function() {
-          row.classList.remove('is-dragging');
-        });
+        if (isMandatory) {
+          // Mandatory modules: locked checkbox (always checked, disabled) + "Fest" badge
+          row.innerHTML =
+            '<span class="layout-drag-handle layout-drag-handle-locked" aria-hidden="true">⋮⋮</span>' +
+            '<input type="checkbox" id="lm-enabled-' + _esc(definition.id) + '" ' +
+            'checked disabled style="cursor:not-allowed;accent-color:var(--accent);width:16px;height:16px;opacity:0.5;" />' +
+            '<label class="layout-module-meta" for="lm-enabled-' + _esc(definition.id) + '">' +
+            '<strong>' + _esc(definition.label) + '</strong>' +
+            '<span>' + _esc(definition.description) + '</span>' +
+            '</label>' +
+            '<span class="layout-module-mandatory-badge" title="Pflichtmodul — kann nicht entfernt werden">Fest</span>';
+        } else {
+          // Optional modules: normal draggable row with active checkbox
+          row.innerHTML =
+            '<span class="layout-drag-handle" aria-hidden="true">⋮⋮</span>' +
+            '<input type="checkbox" id="lm-enabled-' + _esc(definition.id) + '" ' +
+            (layout.visibility[definition.id] !== false ? 'checked' : '') + ' style="cursor:pointer;accent-color:var(--accent);width:16px;height:16px;" />' +
+            '<label class="layout-module-meta" for="lm-enabled-' + _esc(definition.id) + '">' +
+            '<strong>' + _esc(definition.label) + '</strong>' +
+            '<span>' + _esc(definition.description) + '</span>' +
+            '</label>';
+        }
+        if (!isMandatory) {
+          row.addEventListener('dragstart', function() {
+            row.classList.add('is-dragging');
+          });
+          row.addEventListener('dragend', function() {
+            row.classList.remove('is-dragging');
+          });
+        }
         list.appendChild(row);
       });
 

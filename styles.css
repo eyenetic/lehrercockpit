@@ -2885,6 +2885,33 @@ a {
   padding-top: 2px;
 }
 
+.layout-drag-handle-locked {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.layout-module-row-mandatory {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  background: var(--panel-soft);
+  border-color: var(--line);
+  opacity: 0.85;
+}
+
+.layout-module-mandatory-badge {
+  align-self: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .layout-module-meta {
   display: flex;
   flex-direction: column;

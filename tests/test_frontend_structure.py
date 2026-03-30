@@ -1651,3 +1651,98 @@ def test_styles_css_section_appear_animation(styles_css_content):
         "styles.css does not define @keyframes section-appear. "
         "Expected: keyframe definition for the section appear animation."
     )
+
+
+# ── Package A: Today view mandatory module model ──────────────────────────────
+
+
+def test_dashboard_manager_today_layout_definition_briefing_mandatory(dashboard_manager_content):
+    """dashboard-manager.js TODAY_LAYOUT_DEFINITION marks 'briefing' as mandatory.
+
+    Tagesbriefing must always be visible in the Today view — it is the core
+    orientation block and cannot be disabled by users.
+    The definition object must include mandatory: true.
+    """
+    # Find the TODAY_LAYOUT_DEFINITION array body
+    start = dashboard_manager_content.find("TODAY_LAYOUT_DEFINITION")
+    assert start != -1, "TODAY_LAYOUT_DEFINITION not found in dashboard-manager.js"
+    # The definition covers briefing, updates, access — ~300 chars is enough
+    region = dashboard_manager_content[start:start + 600]
+    assert "briefing" in region, "briefing entry missing from TODAY_LAYOUT_DEFINITION"
+    # Find the briefing sub-object and check mandatory within it
+    briefing_start = region.find("'briefing'")
+    if briefing_start == -1:
+        briefing_start = region.find('"briefing"')
+    assert briefing_start != -1, "briefing id not found in TODAY_LAYOUT_DEFINITION"
+    # The mandatory flag must appear after the briefing id within ~150 chars (covers the object)
+    briefing_region = region[briefing_start:briefing_start + 200]
+    assert "mandatory" in briefing_region, (
+        "TODAY_LAYOUT_DEFINITION briefing entry does not have 'mandatory' property. "
+        "Expected: mandatory: true on briefing so it cannot be disabled by users."
+    )
+    assert "true" in briefing_region, (
+        "TODAY_LAYOUT_DEFINITION briefing mandatory property is not set to true."
+    )
+
+
+def test_dashboard_manager_today_layout_definition_access_mandatory(dashboard_manager_content):
+    """dashboard-manager.js TODAY_LAYOUT_DEFINITION marks 'access' (Zugaenge) as mandatory.
+
+    Zugaenge must always be visible in the Today view — it is the launcher
+    hub and must always be available above the fold.
+    The definition object must include mandatory: true.
+    """
+    start = dashboard_manager_content.find("TODAY_LAYOUT_DEFINITION")
+    assert start != -1, "TODAY_LAYOUT_DEFINITION not found in dashboard-manager.js"
+    region = dashboard_manager_content[start:start + 600]
+    assert "access" in region, "access entry missing from TODAY_LAYOUT_DEFINITION"
+    # Find the access sub-object and check mandatory within it
+    access_start = region.find("'access'")
+    if access_start == -1:
+        access_start = region.find('"access"')
+    assert access_start != -1, "access id not found in TODAY_LAYOUT_DEFINITION"
+    access_region = region[access_start:access_start + 200]
+    assert "mandatory" in access_region, (
+        "TODAY_LAYOUT_DEFINITION access entry does not have 'mandatory' property. "
+        "Expected: mandatory: true on access (Zugaenge) so it cannot be disabled by users."
+    )
+    assert "true" in access_region, (
+        "TODAY_LAYOUT_DEFINITION access mandatory property is not set to true."
+    )
+
+
+def test_dashboard_manager_sanitize_layout_enforces_mandatory_modules(dashboard_manager_content):
+    """dashboard-manager.js _sanitizeTodayLayout enforces mandatory modules always visible.
+
+    After sanitization, modules with mandatory: true in TODAY_LAYOUT_DEFINITION
+    must have visibility[id] = true regardless of what was passed in.
+    The enforcement loop must appear in _sanitizeTodayLayout after the user
+    visibility overrides, so it cannot be bypassed by a saved layout state.
+    """
+    start = dashboard_manager_content.find("function _sanitizeTodayLayout")
+    assert start != -1, "_sanitizeTodayLayout not found in dashboard-manager.js"
+    # Use 1200 chars — full function including mandatory enforcement loop
+    func_region = dashboard_manager_content[start:start + 1200]
+    assert "mandatory" in func_region, (
+        "_sanitizeTodayLayout() does not reference 'mandatory'. "
+        "Expected: mandatory modules are always forced to visible=true inside _sanitizeTodayLayout."
+    )
+    # The enforcement must appear AFTER the user-override loop (i.e. after the visibility block)
+    visibility_override_pos = func_region.find("layout.visibility")
+    mandatory_enforcement_pos = func_region.find("mandatory", visibility_override_pos)
+    assert mandatory_enforcement_pos != -1, (
+        "mandatory enforcement in _sanitizeTodayLayout appears BEFORE the user visibility "
+        "override loop — it must come after so it cannot be bypassed by saved state."
+    )
+
+
+def test_styles_css_layout_module_mandatory_badge(styles_css_content):
+    """styles.css defines .layout-module-mandatory-badge (Package A: mandatory lock UI).
+
+    The layout panel renders a 'Fest' badge on mandatory modules to communicate
+    to users that these modules are locked. The badge needs styling.
+    """
+    assert ".layout-module-mandatory-badge" in styles_css_content, (
+        "styles.css does not define .layout-module-mandatory-badge. "
+        "Expected: styling for the 'Fest' locked indicator in the layout panel."
+    )
