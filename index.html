@@ -703,23 +703,27 @@
       }
     }
   } catch(e) {
-    // Verbindungsfehler → zeige Cockpit (graceful degradation)
+    // Verbindungsfehler im Multi-User-Modus → immer zum Login
+    // (Backend kalt oder nicht erreichbar — kein unauthentifizierter Zugriff erlaubt)
+    if (window.MULTIUSER_ENABLED) {
+      window.location.href = './login.html';
+    }
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=48"></script>
-    <script src="./src/api-client.js?v=48"></script>
-    <script src="./src/modules/dashboard-manager.js?v=48"></script>
-    <script src="./src/features/grades.js?v=48"></script>
-    <script src="./src/features/webuntis.js?v=48"></script>
-    <script src="./src/features/itslearning.js?v=48"></script>
-    <script src="./src/features/nextcloud.js?v=48"></script>
-    <script src="./src/features/documents.js?v=48"></script>
-    <script src="./src/features/classwork.js?v=48"></script>
-    <script src="./src/features/inbox.js?v=48"></script>
-    <script src="./src/features/zugaenge.js?v=48"></script>
-    <script src="./src/features/wichtige-termine.js?v=48"></script>
-    <script src="./src/app.js?v=48"></script>
+    <script src="./data/mock-dashboard.js?v=49"></script>
+    <script src="./src/api-client.js?v=49"></script>
+    <script src="./src/modules/dashboard-manager.js?v=49"></script>
+    <script src="./src/features/grades.js?v=49"></script>
+    <script src="./src/features/webuntis.js?v=49"></script>
+    <script src="./src/features/itslearning.js?v=49"></script>
+    <script src="./src/features/nextcloud.js?v=49"></script>
+    <script src="./src/features/documents.js?v=49"></script>
+    <script src="./src/features/classwork.js?v=49"></script>
+    <script src="./src/features/inbox.js?v=49"></script>
+    <script src="./src/features/zugaenge.js?v=49"></script>
+    <script src="./src/features/wichtige-termine.js?v=49"></script>
+    <script src="./src/app.js?v=49"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
