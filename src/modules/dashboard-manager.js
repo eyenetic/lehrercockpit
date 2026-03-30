@@ -380,6 +380,8 @@
       (layout.order || []).forEach(function(moduleId) {
         var definition = TODAY_LAYOUT_DEFINITION.find(function(item) { return item.id === moduleId; });
         if (!definition) return;
+        var m = (_modules || []).find(function(mod) { return mod.module_id === moduleId; }) || { sort_order: 0 };
+        var sortOrder = m.sort_order || 0;
         var isMandatory = definition.mandatory === true;
         var row = document.createElement('div');
         row.className = 'layout-module-row' + (isMandatory ? ' layout-module-row-mandatory' : '');
@@ -397,11 +399,12 @@
             '</label>' +
             '<span class="layout-module-mandatory-badge" title="Pflichtmodul — kann nicht entfernt werden">Fest</span>';
         } else {
-          // Optional modules: normal draggable row with active checkbox
+          // Optional modules: normal draggable row with active checkbox + hidden sort_order input
           row.innerHTML =
             '<span class="layout-drag-handle" aria-hidden="true">⋮⋮</span>' +
             '<input type="checkbox" id="lm-enabled-' + _esc(definition.id) + '" ' +
             (layout.visibility[definition.id] !== false ? 'checked' : '') + ' style="cursor:pointer;accent-color:var(--accent);width:16px;height:16px;" />' +
+            '<input type="hidden" id="lm-order-' + _esc(definition.id) + '" value="' + (m.sort_order || 0) + '" />' +
             '<label class="layout-module-meta" for="lm-enabled-' + _esc(definition.id) + '">' +
             '<strong>' + _esc(definition.label) + '</strong>' +
             '<span>' + _esc(definition.description) + '</span>' +

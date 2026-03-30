@@ -708,7 +708,8 @@
     });
 
     elements.viewDividers.forEach((divider) => {
-      divider.hidden = true;
+      const targetSection = divider.dataset.dividerFor;
+      divider.hidden = !targetSection || !isSectionEnabled(targetSection);
     });
   }
 
@@ -752,6 +753,9 @@
 
   function renderStats() {
     if (!elements.statsGrid) return;
+    const layoutReady = isLayoutReady();
+    const showWebuntis = layoutReady && isModuleVisible("webuntis");
+    const showInbox = layoutReady && isAnyModuleVisible(["itslearning", "mail"]);
     elements.statsGrid.hidden = true;
     elements.statsGrid.innerHTML = "";
   }
