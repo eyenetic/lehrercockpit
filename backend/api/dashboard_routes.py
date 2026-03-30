@@ -69,10 +69,75 @@ def get_dashboard():
         return error(f"Fehler beim Laden des Dashboards: {type(exc).__name__}: {exc}", 500)
 
 
+_MANDATORY_MODULE_IDS = ['tagesbriefing', 'zugaenge']
+_MANDATORY_MODULE_DEFAULTS = {
+    'tagesbriefing': {
+        'module_id': 'tagesbriefing',
+        'display_name': 'Tagesbriefing',
+        'module_type': 'central',
+        'is_visible': True,
+        'sort_order': 1,
+        'is_configured': False,
+        'requires_config': False,
+    },
+    'zugaenge': {
+        'module_id': 'zugaenge',
+        'display_name': 'Zugänge',
+        'module_type': 'central',
+        'is_visible': True,
+        'sort_order': 2,
+        'is_configured': False,
+        'requires_config': False,
+    },
+}
+
+
+def _inject_mandatory_modules(result: list) -> list:
+    """Ensure tagesbriefing and zugaenge are always present and first/second."""
+    result_map = {m['module_id']: m for m in result}
+    mandatory_entries = []
+    for mid in _MANDATORY_MODULE_IDS:
+        if mid in result_map:
+            entry = dict(result_map[mid])
+            entry['is_visible'] = True  # mandatory modules always visible
+            mandatory_entries.append(entry)
+        else:
+            mandatory_entries.append(dict(_MANDATORY_MODULE_DEFAULTS[mid]))
+    # optional: all non-mandatory modules in their original order
+    optional_entries = [m for m in result if m['module_id'] not in _MANDATORY_MODULE_IDS]
+    return mandatory_entries + optional_entries
+
+
+def _update_heute_layout(conn, user_id: int, module_updates: list) -> None:
+    """Upsert user_modules rows for heute-layout updates.
+
+    Args:
+        conn: psycopg3 DB-Verbindung.
+        user_id: ID des Users.
+        module_updates: List of {'id': str, 'is_visible': bool, 'sort_order': int}
+    """
+    from backend.modules.module_registry import update_user_module as _update_module
+    for item in module_updates:
+        module_id = item.get('id') or item.get('module_id')
+        if not module_id or module_id in _MANDATORY_MODULE_IDS:
+            continue
+        is_visible = item.get('is_visible')
+        sort_order = item.get('sort_order')
+        kwargs = {}
+        if is_visible is not None:
+            kwargs['is_visible'] = bool(is_visible)
+        if sort_order is not None:
+            kwargs['sort_order'] = int(sort_order)
+        if kwargs:
+            _update_module(conn, user_id, module_id, **kwargs)
+
+
 @dashboard_bp.route("/layout", methods=["GET"])
 @require_auth
 def get_layout():
     """User's Dashboard-Layout abrufen.
+
+    Mandatory modules (tagesbriefing, zugaenge) are always first and always visible.
 
     Response: {"ok": true, "modules": [...]}
     """
@@ -96,7 +161,7 @@ def get_layout():
                         "requires_config": module.requires_config,
                     })
 
-        return success({"modules": result})
+        return success({"modules": _inject_mandatory_modules(result)})
     except Exception as exc:
         return error(f"Fehler beim Laden des Layouts: {type(exc).__name__}: {exc}", 500)
 
@@ -151,6 +216,37 @@ def update_layout():
         return success()
     except Exception as exc:
         return error(f"Fehler beim Aktualisieren der Reihenfolge: {type(exc).__name__}: {exc}", 500)
+
+
+@dashboard_bp.route("/heute-layout", methods=["PUT"])
+@require_auth
+def update_heute_layout():
+    """Sichtbarkeit und Reihenfolge der optionalen Heute-Module persistieren.
+
+    Mandatory modules (tagesbriefing, zugaenge) werden im Body silently ignoriert.
+
+    Body: {"modules": [{"id": "itslearning", "is_visible": true, "sort_order": 10}, ...]}
+    Response: {"ok": true}
+    """
+    body = request.get_json(silent=True) or {}
+    modules = body.get("modules", [])
+
+    if not isinstance(modules, list):
+        return error("modules muss eine Liste sein", 422)
+
+    # Filter out mandatory modules silently
+    optional_updates = [
+        m for m in modules
+        if isinstance(m, dict) and m.get('id') not in _MANDATORY_MODULE_IDS
+        and m.get('module_id') not in _MANDATORY_MODULE_IDS
+    ]
+
+    try:
+        with db_connection() as conn:
+            _update_heute_layout(conn, g.current_user.id, optional_updates)
+        return success()
+    except Exception as exc:
+        return error(f"Fehler beim Speichern des Heute-Layouts: {type(exc).__name__}: {exc}", 500)
 
 
 @dashboard_bp.route("/layout/<module_id>/visibility", methods=["PUT"])
@@ -269,6 +365,8 @@ def complete_onboarding():
 
 _MODULE_FETCH_TIMEOUT = 5  # seconds per module fetch
 
+from backend.wichtige_termine_adapter import fetch_wichtige_termine, WichtigeTermineResult
+
 
 def _build_base_quick_links(
     schoolportal_url: str = "",
@@ -316,12 +414,21 @@ def _fetch_base_data() -> dict:
 
     Response shape:
         {"ok": True, "data": {"quick_links": [...], "workspace": {...},
-                               "berlin_focus": [...], "documents": None}}
+                               "berlin_focus": [...], "documents": None,
+                               "schoolportal_url": str, "itslearning_base_url": str,
+                               "orgaplan_pdf_url": str, "fehlzeiten_11_url": str,
+                               "fehlzeiten_12_url": str, "klassenarbeitsplan_url": str,
+                               "webuntis_url": str}}
     """
     schoolportal_url = ""
     orgaplan_pdf_url = ""
     itslearning_base_url = ""
     school_name = ""
+    fehlzeiten_11_url = ""
+    fehlzeiten_12_url = ""
+    klassenarbeitsplan_url = ""
+    webuntis_url = ""
+    app_title = ""
 
     # 1. Read system_settings from DB
     def _safe_str(val: object) -> str:
@@ -334,6 +441,11 @@ def _fetch_base_data() -> dict:
             orgaplan_pdf_url = _safe_str(get_system_setting(conn, "orgaplan_pdf_url", ""))
             itslearning_base_url = _safe_str(get_system_setting(conn, "itslearning_base_url", ""))
             school_name = _safe_str(get_system_setting(conn, "school_name", ""))
+            fehlzeiten_11_url = _safe_str(get_system_setting(conn, "fehlzeiten_11_url", ""))
+            fehlzeiten_12_url = _safe_str(get_system_setting(conn, "fehlzeiten_12_url", ""))
+            klassenarbeitsplan_url = _safe_str(get_system_setting(conn, "klassenarbeitsplan_url", ""))
+            webuntis_url = _safe_str(get_system_setting(conn, "webuntis_url", ""))
+            app_title = _safe_str(get_system_setting(conn, "app_title", ""))
     except Exception:
         pass  # Fall back to local settings below
 
@@ -375,6 +487,7 @@ def _fetch_base_data() -> dict:
                 "Ein persoenliches Dashboard fuer Berliner Schulportal-Dienste, WebUntis, "
                 "itslearning und eure wichtigsten Schul-Dokumente."
             ),
+            "app_title": app_title or "Lehrercockpit",
         }
     except Exception:
         workspace = {"eyebrow": "Berlin Lehrer-Cockpit", "title": "Dein Tagesstart", "description": ""}
@@ -409,8 +522,38 @@ def _fetch_base_data() -> dict:
             "workspace": workspace,
             "berlin_focus": berlin_focus,
             "documents": None,  # Deferred: requires document_monitor pipeline
+            # URL fields for Zugaenge module card (Slice 2)
+            "schoolportal_url": schoolportal_url,
+            "itslearning_base_url": itslearning_base_url,
+            "orgaplan_pdf_url": orgaplan_pdf_url,
+            "fehlzeiten_11_url": fehlzeiten_11_url,
+            "fehlzeiten_12_url": fehlzeiten_12_url,
+            "klassenarbeitsplan_url": klassenarbeitsplan_url,
+            "webuntis_url": webuntis_url,
+            # Slice 4: configurable app title
+            "app_title": app_title or "Lehrercockpit",
         },
     }
+
+
+def _fetch_wichtige_termine_data(user_id: int) -> dict:
+    """Fetch school calendar events from iCal feed (system-wide, not per-user).
+
+    Reads wichtige_termine_ical_url from system_settings; falls back to the
+    default HES URL. Returns the parsed result as a dict.
+    """
+    from datetime import datetime
+    try:
+        with db_connection() as conn:
+            ical_url = get_system_setting(conn, 'wichtige_termine_ical_url', None)
+        if not ical_url or not isinstance(ical_url, str) or not ical_url.strip():
+            ical_url = 'https://hermann-ehlers-schule.de/events/liste/?ical=1'
+
+        result = fetch_wichtige_termine(ical_url, datetime.now())
+        import dataclasses
+        return {'ok': result.ok, 'data': dataclasses.asdict(result)}
+    except Exception as e:
+        return {'ok': False, 'data': {'mode': 'error', 'error': str(e), 'today_events': [], 'upcoming_events': []}}
 
 
 def _fetch_webuntis_data(user_id: int) -> dict:
@@ -632,6 +775,8 @@ def get_dashboard_data():
         module_fetchers["klassenarbeitsplan"] = _fetch_klassenarbeitsplan_data
     if "noten" in active_module_ids:
         module_fetchers["noten"] = lambda: _fetch_noten_data(user_id)
+    if "wichtige-termine" in active_module_ids:
+        module_fetchers["wichtige-termine"] = lambda: _fetch_wichtige_termine_data(user_id)
 
     modules_result = {}
     base_result: dict = {}
@@ -675,6 +820,16 @@ def get_dashboard_data():
         "workspace": base_data.get("workspace", {}),
         "berlin_focus": base_data.get("berlin_focus", []),
         "documents": base_data.get("documents", None),  # None = deferred
+        # URL fields for Zugaenge module card
+        "schoolportal_url": base_data.get("schoolportal_url", ""),
+        "itslearning_base_url": base_data.get("itslearning_base_url", ""),
+        "orgaplan_pdf_url": base_data.get("orgaplan_pdf_url", ""),
+        "fehlzeiten_11_url": base_data.get("fehlzeiten_11_url", ""),
+        "fehlzeiten_12_url": base_data.get("fehlzeiten_12_url", ""),
+        "klassenarbeitsplan_url": base_data.get("klassenarbeitsplan_url", ""),
+        "webuntis_url": base_data.get("webuntis_url", ""),
+        # Slice 4: configurable app title
+        "app_title": base_data.get("app_title", "Lehrercockpit"),
     }
 
     return success({

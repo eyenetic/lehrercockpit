@@ -513,6 +513,14 @@
             <h2 class="admin-section-title" style="margin-bottom:1rem;">System-Einstellungen</h2>
             <div id="settings-feedback"></div>
             <form class="admin-form" id="settings-form">
+              <!-- Slice 4 Part A: App title (at the top) -->
+              <div class="form-row single">
+                <div class="form-field">
+                  <label for="s-app-title">Anwendungstitel</label>
+                  <input type="text" id="s-app-title" placeholder="Lehrercockpit" maxlength="60" autocomplete="off" />
+                  <p class="field-hint">Wird in der Navigationsleiste und im Browser-Tab angezeigt. Leer lassen für den Standard "Lehrercockpit".</p>
+                </div>
+              </div>
               <div class="form-row">
                 <div class="form-field">
                   <label for="s-schulname">Schulname</label>
@@ -531,6 +539,33 @@
                 <div class="form-field">
                   <label for="s-classwork-url">Klassenarbeitsplan URL</label>
                   <input type="url" id="s-classwork-url" placeholder="https://…" />
+                </div>
+              </div>
+              <!-- Slice 4 Part B: New URL settings added in Slice 2 -->
+              <div class="form-row single">
+                <div class="form-field">
+                  <label for="s-webuntis-url">WebUntis URL</label>
+                  <input type="url" id="s-webuntis-url" placeholder="https://nettetal.webuntis.com" />
+                  <p class="field-hint">Direkte URL zur WebUntis-Instanz (z. B. https://nettetal.webuntis.com)</p>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="s-fehlzeiten-11">Fehlzeiten 11. Klasse URL</label>
+                  <input type="url" id="s-fehlzeiten-11" placeholder="https://…" />
+                  <p class="field-hint">Link zur Fehlzeitentabelle der 11. Klasse</p>
+                </div>
+                <div class="form-field">
+                  <label for="s-fehlzeiten-12">Fehlzeiten 12. Klasse URL</label>
+                  <input type="url" id="s-fehlzeiten-12" placeholder="https://…" />
+                  <p class="field-hint">Link zur Fehlzeitentabelle der 12. Klasse</p>
+                </div>
+              </div>
+              <div class="form-row single">
+                <div class="form-field">
+                  <label for="s-wichtige-termine-ical">Wichtige Termine iCal URL</label>
+                  <input type="url" id="s-wichtige-termine-ical" placeholder="https://…/?ical=1" />
+                  <p class="field-hint">iCal-Feed-URL für den Schulkalender. Standard: HES-URL</p>
                 </div>
               </div>
               <div style="display:flex;justify-content:flex-end;">
@@ -1153,10 +1188,17 @@
             if (!resp.ok) return;
             const data = await resp.json();
             const s = data.settings || data || {};
+            // Slice 4 Part A5: load app_title
+            if (s.app_title !== undefined && s.app_title !== null) document.getElementById('s-app-title').value = s.app_title;
             if (s.schulname) document.getElementById('s-schulname').value = s.schulname;
             if (s.orgaplan_url) document.getElementById('s-orgaplan-url').value = s.orgaplan_url;
             if (s.orgaplan_pdf_url) document.getElementById('s-orgaplan-pdf').value = s.orgaplan_pdf_url;
             if (s.classwork_url) document.getElementById('s-classwork-url').value = s.classwork_url;
+            // Slice 4 Part B: load new URL settings
+            if (s.webuntis_url) document.getElementById('s-webuntis-url').value = s.webuntis_url;
+            if (s.fehlzeiten_11_url) document.getElementById('s-fehlzeiten-11').value = s.fehlzeiten_11_url;
+            if (s.fehlzeiten_12_url) document.getElementById('s-fehlzeiten-12').value = s.fehlzeiten_12_url;
+            if (s.wichtige_termine_ical_url) document.getElementById('s-wichtige-termine-ical').value = s.wichtige_termine_ical_url;
           } catch (e) { /* ignore */ }
         }
 
@@ -1168,10 +1210,17 @@
           btn.textContent = 'Speichern…';
 
           const payload = {
+            // Slice 4 Part A: app title
+            app_title: document.getElementById('s-app-title').value.trim(),
             schulname: document.getElementById('s-schulname').value.trim(),
             orgaplan_url: document.getElementById('s-orgaplan-url').value.trim(),
             orgaplan_pdf_url: document.getElementById('s-orgaplan-pdf').value.trim(),
             classwork_url: document.getElementById('s-classwork-url').value.trim(),
+            // Slice 4 Part B: new URL settings
+            webuntis_url: document.getElementById('s-webuntis-url').value.trim(),
+            fehlzeiten_11_url: document.getElementById('s-fehlzeiten-11').value.trim(),
+            fehlzeiten_12_url: document.getElementById('s-fehlzeiten-12').value.trim(),
+            wichtige_termine_ical_url: document.getElementById('s-wichtige-termine-ical').value.trim(),
           };
 
           try {

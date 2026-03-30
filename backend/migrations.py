@@ -245,11 +245,33 @@ def run_migrations(conn) -> None:
     print("[migrations] Alle Migrationen erfolgreich ausgeführt.", flush=True)
 
 
+def _migrate_seed_today_modules(conn) -> None:
+    """Seed-Migration Phase 14: Neue zentrale Heute-Module und app_title-Setting.
+
+    Idempotent via ON CONFLICT DO NOTHING.
+    """
+    conn.execute("""
+        INSERT INTO modules (id, display_name, description, module_type, is_enabled, default_visible, default_order, requires_config)
+        VALUES
+          ('tagesbriefing', 'Tagesbriefing', 'Tageszusammenfassung und aktuelle Hinweise', 'central', TRUE, TRUE, 1, FALSE),
+          ('zugaenge', 'Zugänge', 'Schnellzugriff auf externe Systeme', 'central', TRUE, TRUE, 2, FALSE),
+          ('wichtige-termine', 'Wichtige Termine', 'Schulkalender-Termine aus dem Schulportal', 'central', TRUE, FALSE, 90, FALSE)
+        ON CONFLICT (id) DO NOTHING
+    """)
+    conn.execute("""
+        INSERT INTO system_settings (key, value)
+        VALUES ('app_title', '"Lehrercockpit"')
+        ON CONFLICT (key) DO NOTHING
+    """)
+    print("[migrations] Phase 14: Heute-Module und app_title geseedet.", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
     with db_connection() as conn:
         run_migrations(conn)
+        _migrate_seed_today_modules(conn)
 
 
 def log_audit_event(

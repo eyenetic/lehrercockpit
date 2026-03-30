@@ -525,6 +525,9 @@
 
     // ── base section → workspace, quickLinks, berlinFocus ──────────────────
     if (v2.base) {
+      // Preserve raw base so URL fields (schoolportal_url, fehlzeiten_11_url, etc.)
+      // are accessible at state.data.base for the Zugaenge module card (Slice 2)
+      data.base = v2.base;
       if (v2.base.workspace && typeof v2.base.workspace === 'object') {
         data.workspace = v2.base.workspace;
       }
@@ -569,6 +572,11 @@
           if (Array.isArray(notenData.notes)) data.notes = notenData.notes;
         } catch (_e) {}
       }
+    }
+
+    // ── Store raw modules dict for direct access (e.g. wichtige-termine) ────
+    if (v2.modules && typeof v2.modules === 'object') {
+      data.modules = v2.modules;
     }
 
     // ── user / meta ─────────────────────────────────────────────────────────
@@ -1711,6 +1719,34 @@
 
   // ── SECTION: Render orchestration ────────────────────────────────────────────
 
+  // ── SECTION: Zugaenge + Wichtige Termine (Slice 2) ──────────────────────────
+
+  function renderHeuteZugaenge() {
+    if (!window.LehrerZugaenge) return;
+    var base = (state.data && state.data.base) ? state.data.base : {};
+    window.LehrerZugaenge.init(base);
+    if (isModuleVisible('zugaenge')) {
+      window.LehrerZugaenge.render('heute-zugaenge-container');
+    } else {
+      var el = document.getElementById('heute-zugaenge-container');
+      if (el) el.innerHTML = '';
+    }
+  }
+
+  function renderHeuteWichtigeTermine() {
+    if (!window.LehrerWichtigeTermine) return;
+    var moduleData = null;
+    if (state.data && state.data.modules && state.data.modules['wichtige-termine']) {
+      moduleData = state.data.modules['wichtige-termine'];
+    }
+    if (isModuleVisible('wichtige-termine')) {
+      window.LehrerWichtigeTermine.render('heute-wichtige-termine-container', moduleData);
+    } else {
+      var el = document.getElementById('heute-wichtige-termine-container');
+      if (el) el.innerHTML = '';
+    }
+  }
+
   function renderAll() {
     renderWorkspace();
     renderMeta();
@@ -1721,10 +1757,19 @@
     renderBriefing();
     renderTodayUpdates();
     renderQuickLinks();
+    renderHeuteZugaenge();
+    renderHeuteWichtigeTermine();
     renderItslearningConnector();
     renderNextcloudConnector();
     renderChannelFilters();
     renderMessages();
+    // Slice 3: wire inbox tabs and update unread badges
+    if (window.LehrerInbox && typeof window.LehrerInbox.initInboxTabs === 'function') {
+      window.LehrerInbox.initInboxTabs();
+    }
+    if (window.LehrerInbox && typeof window.LehrerInbox.renderBadges === 'function') {
+      window.LehrerInbox.renderBadges();
+    }
     renderWebUntisControls();
     renderWebUntisSchedule();
     renderPlanDigest();
@@ -1735,15 +1780,47 @@
     renderDocumentMonitor();
   }
 
+  // ── Slice 4: App title display ────────────────────────────────────────────
+
+  function applyAppTitle() {
+    var appTitle = (state.data && state.data.base && state.data.base.app_title)
+      ? state.data.base.app_title
+      : 'Lehrercockpit';
+    if (!appTitle) appTitle = 'Lehrercockpit';
+    document.title = appTitle;
+    var titleEl = document.getElementById('app-title-display');
+    if (titleEl) titleEl.textContent = appTitle;
+  }
+
+  // ── Slice 4: WebUntis external link ───────────────────────────────────────
+
+  function updateWebUntisExternalLink() {
+    var webuntisUrl = (state.data && state.data.base && state.data.base.webuntis_url)
+      ? state.data.base.webuntis_url
+      : '';
+    var btn = document.getElementById('webuntis-open-btn');
+    if (!btn) return;
+    if (webuntisUrl) {
+      btn.href = webuntisUrl;
+      btn.removeAttribute('hidden');
+    } else {
+      btn.setAttribute('hidden', '');
+    }
+  }
+
   async function refreshDashboard(forceRefresh = false) {
     elements.heroNote.textContent = "Lade aktuelle Datenquellen und aktualisiere Cockpit, WebUntis und Inbox.";
     try {
       state.data = await loadDashboard(forceRefresh);
       renderAll();
+      applyAppTitle();
+      updateWebUntisExternalLink();
     } catch (error) {
       if (window.LEHRER_COCKPIT_FALLBACK_DATA) {
         state.data = normalizeDashboard(window.LEHRER_COCKPIT_FALLBACK_DATA);
         renderAll();
+        applyAppTitle();
+        updateWebUntisExternalLink();
         return;
       }
 
@@ -1953,6 +2030,99 @@
     }
   }
 
+  // ── SECTION: Heute anpassen ───────────────────────────────────────────────────
+
+  var _heuteAnpassenWired = false;
+
+  function initHeuteAnpassen() {
+    if (!DashboardManager || !window.MULTIUSER_ENABLED) return;
+
+    var panel = document.getElementById('heute-anpassen-panel');
+    var modulesContainer = document.getElementById('heute-anpassen-modules');
+    var openBtn = document.getElementById('heute-anpassen-btn');
+    var closeBtn = document.getElementById('heute-anpassen-close');
+    var saveBtn = document.getElementById('heute-anpassen-save');
+    if (!panel || !modulesContainer) return;
+
+    // Render optional module checkboxes
+    var allModules = typeof DashboardManager.getModules === 'function' ? DashboardManager.getModules() : [];
+    var optionalModules = allModules.filter(function(m) {
+      return !DashboardManager.isMandatoryModule(m.module_id);
+    });
+
+    if (!optionalModules.length) {
+      modulesContainer.innerHTML = '<p style="font-size:0.82rem;color:var(--muted);">Keine optionalen Module verfügbar.</p>';
+    } else {
+      modulesContainer.innerHTML = optionalModules.map(function(m) {
+        var checked = m.is_visible !== false ? ' checked' : '';
+        var label = m.display_name || m.module_id;
+        return '<label class="heute-modul-item">' +
+          '<input type="checkbox" name="modul-' + m.module_id + '" data-modul-id="' + m.module_id + '" data-modul-order="' + (m.sort_order || 100) + '"' + checked + '>' +
+          '<span>' + label + '</span>' +
+          '</label>';
+      }).join('');
+    }
+
+    // Wire buttons only once
+    if (!_heuteAnpassenWired) {
+      _heuteAnpassenWired = true;
+
+      if (openBtn) {
+        openBtn.addEventListener('click', function() {
+          panel.hidden = false;
+        });
+      }
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+          panel.hidden = true;
+        });
+      }
+
+      if (saveBtn) {
+        saveBtn.addEventListener('click', async function() {
+          var errorEl = panel.querySelector('.heute-anpassen-panel__error');
+          if (!errorEl) {
+            errorEl = document.createElement('p');
+            errorEl.className = 'heute-anpassen-panel__error';
+            var footer = panel.querySelector('.heute-anpassen-panel__footer');
+            if (footer) footer.appendChild(errorEl);
+          }
+          errorEl.textContent = '';
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Speichern\u2026';
+
+          var checkboxes = modulesContainer.querySelectorAll('input[type="checkbox"][data-modul-id]');
+          var updates = Array.from(checkboxes).map(function(cb) {
+            return {
+              id: cb.dataset.modulId,
+              is_visible: cb.checked,
+              sort_order: parseInt(cb.dataset.modulOrder || '100', 10)
+            };
+          });
+
+          try {
+            var ok = await DashboardManager.saveHeuteLayout(updates);
+            if (ok) {
+              panel.hidden = true;
+              window.dispatchEvent(new CustomEvent('dashboard-layout-changed', {
+                detail: { source: 'heute-anpassen' }
+              }));
+              if (typeof renderAll === 'function') renderAll();
+            } else {
+              errorEl.textContent = 'Fehler beim Speichern. Bitte erneut versuchen.';
+            }
+          } catch (_e) {
+            errorEl.textContent = 'Verbindungsfehler. Bitte erneut versuchen.';
+          } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Speichern';
+          }
+        });
+      }
+    }
+  }
+
   // ── SECTION: Bootstrap / initialize ──────────────────────────────────────────
 
   // ── Today-date / badge initialisation ──────────────────────────────────────
@@ -1984,6 +2154,7 @@
       } else {
         renderSectionFocus();
       }
+      initHeuteAnpassen();
     });
     // Init DashboardManager for multi-user module layout
     DashboardManager.init();

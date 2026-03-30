@@ -17,6 +17,12 @@
 (function() {
   'use strict';
 
+  var MANDATORY_MODULE_IDS = ['tagesbriefing', 'zugaenge'];
+
+  function isMandatoryModule(moduleId) {
+    return MANDATORY_MODULE_IDS.includes(moduleId);
+  }
+
   var DashboardManager = (function() {
     var _modules = [];   // [{module_id, display_name, is_visible, sort_order, is_configured, requires_config, module_type}]
     var _systemSettings = {};
@@ -159,15 +165,33 @@
       _initAsync().catch(function() {});
     }
 
+    function _ensureMandatoryModulesFirst(moduleList) {
+      // Ensure tagesbriefing is always position 1, zugaenge always position 2
+      var result = (moduleList || []).slice();
+      var mandatoryDefaults = [
+        { module_id: 'tagesbriefing', display_name: 'Tagesbriefing', is_visible: true, sort_order: 1, is_configured: false, requires_config: false, module_type: 'central' },
+        { module_id: 'zugaenge',      display_name: 'Zugänge',        is_visible: true, sort_order: 2, is_configured: false, requires_config: false, module_type: 'central' },
+      ];
+      // Remove any existing mandatory entries (they will be prepended in order)
+      result = result.filter(function(m) { return !isMandatoryModule(m.module_id); });
+      // Prepend mandatory modules (inject defaults if absent, use existing entry if present)
+      var prepend = mandatoryDefaults.map(function(def) {
+        var existing = (moduleList || []).find(function(m) { return m.module_id === def.module_id; });
+        return existing ? Object.assign({}, existing, { is_visible: true }) : def;
+      });
+      return prepend.concat(result);
+    }
+
     function _initAsync() {
       return (window.LehrerAPI ? window.LehrerAPI.getDashboardV2() : _apiFetch('/api/v2/dashboard'))
         .then(function(resp) {
           if (!resp.ok) return;
           return resp.json().then(function(data) {
             if (!data.ok) return;
-            _modules = (data.modules || []).slice().sort(function(a, b) {
+            var sorted = (data.modules || []).slice().sort(function(a, b) {
               return (a.sort_order || 0) - (b.sort_order || 0);
             });
+            _modules = _ensureMandatoryModulesFirst(sorted);
             _systemSettings = data.system || {};
             _layoutReady = true;
             _emitLayoutChanged();
@@ -473,13 +497,37 @@
       return module.is_visible !== false && module.enabled !== false;
     }
 
+    function getModules() {
+      return _modules.slice();
+    }
+
+    async function saveHeuteLayout(moduleUpdates) {
+      // PUT /api/v2/dashboard/heute-layout
+      // filters out mandatory modules before sending
+      var filtered = (moduleUpdates || []).filter(function(m) { return !isMandatoryModule(m.id); });
+      try {
+        var resp = await fetch(_backendBase() + '/api/v2/dashboard/heute-layout', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modules: filtered })
+        });
+        return resp.ok;
+      } catch (_e) {
+        return false;
+      }
+    }
+
     return {
       init: init,
       openLayoutPanel: openLayoutPanel,
       getActiveModuleIds: getActiveModuleIds,
+      getModules: getModules,
       isModuleVisible: isModuleVisible,
       isLayoutReady: isLayoutReady,
-      getTodayLayout: getTodayLayout
+      getTodayLayout: getTodayLayout,
+      isMandatoryModule: isMandatoryModule,
+      saveHeuteLayout: saveHeuteLayout
     };
   })();
 

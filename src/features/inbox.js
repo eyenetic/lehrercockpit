@@ -32,6 +32,9 @@ var LehrerInbox = (function () {
   var _getRelevantInboxMessages = null;
   var _getVisiblePanelItems = null;
   var _setExpandableMeta = null;
+  var _tabsInitialized = false;
+
+  var INBOX_TAB_STORAGE_KEY = 'lehrerCockpit.inbox.activeTab';
 
   var channelLabels = {
     mail: 'Dienstmail',
@@ -216,6 +219,117 @@ var LehrerInbox = (function () {
     return unread.length + ' neue Hinweise, zuerst: ' + unread[0].title + '.';
   }
 
+  // ── Inbox tabs (Slice 3) ─────────────────────────────────────────────────────
+
+  /**
+   * Render itslearning messages into #message-list-itslearning.
+   * Called once the itslearning tab is activated.
+   */
+  function renderItslearningTab() {
+    var container = document.getElementById('message-list-itslearning');
+    if (!container) return;
+    var messages = [];
+    if (_getRelevantInboxMessages) {
+      messages = _getRelevantInboxMessages()
+        .filter(function (msg) { return msg.channel === 'itslearning'; })
+        .sort(function (a, b) { return compareMessageTime(b.timestamp, a.timestamp); });
+    }
+    container.innerHTML = messages.length
+      ? messages.map(function (message) {
+          return '<article class="message-item">'
+            + '<div class="message-top">'
+            + '<div>'
+            + '<strong>' + message.title + '</strong>'
+            + '<p class="message-snippet">' + message.sender + ' - ' + message.timestamp + '</p>'
+            + '</div>'
+            + '<span class="meta-tag ' + messagePriorityClass(message.priority) + '">' + (message.unread ? 'neu' : 'gesehen') + '</span>'
+            + '</div>'
+            + '<p class="message-snippet">' + message.snippet + '</p>'
+            + '<div class="meta-row">'
+            + '<span class="meta-tag">itslearning</span>'
+            + '<span class="meta-tag">' + priorityLabel(message.priority) + '</span>'
+            + '</div>'
+            + '</article>';
+        }).join('')
+      : '<div class="empty-state">Keine neuen Nachrichten in itslearning.</div>';
+  }
+
+  /**
+   * Update unread count badges on the tab buttons.
+   * @param {Array} messages - array of message objects with .channel and .unread fields
+   */
+  function renderBadges(messages) {
+    var allMessages = messages || (_getRelevantInboxMessages ? _getRelevantInboxMessages() : []);
+    var mailUnread = allMessages.filter(function (m) { return m.channel === 'mail' && m.unread; }).length;
+    var itslUnread = allMessages.filter(function (m) { return m.channel === 'itslearning' && m.unread; }).length;
+
+    var mailBadge = document.getElementById('inbox-badge-mail');
+    var itslBadge = document.getElementById('inbox-badge-itslearning');
+
+    if (mailBadge) {
+      mailBadge.textContent = mailUnread > 0 ? String(mailUnread) : '';
+      mailBadge.hidden = mailUnread === 0;
+    }
+    if (itslBadge) {
+      itslBadge.textContent = itslUnread > 0 ? String(itslUnread) : '';
+      itslBadge.hidden = itslUnread === 0;
+    }
+  }
+
+  /**
+   * Activate a named tab ('mail' or 'itslearning'), updating DOM state.
+   */
+  function _activateTab(tabName) {
+    var tabBar = document.querySelector('.inbox-tabs');
+    var panels = document.querySelectorAll('.inbox-tab-panel');
+    if (!tabBar) return;
+
+    tabBar.querySelectorAll('.inbox-tab').forEach(function (btn) {
+      var isActive = btn.dataset.inboxTab === tabName;
+      btn.classList.toggle('inbox-tab--active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    panels.forEach(function (panel) {
+      var isActive = panel.dataset.inboxPanel === tabName;
+      panel.classList.toggle('inbox-tab-panel--active', isActive);
+    });
+
+    // Render itslearning content when that tab is activated
+    if (tabName === 'itslearning') {
+      renderItslearningTab();
+    }
+
+    try { localStorage.setItem(INBOX_TAB_STORAGE_KEY, tabName); } catch (_e) {}
+  }
+
+  /**
+   * Wire up tab switching. Safe to call multiple times — idempotent.
+   */
+  function initInboxTabs() {
+    var tabBar = document.querySelector('.inbox-tabs');
+    if (!tabBar || _tabsInitialized) return;
+    _tabsInitialized = true;
+
+    tabBar.addEventListener('click', function (event) {
+      var btn = event.target.closest('[data-inbox-tab]');
+      if (!btn) return;
+      _activateTab(btn.dataset.inboxTab);
+    });
+
+    // Restore previously selected tab from localStorage
+    var stored = '';
+    try { stored = localStorage.getItem(INBOX_TAB_STORAGE_KEY) || ''; } catch (_e) {}
+    if (stored === 'itslearning') {
+      _activateTab('itslearning');
+    }
+
+    // Render badges with current data
+    if (_getRelevantInboxMessages) {
+      renderBadges(_getRelevantInboxMessages());
+    }
+  }
+
   return {
     init: init,
     renderPriorities: renderPriorities,
@@ -224,6 +338,9 @@ var LehrerInbox = (function () {
     renderMessages: renderMessages,
     renderDocumentMonitor: renderDocumentMonitor,
     pickInboxBriefing: pickInboxBriefing,
+    initInboxTabs: initInboxTabs,
+    renderBadges: renderBadges,
+    renderItslearningTab: renderItslearningTab,
   };
 })();
 

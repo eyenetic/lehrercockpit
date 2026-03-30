@@ -2997,3 +2997,467 @@ a {
     gap: 10px;
   }
 }
+
+/* ─── Heute anpassen — trigger button ───────────────────────────────────── */
+
+.heute-anpassen-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 0.25rem;
+}
+
+.heute-anpassen-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.heute-anpassen-trigger:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+  background: var(--panel-soft);
+}
+
+/* ─── Heute anpassen — side panel ───────────────────────────────────────── */
+
+.heute-anpassen-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100%;
+  background: var(--panel);
+  border-left: 1px solid var(--line-strong);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* [hidden] already sets display:none via the global rule — no extra CSS needed */
+
+.heute-anpassen-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.heute-anpassen-panel__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.heute-anpassen-panel__close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color 120ms ease, background-color 120ms ease;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heute-anpassen-panel__close:hover {
+  color: var(--ink);
+  background: var(--panel-soft);
+}
+
+.heute-anpassen-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.25rem;
+}
+
+.heute-anpassen-panel__hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+
+.heute-anpassen-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.heute-modul-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.heute-modul-item:hover {
+  background: var(--panel-soft);
+}
+
+.heute-modul-item input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.heute-modul-item label {
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+  flex: 1;
+}
+
+.heute-anpassen-panel__footer {
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.heute-anpassen-panel__save {
+  width: 100%;
+  padding: 0.55rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.heute-anpassen-panel__save:hover {
+  opacity: 0.88;
+}
+
+.heute-anpassen-panel__save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.heute-anpassen-panel__error {
+  font-size: 0.8rem;
+  color: var(--danger);
+  margin-top: 0.5rem;
+  min-height: 1.1rem;
+}
+
+/* ── Heute module slot spacing (Slice 2) ─────────────────────────────────── */
+.heute-module-slot {
+  margin-top: 12px;
+}
+.heute-module-slot:empty {
+  display: none;
+}
+
+/* ── Module card shell (reusable for all Today module cards) ─────────────── */
+.module-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-soft);
+}
+
+.module-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
+}
+
+.module-card__title {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.module-card__body {
+  padding-top: 2px;
+}
+
+.module-empty-state {
+  padding: 10px 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.module-error-state {
+  padding: 10px 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* ── Zugaenge card (Slice 2) ─────────────────────────────────────────────── */
+.zugaenge-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.zugaenge-group {
+  margin-bottom: 2px;
+}
+
+.zugaenge-group__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.zugaenge-group__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.zugaenge-link {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+  text-decoration: none;
+  font-size: 0.75rem;
+  gap: 2px;
+  cursor: pointer;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.zugaenge-link:hover {
+  background: color-mix(in srgb, var(--panel-soft) 60%, var(--ink) 8%);
+  border-color: var(--line-strong);
+}
+
+.zugaenge-link__icon {
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.zugaenge-link__label {
+  font-size: 0.7em;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.zugaenge-link--unconfigured {
+  opacity: 0.4;
+  cursor: default;
+}
+.zugaenge-link--unconfigured:hover {
+  background: var(--panel-soft);
+  border-color: var(--line);
+}
+
+/* ── Wichtige Termine card (Slice 2) ─────────────────────────────────────── */
+.wt-card {
+  /* uses module-card base */
+}
+
+.wt-section-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 4px;
+  margin-top: 8px;
+}
+.wt-section-label:first-child {
+  margin-top: 0;
+}
+
+.wt-event {
+  padding: 6px 0;
+  margin-bottom: 4px;
+}
+
+.wt-event__meta {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.wt-event__date {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.wt-event__title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.wt-event__location {
+  font-size: 0.74rem;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.wt-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  border: 1px solid var(--line);
+}
+
+.wt-badge--allday {
+  background: color-mix(in srgb, var(--tone-schedule) 12%, var(--panel));
+  color: var(--tone-schedule);
+  border-color: color-mix(in srgb, var(--tone-schedule) 20%, var(--line));
+}
+
+.wt-badge--timed {
+  background: color-mix(in srgb, var(--success) 10%, var(--panel));
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 20%, var(--line));
+}
+
+/* ─── Inbox Tabs (Slice 3) ───────────────────────────────────────────────── */
+
+.inbox-tabs {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  border-bottom: 1px solid var(--line-strong);
+  margin-bottom: 16px;
+}
+
+.inbox-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--muted);
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.inbox-tab:hover {
+  color: var(--ink);
+}
+
+.inbox-tab--active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+.inbox-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+.inbox-tab__badge:empty,
+.inbox-tab__badge[hidden] {
+  display: none !important;
+}
+
+.inbox-tab-panel {
+  display: none;
+}
+
+.inbox-tab-panel--active {
+  display: block;
+}
+
+/* ─── Pläne Split (Slice 3) ─────────────────────────────────────────────── */
+
+.plans-section-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plans-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.plans-block {
+  background: var(--panel-soft);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.plans-block__header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.plans-block__title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.plans-block__body {
+  padding-top: 12px;
+}
