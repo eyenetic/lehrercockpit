@@ -5,15 +5,39 @@
   "trailingSlash": false,
   "headers": [
     {
-      "source": "/(.*)",
+      "source": "/",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
       ]
     },
     {
       "source": "/data/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/login.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/onboarding.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/admin.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
       ]
     }
   ]
