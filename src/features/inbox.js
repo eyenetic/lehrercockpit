@@ -66,6 +66,15 @@ var LehrerInbox = (function () {
     return (lParts[0] * 60 + (lParts[1] || 0)) - (rParts[0] * 60 + (rParts[1] || 0));
   }
 
+  function compareMessages(left, right) {
+    var leftKey = left && left.sortKey ? String(left.sortKey) : '';
+    var rightKey = right && right.sortKey ? String(right.sortKey) : '';
+    if (leftKey && rightKey && leftKey !== rightKey) {
+      return rightKey.localeCompare(leftKey);
+    }
+    return compareMessageTime(right && right.timestamp, left && left.timestamp);
+  }
+
   function statusLabel(status) {
     return ({ ok: 'bereit', warning: 'vorbereitet', error: 'blockiert' }[status] || status);
   }
@@ -124,12 +133,13 @@ var LehrerInbox = (function () {
     if (!_elements || !_elements.messageList) return;
     var filteredMessages = _getRelevantInboxMessages()
       .filter(function (msg) { return msg.channel === _state.selectedChannel; })
-      .sort(function (left, right) { return compareMessageTime(right.timestamp, left.timestamp); });
-    var visibleMessages = _getVisiblePanelItems(filteredMessages, 'inbox');
-    _setExpandableMeta(_elements.messageList, filteredMessages.length, visibleMessages.length);
+      .sort(compareMessages);
+    _setExpandableMeta(_elements.messageList, filteredMessages.length, filteredMessages.length);
+    _elements.messageList.classList.remove('is-collapsed');
+    _elements.messageList.classList.add('is-expanded');
 
     _elements.messageList.innerHTML = filteredMessages.length
-      ? visibleMessages.map(function (message) {
+      ? filteredMessages.map(function (message) {
           return '<article class="message-item">'
             + '<div class="message-top">'
             + '<div>'
@@ -200,8 +210,10 @@ var LehrerInbox = (function () {
     if (_getRelevantInboxMessages) {
       messages = _getRelevantInboxMessages()
         .filter(function (msg) { return msg.channel === 'itslearning'; })
-        .sort(function (a, b) { return compareMessageTime(b.timestamp, a.timestamp); });
+        .sort(compareMessages);
     }
+    container.classList.remove('is-collapsed');
+    container.classList.add('is-expanded');
     container.innerHTML = messages.length
       ? messages.map(function (message) {
           return '<article class="message-item">'

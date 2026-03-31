@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from .config import load_settings
 from .document_monitor import MonitoredDocument, build_document_monitor
@@ -414,7 +415,7 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
 
 
 def _build_webuntis_center(settings: Any, webuntis_sync: Any, now: datetime) -> dict[str, Any]:
-    base_url = settings.webuntis_base_url.rstrip("/")
+    base_url = _resolve_webuntis_base_url(settings).rstrip("/")
     if base_url:
         today_url = f"{base_url}/today"
         start_url = base_url
@@ -442,6 +443,28 @@ def _build_webuntis_center(settings: Any, webuntis_sync: Any, now: datetime) -> 
             "Dein persoenlicher Plan kommt live ueber iCal. Fuer Kolleg:innen-, Klassen- und Raumplaene bereiten wir die Suche lokal vor und haengen sie als Naechstes an deine WebUntis-Sitzung."
         ),
     }
+
+
+def _resolve_webuntis_base_url(settings: Any) -> str:
+    configured = (getattr(settings, "webuntis_base_url", "") or "").strip()
+    if configured:
+        return configured
+
+    ical_url = (getattr(settings, "webuntis_ical_url", "") or "").strip()
+    if not ical_url:
+        return ""
+
+    try:
+        parsed = urlparse(ical_url)
+        if not parsed.scheme or not parsed.netloc:
+            return ""
+        school = parse_qs(parsed.query).get("school", [""])[0].strip()
+        base = f"{parsed.scheme}://{parsed.netloc}/WebUntis"
+        if school:
+            return f"{base}/?school={school}#/basic/login"
+        return base
+    except Exception:
+        return ""
 
 
 def _build_webuntis_finder(

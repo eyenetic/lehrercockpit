@@ -29,12 +29,13 @@
         : "https://api.lehrercockpit.com";
       window.BACKEND_API_URL = LEHRERCOCKPIT_API_BASE;
       window.LEHRER_COCKPIT_API_URL = LEHRERCOCKPIT_API_BASE;
+      window.LEHRERCOCKPIT_IS_LOCAL_HOST = LEHRERCOCKPIT_IS_LOCAL_HOST;
       window.LEHRER_COCKPIT_API_FALLBACKS = [
         LEHRERCOCKPIT_API_BASE,
       ];
     </script>
-    <script>window.MULTIUSER_ENABLED = true; /* Multi-User SaaS-Modus aktiv */</script>
-    <link rel="stylesheet" href="./styles.css?v=52" />
+    <script>window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST; /* Lokal ohne Login, gehostet mit Multi-User */</script>
+    <link rel="stylesheet" href="./styles.css?v=53" />
   </head>
   <body>
     <div class="app-shell">
@@ -58,7 +59,7 @@
           <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
           <button class="nav-link" type="button" data-section-target="inbox">Posteingang</button>
           <button class="nav-link" type="button" data-section-target="documents">Pläne</button>
-          <button class="nav-link" type="button" data-section-target="grades">Noten</button>
+          <button class="nav-link" type="button" data-section-target="grades">Notenrechner</button>
           <button class="nav-link" type="button" data-section-target="assistant">Assistenz</button>
         </nav>
 
@@ -127,6 +128,56 @@
             </div>
             <div id="heute-zugaenge-container" class="heute-module-slot"></div>
           </section>
+
+          <section class="card today-module-card today-preview-card tone-schedule" data-today-module="schedule" aria-labelledby="today-schedule-preview-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Stundenplan</p>
+                <h2 id="today-schedule-preview-title">Planvorschau</h2>
+              </div>
+            </div>
+            <div id="today-schedule-preview" class="heute-module-slot"></div>
+          </section>
+
+          <section class="card today-module-card today-preview-card tone-inbox" data-today-module="inbox" aria-labelledby="today-inbox-preview-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Posteingang</p>
+                <h2 id="today-inbox-preview-title">Kommunikation</h2>
+              </div>
+            </div>
+            <div id="today-inbox-preview" class="heute-module-slot"></div>
+          </section>
+
+          <section class="card today-module-card today-preview-card tone-documents" data-today-module="documents" aria-labelledby="today-documents-preview-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Plaene</p>
+                <h2 id="today-documents-preview-title">Orgaplan und Klassenarbeiten</h2>
+              </div>
+            </div>
+            <div id="today-documents-preview" class="heute-module-slot"></div>
+          </section>
+
+          <section class="card today-module-card today-preview-card tone-grades" data-today-module="grades" aria-labelledby="today-grades-preview-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Noten</p>
+                <h2 id="today-grades-preview-title">Notenberechnung</h2>
+              </div>
+            </div>
+            <div id="today-grades-preview" class="heute-module-slot"></div>
+          </section>
+
+          <section class="card today-module-card today-preview-card tone-assistant" data-today-module="assistant" aria-labelledby="today-assistant-preview-title">
+            <div class="section-head section-head-wrap">
+              <div>
+                <p class="card-kicker">Assistenz</p>
+                <h2 id="today-assistant-preview-title">Suche im Cockpit</h2>
+              </div>
+            </div>
+            <div id="today-assistant-preview" class="heute-module-slot"></div>
+          </section>
         </section>
 
         <section class="content-grid primary-grid" data-view-section="schedule">
@@ -154,7 +205,7 @@
               <div class="webuntis-toolbar-actions">
                 <button id="webuntis-refresh-button" class="secondary-link" type="button">iCal aktualisieren</button>
                 <a id="webuntis-open-today" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>Heute in WebUntis</a>
-                <a id="webuntis-open-base" class="secondary-link" href="#" target="_blank" rel="noreferrer">WebUntis oeffnen</a>
+                <a id="webuntis-open-base" class="secondary-link" href="#" target="_blank" rel="noreferrer">WebUntis</a>
               </div>
             </div>
             <div class="webuntis-main-panel webuntis-main-panel-full">
@@ -188,8 +239,8 @@
                 <h2 id="inbox-title">Dienstmail und Updates</h2>
               </div>
               <div class="section-head-actions">
-                <a id="dienstmail-open-link" class="secondary-link" href="https://outlook.office.com/mail/" target="_blank" rel="noreferrer">Dienstmail oeffnen</a>
-                <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning oeffnen</a>
+                <a id="dienstmail-open-link" class="secondary-link" href="https://outlook.office.com/mail/" target="_blank" rel="noreferrer">Dienstmail öffnen</a>
+                <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen</a>
               </div>
             </div>
 
@@ -221,13 +272,13 @@
           <article class="card tone-grades" id="grades-section" aria-labelledby="grades-title">
             <div class="section-head section-head-wrap">
               <div>
-                <p class="card-kicker">Noten Beta</p>
-                <h2 id="grades-title">Notenradar</h2>
+                <p class="card-kicker">Notenrechner</p>
+                <h2 id="grades-title">Notenberechnung</h2>
               </div>
               <span class="pill pill-live">lokal</span>
             </div>
             <p id="grades-detail" class="source-detail">
-              Lokale Beta fuer schnelle Noten- und Bewertungsuebersicht. Noch keine offizielle Schulportal-Schnittstelle.
+              Einfache Hilfe fuer Gewichtungen, Teilnoten und schnelle Berechnungen. Noch keine offizielle Schulportal-Schnittstelle.
             </p>
 
             <div class="grades-summary-grid">
@@ -317,38 +368,6 @@
                 <button class="section-toggle" type="button" data-expand-toggle="grades" data-expand-target="grades-list">Mehr anzeigen</button>
               </section>
 
-              <section class="grades-panel notes-panel tone-notes-panel">
-                <div class="sidebar-head">
-                  <div>
-                    <p class="card-kicker">Kontext</p>
-                    <h2>Schueler-Notizen</h2>
-                  </div>
-                  <span class="pill pill-live">lokal</span>
-                </div>
-                <div class="classwork-controls grades-controls">
-                  <label class="classwork-select-field" for="class-notes-class-filter">
-                    <span>Klasse</span>
-                    <select id="class-notes-class-filter"></select>
-                  </label>
-                </div>
-                <form id="class-notes-form" class="connect-form">
-                  <label class="connect-field">
-                    <span>Hinweis</span>
-                    <textarea
-                      id="class-notes-input"
-                      rows="4"
-                      placeholder="z. B. 8A: Max fehlt oft freitags. 10B: Praesentation verschoben."
-                    ></textarea>
-                  </label>
-                  <div class="assistant-actions grades-actions notes-actions">
-                    <button class="primary-button" type="submit">Notiz speichern</button>
-                    <button id="class-notes-clear" class="secondary-link" type="button">Notiz entfernen</button>
-                  </div>
-                </form>
-                <div id="class-notes-feedback" class="connect-feedback"></div>
-                <div id="class-notes-list" class="stack-list compact-list expandable-scroll" data-expand-panel="notes"></div>
-                <button class="section-toggle" type="button" data-expand-toggle="notes" data-expand-target="class-notes-list">Mehr anzeigen</button>
-              </section>
             </div>
           </article>
         </section>
@@ -373,7 +392,7 @@
             <div class="plans-block" id="plans-block-orgaplan">
               <div class="plans-block__header">
                 <span class="plans-block__title">Orgaplan</span>
-                <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer">PDF oeffnen</a>
+                <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>PDF öffnen</a>
               </div>
               <div class="plans-block__body">
                 <section class="plan-digest-card tone-orgaplan" aria-labelledby="orgaplan-digest-title">
@@ -405,7 +424,7 @@
                     <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
                   </div>
                   <div class="classwork-actions">
-                    <button id="classwork-upload-button" class="secondary-link" type="button">Testdatei laden</button>
+                    <button id="classwork-upload-button" class="secondary-link" type="button">Testdatei hochladen</button>
                     <button
                       id="classwork-browser-fetch-button"
                       class="scrape-button"
@@ -621,64 +640,57 @@
     </div>
 
     <script>
-// Auth-Check: wenn nicht eingeloggt → Login
+// Auth-Check: gehostet mit Login, lokal ohne Login.
 // initUserInfo() is defined in the next script block and called here — after the async
 // fetch resolves — so that window.CURRENT_USER is already set when it runs.
 (async function checkAuth() {
+  if (!window.MULTIUSER_ENABLED) {
+    return;
+  }
   try {
     const backendUrl = window.BACKEND_API_URL || 'https://lehrercockpit.onrender.com';
     const resp = await fetch(backendUrl + '/api/v2/auth/me', {credentials: 'include'});
     if (!resp.ok) {
-      // Nicht eingeloggt - aber zeige erstmal das Cockpit (backward compat.)
-      // Nur wenn Multi-User-Modus aktiv (MULTIUSER_ENABLED)
-      if (window.MULTIUSER_ENABLED) {
-        window.location.href = './login.html';
-      }
-    } else {
-      const data = await resp.json();
-      if (data.ok) {
-        window.CURRENT_USER = data.user;
-        // Render user info (name, admin link, logout) now that CURRENT_USER is available.
-        // initUserInfo is defined in the script block below; by the time this await resolves,
-        // all subsequent synchronous <script> tags have already been parsed and executed.
-        if (typeof initUserInfo === 'function') initUserInfo();
-        // Onboarding prüfen
-        const onbResp = await fetch(backendUrl + '/api/v2/dashboard/onboarding-status', {credentials: 'include'});
-        if (onbResp.ok) {
-          const onbData = await onbResp.json();
-          if (onbData.needs_onboarding) {
-            window.location.href = './onboarding.html';
-            return;
-          }
+      window.location.href = './login.html';
+      return;
+    }
+    const data = await resp.json();
+    if (data.ok) {
+      window.CURRENT_USER = data.user;
+      if (typeof initUserInfo === 'function') initUserInfo();
+      const onbResp = await fetch(backendUrl + '/api/v2/dashboard/onboarding-status', {credentials: 'include'});
+      if (onbResp.ok) {
+        const onbData = await onbResp.json();
+        if (onbData.needs_onboarding) {
+          window.location.href = './onboarding.html';
         }
       }
     }
   } catch(e) {
-    // Verbindungsfehler im Multi-User-Modus → immer zum Login
-    // (Backend kalt oder nicht erreichbar — kein unauthentifizierter Zugriff erlaubt)
-    if (window.MULTIUSER_ENABLED) {
-      window.location.href = './login.html';
-    }
+    window.location.href = './login.html';
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=52"></script>
-    <script src="./src/api-client.js?v=52"></script>
-    <script src="./src/modules/dashboard-manager.js?v=52"></script>
-    <script src="./src/features/grades.js?v=52"></script>
-    <script src="./src/features/webuntis.js?v=52"></script>
-    <script src="./src/features/itslearning.js?v=52"></script>
-    <script src="./src/features/nextcloud.js?v=52"></script>
-    <script src="./src/features/documents.js?v=52"></script>
-    <script src="./src/features/classwork.js?v=52"></script>
-    <script src="./src/features/inbox.js?v=52"></script>
-    <script src="./src/features/zugaenge.js?v=52"></script>
-    <script src="./src/app.js?v=52"></script>
+    <script src="./data/mock-dashboard.js?v=53"></script>
+    <script src="./src/api-client.js?v=53"></script>
+    <script src="./src/modules/dashboard-manager.js?v=53"></script>
+    <script src="./src/features/grades.js?v=53"></script>
+    <script src="./src/features/webuntis.js?v=53"></script>
+    <script src="./src/features/itslearning.js?v=53"></script>
+    <script src="./src/features/nextcloud.js?v=53"></script>
+    <script src="./src/features/documents.js?v=53"></script>
+    <script src="./src/features/classwork.js?v=53"></script>
+    <script src="./src/features/inbox.js?v=53"></script>
+    <script src="./src/features/zugaenge.js?v=53"></script>
+    <script src="./src/app.js?v=53"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
 // so the admin link and user name are always rendered with the correct data.
 function initUserInfo() {
+  if (!window.MULTIUSER_ENABLED) {
+    return;
+  }
   if (window.CURRENT_USER) {
     const info = document.getElementById('sidebar-user-info');
     const name = document.getElementById('sidebar-user-name');

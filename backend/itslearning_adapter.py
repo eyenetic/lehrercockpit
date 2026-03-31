@@ -492,6 +492,7 @@ def _extract_dashboard_updates(html: str, base_url: str, max_updates: int) -> li
         if timestamp_match:
             timestamp = _compact(timestamp_match.group(2))
             unread = "vor " in timestamp.lower() or "heute" in timestamp.lower()
+        sort_key = _compact(timestamp_match.group(1) if timestamp_match else "")
 
         link = urljoin(base_url.rstrip("/") + "/", link_match.group(1)) if link_match else base_url
 
@@ -505,6 +506,7 @@ def _extract_dashboard_updates(html: str, base_url: str, max_updates: int) -> li
                 "snippet": snippet[:220],
                 "priority": _itslearning_priority(title, snippet),
                 "timestamp": timestamp or "Update",
+                "sortKey": sort_key,
                 "unread": unread,
                 "url": link,
             }

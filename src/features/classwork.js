@@ -231,11 +231,11 @@ var LehrerClasswork = (function () {
     if (_elements.classworkDigestCard) _elements.classworkDigestCard.hidden = !showClasswork;
 
     if (showOrgaplan) {
-      _bindExternalLink(_elements.orgaplanOpenLink, orgaplan.sourceUrl, 'PDF oeffnen');
+      _bindExternalLink(_elements.orgaplanOpenLink, orgaplan.sourceUrl, 'PDF öffnen');
       _elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
     }
     if (showClasswork) {
-      _bindExternalLink(_elements.classworkOpenLink, classwork.sourceUrl, 'Plan online im Viewer oeffnen');
+      _bindExternalLink(_elements.classworkOpenLink, classwork.sourceUrl, 'Plan online öffnen');
       _elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
     }
     _elements.classworkUploadFeedback.textContent = _state.classworkUploadFeedback;

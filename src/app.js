@@ -27,7 +27,7 @@
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const AUTO_REFRESH_MS = 180000;
   const PANEL_COLLAPSE_LIMITS = {
-    inbox: 4,
+    inbox: 10,
     grades: 4,
     notes: 3,
     classwork: 4,
@@ -74,6 +74,11 @@
     briefingButton: document.querySelector("#briefing-button"),
     briefingOutput: document.querySelector("#briefing-output"),
     todayBriefingFocus: document.querySelector("#today-briefing-focus"),
+    todaySchedulePreview: document.querySelector("#today-schedule-preview"),
+    todayInboxPreview: document.querySelector("#today-inbox-preview"),
+    todayDocumentsPreview: document.querySelector("#today-documents-preview"),
+    todayGradesPreview: document.querySelector("#today-grades-preview"),
+    todayAssistantPreview: document.querySelector("#today-assistant-preview"),
     heroNote: document.querySelector("#hero-note"),
     runtimeBanner: document.querySelector("#runtime-banner"),
     settingsButton: document.querySelector("#settings-button"),
@@ -249,7 +254,7 @@
       case "grades":
         return DashboardManager && typeof DashboardManager.isModuleVisible === 'function'
           ? DashboardManager.isModuleVisible('noten')
-          : false;
+          : true;
       case "access":
         return false;
       default:
@@ -676,6 +681,7 @@
     const titleFromWorkspace = data.workspace?.title || "";
     const schoolName =
       data.base?.school_name ||
+      data.teacher?.school ||
       (titleFromWorkspace.startsWith("Dein Tagesstart fuer ")
         ? titleFromWorkspace.replace("Dein Tagesstart fuer ", "")
         : "");
@@ -963,6 +969,77 @@
       .join("");
   }
 
+  function renderTodaySupplementCards() {
+    const data = getData();
+    const nextEvent = isModuleVisible("webuntis") ? findNextLesson(data) : null;
+    const inboxItems = getRelevantInboxMessages(data)
+      .slice()
+      .sort((left, right) => {
+        const leftKey = left?.sortKey ? String(left.sortKey) : "";
+        const rightKey = right?.sortKey ? String(right.sortKey) : "";
+        if (leftKey && rightKey && leftKey !== rightKey) {
+          return rightKey.localeCompare(leftKey);
+        }
+        return String(right?.timestamp || "").localeCompare(String(left?.timestamp || ""));
+      })
+      .slice(0, 3);
+    const orgaplan = data.planDigest?.orgaplan || {};
+    const classwork = data.planDigest?.classwork || {};
+
+    if (elements.todaySchedulePreview) {
+      elements.todaySchedulePreview.innerHTML = nextEvent
+        ? `<article class="today-mini-card">
+            <strong>${nextEvent.title}</strong>
+            <p>${nextEvent.time}${nextEvent.location ? ` · ${nextEvent.location}` : ""}</p>
+            <span class="meta-tag low">Naechster Termin</span>
+          </article>`
+        : `<div class="empty-state">Heute liegt kein weiterer Termin vor.</div>`;
+    }
+
+    if (elements.todayInboxPreview) {
+      elements.todayInboxPreview.innerHTML = inboxItems.length
+        ? inboxItems.map((item) => `
+            <article class="today-mini-card">
+              <strong>${item.title}</strong>
+              <p>${item.sender} · ${item.timestamp}</p>
+              <span class="meta-tag low">${item.channelLabel}</span>
+            </article>
+          `).join("")
+        : `<div class="empty-state">Keine neuen Hinweise im Posteingang.</div>`;
+    }
+
+    if (elements.todayDocumentsPreview) {
+      elements.todayDocumentsPreview.innerHTML = `
+        <article class="today-mini-card">
+          <strong>Orgaplan</strong>
+          <p>${orgaplan.detail || "Noch kein Orgaplan-Hinweis."}</p>
+        </article>
+        <article class="today-mini-card">
+          <strong>Klassenarbeitsplan</strong>
+          <p>${classwork.detail || "Noch kein Klassenarbeitsplan verbunden."}</p>
+        </article>
+      `;
+    }
+
+    if (elements.todayGradesPreview) {
+      elements.todayGradesPreview.innerHTML = `
+        <article class="today-mini-card">
+          <strong>Gewichtungen und Teilnoten</strong>
+          <p>Schneller Einstieg in Notenberechnung fuer gewichtete Teilnoten und einfache Kombinationen.</p>
+        </article>
+      `;
+    }
+
+    if (elements.todayAssistantPreview) {
+      elements.todayAssistantPreview.innerHTML = `
+        <article class="today-mini-card">
+          <strong>Suche im Cockpit</strong>
+          <p>Fragen zu Stundenplan, Plaenen, Inbox und Dokumenten direkt aus dem Cockpit beantworten lassen.</p>
+        </article>
+      `;
+    }
+  }
+
   function findNextLesson(data) {
     const events = (data.webuntisCenter?.events || []).filter((event) => event.startsAt);
     const now = new Date(data.generatedAt || Date.now());
@@ -1140,14 +1217,64 @@
       : `<div class="empty-state">Noch keine Direktzugriffe konfiguriert.</div>`;
   }
 
+  function getDefaultTodayLayout() {
+    return {
+      order: ["briefing", "access", "schedule", "inbox", "documents", "grades", "assistant"],
+      visibility: {
+        briefing: true,
+        access: true,
+        schedule: true,
+        inbox: true,
+        documents: true,
+        grades: true,
+        assistant: true,
+      },
+    };
+  }
+
+  function sanitizeTodayLayout(layout) {
+    const base = getDefaultTodayLayout();
+    if (!layout || typeof layout !== "object") {
+      return base;
+    }
+
+    const knownIds = base.order.slice();
+    const order = Array.isArray(layout.order)
+      ? layout.order.filter((id) => knownIds.includes(id))
+      : [];
+    knownIds.forEach((id) => {
+      if (!order.includes(id)) {
+        order.push(id);
+      }
+    });
+
+    const visibility = { ...base.visibility };
+    if (layout.visibility && typeof layout.visibility === "object") {
+      knownIds.forEach((id) => {
+        if (typeof layout.visibility[id] === "boolean") {
+          visibility[id] = layout.visibility[id];
+        }
+      });
+    }
+    visibility.briefing = true;
+    visibility.access = true;
+
+    return { order, visibility };
+  }
+
   function renderTodayModuleLayout() {
     if (!elements.todayOverviewGrid || !elements.todayModuleCards.length) return;
-    const layout = DashboardManager && typeof DashboardManager.getTodayLayout === "function"
-      ? DashboardManager.getTodayLayout()
-      : {
-          order: ["briefing", "access"],
-          visibility: { briefing: true, access: true },
-        };
+    let layout = null;
+    if (DashboardManager && typeof DashboardManager.getTodayLayout === "function") {
+      layout = DashboardManager.getTodayLayout();
+    } else {
+      try {
+        layout = JSON.parse(localStorage.getItem("lehrerCockpit.todayLayout.local") || "null");
+      } catch (_error) {
+        layout = null;
+      }
+    }
+    layout = sanitizeTodayLayout(layout);
 
     const cardMap = new Map(
       elements.todayModuleCards.map((card) => [card.dataset.todayModule || "", card])
@@ -1218,10 +1345,10 @@
   function renderInboxLinks() {
     const base = state.data?.base || {};
     if (elements.dienstmailOpenLink) {
-      bindExternalLink(elements.dienstmailOpenLink, "https://outlook.office.com/mail/", "Dienstmail oeffnen");
+      bindExternalLink(elements.dienstmailOpenLink, "https://outlook.office.com/mail/", "Dienstmail öffnen");
     }
     if (elements.itslearningOpenLink) {
-      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning oeffnen");
+      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning öffnen");
       elements.itslearningOpenLink.hidden = !base.itslearning_base_url;
     }
   }
@@ -1399,16 +1526,21 @@
   }
 
   function bindExternalLink(element, url, label) {
+    if (!element) {
+      return;
+    }
     if (url) {
       element.href = url;
       element.textContent = label;
       element.style.pointerEvents = "auto";
       element.style.opacity = "1";
+      element.hidden = false;
     } else {
       element.href = "#";
-      element.textContent = `${label} nicht verfuegbar`;
+      element.textContent = label;
       element.style.pointerEvents = "none";
       element.style.opacity = "0.5";
+      element.hidden = true;
     }
   }
 
@@ -1701,8 +1833,7 @@
 
   function renderHeuteZugaenge() {
     if (!window.LehrerZugaenge) return;
-    var base = (state.data && state.data.base) ? state.data.base : {};
-    window.LehrerZugaenge.init(base);
+    window.LehrerZugaenge.init(getData());
     if (isModuleVisible('zugaenge')) {
       window.LehrerZugaenge.render('heute-zugaenge-container');
     } else {
@@ -1719,6 +1850,7 @@
     renderSectionFocus();
     renderStats();
     renderBriefing();
+    renderTodaySupplementCards();
     renderQuickLinks();
     renderHeuteZugaenge();
     renderItslearningConnector();
@@ -1991,21 +2123,41 @@
   var _heuteDragId = null;
 
   function getHeuteLayoutItems() {
-    if (!DashboardManager || typeof DashboardManager.getTodayLayout !== "function") {
-      return [
-        { id: "briefing", label: "Tagesbriefing" },
-        { id: "access", label: "Zugaenge" },
-      ];
-    }
-
-    var layout = DashboardManager.getTodayLayout();
     var labels = {
       briefing: "Tagesbriefing",
       access: "Zugaenge",
+      schedule: "Stundenplan",
+      inbox: "Posteingang",
+      documents: "Plaene",
+      grades: "Notenberechnung",
+      assistant: "Assistenz",
     };
+    if (!DashboardManager || typeof DashboardManager.getTodayLayout !== "function") {
+      var localLayout = null;
+      try {
+        localLayout = sanitizeTodayLayout(JSON.parse(localStorage.getItem("lehrerCockpit.todayLayout.local") || "null"));
+      } catch (_error) {
+        localLayout = sanitizeTodayLayout(null);
+      }
+      return localLayout.order.map(function(id) {
+        return {
+          id: id,
+          label: labels[id],
+          mandatory: id === "briefing" || id === "access",
+          visible: localLayout.visibility[id] !== false,
+        };
+      });
+    }
 
-    return (layout.order || ["briefing", "access"]).map(function(id) {
-      return { id: id, label: labels[id] || id };
+    var layout = sanitizeTodayLayout(DashboardManager.getTodayLayout());
+
+    return layout.order.map(function(id) {
+      return {
+        id: id,
+        label: labels[id] || id,
+        mandatory: id === "briefing" || id === "access",
+        visible: layout.visibility[id] !== false,
+      };
     });
   }
 
@@ -2015,7 +2167,14 @@
     modulesContainer.innerHTML = items.map(function(item) {
       return '<button class="heute-sort-item" type="button" draggable="true" data-heute-sort-id="' + item.id + '">'
         + '<span class="heute-sort-item__grip" aria-hidden="true">⋮⋮</span>'
+        + '<span class="heute-sort-item__copy-wrap">'
         + '<span class="heute-sort-item__copy">' + item.label + '</span>'
+        + (item.mandatory ? '<span class="heute-sort-item__meta">Pflichtmodul</span>' : '')
+        + '</span>'
+        + '<label class="heute-sort-item__toggle">'
+        + '<input type="checkbox" data-heute-visible-id="' + item.id + '"' + (item.visible ? ' checked' : '') + (item.mandatory ? ' disabled' : '') + ' />'
+        + '<span>' + (item.mandatory ? 'immer aktiv' : 'anzeigen') + '</span>'
+        + '</label>'
         + '</button>';
     }).join('');
 
@@ -2052,8 +2211,6 @@
   }
 
   function initHeuteAnpassen() {
-    if (!DashboardManager || !window.MULTIUSER_ENABLED) return;
-
     var panel = document.getElementById('heute-anpassen-panel');
     var modulesContainer = document.getElementById('heute-anpassen-modules');
     var openBtn = document.getElementById('settings-button');
@@ -2096,15 +2253,24 @@
           var order = Array.from(modulesContainer.querySelectorAll('[data-heute-sort-id]')).map(function(item) {
             return item.dataset.heuteSortId;
           });
+          var visibility = {};
+          Array.from(modulesContainer.querySelectorAll('[data-heute-visible-id]')).forEach(function(input) {
+            visibility[input.dataset.heuteVisibleId] = input.checked;
+          });
 
           try {
-            var ok = await DashboardManager.saveHeuteLayout({
+            var nextLayout = sanitizeTodayLayout({
               order: order,
-              visibility: {
-                briefing: true,
-                access: true,
-              },
+              visibility: visibility,
             });
+            var ok = true;
+            if (DashboardManager && typeof DashboardManager.saveHeuteLayout === "function") {
+              ok = await DashboardManager.saveHeuteLayout(nextLayout);
+            } else {
+              try {
+                localStorage.setItem("lehrerCockpit.todayLayout.local", JSON.stringify(nextLayout));
+              } catch (_storageError) {}
+            }
             if (ok) {
               panel.hidden = true;
               window.dispatchEvent(new CustomEvent('dashboard-layout-changed', {
@@ -2159,7 +2325,9 @@
       initHeuteAnpassen();
     });
     // Init DashboardManager for multi-user module layout
-    DashboardManager.init();
+    if (DashboardManager && typeof DashboardManager.init === "function") {
+      DashboardManager.init();
+    }
     // Init LehrerGrades with shared state, elements, and render callbacks (Phase 9e → 15)
     if (window.LehrerGrades) {
       window.LehrerGrades.init(state, elements, {

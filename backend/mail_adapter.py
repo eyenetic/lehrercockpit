@@ -205,6 +205,7 @@ def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[st
                 "snippet": snippet or "Keine Textvorschau verfuegbar.",
                 "priority": _priority_for_message(subject, sender, snippet),
                 "timestamp": received_at.strftime("%H:%M"),
+                "sortKey": received_at.isoformat(),
                 "unread": read_state.strip().lower() != "true",
                 "_receivedAt": received_at.isoformat(),
             }

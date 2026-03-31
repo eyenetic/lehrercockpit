@@ -4,6 +4,7 @@ Dashboard-Endpunkte für Lehrkräfte: Modules-Layout, Daten.
 import dataclasses
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
+from urllib.parse import parse_qs, urlparse
 from flask import Blueprint, request, g
 
 from backend.db import db_connection
@@ -368,6 +369,24 @@ _MODULE_FETCH_TIMEOUT = 5  # seconds per module fetch
 from backend.wichtige_termine_adapter import fetch_wichtige_termine, WichtigeTermineResult
 
 
+def _derive_webuntis_url(base_url: str = "", ical_url: str = "") -> str:
+    base_url = (base_url or "").strip()
+    if base_url:
+        return base_url
+    ical_url = (ical_url or "").strip()
+    if not ical_url:
+        return ""
+    try:
+        parsed = urlparse(ical_url)
+        school = parse_qs(parsed.query).get("school", [""])[0].strip()
+        base = f"{parsed.scheme}://{parsed.netloc}/WebUntis"
+        if school:
+            return f"{base}/?school={school}#/basic/login"
+        return base
+    except Exception:
+        return ""
+
+
 def _build_base_quick_links(
     schoolportal_url: str = "",
     orgaplan_pdf_url: str = "",
@@ -514,6 +533,11 @@ def _fetch_base_data() -> dict:
             fehlzeiten_11_url = _safe_str(getattr(_settings.nextcloud, "q1q2_url", ""))
         if not fehlzeiten_12_url:
             fehlzeiten_12_url = _safe_str(getattr(_settings.nextcloud, "q3q4_url", ""))
+        if not webuntis_url:
+            webuntis_url = _derive_webuntis_url(
+                getattr(_settings, "webuntis_base_url", ""),
+                getattr(_settings, "webuntis_ical_url", ""),
+            )
         if not school_name:
             school_name = _safe_str(getattr(_settings, "school_name", ""))
     except Exception:

@@ -632,7 +632,7 @@
   }
 
   function renderWeekSchedule(events, center) {
-    var columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, _state.webuntisView));
+    var columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, _state.webuntisWeekOffset || 0));
     var hasAnyWeekEvents = columns.some(function (c) { return c.events.length > 0; });
     var nextFutureEvent = findNextEventAfter((columns[columns.length - 1] || {}).isoDate || center.currentDate);
     var totalCount = columns.reduce(function (sum, c) { return sum + c.events.length; }, 0);
@@ -729,7 +729,7 @@
     });
 
     _bindExternalLink(_elements.webuntisOpenToday, center.todayUrl, 'Heute in WebUntis');
-    _bindExternalLink(_elements.webuntisOpenBase, center.startUrl || center.todayUrl, 'WebUntis oeffnen');
+    _bindExternalLink(_elements.webuntisOpenBase, center.startUrl || center.todayUrl, 'WebUntis');
 
     if (_elements.webuntisActivePlan) _elements.webuntisActivePlan.textContent = 'Mein Stundenplan';
     if (_elements.webuntisDetail) _elements.webuntisDetail.textContent =

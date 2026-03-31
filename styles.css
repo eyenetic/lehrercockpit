@@ -1576,6 +1576,11 @@ a {
   padding-right: 4px;
 }
 
+#message-list.expandable-scroll.is-expanded,
+#message-list-itslearning.expandable-scroll.is-expanded {
+  height: 360px;
+}
+
 #quick-link-grid.expandable-scroll.is-expanded {
   height: 260px;
 }
@@ -2943,6 +2948,58 @@ a {
   flex: 1;
 }
 
+.heute-sort-item__copy-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.heute-sort-item__meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.heute-sort-item__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.heute-sort-item__toggle input {
+  margin: 0;
+}
+
+.today-preview-card .heute-module-slot {
+  display: grid;
+  gap: 10px;
+}
+
+.today-mini-card {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+}
+
+.today-mini-card strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+}
+
+.today-mini-card p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
 .heute-anpassen-panel__footer {
   padding: 0.85rem 1.25rem;
   border-top: 1px solid var(--line);
@@ -3038,6 +3095,22 @@ a {
   border-radius: var(--radius-md);
   background: var(--panel-soft);
   padding: 10px 12px 12px;
+}
+
+.zugaenge-group--unterricht {
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--panel));
+}
+
+.zugaenge-group--kommunikation {
+  background: color-mix(in srgb, var(--success) 8%, var(--panel));
+}
+
+.zugaenge-group--verwaltung {
+  background: color-mix(in srgb, var(--warning) 10%, var(--panel));
+}
+
+.zugaenge-group--dateien {
+  background: color-mix(in srgb, #0891b2 10%, var(--panel));
 }
 
 .zugaenge-group__label {
