@@ -20,22 +20,14 @@
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
     <script>
-      const LEHRERCOCKPIT_IS_LOCAL_HOST =
-        window.location.protocol === "file:" ||
-        window.location.hostname === "127.0.0.1" ||
-        window.location.hostname === "localhost";
-      const LEHRERCOCKPIT_API_BASE = LEHRERCOCKPIT_IS_LOCAL_HOST
-        ? `${window.location.protocol}//${window.location.host}`
-        : "https://api.lehrercockpit.com";
-      window.BACKEND_API_URL = LEHRERCOCKPIT_API_BASE;
-      window.LEHRER_COCKPIT_API_URL = LEHRERCOCKPIT_API_BASE;
-      window.LEHRERCOCKPIT_IS_LOCAL_HOST = LEHRERCOCKPIT_IS_LOCAL_HOST;
+      window.BACKEND_API_URL = "https://api.lehrercockpit.com";
+      window.LEHRER_COCKPIT_API_URL = "https://api.lehrercockpit.com";
       window.LEHRER_COCKPIT_API_FALLBACKS = [
-        LEHRERCOCKPIT_API_BASE,
+        "https://api.lehrercockpit.com",
       ];
     </script>
-    <script>window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST; /* Lokal ohne Login, gehostet mit Multi-User */</script>
-    <link rel="stylesheet" href="./styles.css?v=53" />
+    <script>window.MULTIUSER_ENABLED = true; /* Multi-User SaaS-Modus aktiv */</script>
+    <link rel="stylesheet" href="./styles.css?v=51" />
   </head>
   <body>
     <div class="app-shell">
@@ -59,7 +51,8 @@
           <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
           <button class="nav-link" type="button" data-section-target="inbox">Posteingang</button>
           <button class="nav-link" type="button" data-section-target="documents">Pläne</button>
-          <button class="nav-link" type="button" data-section-target="grades">Notenrechner</button>
+          <button class="nav-link" type="button" data-section-target="grades">Noten</button>
+          <button class="nav-link" type="button" data-section-target="access">Zugänge</button>
           <button class="nav-link" type="button" data-section-target="assistant">Assistenz</button>
         </nav>
 
@@ -95,10 +88,11 @@
             <div class="masthead-rule" aria-hidden="true"></div>
             <div class="masthead-copy">
               <h1 id="workspace-title">Lehrer-Cockpit</h1>
+              <p class="masthead-tagline" id="workspace-description">ruhig &middot; kompakt &middot; relevant</p>
             </div>
           </div>
           <div class="masthead-actions">
-            <p class="hero-note" id="hero-note">Stand --:--</p>
+            <p class="hero-note" id="hero-note">Initialisiere Tagesbriefing</p>
             <div class="masthead-buttons">
               <button class="primary-button" id="briefing-button" type="button">Aktualisieren</button>
               <button class="secondary-link" id="settings-button" type="button">Heute anpassen</button>
@@ -119,67 +113,25 @@
             <div id="today-briefing-focus" class="today-briefing-focus"></div>
           </section>
 
-          <section class="card tone-access today-module-card" data-today-module="access" aria-labelledby="today-zugaenge-title">
+          <section class="card tone-inbox today-module-card" data-today-module="updates" aria-labelledby="today-updates-title">
             <div class="section-head section-head-wrap">
               <div>
-                <p class="card-kicker">Zugaenge</p>
-                <h2 id="today-zugaenge-title">Direkte Arbeitswege</h2>
+                <p class="card-kicker">Schulwebsite</p>
+                <h2 id="today-updates-title">Hinweise der letzten Woche</h2>
               </div>
+              <span class="pill">7 Tage</span>
             </div>
+            <div id="today-updates-list" class="stack-list compact-list"></div>
+          </section>
+
+          <!-- #today-quick-link-grid kept hidden for JS compatibility (renderQuickLinks writes to it) -->
+          <div id="today-quick-link-grid" hidden></div>
+
             <div id="heute-zugaenge-container" class="heute-module-slot"></div>
+            <div id="heute-wichtige-termine-container" class="heute-module-slot"></div>
           </section>
 
-          <section class="card today-module-card today-preview-card tone-schedule" data-today-module="schedule" aria-labelledby="today-schedule-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Stundenplan</p>
-                <h2 id="today-schedule-preview-title">Planvorschau</h2>
-              </div>
-            </div>
-            <div id="today-schedule-preview" class="heute-module-slot"></div>
-          </section>
-
-          <section class="card today-module-card today-preview-card tone-inbox" data-today-module="inbox" aria-labelledby="today-inbox-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Posteingang</p>
-                <h2 id="today-inbox-preview-title">Kommunikation</h2>
-              </div>
-            </div>
-            <div id="today-inbox-preview" class="heute-module-slot"></div>
-          </section>
-
-          <section class="card today-module-card today-preview-card tone-documents" data-today-module="documents" aria-labelledby="today-documents-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Plaene</p>
-                <h2 id="today-documents-preview-title">Orgaplan und Klassenarbeiten</h2>
-              </div>
-            </div>
-            <div id="today-documents-preview" class="heute-module-slot"></div>
-          </section>
-
-          <section class="card today-module-card today-preview-card tone-grades" data-today-module="grades" aria-labelledby="today-grades-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Noten</p>
-                <h2 id="today-grades-preview-title">Notenberechnung</h2>
-              </div>
-            </div>
-            <div id="today-grades-preview" class="heute-module-slot"></div>
-          </section>
-
-          <section class="card today-module-card today-preview-card tone-assistant" data-today-module="assistant" aria-labelledby="today-assistant-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Assistenz</p>
-                <h2 id="today-assistant-preview-title">Suche im Cockpit</h2>
-              </div>
-            </div>
-            <div id="today-assistant-preview" class="heute-module-slot"></div>
-          </section>
-        </section>
-
+        <div class="area-divider" data-divider-for="schedule"><span class="area-divider-label">Unterricht &amp; Tagesplan</span></div>
         <section class="content-grid primary-grid" data-view-section="schedule">
           <article class="card" aria-labelledby="priorities-title" hidden>
             <div class="section-head">
@@ -205,7 +157,8 @@
               <div class="webuntis-toolbar-actions">
                 <button id="webuntis-refresh-button" class="secondary-link" type="button">iCal aktualisieren</button>
                 <a id="webuntis-open-today" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>Heute in WebUntis</a>
-                <a id="webuntis-open-base" class="secondary-link" href="#" target="_blank" rel="noreferrer">WebUntis</a>
+                <a id="webuntis-open-base" class="secondary-link" href="#" target="_blank" rel="noreferrer">WebUntis oeffnen</a>
+                <a id="webuntis-open-btn" class="secondary-link webuntis-external-link" href="#" target="_blank" rel="noopener noreferrer" hidden>In WebUntis öffnen ↗</a>
               </div>
             </div>
             <div class="webuntis-main-panel webuntis-main-panel-full">
@@ -231,6 +184,7 @@
           </article>
         </section>
 
+        <div class="area-divider" data-divider-for="inbox"><span class="area-divider-label">Hinweise</span></div>
         <section class="content-grid single-grid" data-view-section="inbox">
           <article class="card tone-inbox" id="inbox-section" aria-labelledby="inbox-title">
             <div class="section-head section-head-wrap">
@@ -239,8 +193,6 @@
                 <h2 id="inbox-title">Dienstmail und Updates</h2>
               </div>
               <div class="section-head-actions">
-                <a id="dienstmail-open-link" class="secondary-link" href="https://outlook.office.com/mail/" target="_blank" rel="noreferrer">Dienstmail öffnen</a>
-                <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen</a>
               </div>
             </div>
 
@@ -268,17 +220,18 @@
           </article>
         </section>
 
+        <div class="area-divider" data-divider-for="grades"><span class="area-divider-label">Noten</span></div>
         <section class="content-grid single-grid" data-view-section="grades">
           <article class="card tone-grades" id="grades-section" aria-labelledby="grades-title">
             <div class="section-head section-head-wrap">
               <div>
-                <p class="card-kicker">Notenrechner</p>
-                <h2 id="grades-title">Notenberechnung</h2>
+                <p class="card-kicker">Noten Beta</p>
+                <h2 id="grades-title">Notenradar</h2>
               </div>
               <span class="pill pill-live">lokal</span>
             </div>
             <p id="grades-detail" class="source-detail">
-              Einfache Hilfe fuer Gewichtungen, Teilnoten und schnelle Berechnungen. Noch keine offizielle Schulportal-Schnittstelle.
+              Lokale Beta fuer schnelle Noten- und Bewertungsuebersicht. Noch keine offizielle Schulportal-Schnittstelle.
             </p>
 
             <div class="grades-summary-grid">
@@ -368,10 +321,43 @@
                 <button class="section-toggle" type="button" data-expand-toggle="grades" data-expand-target="grades-list">Mehr anzeigen</button>
               </section>
 
+              <section class="grades-panel notes-panel tone-notes-panel">
+                <div class="sidebar-head">
+                  <div>
+                    <p class="card-kicker">Kontext</p>
+                    <h2>Schueler-Notizen</h2>
+                  </div>
+                  <span class="pill pill-live">lokal</span>
+                </div>
+                <div class="classwork-controls grades-controls">
+                  <label class="classwork-select-field" for="class-notes-class-filter">
+                    <span>Klasse</span>
+                    <select id="class-notes-class-filter"></select>
+                  </label>
+                </div>
+                <form id="class-notes-form" class="connect-form">
+                  <label class="connect-field">
+                    <span>Hinweis</span>
+                    <textarea
+                      id="class-notes-input"
+                      rows="4"
+                      placeholder="z. B. 8A: Max fehlt oft freitags. 10B: Praesentation verschoben."
+                    ></textarea>
+                  </label>
+                  <div class="assistant-actions grades-actions notes-actions">
+                    <button class="primary-button" type="submit">Notiz speichern</button>
+                    <button id="class-notes-clear" class="secondary-link" type="button">Notiz entfernen</button>
+                  </div>
+                </form>
+                <div id="class-notes-feedback" class="connect-feedback"></div>
+                <div id="class-notes-list" class="stack-list compact-list expandable-scroll" data-expand-panel="notes"></div>
+                <button class="section-toggle" type="button" data-expand-toggle="notes" data-expand-target="class-notes-list">Mehr anzeigen</button>
+              </section>
             </div>
           </article>
         </section>
 
+        <div class="area-divider" data-divider-for="documents"><span class="area-divider-label">Dokumente</span></div>
         <section class="content-grid single-grid" data-view-section="documents">
           <article class="card tone-documents" id="documents-section" aria-labelledby="docs-title">
             <!-- Section header -->
@@ -392,13 +378,34 @@
             <div class="plans-block" id="plans-block-orgaplan">
               <div class="plans-block__header">
                 <span class="plans-block__title">Orgaplan</span>
-                <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>PDF öffnen</a>
+                <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer">PDF oeffnen</a>
               </div>
               <div class="plans-block__body">
                 <section class="plan-digest-card tone-orgaplan" aria-labelledby="orgaplan-digest-title">
                   <h2 id="orgaplan-digest-title" class="sr-only">Orgaplan Hinweise und Termine</h2>
                   <p id="orgaplan-digest-detail" class="source-detail"></p>
-                  <div id="orgaplan-upcoming-list" class="stack-list compact-list"></div>
+
+                  <!-- Heute: Einträge für den aktuellen Tag -->
+                  <div class="orgaplan-today-section">
+                    <div class="orgaplan-section-label">
+                      <span class="card-kicker">Heute</span>
+                    </div>
+                    <div id="orgaplan-today-list" class="orgaplan-today-list"></div>
+                  </div>
+
+                  <!-- Diese Woche: Einträge Mon–So -->
+                  <div class="orgaplan-week-section">
+                    <div class="orgaplan-section-label">
+                      <span class="card-kicker">Diese Woche</span>
+                    </div>
+                    <div id="orgaplan-week-list" class="orgaplan-week-list stack-list compact-list"></div>
+                  </div>
+
+                  <!-- Alle kommenden Einträge (klassische Liste, zusammengeklappt) -->
+                  <details class="orgaplan-upcoming-details">
+                    <summary class="orgaplan-upcoming-summary">Alle weiteren Einträge</summary>
+                    <div id="orgaplan-upcoming-list" class="stack-list compact-list"></div>
+                  </details>
                 </section>
               </div>
             </div>
@@ -424,7 +431,7 @@
                     <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
                   </div>
                   <div class="classwork-actions">
-                    <button id="classwork-upload-button" class="secondary-link" type="button">Testdatei hochladen</button>
+                    <button id="classwork-upload-button" class="secondary-link" type="button">Testdatei laden</button>
                     <button
                       id="classwork-browser-fetch-button"
                       class="scrape-button"
@@ -453,6 +460,19 @@
               <div id="document-list" class="document-list expandable-scroll" data-expand-panel="documents"></div>
               <button class="section-toggle" type="button" data-expand-toggle="documents" data-expand-target="document-list">Mehr anzeigen</button>
             </div>
+          </article>
+        </section>
+
+        <section class="content-grid tertiary-grid">
+          <article class="card" aria-labelledby="monitor-title">
+            <div class="section-head">
+              <div>
+                <p class="card-kicker">Kontrolle</p>
+                <h2 id="monitor-title">Dokumentenmonitor</h2>
+              </div>
+              <span class="pill">pdf</span>
+            </div>
+            <div id="monitor-list" class="stack-list"></div>
           </article>
         </section>
 
@@ -631,7 +651,7 @@
         <button id="heute-anpassen-close" class="heute-anpassen-panel__close" aria-label="Schließen" type="button">✕</button>
       </div>
       <div class="heute-anpassen-panel__body">
-        <p class="heute-anpassen-panel__hint">Ziehe die Bereiche in die Reihenfolge, die fuer deinen Tag am besten passt.</p>
+        <p class="heute-anpassen-panel__hint">Tagesbriefing und Zugänge sind immer sichtbar.</p>
         <div id="heute-anpassen-modules" class="heute-anpassen-modules"></div>
       </div>
       <div class="heute-anpassen-panel__footer">
@@ -640,57 +660,65 @@
     </div>
 
     <script>
-// Auth-Check: gehostet mit Login, lokal ohne Login.
+// Auth-Check: wenn nicht eingeloggt → Login
 // initUserInfo() is defined in the next script block and called here — after the async
 // fetch resolves — so that window.CURRENT_USER is already set when it runs.
 (async function checkAuth() {
-  if (!window.MULTIUSER_ENABLED) {
-    return;
-  }
   try {
     const backendUrl = window.BACKEND_API_URL || 'https://lehrercockpit.onrender.com';
     const resp = await fetch(backendUrl + '/api/v2/auth/me', {credentials: 'include'});
     if (!resp.ok) {
-      window.location.href = './login.html';
-      return;
-    }
-    const data = await resp.json();
-    if (data.ok) {
-      window.CURRENT_USER = data.user;
-      if (typeof initUserInfo === 'function') initUserInfo();
-      const onbResp = await fetch(backendUrl + '/api/v2/dashboard/onboarding-status', {credentials: 'include'});
-      if (onbResp.ok) {
-        const onbData = await onbResp.json();
-        if (onbData.needs_onboarding) {
-          window.location.href = './onboarding.html';
+      // Nicht eingeloggt - aber zeige erstmal das Cockpit (backward compat.)
+      // Nur wenn Multi-User-Modus aktiv (MULTIUSER_ENABLED)
+      if (window.MULTIUSER_ENABLED) {
+        window.location.href = './login.html';
+      }
+    } else {
+      const data = await resp.json();
+      if (data.ok) {
+        window.CURRENT_USER = data.user;
+        // Render user info (name, admin link, logout) now that CURRENT_USER is available.
+        // initUserInfo is defined in the script block below; by the time this await resolves,
+        // all subsequent synchronous <script> tags have already been parsed and executed.
+        if (typeof initUserInfo === 'function') initUserInfo();
+        // Onboarding prüfen
+        const onbResp = await fetch(backendUrl + '/api/v2/dashboard/onboarding-status', {credentials: 'include'});
+        if (onbResp.ok) {
+          const onbData = await onbResp.json();
+          if (onbData.needs_onboarding) {
+            window.location.href = './onboarding.html';
+            return;
+          }
         }
       }
     }
   } catch(e) {
-    window.location.href = './login.html';
+    // Verbindungsfehler im Multi-User-Modus → immer zum Login
+    // (Backend kalt oder nicht erreichbar — kein unauthentifizierter Zugriff erlaubt)
+    if (window.MULTIUSER_ENABLED) {
+      window.location.href = './login.html';
+    }
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=53"></script>
-    <script src="./src/api-client.js?v=53"></script>
-    <script src="./src/modules/dashboard-manager.js?v=53"></script>
-    <script src="./src/features/grades.js?v=53"></script>
-    <script src="./src/features/webuntis.js?v=53"></script>
-    <script src="./src/features/itslearning.js?v=53"></script>
-    <script src="./src/features/nextcloud.js?v=53"></script>
-    <script src="./src/features/documents.js?v=53"></script>
-    <script src="./src/features/classwork.js?v=53"></script>
-    <script src="./src/features/inbox.js?v=53"></script>
-    <script src="./src/features/zugaenge.js?v=53"></script>
-    <script src="./src/app.js?v=53"></script>
+    <script src="./data/mock-dashboard.js?v=51"></script>
+    <script src="./src/api-client.js?v=51"></script>
+    <script src="./src/modules/dashboard-manager.js?v=51"></script>
+    <script src="./src/features/grades.js?v=51"></script>
+    <script src="./src/features/webuntis.js?v=51"></script>
+    <script src="./src/features/itslearning.js?v=51"></script>
+    <script src="./src/features/nextcloud.js?v=51"></script>
+    <script src="./src/features/documents.js?v=51"></script>
+    <script src="./src/features/classwork.js?v=51"></script>
+    <script src="./src/features/inbox.js?v=51"></script>
+    <script src="./src/features/zugaenge.js?v=51"></script>
+    <script src="./src/features/wichtige-termine.js?v=53"></script>
+    <script src="./src/app.js?v=51"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
 // so the admin link and user name are always rendered with the correct data.
 function initUserInfo() {
-  if (!window.MULTIUSER_ENABLED) {
-    return;
-  }
   if (window.CURRENT_USER) {
     const info = document.getElementById('sidebar-user-info');
     const name = document.getElementById('sidebar-user-name');
@@ -700,9 +728,8 @@ function initUserInfo() {
     if (name) name.textContent = window.CURRENT_USER.full_name || window.CURRENT_USER.first_name;
     // Phase 13: show admin link based on is_admin flag (+ role compat for pre-migration sessions)
     const isAdminUser = window.CURRENT_USER.is_admin === true || window.CURRENT_USER.role === 'admin';
-    if (adminLink) adminLink.style.display = isAdminUser ? 'inline-flex' : 'none';
-    if (logoutBtn && !logoutBtn.dataset.bound) {
-      logoutBtn.dataset.bound = 'true';
+    if (adminLink && isAdminUser) adminLink.style.display = 'inline';
+    if (logoutBtn) {
       logoutBtn.addEventListener('click', async function() {
         const backendUrl = window.BACKEND_API_URL || '';
         await fetch(backendUrl + '/api/v2/auth/logout', {method: 'POST', credentials: 'include'});
@@ -711,7 +738,6 @@ function initUserInfo() {
     }
   }
 }
-if (window.CURRENT_USER) initUserInfo();
     </script>
   </body>
 </html>

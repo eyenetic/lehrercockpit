@@ -215,6 +215,88 @@ var LehrerClasswork = (function () {
       + '</div></article>';
   }
 
+  // ── Orgaplan today card (single highlighted date entry) ──────────────────────
+
+  function renderOrgaplanTodayCard(todayEntries) {
+    if (!todayEntries || !todayEntries.length) {
+      return '<div class="orgaplan-today-empty">'
+        + '<span class="orgaplan-today-empty-icon">✓</span>'
+        + '<p>Heute keine besonderen Orgaplan-Hinweise</p>'
+        + '</div>';
+    }
+    return todayEntries.map(function (item) {
+      var sections = [
+        { label: 'Allgemein', value: item.general },
+        { label: 'Mittelstufe', value: joinOrgaplanSection(item.middle, item.middleNotes) },
+        { label: 'Oberstufe', value: joinOrgaplanSection(item.upper, item.upperNotes) },
+      ].filter(function (s) { return s.value; });
+
+      var bodyHtml = sections.length
+        ? sections.map(function (s) {
+            return '<div class="orgaplan-row orgaplan-row--today">'
+              + '<span class="orgaplan-label">' + s.label + '</span>'
+              + '<p>' + truncateText(s.value, 280) + '</p>'
+              + '</div>';
+          }).join('')
+        : '<p class="orgaplan-text">' + truncateText(item.detail || item.text || '', 280) + '</p>';
+
+      return '<article class="orgaplan-today-item">'
+        + '<div class="orgaplan-today-item__head">'
+        + '<span class="orgaplan-today-item__badge pill pill-attention">Heute</span>'
+        + '<strong class="orgaplan-today-item__title">' + (item.title || 'Hinweis') + '</strong>'
+        + '</div>'
+        + '<div class="orgaplan-today-item__body">' + bodyHtml + '</div>'
+        + '</article>';
+    }).join('');
+  }
+
+  // ── Orgaplan week section (Mon–Sun overview) ─────────────────────────────────
+
+  function renderOrgaplanWeekSection(weekEntries) {
+    if (!weekEntries || !weekEntries.length) {
+      return '<div class="empty-state">Keine Orgaplan-Einträge für diese Woche.</div>';
+    }
+    // Group by isoDate
+    var grouped = {};
+    var order = [];
+    weekEntries.forEach(function (item) {
+      var key = item.isoDate || item.dateLabel;
+      if (!grouped[key]) { grouped[key] = []; order.push(key); }
+      grouped[key].push(item);
+    });
+    return order.map(function (key) {
+      var items = grouped[key];
+      var dateLabel = items[0].dateLabel || key;
+      return '<section class="orgaplan-week-day">'
+        + '<div class="orgaplan-week-day__head">'
+        + '<strong class="orgaplan-week-day__date">' + dateLabel + '</strong>'
+        + '</div>'
+        + '<div class="orgaplan-week-day__items">'
+        + items.map(function (item) {
+            var sections = [
+              { label: 'Allgemein', value: item.general },
+              { label: 'Mittelstufe', value: joinOrgaplanSection(item.middle, item.middleNotes) },
+              { label: 'Oberstufe', value: joinOrgaplanSection(item.upper, item.upperNotes) },
+            ].filter(function (s) { return s.value; });
+            var bodyHtml = sections.length
+              ? sections.map(function (s) {
+                  return '<div class="orgaplan-row">'
+                    + '<span class="orgaplan-label">' + s.label + '</span>'
+                    + '<p>' + truncateText(s.value, 200) + '</p>'
+                    + '</div>';
+                }).join('')
+              : '<p class="orgaplan-text">' + truncateText(item.detail || item.text || '', 200) + '</p>';
+            return '<article class="orgaplan-week-item">'
+              + '<div class="orgaplan-week-item__title">'
+              + '<span class="meta-tag low">' + (item.title || 'Hinweis') + '</span>'
+              + '</div>'
+              + '<div class="orgaplan-entry-copy">' + bodyHtml + '</div>'
+              + '</article>';
+          }).join('')
+        + '</div></section>';
+    }).join('');
+  }
+
   // ── Plan digest (orchestrates classwork + orgaplan card rendering) ───────────
 
   function renderPlanDigest() {
@@ -233,6 +315,14 @@ var LehrerClasswork = (function () {
     if (showOrgaplan) {
       _bindExternalLink(_elements.orgaplanOpenLink, orgaplan.sourceUrl, 'PDF öffnen');
       _elements.orgaplanDigestDetail.textContent = summarizeOrgaplanDigest(orgaplan);
+      // Today's entries
+      if (_elements.orgaplanTodayList) {
+        _elements.orgaplanTodayList.innerHTML = renderOrgaplanTodayCard(orgaplan.today_entries || []);
+      }
+      // This week's entries
+      if (_elements.orgaplanWeekList) {
+        _elements.orgaplanWeekList.innerHTML = renderOrgaplanWeekSection(orgaplan.week_entries || []);
+      }
     }
     if (showClasswork) {
       _bindExternalLink(_elements.classworkOpenLink, classwork.sourceUrl, 'Plan online öffnen');
@@ -279,6 +369,8 @@ var LehrerClasswork = (function () {
     renderClassworkList: renderClassworkList,
     renderClassworkCalendar: renderClassworkCalendar,
     renderOrgaplanItem: renderOrgaplanItem,
+    renderOrgaplanTodayCard: renderOrgaplanTodayCard,
+    renderOrgaplanWeekSection: renderOrgaplanWeekSection,
     getActiveClassworkClass: function (classes, defaultClass) {
       return getSelectedClasses(classes, defaultClass)[0] || '';
     },

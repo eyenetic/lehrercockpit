@@ -684,6 +684,9 @@ def _fetch_itslearning_data(user_id: int) -> dict:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
+_HES_ORGAPLAN_PDF_URL = "https://hermann-ehlers-schule.de/wp-content/uploads/2026/03/Orgaplan-2025_26-ab-April.pdf"
+
+
 def _fetch_orgaplan_data() -> dict:
     """Fetch orgaplan data from cache or parse fresh. Returns module result dict."""
     try:
@@ -694,7 +697,7 @@ def _fetch_orgaplan_data() -> dict:
             cached_ts_raw = get_system_setting(conn, "orgaplan_cache_ts", None)
             cached_url = get_system_setting(conn, "orgaplan_cache_url", None)
 
-        effective_url = pdf_url or orgaplan_url
+        effective_url = pdf_url or orgaplan_url or _HES_ORGAPLAN_PDF_URL
         if not effective_url:
             return {"ok": True, "data": None, "configured": False}
 
@@ -719,6 +722,8 @@ def _fetch_orgaplan_data() -> dict:
                 "highlights": digest.get("highlights", []),
                 "upcoming": digest.get("upcoming", []),
                 "entries": digest.get("upcoming", []),
+                "today_entries": digest.get("today_entries", []),
+                "week_entries": digest.get("week_entries", []),
                 "classes": [],
                 "status": digest.get("status", "ok"),
                 "detail": digest.get("detail", ""),
@@ -742,6 +747,8 @@ def _fetch_orgaplan_data() -> dict:
             "highlights": orgaplan_digest.get("highlights", []),
             "upcoming": orgaplan_digest.get("upcoming", []),
             "entries": orgaplan_digest.get("upcoming", []),
+            "today_entries": orgaplan_digest.get("today_entries", []),
+            "week_entries": orgaplan_digest.get("week_entries", []),
             "classes": [],
             "status": orgaplan_digest.get("status", "ok"),
             "detail": orgaplan_digest.get("detail", ""),

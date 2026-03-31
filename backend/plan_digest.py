@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 import re
@@ -86,7 +86,11 @@ def _build_orgaplan_digest(url: str, now: datetime) -> dict[str, Any]:
 
     try:
         month_entries, month_label = _extract_orgaplan_entries(download.data, now)
-        upcoming = [entry for entry in month_entries if entry["date"] >= now.date()]
+        today = now.date()
+        week_end = today + timedelta(days=6)
+        today_entries_raw = [entry for entry in month_entries if entry["date"] == today]
+        week_entries_raw = [entry for entry in month_entries if today <= entry["date"] <= week_end]
+        upcoming = [entry for entry in month_entries if entry["date"] >= today]
         if not upcoming:
             upcoming = month_entries[:5]
         section_counts = _count_orgaplan_sections(upcoming)
@@ -103,6 +107,8 @@ def _build_orgaplan_digest(url: str, now: datetime) -> dict[str, Any]:
             "updatedAt": now.strftime("%H:%M"),
             "highlights": _build_orgaplan_highlights(upcoming),
             "upcoming": [_serialize_entry(entry) for entry in upcoming[:8]],
+            "today_entries": [_serialize_entry(e) for e in today_entries_raw],
+            "week_entries": [_serialize_entry(e) for e in week_entries_raw],
             "sourceUrl": url,
         }
     except Exception as exc:
@@ -809,6 +815,7 @@ def _build_orgaplan_highlights(upcoming: list[dict[str, Any]]) -> list[dict[str,
 def _serialize_entry(entry: dict[str, Any]) -> dict[str, str]:
     return {
         "dateLabel": entry["dateLabel"],
+        "isoDate": entry["date"].isoformat(),
         "title": entry["title"],
         "text": entry["text"],
         "general": entry.get("general", ""),

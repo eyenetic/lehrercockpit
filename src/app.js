@@ -159,6 +159,8 @@
     orgaplanOpenLink: document.querySelector("#orgaplan-open-link"),
     orgaplanDigestCard: document.querySelector('[aria-labelledby="orgaplan-digest-title"]'),
     orgaplanDigestDetail: document.querySelector("#orgaplan-digest-detail"),
+    orgaplanTodayList: document.querySelector("#orgaplan-today-list"),
+    orgaplanWeekList: document.querySelector("#orgaplan-week-list"),
     orgaplanUpcomingList: document.querySelector("#orgaplan-upcoming-list"),
     classworkOpenLink: document.querySelector("#classwork-open-link"),
     classworkDigestCard: document.querySelector('[aria-labelledby="classwork-digest-title"]'),
@@ -485,12 +487,16 @@
   }
 
   function _applyOrgaplanV2Data(data, v2) {
-    // v2 = {url, pdf_url, digest: {status, highlights, upcoming, monthLabel, ...}}
+    // v2 = {url, pdf_url, highlights, upcoming, today_entries, week_entries, status, monthLabel, ...}
+    // Also accepts wrapped form: {digest: {...}}
     if (!v2) return;
-    var digest = v2.digest || {};
-    if (digest.status === 'ok') {
+    var digest = v2.digest || v2;
+    if (digest.status === 'ok' || digest.highlights || digest.upcoming) {
       data.planDigest = data.planDigest || {};
-      data.planDigest.orgaplan = Object.assign({}, data.planDigest.orgaplan, digest);
+      data.planDigest.orgaplan = Object.assign({}, data.planDigest.orgaplan, digest, {
+        today_entries: digest.today_entries || [],
+        week_entries: digest.week_entries || [],
+      });
     }
   }
 
@@ -1063,6 +1069,17 @@
       return null;
     }
 
+    // Prefer today_entries (computed server-side) for the briefing
+    const todayEntries = orgaplan.today_entries || [];
+    if (todayEntries.length) {
+      const item = todayEntries[0];
+      return {
+        label: item.dateLabel || item.title || "Heute",
+        copy: item.general || item.detail || item.text || "Heute ist im Orgaplan ein Hinweis eingetragen.",
+      };
+    }
+
+    // Fallback: search upcoming/highlights by date token
     const now = new Date(data.generatedAt || Date.now());
     const dayToken = now.getDate().toString().padStart(2, "0");
     const monthToken = (now.getMonth() + 1).toString().padStart(2, "0");
