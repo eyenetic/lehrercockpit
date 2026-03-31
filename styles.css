@@ -1605,6 +1605,7 @@ a {
 .search-box input,
 .connect-field input,
 .connect-field textarea,
+.classwork-select-field input,
 .classwork-select-field select,
 #assistant-input {
   width: 100%;
@@ -1627,6 +1628,7 @@ a {
 .search-box input:focus-visible,
 .connect-field input:focus-visible,
 .connect-field textarea:focus-visible,
+.classwork-select-field input:focus-visible,
 .classwork-select-field select:focus-visible,
 #assistant-input:focus-visible {
   outline: 2px solid var(--accent);
@@ -1636,6 +1638,7 @@ a {
 .search-box input:focus,
 .connect-field input:focus,
 .connect-field textarea:focus,
+.classwork-select-field input:focus,
 .classwork-select-field select:focus,
 #assistant-input:focus {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
@@ -2038,7 +2041,7 @@ details[open] > .orgaplan-upcoming-summary::before {
 
 .classwork-controls {
   display: grid;
-  grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+  grid-template-columns: minmax(160px, 220px) minmax(160px, 220px) minmax(0, 1fr);
   gap: 12px;
   margin: 16px 0 14px;
   align-items: end;

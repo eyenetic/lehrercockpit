@@ -46,9 +46,29 @@ def parse_classwork_xlsx(file_bytes: bytes) -> dict:
     from datetime import datetime as _dt
 
     now = _dt.now()
+    updated_at_label = now.strftime("%d.%m.%Y um %H:%M")
 
     def _clean_header(value: str) -> str:
         return _re.sub(r"[\r\n]+", " ", str(value)).strip()
+
+    try:
+        from .plan_digest import _read_classwork_workbook as _read_classwork_workbook
+
+        digest = _read_classwork_workbook(
+            file_bytes,
+            now,
+            detail="Datei hochgeladen und fuer das Cockpit ausgewertet.",
+            source_url="",
+        )
+        digest["updatedAt"] = updated_at_label
+        digest["scrapedAt"] = now.isoformat()
+        digest["scrapeMode"] = "upload"
+        digest["dataHash"] = hashlib.sha256(file_bytes).hexdigest()[:16]
+        digest["hasChanges"] = False
+        digest["noChanges"] = False
+        return digest
+    except Exception:
+        pass
 
     try:
         from openpyxl import load_workbook as _load_wb
@@ -71,10 +91,13 @@ def parse_classwork_xlsx(file_bytes: bytes) -> dict:
             "status": "ok",
             "title": "Klassenarbeitsplan",
             "detail": f"CSV hochgeladen. {len(structured)} Eintraege gelesen.",
-            "updatedAt": now.strftime("%H:%M"),
+            "updatedAt": updated_at_label,
             "scrapedAt": now.isoformat(),
             "previewRows": preview,
             "structuredRows": structured[:200],
+            "classes": [],
+            "entries": [],
+            "defaultClass": "",
             "sourceUrl": "",
             "scrapeMode": "upload",
             "dataHash": hashlib.sha256(file_bytes).hexdigest()[:16],
@@ -121,10 +144,13 @@ def parse_classwork_xlsx(file_bytes: bytes) -> dict:
         "status": "ok",
         "title": "Klassenarbeitsplan",
         "detail": f"Excel-Datei hochgeladen. {len(all_structured)} Eintraege aus {total_sheets} Tabellenblättern gelesen.",
-        "updatedAt": now.strftime("%H:%M"),
+        "updatedAt": updated_at_label,
         "scrapedAt": now.isoformat(),
         "previewRows": preview_rows,
         "structuredRows": all_structured[:200],
+        "classes": [],
+        "entries": [],
+        "defaultClass": "",
         "sourceUrl": "",
         "scrapeMode": "upload",
         "dataHash": hashlib.sha256(file_bytes).hexdigest()[:16],

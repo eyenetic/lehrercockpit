@@ -57,6 +57,7 @@
     classworkUploadFeedback: "",
     classworkUploadFeedbackKind: "",
     classworkSelectedClasses: loadStoredClassworkClasses(),
+    classworkClassSearch: "",
     classworkView: "list",
     gradesData: null,
     gradesSelectedClass: "",
@@ -164,9 +165,9 @@
     classworkOpenLink: document.querySelector("#classwork-open-link"),
     classworkDigestCard: document.querySelector('[aria-labelledby="classwork-digest-title"]'),
     classworkUploadInput: document.querySelector("#classwork-upload-input"),
-    classworkBrowserFetchButton: document.querySelector("#classwork-browser-fetch-button"),
     classworkUploadStatus: document.querySelector("#classwork-upload-status"),
     classworkDigestDetail: document.querySelector("#classwork-digest-detail"),
+    classworkClassSearch: document.querySelector("#classwork-class-search"),
     classworkClassFilter: document.querySelector("#classwork-class-filter"),
     classworkViewSwitch: document.querySelector("#classwork-view-switch"),
     classworkPreviewList: document.querySelector("#classwork-preview-list"),
@@ -1757,12 +1758,6 @@
       });
     }
 
-    if (elements.classworkBrowserFetchButton) {
-      elements.classworkBrowserFetchButton.addEventListener("click", async () => {
-        await triggerClassworkBrowserFetch();
-      });
-    }
-
     if (elements.classworkClassFilter) {
       elements.classworkClassFilter.addEventListener("change", (event) => {
         state.classworkSelectedClasses = Array.from(event.target.selectedOptions || [])
@@ -1771,6 +1766,13 @@
         persistClassworkSelectedClasses();
         renderPlanDigest();
         renderBriefing();
+      });
+    }
+
+    if (elements.classworkClassSearch) {
+      elements.classworkClassSearch.addEventListener("input", (event) => {
+        state.classworkClassSearch = String(event.target.value || "").trim();
+        renderPlanDigest();
       });
     }
 
@@ -1960,59 +1962,6 @@
       state.classworkUploadFeedback = error.message || "Klassenarbeitsplan konnte nicht importiert werden.";
       state.classworkUploadFeedbackKind = "warning";
       renderPlanDigest();
-    }
-  }
-
-  async function triggerClassworkBrowserFetch() {
-    if (!IS_LOCAL_RUNTIME) {
-      setUploadStatus(
-        "Online-Abruf ist nur lokal verfuegbar, nicht auf dem gehosteten Server.",
-        "warning"
-      );
-      return;
-    }
-
-    setUploadStatus("⏳ Browser-Abruf laeuft … Bitte warten (ca. 20–30 s).", "loading");
-
-    try {
-      const apiBase = window.BACKEND_API_URL || "";
-      const response = await fetch(`${apiBase}/api/classwork/browser-fetch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: "" }),
-      });
-
-      const payload = await response.json();
-
-      if (payload.status === "login_required") {
-        setUploadStatus(
-          "🔐 Bitte zuerst im Browser bei Microsoft einloggen – dann erneut versuchen.",
-          "warning"
-        );
-        return;
-      }
-
-      if (payload.status === "error") {
-        setUploadStatus(
-          `⚠️ Beta-Abruf fehlgeschlagen: ${payload.detail || "Unbekannter Fehler"}`,
-          "warning"
-        );
-        return;
-      }
-
-      if (payload.status === "ok") {
-        setUploadStatus(
-          `✓ ${payload.detail || "Daten erfolgreich geladen."}`,
-          "ok"
-        );
-        await refreshDashboard(true);
-        await loadClassworkCache();
-      }
-    } catch (error) {
-      setUploadStatus(
-        `⚠️ Verbindungsfehler: ${error.message || "Server nicht erreichbar."}`,
-        "warning"
-      );
     }
   }
 

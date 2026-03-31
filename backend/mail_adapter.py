@@ -7,6 +7,7 @@ from email.message import Message
 from email.utils import parseaddr, parsedate_to_datetime
 import html
 import imaplib
+import json
 import re
 import subprocess
 from typing import Any
@@ -155,6 +156,11 @@ def _fetch_apple_mail_sync(settings: MailSettings, now: datetime) -> MailSyncRes
             note=f"Apple-Mail-Vorschau ist lokal aktiv. Letzter Abruf: {now.strftime('%H:%M')}.",
         )
     except Exception as exc:
+        detail = f"Apple-Mail-Vorschau konnte nicht geladen werden: {type(exc).__name__}."
+        if isinstance(exc, subprocess.CalledProcessError):
+            stderr_lines = [line.strip() for line in (exc.stderr or "").splitlines() if line.strip()]
+            if stderr_lines:
+                detail = f"Apple-Mail-Vorschau konnte nicht geladen werden: {stderr_lines[-1][:180]}"
         return MailSyncResult(
             source={
                 "id": "mail",
@@ -164,7 +170,7 @@ def _fetch_apple_mail_sync(settings: MailSettings, now: datetime) -> MailSyncRes
                 "cadence": "lokal bei Reload",
                 "lastSync": now.strftime("%H:%M"),
                 "nextStep": "Apple Mail oeffnen und Codex ggf. unter Systemeinstellungen > Datenschutz > Automation freigeben",
-                "detail": f"Apple-Mail-Vorschau konnte nicht geladen werden: {type(exc).__name__}.",
+                "detail": detail,
             },
             messages=[],
             priorities=[],
@@ -176,7 +182,7 @@ def _fetch_apple_mail_sync(settings: MailSettings, now: datetime) -> MailSyncRes
 def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[str, Any]]:
     script = _build_apple_mail_script(settings.max_messages, settings.local_mailbox, settings.local_account)
     result = subprocess.run(
-        ["osascript", "-"],
+        ["osascript", "-l", "JavaScript", "-"],
         input=script,
         capture_output=True,
         text=True,
@@ -188,10 +194,10 @@ def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[st
     messages = []
     for index, line in enumerate(lines, start=1):
         fields = line.split("\x1f")
-        if len(fields) != 8:
+        if len(fields) != 5:
             continue
 
-        subject, sender, read_state, received_iso, snippet, account_name, mailbox_name, recipients = fields
+        subject, sender, read_state, received_iso, snippet = fields
         received_at = _parse_local_date(received_iso, now)
         messages.append(
             {
@@ -218,133 +224,96 @@ def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[st
 
 
 def _build_apple_mail_script(max_messages: int, mailbox_name: str, account_match: str) -> str:
-    mailbox_name = mailbox_name.replace('"', "")
-    account_match = account_match.replace('"', "")
+    mailbox_name_json = json.dumps(mailbox_name or "")
+    account_match_json = json.dumps((account_match or "").lower())
     scan_count = min(max(max_messages * 3, 12), 24)
     return f"""
-set fieldSep to ASCII character 31
-set outputLines to {{}}
-set maxCount to {scan_count}
-set fallbackMailboxName to "{mailbox_name}"
-set targetAccount to "{account_match}"
+const fieldSep = String.fromCharCode(31);
+const maxCount = {scan_count};
+const fallbackMailboxName = {mailbox_name_json};
+const targetAccount = {account_match_json};
 
-on twoDigits(valueNumber)
-  if valueNumber < 10 then
-    return "0" & valueNumber
-  end if
-  return valueNumber as text
-end twoDigits
+function normalizeText(value) {{
+  return String(value || "").replace(/[\\r\\n\\t]+/g, " ").trim();
+}}
 
-on monthNumber(monthValue)
-  if monthValue is January then return "01"
-  if monthValue is February then return "02"
-  if monthValue is March then return "03"
-  if monthValue is April then return "04"
-  if monthValue is May then return "05"
-  if monthValue is June then return "06"
-  if monthValue is July then return "07"
-  if monthValue is August then return "08"
-  if monthValue is September then return "09"
-  if monthValue is October then return "10"
-  if monthValue is November then return "11"
-  return "12"
-end monthNumber
+function twoDigits(value) {{
+  return String(value).padStart(2, "0");
+}}
 
-on normalizeText(rawText)
-  set cleanText to rawText as text
-  set cleanText to my replaceText(return, " ", cleanText)
-  set cleanText to my replaceText(linefeed, " ", cleanText)
-  set cleanText to my replaceText(tab, " ", cleanText)
-  return cleanText
-end normalizeText
+function isoDate(value) {{
+  const date = new Date(value);
+  return [
+    date.getFullYear(),
+    twoDigits(date.getMonth() + 1),
+    twoDigits(date.getDate()),
+  ].join("-") + "T" + [
+    twoDigits(date.getHours()),
+    twoDigits(date.getMinutes()),
+    twoDigits(date.getSeconds()),
+  ].join(":");
+}}
 
-on replaceText(findText, replaceText, sourceText)
-  set oldDelimiters to AppleScript's text item delimiters
-  set AppleScript's text item delimiters to findText
-  set textItems to every text item of sourceText
-  set AppleScript's text item delimiters to replaceText
-  set sourceText to textItems as text
-  set AppleScript's text item delimiters to oldDelimiters
-  return sourceText
-end replaceText
+function pickMailbox(mailApp) {{
+  const accounts = mailApp.accounts();
+  for (let index = 0; index < accounts.length; index += 1) {{
+    const account = accounts[index];
+    let accountName = "";
+    try {{
+      accountName = normalizeText(account.name()).toLowerCase();
+    }} catch (error) {{}}
+    if (targetAccount && accountName && !accountName.includes(targetAccount)) {{
+      continue;
+    }}
+    let mailboxes = [];
+    try {{
+      mailboxes = account.mailboxes();
+    }} catch (error) {{}}
+    if (fallbackMailboxName) {{
+      for (let mailboxIndex = 0; mailboxIndex < mailboxes.length; mailboxIndex += 1) {{
+        const mailbox = mailboxes[mailboxIndex];
+        try {{
+          if (normalizeText(mailbox.name()) === fallbackMailboxName) return mailbox;
+        }} catch (error) {{}}
+      }}
+    }}
+    if (mailboxes.length) return mailboxes[0];
+  }}
 
-on containsText(sourceText, queryText)
-  if queryText is "" then return true
-  set sourceLower to do shell script "printf %s " & quoted form of sourceText & " | tr '[:upper:]' '[:lower:]'"
-  set queryLower to do shell script "printf %s " & quoted form of queryText & " | tr '[:upper:]' '[:lower:]'"
-  return sourceLower contains queryLower
-end containsText
+  const allMailboxes = mailApp.mailboxes();
+  if (fallbackMailboxName) {{
+    for (let mailboxIndex = 0; mailboxIndex < allMailboxes.length; mailboxIndex += 1) {{
+      const mailbox = allMailboxes[mailboxIndex];
+      try {{
+        if (normalizeText(mailbox.name()) === fallbackMailboxName) return mailbox;
+      }} catch (error) {{}}
+    }}
+  }}
+  return allMailboxes.length ? allMailboxes[0] : null;
+}}
 
-tell application "Mail"
-  set targetAccountRef to missing value
-  repeat with oneAccount in every account
-    set accountNameValue to ""
-    set addressValue to ""
-    try
-      set accountNameValue to my normalizeText(name of oneAccount as text)
-    end try
-    try
-      set AppleScript's text item delimiters to ", "
-      set addressValue to (email addresses of oneAccount as text)
-      set AppleScript's text item delimiters to linefeed
-      set addressValue to my normalizeText(addressValue)
-    end try
-    if my containsText(accountNameValue, targetAccount) or my containsText(addressValue, targetAccount) then
-      set targetAccountRef to oneAccount
-      exit repeat
-    end if
-  end repeat
+const Mail = Application("com.apple.mail");
+const mailbox = pickMailbox(Mail);
+if (!mailbox) throw new Error("Kein Apple-Mail-Postfach gefunden");
 
-  set mailboxRef to missing value
-  if targetAccount is not "" and targetAccountRef is missing value then
-    error "Target Apple Mail account not found"
-  end if
+const messages = mailbox.messages();
+const limitCount = Math.min(messages.length, maxCount);
+const lines = [];
 
-  if targetAccountRef is not missing value then
-    try
-      set mailboxRef to first mailbox of targetAccountRef whose name is fallbackMailboxName
-    end try
-    if mailboxRef is missing value then
-      try
-        set mailboxRef to first mailbox of targetAccountRef
-      end try
-    end if
-  end if
-  if mailboxRef is missing value then
-    try
-      set mailboxRef to inbox
-    end try
-  end if
-  if mailboxRef is missing value then
-    set mailboxRef to first mailbox whose name is fallbackMailboxName
-  end if
+for (let index = 0; index < limitCount; index += 1) {{
+  const message = messages[index];
+  let subject = "";
+  let sender = "";
+  let readValue = "false";
+  let receivedValue = "";
+  try {{ subject = normalizeText(message.subject()); }} catch (error) {{}}
+  try {{ sender = normalizeText(message.sender()); }} catch (error) {{}}
+  try {{ readValue = String(message.readStatus()); }} catch (error) {{}}
+  try {{ receivedValue = isoDate(message.dateReceived()); }} catch (error) {{}}
+  lines.push([subject, sender, readValue, receivedValue, "Lokale Vorschau aus Apple Mail"].join(fieldSep));
+}}
 
-  set mailMessages to messages of mailboxRef
-  set limitCount to count of mailMessages
-  if limitCount > maxCount then set limitCount to maxCount
-
-  repeat with indexNumber from 1 to limitCount
-    set theMessage to item indexNumber of mailMessages
-    set receivedDate to date received of theMessage
-    set receivedValue to (year of receivedDate as text) & "-" & my monthNumber(month of receivedDate) & "-" & my twoDigits(day of receivedDate) & "T" & my twoDigits(hours of receivedDate) & ":" & my twoDigits(minutes of receivedDate) & ":" & my twoDigits(seconds of receivedDate)
-    set subjectValue to my normalizeText(subject of theMessage as text)
-    set senderValue to my normalizeText(sender of theMessage as text)
-    set snippetValue to "Lokale Vorschau aus Apple Mail"
-    set readValue to (read status of theMessage) as text
-    set mailboxNameValue to ""
-    set accountNameValue to ""
-    try
-      set mailboxNameValue to my normalizeText(name of mailbox of theMessage as text)
-    end try
-    try
-      set accountNameValue to my normalizeText(name of account of mailbox of theMessage as text)
-    end try
-    copy (subjectValue & fieldSep & senderValue & fieldSep & readValue & fieldSep & receivedValue & fieldSep & snippetValue & fieldSep & accountNameValue & fieldSep & mailboxNameValue & fieldSep & "") to end of outputLines
-  end repeat
-end tell
-
-set AppleScript's text item delimiters to linefeed
-return outputLines as text
+lines.join("\\n");
 """.strip()
 
 

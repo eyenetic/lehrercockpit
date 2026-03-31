@@ -111,13 +111,18 @@ var LehrerClasswork = (function () {
   function renderClassworkSelector(classes, defaultClass) {
     if (!_elements.classworkClassFilter) return;
     var activeClasses = getSelectedClasses(classes, defaultClass);
+    var searchNeedle = String(_state.classworkClassSearch || '').trim().toLowerCase();
+    var filteredClasses = searchNeedle
+      ? classes.filter(function (classLabel) { return classLabel.toLowerCase().includes(searchNeedle); })
+      : classes.slice();
     _elements.classworkClassFilter.disabled = !classes.length;
+    if (_elements.classworkClassSearch) _elements.classworkClassSearch.disabled = !classes.length;
     if (!classes.length) {
       _elements.classworkClassFilter.innerHTML = '<option value="">Keine Klasse erkannt</option>';
       return;
     }
-    _elements.classworkClassFilter.size = Math.min(Math.max(classes.length, 3), 8);
-    _elements.classworkClassFilter.innerHTML = classes.map(function (classLabel) {
+    _elements.classworkClassFilter.size = Math.min(Math.max(filteredClasses.length || classes.length, 3), 8);
+    _elements.classworkClassFilter.innerHTML = (filteredClasses.length ? filteredClasses : classes).map(function (classLabel) {
       return '<option value="' + classLabel + '"' + (activeClasses.includes(classLabel) ? ' selected' : '') + '>' + classLabel + '</option>';
     }).join('');
   }
@@ -330,7 +335,7 @@ var LehrerClasswork = (function () {
       if (_elements.classworkUploadStatus) {
         _elements.classworkUploadStatus.hidden = false;
         _elements.classworkUploadStatus.textContent = classwork.updatedAt
-          ? 'Letzter gemeinsamer Upload: ' + classwork.updatedAt
+          ? 'Zuletzt hochgeladen am ' + classwork.updatedAt + '.'
           : 'Noch kein gemeinsamer Upload vorhanden.';
       }
     } else if (_elements.classworkUploadStatus) {
@@ -353,9 +358,25 @@ var LehrerClasswork = (function () {
     }
 
     var activeClasses = getSelectedClasses(classes, classwork.defaultClass || '');
+    var today = new Date();
+    var weekStart = new Date(today);
+    var weekdayIndex = (weekStart.getDay() + 6) % 7;
+    weekStart.setDate(weekStart.getDate() - weekdayIndex);
+    weekStart.setHours(0, 0, 0, 0);
+    var weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    var weekStartIso = weekStart.toISOString().slice(0, 10);
+    var weekEndIso = weekEnd.toISOString().slice(0, 10);
     var classEntries = entries
       .filter(function (entry) { return !activeClasses.length || activeClasses.includes(entry.classLabel); })
+      .filter(function (entry) { return !entry.isoDate || (entry.isoDate >= weekStartIso && entry.isoDate <= weekEndIso); })
       .sort(function (left, right) { return (left.isoDate || '').localeCompare(right.isoDate || ''); });
+    if (!classEntries.length) {
+      classEntries = entries
+        .filter(function (entry) { return !activeClasses.length || activeClasses.includes(entry.classLabel); })
+        .sort(function (left, right) { return (left.isoDate || '').localeCompare(right.isoDate || ''); })
+        .slice(0, 8);
+    }
     var visibleClassEntries = _getVisiblePanelItems(classEntries, 'classwork');
 
     if (showClasswork) {

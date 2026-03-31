@@ -643,11 +643,9 @@ def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path, moc
     import json as _json
 
     def _is_good(data: dict) -> bool:
-        return data.get("status") == "ok" and bool(data.get("structuredRows") or data.get("previewRows"))
-
-    # If plan_digest already has live data (e.g. Google Sheets CSV), keep it — no override needed
-    if _is_good(plan_classwork):
-        return plan_classwork
+        return data.get("status") == "ok" and bool(
+            data.get("entries") or data.get("classes") or data.get("structuredRows") or data.get("previewRows")
+        )
 
     def _shape(cached: dict) -> dict:
         return {
@@ -657,6 +655,9 @@ def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path, moc
             "updatedAt": cached.get("updatedAt", plan_classwork.get("updatedAt", "")),
             "previewRows": cached.get("previewRows", []),
             "structuredRows": cached.get("structuredRows", []),
+            "classes": cached.get("classes", plan_classwork.get("classes", [])),
+            "entries": cached.get("entries", plan_classwork.get("entries", [])),
+            "defaultClass": cached.get("defaultClass", plan_classwork.get("defaultClass", "")),
             "sourceUrl": cached.get("sourceUrl", plan_classwork.get("sourceUrl", "")),
             "hasChanges": cached.get("hasChanges", False),
             "noChanges": cached.get("noChanges", False),
@@ -672,7 +673,11 @@ def _merge_classwork_cache(plan_classwork: dict[str, Any], cache_path: Path, moc
     except Exception as exc:
         print(f"[dashboard] classwork cache read failed: {exc}", flush=True)
 
-    # 2. Embedded snapshot from mock-dashboard.json (always in repo)
+    # 2. If plan_digest already has readable data (e.g. local sync file), keep that.
+    if _is_good(plan_classwork):
+        return plan_classwork
+
+    # 3. Embedded snapshot from mock-dashboard.json (always in repo)
     if mock_path is not None:
         try:
             mock_data = _json.loads(mock_path.read_text(encoding="utf-8"))
