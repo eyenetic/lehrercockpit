@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 import re
@@ -86,9 +86,11 @@ def _build_orgaplan_digest(url: str, now: datetime) -> dict[str, Any]:
 
     try:
         month_entries, month_label = _extract_orgaplan_entries(download.data, now)
-        upcoming = [entry for entry in month_entries if entry["date"] >= now.date()]
+        today = _berlin_today(now)
+        week_end = today + timedelta(days=6)
+        upcoming = [entry for entry in month_entries if entry["date"] >= today]
         if not upcoming:
-            upcoming = month_entries[:5]
+            upcoming = month_entries
         section_counts = _count_orgaplan_sections(upcoming)
 
         return {
@@ -102,7 +104,7 @@ def _build_orgaplan_digest(url: str, now: datetime) -> dict[str, Any]:
             "monthLabel": month_label,
             "updatedAt": now.strftime("%H:%M"),
             "highlights": _build_orgaplan_highlights(upcoming),
-            "upcoming": [_serialize_entry(entry) for entry in upcoming[:8]],
+            "upcoming": [_serialize_entry(entry) for entry in upcoming],
             "sourceUrl": url,
         }
     except Exception as exc:
@@ -364,6 +366,24 @@ def _class_sort_key(value: str) -> tuple[int, str]:
     if qmatch:
         return 100, qmatch.group(1)
     return 999, value.upper()
+def _berlin_today(now: datetime) -> date:
+    """Return today's date in Europe/Berlin time (UTC+1 winter, UTC+2 summer).
+
+    Uses stdlib only — no pytz/zoneinfo dependency.
+    Approximation: if the system UTC offset for Berlin cannot be determined we
+    add 2 hours (CEST) which is correct from late March to late October.
+    """
+    try:
+        import zoneinfo  # Python 3.9+
+        berlin = zoneinfo.ZoneInfo("Europe/Berlin")
+        return datetime.now(berlin).date()
+    except Exception:
+        # Fallback: assume UTC+2 (CEST) — safe for April–October school year
+        from datetime import timezone as _tz
+        berlin_offset = timedelta(hours=2)
+        return (now.replace(tzinfo=timezone.utc) + berlin_offset).date()
+
+
 def _download_document(url: str) -> DownloadResult:
     request = Request(url, headers={"User-Agent": "LehrerCockpit/1.0"})
 
@@ -809,6 +829,7 @@ def _build_orgaplan_highlights(upcoming: list[dict[str, Any]]) -> list[dict[str,
 def _serialize_entry(entry: dict[str, Any]) -> dict[str, str]:
     return {
         "dateLabel": entry["dateLabel"],
+        "isoDate": entry["date"].isoformat(),
         "title": entry["title"],
         "text": entry["text"],
         "general": entry.get("general", ""),

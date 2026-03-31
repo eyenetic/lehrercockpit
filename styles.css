@@ -1898,6 +1898,144 @@ a {
   letter-spacing: 0.08em;
 }
 
+/* ── Orgaplan Today / Week sections ──────────────────────────────────────── */
+
+.orgaplan-section-label {
+  padding: 12px 0 6px;
+}
+
+.orgaplan-section-label .card-kicker {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.orgaplan-today-section {
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 4px;
+}
+
+.orgaplan-week-section {
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 4px;
+}
+
+.orgaplan-upcoming-details {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.orgaplan-upcoming-summary {
+  padding: 10px 0 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.orgaplan-upcoming-summary::before {
+  content: "▸";
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+}
+
+details[open] > .orgaplan-upcoming-summary::before {
+  transform: rotate(90deg);
+}
+
+.orgaplan-today-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.orgaplan-today-empty-icon {
+  font-size: 1rem;
+  color: var(--positive, #4caf81);
+}
+
+.orgaplan-today-item {
+  border-radius: 8px;
+  background: var(--surface-raised, var(--card-bg));
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.orgaplan-today-item__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.orgaplan-today-item__badge {
+  flex-shrink: 0;
+}
+
+.orgaplan-today-item__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.orgaplan-today-item__body {
+  display: grid;
+  gap: 8px;
+}
+
+.orgaplan-row--today {
+  padding-top: 6px;
+}
+
+.orgaplan-week-day {
+  margin-bottom: 12px;
+}
+
+.orgaplan-week-day__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 4px;
+}
+
+.orgaplan-week-day__date {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.orgaplan-week-day__items {
+  display: grid;
+  gap: 8px;
+}
+
+.orgaplan-week-item {
+  border-left: 2px solid var(--line);
+  padding-left: 10px;
+}
+
+.orgaplan-week-item__title {
+  margin-bottom: 4px;
+}
+
+.orgaplan-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin: 0;
+}
+
 .classwork-controls {
   display: grid;
   grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);

@@ -684,6 +684,9 @@ def _fetch_itslearning_data(user_id: int) -> dict:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
+_HES_ORGAPLAN_PDF_URL = "https://hermann-ehlers-schule.de/wp-content/uploads/2026/03/Orgaplan-2025_26-ab-April.pdf"
+
+
 def _fetch_orgaplan_data() -> dict:
     """Fetch orgaplan data from cache or parse fresh. Returns module result dict."""
     try:
@@ -694,7 +697,7 @@ def _fetch_orgaplan_data() -> dict:
             cached_ts_raw = get_system_setting(conn, "orgaplan_cache_ts", None)
             cached_url = get_system_setting(conn, "orgaplan_cache_url", None)
 
-        effective_url = pdf_url or orgaplan_url
+        effective_url = pdf_url or orgaplan_url or _HES_ORGAPLAN_PDF_URL
         if not effective_url:
             return {"ok": True, "data": None, "configured": False}
 
@@ -712,13 +715,36 @@ def _fetch_orgaplan_data() -> dict:
             except Exception:
                 cache_valid = False
 
+        from backend.plan_digest import _berlin_today as _get_berlin_today
+        from datetime import timedelta as _td, date as _date
+
+        def _slice_by_date(all_upcoming: list) -> tuple:
+            """Compute today/week entries fresh from Berlin local date — never from cache."""
+            today_local = _get_berlin_today(now)
+            week_end = today_local + _td(days=6)
+            t_entries, w_entries = [], []
+            for entry in sorted(all_upcoming, key=lambda e: e.get("isoDate", "")):
+                try:
+                    d = _date.fromisoformat(entry.get("isoDate", ""))
+                except (ValueError, TypeError):
+                    continue
+                if d == today_local:
+                    t_entries.append(entry)
+                if today_local <= d <= week_end:
+                    w_entries.append(entry)
+            return t_entries, w_entries
+
         if cache_valid and isinstance(cached_raw, dict):
             digest = cached_raw
+            upcoming = digest.get("upcoming", [])
+            today_entries, week_entries = _slice_by_date(upcoming)
             return {"ok": True, "data": {
                 "url": orgaplan_url, "pdf_url": pdf_url,
                 "highlights": digest.get("highlights", []),
-                "upcoming": digest.get("upcoming", []),
-                "entries": digest.get("upcoming", []),
+                "upcoming": upcoming,
+                "entries": upcoming,
+                "today_entries": today_entries,
+                "week_entries": week_entries,
                 "classes": [],
                 "status": digest.get("status", "ok"),
                 "detail": digest.get("detail", ""),
@@ -737,11 +763,15 @@ def _fetch_orgaplan_data() -> dict:
                 set_system_setting(conn, "orgaplan_cache_url", effective_url)
         except Exception:
             pass
+        upcoming = orgaplan_digest.get("upcoming", [])
+        today_entries, week_entries = _slice_by_date(upcoming)
         return {"ok": True, "data": {
             "url": orgaplan_url, "pdf_url": pdf_url,
             "highlights": orgaplan_digest.get("highlights", []),
-            "upcoming": orgaplan_digest.get("upcoming", []),
-            "entries": orgaplan_digest.get("upcoming", []),
+            "upcoming": upcoming,
+            "entries": upcoming,
+            "today_entries": today_entries,
+            "week_entries": week_entries,
             "classes": [],
             "status": orgaplan_digest.get("status", "ok"),
             "detail": orgaplan_digest.get("detail", ""),
