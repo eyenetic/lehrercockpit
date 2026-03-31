@@ -193,8 +193,6 @@ def _load_from_apple_mail(settings: MailSettings, now: datetime) -> list[dict[st
 
         subject, sender, read_state, received_iso, snippet, account_name, mailbox_name, recipients = fields
         received_at = _parse_local_date(received_iso, now)
-        if settings.local_account and not _matches_local_account(settings.local_account, account_name, mailbox_name, recipients):
-            continue
         messages.append(
             {
                 "id": f"apple-mail-{index}",

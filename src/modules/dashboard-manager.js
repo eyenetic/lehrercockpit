@@ -114,11 +114,6 @@
       }));
     }
 
-    function _todayLayoutKey() {
-      var userId = window.CURRENT_USER && window.CURRENT_USER.id ? window.CURRENT_USER.id : 'local';
-      return 'lehrerCockpit.todayLayout.v2.' + userId;
-    }
-
     function _defaultTodayLayout() {
       return {
         order: TODAY_LAYOUT_DEFINITION.map(function(item) { return item.id; }),
@@ -160,7 +155,11 @@
 
     function _loadTodayLayout() {
       try {
-        var raw = localStorage.getItem(window.MULTIUSER_ENABLED ? _todayLayoutKey() : TODAY_LAYOUT_STORAGE_KEY);
+        var raw = localStorage.getItem(TODAY_LAYOUT_STORAGE_KEY);
+        if (!raw) {
+          var legacyUserId = window.CURRENT_USER && window.CURRENT_USER.id ? window.CURRENT_USER.id : 'local';
+          raw = localStorage.getItem('lehrerCockpit.todayLayout.v2.' + legacyUserId);
+        }
         return _sanitizeTodayLayout(raw ? JSON.parse(raw) : null);
       } catch (_error) {
         return _defaultTodayLayout();
@@ -169,7 +168,7 @@
 
     function _persistTodayLayout() {
       try {
-        localStorage.setItem(window.MULTIUSER_ENABLED ? _todayLayoutKey() : TODAY_LAYOUT_STORAGE_KEY, JSON.stringify(_todayLayout));
+        localStorage.setItem(TODAY_LAYOUT_STORAGE_KEY, JSON.stringify(_todayLayout));
       } catch (_error) {
         // ignore storage failures
       }

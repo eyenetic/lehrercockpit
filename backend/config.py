@@ -171,7 +171,7 @@ def load_settings() -> AppSettings:
         password=os.getenv("MAIL_PASSWORD", "").strip(),
         folder=os.getenv("MAIL_FOLDER", "INBOX").strip() or "INBOX",
         use_ssl=_env_flag("MAIL_USE_SSL", True),
-        max_messages=_env_int("MAIL_MAX_MESSAGES", 8),
+        max_messages=_env_int("MAIL_MAX_MESSAGES", 12),
     )
     itslearning_settings = ItslearningSettings(
         base_url=os.getenv("ITSLEARNING_BASE_URL", "").strip(),

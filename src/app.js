@@ -1337,8 +1337,21 @@
 
   function renderInboxLinks() {
     const base = state.data?.base || {};
+    const mailConnection = connectionHint("mail");
     if (elements.dienstmailOpenLink) {
-      bindExternalLink(elements.dienstmailOpenLink, "https://outlook.office.com/mail/", "Dienstmail öffnen");
+      if (mailConnection?.configured) {
+        elements.dienstmailOpenLink.href = "message://";
+        elements.dienstmailOpenLink.textContent = "Dienstmail in Mail öffnen";
+        elements.dienstmailOpenLink.hidden = false;
+        elements.dienstmailOpenLink.target = "_self";
+        elements.dienstmailOpenLink.rel = "";
+        elements.dienstmailOpenLink.style.pointerEvents = "auto";
+        elements.dienstmailOpenLink.style.opacity = "1";
+      } else {
+        bindExternalLink(elements.dienstmailOpenLink, "https://outlook.office.com/mail/", "Dienstmail öffnen");
+        elements.dienstmailOpenLink.target = "_blank";
+        elements.dienstmailOpenLink.rel = "noreferrer";
+      }
     }
     if (elements.itslearningOpenLink) {
       bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning öffnen");
@@ -1913,36 +1926,33 @@
   }
 
   async function uploadClassworkFile(file) {
-    if (!file.name.toLowerCase().match(/\.(xlsx|xlsm)$/)) {
-      state.classworkUploadFeedback = "Bitte eine XLSX- oder XLSM-Datei auswaehlen.";
+    if (!file.name.toLowerCase().match(/\.(xlsx|xlsm|xls|csv)$/)) {
+      state.classworkUploadFeedback = "Bitte eine XLSX-, XLSM-, XLS- oder CSV-Datei auswaehlen.";
       state.classworkUploadFeedbackKind = "warning";
       renderPlanDigest();
       return;
     }
 
-    state.classworkUploadFeedback = "Importiere Klassenarbeitsplan lokal ...";
+    state.classworkUploadFeedback = "Importiere Klassenarbeitsplan ...";
     state.classworkUploadFeedbackKind = "";
     renderPlanDigest();
 
     try {
-      const contentBase64 = await fileToBase64(file);
-      const response = await fetch("/api/local-settings/classwork-upload", {
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+      const apiBase = window.BACKEND_API_URL || "";
+
+      const response = await fetch(`${apiBase}/api/classwork/upload`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          contentBase64,
-        }),
+        body: formData,
       });
 
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.detail || "Lokaler Import fehlgeschlagen.");
+        throw new Error(payload.detail || "Import fehlgeschlagen.");
       }
 
-      state.classworkUploadFeedback = payload.detail || "Klassenarbeitsplan importiert.";
+      state.classworkUploadFeedback = payload.detail || "Klassenarbeitsplan aktualisiert.";
       state.classworkUploadFeedbackKind = "success";
       await refreshDashboard(true);
     } catch (error) {
@@ -1964,7 +1974,8 @@
     setUploadStatus("⏳ Browser-Abruf laeuft … Bitte warten (ca. 20–30 s).", "loading");
 
     try {
-      const response = await fetch("/api/classwork/browser-fetch", {
+      const apiBase = window.BACKEND_API_URL || "";
+      const response = await fetch(`${apiBase}/api/classwork/browser-fetch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: "" }),

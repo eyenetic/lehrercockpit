@@ -78,7 +78,7 @@ var LehrerClasswork = (function () {
     if (classwork.status === 'ok') {
       var classCount = (classwork.classes || []).length;
       var entryCount = (classwork.entries || []).length;
-      return entryCount + ' Eintraege fuer ' + classCount + ' Klassen erkannt. Du kannst den Originalplan oeffnen oder mit dem letzten Import direkt hier arbeiten.';
+      return entryCount + ' Eintraege fuer ' + classCount + ' Klassen erkannt. Lade bei Bedarf eine neue Datei hoch oder arbeite mit dem zuletzt gemeinsam importierten Stand.';
     }
     return truncateText(classwork.detail || 'Der Klassenarbeitsplan ist verlinkt, aber noch nicht automatisch lesbar.', 140);
   }
@@ -330,8 +330,8 @@ var LehrerClasswork = (function () {
       if (_elements.classworkUploadStatus) {
         _elements.classworkUploadStatus.hidden = false;
         _elements.classworkUploadStatus.textContent = classwork.updatedAt
-          ? 'Letzter Import: ' + classwork.updatedAt
-          : 'Noch kein Upload oder Import vorhanden.';
+          ? 'Letzter gemeinsamer Upload: ' + classwork.updatedAt
+          : 'Noch kein gemeinsamer Upload vorhanden.';
       }
     } else if (_elements.classworkUploadStatus) {
       _elements.classworkUploadStatus.hidden = true;
