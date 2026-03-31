@@ -65,6 +65,11 @@ var LehrerClasswork = (function () {
 
   function summarizeOrgaplanDigest(orgaplan) {
     var count = (orgaplan.upcoming || []).length || (orgaplan.highlights || []).length;
+    if (!count) {
+      return orgaplan.sourceUrl
+        ? 'Der Orgaplan ist verlinkt. Sobald Hinweise erkannt werden, erscheinen sie hier kompakt.'
+        : 'Noch kein Orgaplan-Link hinterlegt.';
+    }
     var month = orgaplan.monthLabel || 'diesem Monat';
     return count + ' relevante Hinweise fuer ' + month + '. Hier stehen nur die naechsten Punkte, nicht der ganze Plan.';
   }

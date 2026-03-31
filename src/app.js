@@ -45,6 +45,7 @@
     selectedChannel: "mail",
     documentSearch: "",
     webuntisView: "week",
+    webuntisWeekOffset: 0,
     webuntisPickerOpen: false,
     webuntisPickerCategory: null,
     webuntisPickerSearch: "",
@@ -73,10 +74,9 @@
     briefingButton: document.querySelector("#briefing-button"),
     briefingOutput: document.querySelector("#briefing-output"),
     todayBriefingFocus: document.querySelector("#today-briefing-focus"),
-    todayUpdatesList: document.querySelector("#today-updates-list"),
-    todayQuickLinkGrid: document.querySelector("#today-quick-link-grid"),
     heroNote: document.querySelector("#hero-note"),
     runtimeBanner: document.querySelector("#runtime-banner"),
+    settingsButton: document.querySelector("#settings-button"),
     themeToggle: document.querySelector("#theme-toggle"),
     themeToggleLabel: document.querySelector(".theme-toggle-label"),
     navLinks: Array.from(document.querySelectorAll("[data-section-target]")),
@@ -87,7 +87,6 @@
     expandToggles: Array.from(document.querySelectorAll("[data-expand-toggle]")),
     workspaceEyebrow: document.querySelector("#workspace-eyebrow"),
     workspaceTitle: document.querySelector("#workspace-title"),
-    workspaceDescription: document.querySelector("#workspace-description"),
     statsGrid: document.querySelector("#stats-grid"),
     quickLinkGrid: document.querySelector("#quick-link-grid"),
     itslearningConnectCard: document.querySelector("#itslearning-connect-card"),
@@ -121,7 +120,8 @@
     priorityList: document.querySelector("#priority-list"),
     sourceList: document.querySelector("#source-list"),
     messageList: document.querySelector("#message-list"),
-    monitorList: document.querySelector("#monitor-list"),
+    dienstmailOpenLink: document.querySelector("#dienstmail-open-link"),
+    itslearningOpenLink: document.querySelector("#itslearning-open-link"),
     scheduleList: document.querySelector("#schedule-list"),
     webuntisViewSwitch: document.querySelector("#webuntis-view-switch"),
     webuntisRefreshButton: document.querySelector("#webuntis-refresh-button"),
@@ -240,16 +240,18 @@
 
   function isSectionEnabled(sectionId) {
     switch (sectionId) {
-      case "grades":
-        return DashboardManager && typeof DashboardManager.isModuleVisible === 'function'
-          ? DashboardManager.isModuleVisible('noten')
-          : false;
       case "overview":
       case "schedule":
       case "inbox":
       case "documents":
       case "assistant":
+        return true;
+      case "grades":
+        return DashboardManager && typeof DashboardManager.isModuleVisible === 'function'
+          ? DashboardManager.isModuleVisible('noten')
+          : false;
       case "access":
+        return false;
       default:
         return true;
     }
@@ -575,7 +577,7 @@
       }
     }
 
-    // ── Store raw modules dict for direct access (e.g. wichtige-termine) ────
+    // ── Store raw modules dict for optional direct access ───────────────────
     if (v2.modules && typeof v2.modules === 'object') {
       data.modules = v2.modules;
     }
@@ -671,9 +673,18 @@
 
   function renderWorkspace() {
     const data = getData();
-    elements.workspaceEyebrow.textContent = data.workspace.eyebrow;
-    elements.workspaceTitle.textContent = data.workspace.title;
-    elements.workspaceDescription.textContent = data.workspace.description;
+    const titleFromWorkspace = data.workspace?.title || "";
+    const schoolName =
+      data.base?.school_name ||
+      (titleFromWorkspace.startsWith("Dein Tagesstart fuer ")
+        ? titleFromWorkspace.replace("Dein Tagesstart fuer ", "")
+        : "");
+    if (elements.workspaceEyebrow) {
+      elements.workspaceEyebrow.textContent = data.workspace.eyebrow || "Berlin Lehrer-Cockpit";
+    }
+    if (elements.workspaceTitle) {
+      elements.workspaceTitle.textContent = schoolName || titleFromWorkspace || "Lehrer-Cockpit";
+    }
   }
 
   function applyTheme() {
@@ -709,14 +720,19 @@
     });
 
     elements.viewDividers.forEach((divider) => {
-      const targetSection = divider.dataset.dividerFor;
-      divider.hidden = !targetSection || !isSectionEnabled(targetSection);
+      divider.hidden = true;
     });
+
+    if (elements.settingsButton) {
+      elements.settingsButton.hidden = active !== "overview";
+    }
   }
 
   function renderMeta() {
     const data = getData();
-    elements.heroNote.textContent = `Stand ${data.meta.lastUpdatedLabel}. ${data.meta.note}`;
+    if (elements.heroNote) {
+      elements.heroNote.textContent = `Stand ${data.meta.lastUpdatedLabel}`;
+    }
   }
 
   function renderRuntimeBanner() {
@@ -726,12 +742,6 @@
       elements.runtimeBanner.hidden = false;
       elements.runtimeBanner.textContent =
         "Direktdatei geoeffnet. Fuer Live-Daten bitte http://127.0.0.1:4173 nutzen.";
-      return;
-    }
-
-    if (IS_LOCAL_RUNTIME && data.meta.mode === "live") {
-      elements.runtimeBanner.hidden = false;
-      elements.runtimeBanner.textContent = `Lokaler Live-Modus aktiv. Neu geladen um ${data.meta.lastUpdatedLabel}.`;
       return;
     }
 
@@ -1109,6 +1119,9 @@
   function renderQuickLinks() {
     const data = getData();
     const quickLinks = data.quickLinks || [];
+    if (!elements.quickLinkGrid) {
+      return;
+    }
     const visibleQuickLinks = getVisiblePanelItems(quickLinks, "access");
     setExpandableMeta(elements.quickLinkGrid, quickLinks.length, visibleQuickLinks.length);
     elements.quickLinkGrid.innerHTML = quickLinks.length
@@ -1125,23 +1138,6 @@
           )
           .join("")
       : `<div class="empty-state">Noch keine Direktzugriffe konfiguriert.</div>`;
-
-    if (elements.todayQuickLinkGrid) {
-      const todayLinks = quickLinks;
-      elements.todayQuickLinkGrid.innerHTML = todayLinks.length
-        ? todayLinks
-            .map(
-              (link) => `
-                <a class="quick-link-card today-quick-link-card" href="${link.url}" target="_blank" rel="noreferrer">
-                  <span class="meta-tag low">${link.kind}</span>
-                  <strong>${link.title}</strong>
-                  <span class="quick-link-action">oeffnen</span>
-                </a>
-              `
-            )
-            .join("")
-        : `<div class="empty-state">Noch keine Zugaenge hinterlegt.</div>`;
-    }
   }
 
   function renderTodayModuleLayout() {
@@ -1149,8 +1145,8 @@
     const layout = DashboardManager && typeof DashboardManager.getTodayLayout === "function"
       ? DashboardManager.getTodayLayout()
       : {
-          order: ["briefing", "updates", "access"],
-          visibility: { briefing: true, updates: true, access: true },
+          order: ["briefing", "access"],
+          visibility: { briefing: true, access: true },
         };
 
     const cardMap = new Map(
@@ -1205,27 +1201,6 @@
     if (window.LehrerNextcloud) return window.LehrerNextcloud.renderNextcloudConnector();
   }
 
-  function renderTodayUpdates() {
-    if (!elements.todayUpdatesList) return;
-    const data = getData();
-    const updates = (data.berlinFocus || []).slice(0, 4);
-    elements.todayUpdatesList.innerHTML = updates.length
-      ? updates
-          .map(
-            (item) => `
-              <article class="priority-item today-update-item">
-                <div class="priority-top">
-                  <strong>${item.title}</strong>
-                  <span class="meta-tag low">Webseite</span>
-                </div>
-                <p class="priority-copy">${item.detail}</p>
-              </article>
-            `
-          )
-          .join("")
-      : `<div class="empty-state">Gerade keine neuen Hinweise aus der Schulwebsite.</div>`;
-  }
-
   // ── SECTION: Inbox — delegated to window.LehrerInbox ────────────────────────
 
   function renderPriorities() {
@@ -1240,15 +1215,22 @@
     if (window.LehrerInbox) return window.LehrerInbox.renderMessages();
   }
 
+  function renderInboxLinks() {
+    const base = state.data?.base || {};
+    if (elements.dienstmailOpenLink) {
+      bindExternalLink(elements.dienstmailOpenLink, "https://outlook.office.com/mail/", "Dienstmail oeffnen");
+    }
+    if (elements.itslearningOpenLink) {
+      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning oeffnen");
+      elements.itslearningOpenLink.hidden = !base.itslearning_base_url;
+    }
+  }
+
   function getRelevantInboxMessages(data) {
     // Phase 11d: Delegate to LehrerItslearning module if available
     const d = data || getData();
     if (window.LehrerItslearning) return window.LehrerItslearning.getRelevantInboxMessages(d);
     return (d.messages || []).filter((message) => message.channel === "mail" || message.channel === "itslearning");
-  }
-
-  function renderDocumentMonitor() {
-    if (window.LehrerInbox) return window.LehrerInbox.renderDocumentMonitor();
   }
 
   // ── Classwork rendering — delegated to window.LehrerClasswork ───────────────
@@ -1409,11 +1391,6 @@
   function getWeekAnchorDate(currentDate, view) {
     if (window.LehrerWebUntis) return window.LehrerWebUntis.getWeekAnchorDate(currentDate, view);
     return new Date(currentDate + 'T00:00:00');
-  }
-
-  function nextWeekLabel(currentDate) {
-    if (window.LehrerWebUntis) return window.LehrerWebUntis.nextWeekLabel(currentDate);
-    return 'Naechste Woche';
   }
 
   function getWebUntisRangeLabel(center) {
@@ -1720,7 +1697,7 @@
 
   // ── SECTION: Render orchestration ────────────────────────────────────────────
 
-  // ── SECTION: Zugaenge + Wichtige Termine (Slice 2) ──────────────────────────
+  // ── SECTION: Zugaenge (Today) ───────────────────────────────────────────────
 
   function renderHeuteZugaenge() {
     if (!window.LehrerZugaenge) return;
@@ -1734,20 +1711,6 @@
     }
   }
 
-  function renderHeuteWichtigeTermine() {
-    if (!window.LehrerWichtigeTermine) return;
-    var moduleData = null;
-    if (state.data && state.data.modules && state.data.modules['wichtige-termine']) {
-      moduleData = state.data.modules['wichtige-termine'];
-    }
-    if (isModuleVisible('wichtige-termine')) {
-      window.LehrerWichtigeTermine.render('heute-wichtige-termine-container', moduleData);
-    } else {
-      var el = document.getElementById('heute-wichtige-termine-container');
-      if (el) el.innerHTML = '';
-    }
-  }
-
   function renderAll() {
     renderWorkspace();
     renderMeta();
@@ -1756,13 +1719,12 @@
     renderSectionFocus();
     renderStats();
     renderBriefing();
-    renderTodayUpdates();
     renderQuickLinks();
     renderHeuteZugaenge();
-    renderHeuteWichtigeTermine();
     renderItslearningConnector();
     renderNextcloudConnector();
     renderMessages();
+    renderInboxLinks();
     // Slice 3: wire inbox tabs and update unread badges
     if (window.LehrerInbox && typeof window.LehrerInbox.initInboxTabs === 'function') {
       window.LehrerInbox.initInboxTabs();
@@ -1777,7 +1739,6 @@
     renderDocuments();
     renderExpandableSections();
     renderNavSignals();
-    renderDocumentMonitor();
   }
 
   // ── Slice 4: App title display ────────────────────────────────────────────
@@ -1795,21 +1756,13 @@
   // ── Slice 4: WebUntis external link ───────────────────────────────────────
 
   function updateWebUntisExternalLink() {
-    var webuntisUrl = (state.data && state.data.base && state.data.base.webuntis_url)
-      ? state.data.base.webuntis_url
-      : '';
-    var btn = document.getElementById('webuntis-open-btn');
-    if (!btn) return;
-    if (webuntisUrl) {
-      btn.href = webuntisUrl;
-      btn.removeAttribute('hidden');
-    } else {
-      btn.setAttribute('hidden', '');
-    }
+    return;
   }
 
   async function refreshDashboard(forceRefresh = false) {
-    elements.heroNote.textContent = "Lade aktuelle Datenquellen und aktualisiere Cockpit, WebUntis und Inbox.";
+    if (elements.heroNote) {
+      elements.heroNote.textContent = "Stand wird aktualisiert …";
+    }
     try {
       state.data = await loadDashboard(forceRefresh);
       renderAll();
@@ -1824,7 +1777,9 @@
         return;
       }
 
-      elements.heroNote.textContent = `Daten konnten nicht geladen werden. Letzter Versuch: ${formatTime(new Date())}.`;
+      if (elements.heroNote) {
+        elements.heroNote.textContent = `Stand ${formatTime(new Date())}`;
+      }
       elements.briefingOutput.innerHTML = `<div class="empty-state">Dashboard-Daten konnten nicht geladen werden.</div>`;
     }
   }
@@ -2033,6 +1988,68 @@
   // ── SECTION: Heute anpassen ───────────────────────────────────────────────────
 
   var _heuteAnpassenWired = false;
+  var _heuteDragId = null;
+
+  function getHeuteLayoutItems() {
+    if (!DashboardManager || typeof DashboardManager.getTodayLayout !== "function") {
+      return [
+        { id: "briefing", label: "Tagesbriefing" },
+        { id: "access", label: "Zugaenge" },
+      ];
+    }
+
+    var layout = DashboardManager.getTodayLayout();
+    var labels = {
+      briefing: "Tagesbriefing",
+      access: "Zugaenge",
+    };
+
+    return (layout.order || ["briefing", "access"]).map(function(id) {
+      return { id: id, label: labels[id] || id };
+    });
+  }
+
+  function renderHeuteAnpassenList(modulesContainer) {
+    if (!modulesContainer) return;
+    var items = getHeuteLayoutItems();
+    modulesContainer.innerHTML = items.map(function(item) {
+      return '<button class="heute-sort-item" type="button" draggable="true" data-heute-sort-id="' + item.id + '">'
+        + '<span class="heute-sort-item__grip" aria-hidden="true">⋮⋮</span>'
+        + '<span class="heute-sort-item__copy">' + item.label + '</span>'
+        + '</button>';
+    }).join('');
+
+    modulesContainer.querySelectorAll("[data-heute-sort-id]").forEach(function(item) {
+      item.addEventListener("dragstart", function() {
+        _heuteDragId = item.dataset.heuteSortId;
+        item.classList.add("is-dragging");
+      });
+      item.addEventListener("dragend", function() {
+        _heuteDragId = null;
+        item.classList.remove("is-dragging");
+        modulesContainer.querySelectorAll("[data-heute-sort-id]").forEach(function(entry) {
+          entry.classList.remove("is-drop-target");
+        });
+      });
+      item.addEventListener("dragover", function(event) {
+        event.preventDefault();
+        if (_heuteDragId && _heuteDragId !== item.dataset.heuteSortId) {
+          item.classList.add("is-drop-target");
+        }
+      });
+      item.addEventListener("dragleave", function() {
+        item.classList.remove("is-drop-target");
+      });
+      item.addEventListener("drop", function(event) {
+        event.preventDefault();
+        item.classList.remove("is-drop-target");
+        if (!_heuteDragId || _heuteDragId === item.dataset.heuteSortId) return;
+        var dragged = modulesContainer.querySelector('[data-heute-sort-id="' + _heuteDragId + '"]');
+        if (!dragged) return;
+        modulesContainer.insertBefore(dragged, item);
+      });
+    });
+  }
 
   function initHeuteAnpassen() {
     if (!DashboardManager || !window.MULTIUSER_ENABLED) return;
@@ -2044,24 +2061,7 @@
     var saveBtn = document.getElementById('heute-anpassen-save');
     if (!panel || !modulesContainer) return;
 
-    // Render optional module checkboxes
-    var allModules = typeof DashboardManager.getModules === 'function' ? DashboardManager.getModules() : [];
-    var optionalModules = allModules.filter(function(m) {
-      return !DashboardManager.isMandatoryModule(m.module_id);
-    });
-
-    if (!optionalModules.length) {
-      modulesContainer.innerHTML = '<p style="font-size:0.82rem;color:var(--muted);">Keine optionalen Module verfügbar.</p>';
-    } else {
-      modulesContainer.innerHTML = optionalModules.map(function(m) {
-        var checked = m.is_visible !== false ? ' checked' : '';
-        var label = m.display_name || m.module_id;
-        return '<label class="heute-modul-item">' +
-          '<input type="checkbox" name="modul-' + m.module_id + '" data-modul-id="' + m.module_id + '" data-modul-order="' + (m.sort_order || 100) + '"' + checked + '>' +
-          '<span>' + label + '</span>' +
-          '</label>';
-      }).join('');
-    }
+    renderHeuteAnpassenList(modulesContainer);
 
     // Wire buttons only once
     if (!_heuteAnpassenWired) {
@@ -2069,6 +2069,7 @@
 
       if (openBtn) {
         openBtn.addEventListener('click', function() {
+          renderHeuteAnpassenList(modulesContainer);
           panel.hidden = false;
         });
       }
@@ -2092,17 +2093,18 @@
           saveBtn.disabled = true;
           saveBtn.textContent = 'Speichern\u2026';
 
-          var checkboxes = modulesContainer.querySelectorAll('input[type="checkbox"][data-modul-id]');
-          var updates = Array.from(checkboxes).map(function(cb) {
-            return {
-              id: cb.dataset.modulId,
-              is_visible: cb.checked,
-              sort_order: parseInt(cb.dataset.modulOrder || '100', 10)
-            };
+          var order = Array.from(modulesContainer.querySelectorAll('[data-heute-sort-id]')).map(function(item) {
+            return item.dataset.heuteSortId;
           });
 
           try {
-            var ok = await DashboardManager.saveHeuteLayout(updates);
+            var ok = await DashboardManager.saveHeuteLayout({
+              order: order,
+              visibility: {
+                briefing: true,
+                access: true,
+              },
+            });
             if (ok) {
               panel.hidden = true;
               window.dispatchEvent(new CustomEvent('dashboard-layout-changed', {
@@ -2138,7 +2140,7 @@
     const badgeEl = document.getElementById("today-nav-badge");
     if (weekdayEl) weekdayEl.textContent = weekday;
     if (dateEl) dateEl.textContent = date;
-    if (badgeEl) badgeEl.textContent = now.getDate();
+    if (badgeEl) badgeEl.textContent = "";
   }
 
   function initialize() {
@@ -2411,7 +2413,6 @@
       inbox: unreadCount ? "warning" : "",
       documents: changedDocuments ? "danger" : (classworkToday || orgaplanToday ? "warning" : ""),
       grades: gradeRisk ? "danger" : (noteCount ? "accent" : ""),
-      access: "",
       assistant: "",
     };
 
@@ -2429,8 +2430,6 @@
 
       if (target === "inbox") {
         button.textContent = unreadCount > 0 ? `${baseLabel} · ${unreadCount}` : baseLabel;
-      } else if (target === "overview") {
-        button.innerHTML = `${baseLabel}<span id="today-nav-badge" class="nav-day-badge">${new Date().getDate()}</span>`;
       } else {
         button.textContent = baseLabel;
       }

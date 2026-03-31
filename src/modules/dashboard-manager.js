@@ -50,14 +50,9 @@
         mandatory: true
       },
       {
-        id: 'updates',
-        label: 'Updates aus der Webseite',
-        description: 'Kompakter Block fuer die letzte Woche.'
-      },
-      {
         id: 'access',
-        label: 'Alle Zugaenge',
-        description: 'Kleine Sammlung der wichtigsten Arbeitslinks fuer heute.',
+        label: 'Zugaenge',
+        description: 'Direkte Arbeitswege fuer die wichtigsten Dienste des Tages.',
         mandatory: true
       }
     ];
@@ -367,10 +362,40 @@
       return _modules.slice();
     }
 
-    async function saveHeuteLayout(moduleUpdates) {
+    async function saveHeuteLayout(layoutOrUpdates) {
+      if (Array.isArray(layoutOrUpdates)) {
+        _todayLayout = _sanitizeTodayLayout({
+          order: layoutOrUpdates.map(function(item) { return item.id; }),
+          visibility: layoutOrUpdates.reduce(function(acc, item) {
+            acc[item.id] = item.is_visible !== false;
+            return acc;
+          }, {})
+        });
+      } else if (layoutOrUpdates && typeof layoutOrUpdates === 'object') {
+        _todayLayout = _sanitizeTodayLayout(layoutOrUpdates);
+      } else {
+        _todayLayout = _sanitizeTodayLayout(_todayLayout);
+      }
+
+      _persistTodayLayout();
+      _emitLayoutChanged();
+
       // PUT /api/v2/dashboard/heute-layout
       // filters out mandatory modules before sending
-      var filtered = (moduleUpdates || []).filter(function(m) { return !isMandatoryModule(m.id); });
+      var filtered = TODAY_LAYOUT_DEFINITION
+        .filter(function(item) { return !item.mandatory; })
+        .map(function(item, index) {
+          return {
+            id: item.id,
+            is_visible: _todayLayout.visibility[item.id] !== false,
+            sort_order: index + 1,
+          };
+        });
+
+      if (!filtered.length) {
+        return true;
+      }
+
       try {
         var resp = await fetch(_backendBase() + '/api/v2/dashboard/heute-layout', {
           method: 'PUT',

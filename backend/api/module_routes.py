@@ -413,6 +413,8 @@ def klassenarbeitsplan_data():
     try:
         with db_connection() as conn:
             url = get_system_setting(conn, "klassenarbeitsplan_url", None)
+            if not url:
+                url = get_system_setting(conn, "classwork_url", None)
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
 

@@ -372,6 +372,10 @@ def _build_base_quick_links(
     schoolportal_url: str = "",
     orgaplan_pdf_url: str = "",
     itslearning_base_url: str = "",
+    webuntis_url: str = "",
+    nextcloud_workspace_url: str = "",
+    fehlzeiten_11_url: str = "",
+    fehlzeiten_12_url: str = "",
 ) -> list:
     """Build quick_links list for the v2 base dashboard section."""
     links: list = [
@@ -381,8 +385,23 @@ def _build_base_quick_links(
             "url": schoolportal_url or "https://portal.berlin.de",
             "kind": "Portal",
             "note": "Zentraler Einstieg fuer Berliner Schuldienste",
-        }
+        },
+        {
+            "id": "dienstmail",
+            "title": "Dienstmail",
+            "url": "https://outlook.office.com/mail/",
+            "kind": "Mail",
+            "note": "Direkter Einstieg in die Berliner Dienstmail",
+        },
     ]
+    if webuntis_url:
+        links.append({
+            "id": "webuntis",
+            "title": "WebUntis",
+            "url": webuntis_url,
+            "kind": "Planung",
+            "note": "Stundenplan, Vertretung und Tagesansicht",
+        })
     if itslearning_base_url:
         links.append({
             "id": "itslearning",
@@ -398,6 +417,30 @@ def _build_base_quick_links(
             "url": orgaplan_pdf_url,
             "kind": "PDF",
             "note": "Aktueller Orgaplan fuer eure Schule",
+        })
+    if nextcloud_workspace_url:
+        links.append({
+            "id": "nextcloud",
+            "title": "Nextcloud",
+            "url": nextcloud_workspace_url,
+            "kind": "Dateien",
+            "note": "Dateien und Arbeitsbereiche direkt oeffnen",
+        })
+    if fehlzeiten_11_url:
+        links.append({
+            "id": "fehlzeiten-11",
+            "title": "Fehlzeiten Q1/Q2",
+            "url": fehlzeiten_11_url,
+            "kind": "Dateien",
+            "note": "Fehlzeiten-Datei fuer die 11. Klasse",
+        })
+    if fehlzeiten_12_url:
+        links.append({
+            "id": "fehlzeiten-12",
+            "title": "Fehlzeiten Q3/Q4",
+            "url": fehlzeiten_12_url,
+            "kind": "Dateien",
+            "note": "Fehlzeiten-Datei fuer die 12. Klasse",
         })
     return links
 
@@ -428,6 +471,7 @@ def _fetch_base_data() -> dict:
     fehlzeiten_12_url = ""
     klassenarbeitsplan_url = ""
     webuntis_url = ""
+    nextcloud_workspace_url = ""
     app_title = ""
 
     # 1. Read system_settings from DB
@@ -441,10 +485,15 @@ def _fetch_base_data() -> dict:
             orgaplan_pdf_url = _safe_str(get_system_setting(conn, "orgaplan_pdf_url", ""))
             itslearning_base_url = _safe_str(get_system_setting(conn, "itslearning_base_url", ""))
             school_name = _safe_str(get_system_setting(conn, "school_name", ""))
+            if not school_name:
+                school_name = _safe_str(get_system_setting(conn, "schulname", ""))
             fehlzeiten_11_url = _safe_str(get_system_setting(conn, "fehlzeiten_11_url", ""))
             fehlzeiten_12_url = _safe_str(get_system_setting(conn, "fehlzeiten_12_url", ""))
             klassenarbeitsplan_url = _safe_str(get_system_setting(conn, "klassenarbeitsplan_url", ""))
+            if not klassenarbeitsplan_url:
+                klassenarbeitsplan_url = _safe_str(get_system_setting(conn, "classwork_url", ""))
             webuntis_url = _safe_str(get_system_setting(conn, "webuntis_url", ""))
+            nextcloud_workspace_url = _safe_str(get_system_setting(conn, "nextcloud_workspace_url", ""))
             app_title = _safe_str(get_system_setting(conn, "app_title", ""))
     except Exception:
         pass  # Fall back to local settings below
@@ -459,6 +508,12 @@ def _fetch_base_data() -> dict:
             orgaplan_pdf_url = _safe_str(getattr(_settings, "orgaplan_pdf_url", ""))
         if not itslearning_base_url:
             itslearning_base_url = _safe_str(getattr(_settings, "itslearning_base_url", ""))
+        if not nextcloud_workspace_url:
+            nextcloud_workspace_url = _safe_str(getattr(_settings.nextcloud, "workspace_url", ""))
+        if not fehlzeiten_11_url:
+            fehlzeiten_11_url = _safe_str(getattr(_settings.nextcloud, "q1q2_url", ""))
+        if not fehlzeiten_12_url:
+            fehlzeiten_12_url = _safe_str(getattr(_settings.nextcloud, "q3q4_url", ""))
         if not school_name:
             school_name = _safe_str(getattr(_settings, "school_name", ""))
     except Exception:
@@ -474,6 +529,10 @@ def _fetch_base_data() -> dict:
             schoolportal_url=schoolportal_url,
             orgaplan_pdf_url=orgaplan_pdf_url,
             itslearning_base_url=itslearning_base_url,
+            webuntis_url=webuntis_url,
+            nextcloud_workspace_url=nextcloud_workspace_url,
+            fehlzeiten_11_url=fehlzeiten_11_url,
+            fehlzeiten_12_url=fehlzeiten_12_url,
         )
     except Exception:
         quick_links = []
@@ -530,6 +589,8 @@ def _fetch_base_data() -> dict:
             "fehlzeiten_12_url": fehlzeiten_12_url,
             "klassenarbeitsplan_url": klassenarbeitsplan_url,
             "webuntis_url": webuntis_url,
+            "nextcloud_workspace_url": nextcloud_workspace_url,
+            "school_name": school_name,
             # Slice 4: configurable app title
             "app_title": app_title or "Lehrercockpit",
         },
@@ -672,6 +733,8 @@ def _fetch_klassenarbeitsplan_data() -> dict:
     try:
         with db_connection() as conn:
             url = get_system_setting(conn, "klassenarbeitsplan_url", None)
+            if not url:
+                url = get_system_setting(conn, "classwork_url", None)
 
         from pathlib import Path
         from backend.classwork_cache import load_cache

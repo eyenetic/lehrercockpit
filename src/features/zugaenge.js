@@ -15,14 +15,13 @@ window.LehrerZugaenge = (function() {
   // Will receive baseData from app.js init call
   var STATIC_LINKS = [
     { id: 'webuntis', label: 'WebUntis', group: 'Unterricht', icon: '📅', url: null, configKey: 'webuntis_url' },
-    { id: 'schulportal', label: 'Schulportal', group: 'Verwaltung', icon: '🏫', url: null, configKey: 'schoolportal_url' },
     { id: 'itslearning', label: 'itslearning', group: 'Unterricht', icon: '📚', url: null, configKey: 'itslearning_base_url' },
-    { id: 'orgaplan', label: 'Orgaplan', group: 'Verwaltung', icon: '📋', url: null, configKey: 'orgaplan_pdf_url' },
-    { id: 'nextcloud', label: 'Nextcloud', group: 'Dateien', icon: '☁️', url: 'https://cloud.schule-berlin.de', configKey: null },
-    { id: 'klassenarbeitsplan', label: 'Klassenarbeitsplan', group: 'Unterricht', icon: '✏️', url: null, configKey: 'klassenarbeitsplan_url' },
+    { id: 'schulportal', label: 'Schulportal', group: 'Verwaltung', icon: '🏫', url: null, configKey: 'schoolportal_url' },
+    { id: 'orgaplan', label: 'Orgaplan', group: 'Verwaltung', icon: '📋', url: null, configKeys: ['orgaplan_pdf_url', 'orgaplan_url'] },
+    { id: 'fehlzeiten11', label: 'Fehlzeiten Q1/Q2', group: 'Verwaltung', icon: '📊', url: null, configKey: 'fehlzeiten_11_url' },
+    { id: 'fehlzeiten12', label: 'Fehlzeiten Q3/Q4', group: 'Verwaltung', icon: '📊', url: null, configKey: 'fehlzeiten_12_url' },
     { id: 'dienstmail', label: 'Dienstmail', group: 'Kommunikation', icon: '✉️', url: 'https://outlook.office.com', configKey: null },
-    { id: 'fehlzeiten11', label: 'Fehlzeiten 11. Klasse', group: 'Verwaltung', icon: '📊', url: null, configKey: 'fehlzeiten_11_url' },
-    { id: 'fehlzeiten12', label: 'Fehlzeiten 12. Klasse', group: 'Verwaltung', icon: '📊', url: null, configKey: 'fehlzeiten_12_url' },
+    { id: 'nextcloud', label: 'Nextcloud', group: 'Dateien', icon: '☁️', url: null, configKeys: ['nextcloud_workspace_url', 'nextcloud_base_url'] },
   ];
 
   var _baseData = {};
@@ -33,6 +32,12 @@ window.LehrerZugaenge = (function() {
 
   function _resolveUrl(link) {
     if (link.url) return link.url;
+    if (Array.isArray(link.configKeys)) {
+      for (var i = 0; i < link.configKeys.length; i++) {
+        var candidate = link.configKeys[i];
+        if (candidate && _baseData[candidate]) return _baseData[candidate];
+      }
+    }
     if (link.configKey && _baseData[link.configKey]) return _baseData[link.configKey];
     return null;
   }

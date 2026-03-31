@@ -443,27 +443,24 @@
 
   // ── Date / week helpers ──────────────────────────────────────────────────────
 
-  function getWeekAnchorDate(currentDate, view) {
+  function getWeekAnchorDate(currentDate, offset) {
     var referenceDate = new Date(currentDate + 'T00:00:00');
     var weekStart = _startOfWeek(referenceDate);
-    if (view === 'next-week') {
-      var nextWeek = new Date(weekStart);
-      nextWeek.setDate(nextWeek.getDate() + 7);
-      return nextWeek;
-    }
+    var normalizedOffset = Number(offset) || 0;
+    if (normalizedOffset !== 0) weekStart.setDate(weekStart.getDate() + (normalizedOffset * 7));
     return weekStart;
   }
 
-  function nextWeekLabel(currentDate) {
-    var nextWeek = getWeekAnchorDate(currentDate, 'next-week');
-    var weekNumber = _isoWeekNumber(nextWeek);
-    return 'Naechste KW ' + weekNumber;
+  function weekLabel(currentDate, offset, fallback) {
+    var anchor = getWeekAnchorDate(currentDate, offset);
+    var weekNumber = _isoWeekNumber(anchor);
+    if ((Number(offset) || 0) === 0 && fallback) return fallback;
+    return 'KW ' + weekNumber;
   }
 
   function getWebUntisRangeLabel(center) {
     if (_state.webuntisView === 'day') return 'Heute';
-    if (_state.webuntisView === 'next-week') return nextWeekLabel(center.currentDate);
-    return center.currentWeekLabel || 'Diese Woche';
+    return weekLabel(center.currentDate || new Date().toISOString().slice(0, 10), _state.webuntisWeekOffset || 0, center.currentWeekLabel || 'Aktuelle Woche');
   }
 
   function groupEventsByDay(events) {
@@ -524,7 +521,7 @@
       return events.filter(function (e) { return _isSameDay(new Date(e.startsAt), referenceDate); });
     }
 
-    var weekStart = getWeekAnchorDate(center.currentDate || new Date().toISOString().slice(0, 10), _state.webuntisView);
+    var weekStart = getWeekAnchorDate(center.currentDate || new Date().toISOString().slice(0, 10), _state.webuntisWeekOffset || 0);
     var weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 7);
 
@@ -694,21 +691,38 @@
   function renderWebUntisControls() {
     if (!_state || !_elements) return;
     var center = _getData().webuntisCenter || {};
+    var currentDate = center.currentDate || new Date().toISOString().slice(0, 10);
     var buttons = [
-      { id: 'day', label: 'Heute' },
-      { id: 'week', label: center.currentWeekLabel || 'Diese Woche' },
-      { id: 'next-week', label: nextWeekLabel(center.currentDate || new Date().toISOString().slice(0, 10)) },
+      { id: 'prev', label: '←', action: 'prev', compact: true },
+      { id: 'day', label: 'Heute', action: 'day' },
+      { id: 'week', label: weekLabel(currentDate, _state.webuntisWeekOffset || 0, center.currentWeekLabel || 'Aktuelle Woche'), action: 'week' },
+      { id: 'next', label: '→', action: 'next', compact: true },
     ];
 
     _elements.webuntisViewSwitch.innerHTML = buttons.map(function (btn) {
-      return '<button class="segment-button ' + (_state.webuntisView === btn.id ? 'active' : '') + '" type="button" data-webuntis-view="' + btn.id + '">'
+      var isActive = btn.action === 'day'
+        ? _state.webuntisView === 'day'
+        : (_state.webuntisView === 'week' && btn.action === 'week');
+      return '<button class="segment-button ' + (isActive ? 'active' : '') + (btn.compact ? ' segment-button--compact' : '') + '" type="button" data-webuntis-action="' + btn.action + '">'
         + btn.label
         + '</button>';
     }).join('');
 
-    _elements.webuntisViewSwitch.querySelectorAll('[data-webuntis-view]').forEach(function (btn) {
+    _elements.webuntisViewSwitch.querySelectorAll('[data-webuntis-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        _state.webuntisView = btn.dataset.webuntisView;
+        var action = btn.dataset.webuntisAction;
+        if (action === 'day') {
+          _state.webuntisView = 'day';
+          _state.webuntisWeekOffset = 0;
+        } else if (action === 'week') {
+          _state.webuntisView = 'week';
+        } else if (action === 'prev') {
+          _state.webuntisView = 'week';
+          _state.webuntisWeekOffset = (_state.webuntisWeekOffset || 0) - 1;
+        } else if (action === 'next') {
+          _state.webuntisView = 'week';
+          _state.webuntisWeekOffset = (_state.webuntisWeekOffset || 0) + 1;
+        }
         renderWebUntisControls();
         renderWebUntisSchedule();
       });
@@ -907,7 +921,7 @@
     getWebUntisEvents:        getWebUntisEvents,
     getWebUntisRangeLabel:    getWebUntisRangeLabel,
     getWeekAnchorDate:        getWeekAnchorDate,
-    nextWeekLabel:            nextWeekLabel,
+    weekLabel:                weekLabel,
     groupEventsByDay:         groupEventsByDay,
     buildWeekColumns:         buildWeekColumns,
     findNextEventAfter:       findNextEventAfter,
