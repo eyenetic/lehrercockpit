@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 try:
     from backend.dashboard import build_dashboard_payload
     from backend.config import load_settings
+    from backend.mail_adapter import get_mail_preview
     from backend.classwork_cache import load_cache, save_cache
     from backend.grades_store import create_grade_entry, load_gradebook, save_gradebook
     from backend.notes_store import create_note, load_notes, save_notes
@@ -27,6 +28,7 @@ try:
 except Exception as _exc:
     build_dashboard_payload = None  # type: ignore[assignment]
     load_settings = None  # type: ignore[assignment]
+    get_mail_preview = None  # type: ignore[assignment]
     save_classwork_file = None  # type: ignore[assignment]
     save_itslearning_settings = None  # type: ignore[assignment]
     save_nextcloud_settings = None  # type: ignore[assignment]
@@ -141,6 +143,17 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
             force_refresh = query.get("refresh", ["0"])[0].lower() in {"1", "true", "yes"}
             payload = _get_cached_dashboard_payload(force_refresh=force_refresh)
             self._send_json(payload)
+            return
+
+        if parsed.path == "/api/mail":
+            if get_mail_preview is None:
+                self._send_json(
+                    {"status": "error", "detail": "Mail adapter not available."},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
+                return
+            result = get_mail_preview()
+            self._send_json(result)
             return
 
         if parsed.path == "/api/classwork":
