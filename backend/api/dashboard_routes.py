@@ -715,15 +715,36 @@ def _fetch_orgaplan_data() -> dict:
             except Exception:
                 cache_valid = False
 
+        from backend.plan_digest import _berlin_today as _get_berlin_today
+        from datetime import timedelta as _td, date as _date
+
+        def _slice_by_date(all_upcoming: list) -> tuple:
+            """Compute today/week entries fresh from Berlin local date — never from cache."""
+            today_local = _get_berlin_today(now)
+            week_end = today_local + _td(days=6)
+            t_entries, w_entries = [], []
+            for entry in sorted(all_upcoming, key=lambda e: e.get("isoDate", "")):
+                try:
+                    d = _date.fromisoformat(entry.get("isoDate", ""))
+                except (ValueError, TypeError):
+                    continue
+                if d == today_local:
+                    t_entries.append(entry)
+                if today_local <= d <= week_end:
+                    w_entries.append(entry)
+            return t_entries, w_entries
+
         if cache_valid and isinstance(cached_raw, dict):
             digest = cached_raw
+            upcoming = digest.get("upcoming", [])
+            today_entries, week_entries = _slice_by_date(upcoming)
             return {"ok": True, "data": {
                 "url": orgaplan_url, "pdf_url": pdf_url,
                 "highlights": digest.get("highlights", []),
-                "upcoming": digest.get("upcoming", []),
-                "entries": digest.get("upcoming", []),
-                "today_entries": digest.get("today_entries", []),
-                "week_entries": digest.get("week_entries", []),
+                "upcoming": upcoming,
+                "entries": upcoming,
+                "today_entries": today_entries,
+                "week_entries": week_entries,
                 "classes": [],
                 "status": digest.get("status", "ok"),
                 "detail": digest.get("detail", ""),
@@ -742,13 +763,15 @@ def _fetch_orgaplan_data() -> dict:
                 set_system_setting(conn, "orgaplan_cache_url", effective_url)
         except Exception:
             pass
+        upcoming = orgaplan_digest.get("upcoming", [])
+        today_entries, week_entries = _slice_by_date(upcoming)
         return {"ok": True, "data": {
             "url": orgaplan_url, "pdf_url": pdf_url,
             "highlights": orgaplan_digest.get("highlights", []),
-            "upcoming": orgaplan_digest.get("upcoming", []),
-            "entries": orgaplan_digest.get("upcoming", []),
-            "today_entries": orgaplan_digest.get("today_entries", []),
-            "week_entries": orgaplan_digest.get("week_entries", []),
+            "upcoming": upcoming,
+            "entries": upcoming,
+            "today_entries": today_entries,
+            "week_entries": week_entries,
             "classes": [],
             "status": orgaplan_digest.get("status", "ok"),
             "detail": orgaplan_digest.get("detail", ""),

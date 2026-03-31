@@ -732,7 +732,8 @@
     });
 
     elements.viewDividers.forEach((divider) => {
-      divider.hidden = true;
+      const targetSection = divider.dataset.dividerFor || "";
+      divider.hidden = !targetSection || !isSectionEnabled(targetSection);
     });
 
     if (elements.settingsButton) {
