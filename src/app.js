@@ -1338,6 +1338,7 @@
   function renderInboxLinks() {
     const base = state.data?.base || {};
     const mailConnection = connectionHint("mail");
+    const schoolportalUrl = base.schoolportal_url || "https://schulportal.berlin.de";
     if (elements.dienstmailOpenLink) {
       if (mailConnection?.configured) {
         elements.dienstmailOpenLink.href = "message://";
@@ -1348,7 +1349,7 @@
         elements.dienstmailOpenLink.style.pointerEvents = "auto";
         elements.dienstmailOpenLink.style.opacity = "1";
       } else {
-        bindExternalLink(elements.dienstmailOpenLink, "https://outlook.office.com/mail/", "Dienstmail öffnen");
+        bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal öffnen");
         elements.dienstmailOpenLink.target = "_blank";
         elements.dienstmailOpenLink.rel = "noreferrer";
       }
@@ -1580,7 +1581,7 @@
     if (normalizedQuestion.includes("mail")) {
       const mailMessages = data.messages.filter((message) => message.channel === "mail");
       if (!mailMessages.length) {
-        return "Aktuell ist keine Live-Dienstmail angebunden.";
+        return "Aktuell ist keine lokale Dienstmail-Vorschau angebunden. Die Dienstmail bleibt aber ueber das Schulportal erreichbar.";
       }
       return mailMessages.slice(0, 2).map((message) => `${message.title}: ${message.snippet}`).join(" ");
     }

@@ -176,7 +176,7 @@ def _build_meta(settings: Any, mail_sync: Any, itslearning_sync: Any, nextcloud_
         notes.append(mail_sync.note)
         live_modes.add(mail_sync.mode)
     else:
-        notes.append("Dienstmail bleibt vorerst Link- oder Hinweis-Modul.")
+        notes.append("Dienstmail bleibt als Schulportal-Zugang verfuegbar und kann lokal zusaetzlich in einer Mail-App gespiegelt werden.")
 
     return {
         "mode": "live" if live_modes else "mixed",
@@ -346,9 +346,9 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
             {
                 "id": "dienstmail",
                 "title": "Dienstmail",
-                "url": f"mailto:{settings.mail.local_account}",
+                "url": settings.schoolportal_url,
                 "kind": "Mail",
-                "note": "Direkter Sprung in deine Dienstmail-Adresse",
+                "note": "Dienstmail ueber das Berliner Schulportal oeffnen",
             }
         )
 

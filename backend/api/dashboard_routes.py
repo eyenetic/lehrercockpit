@@ -408,9 +408,9 @@ def _build_base_quick_links(
         {
             "id": "dienstmail",
             "title": "Dienstmail",
-            "url": "https://outlook.office.com/mail/",
+            "url": schoolportal_url or "https://schulportal.berlin.de",
             "kind": "Mail",
-            "note": "Direkter Einstieg in die Berliner Dienstmail",
+            "note": "Dienstmail ueber das Berliner Schulportal oeffnen",
         },
     ]
     if webuntis_url:
