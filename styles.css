@@ -1809,6 +1809,47 @@ a {
   align-items: flex-start;
 }
 
+.grades-layout-simple {
+  grid-template-columns: minmax(340px, 1.2fr) minmax(280px, 0.8fr);
+}
+
+.grades-summary-grid-simple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.grades-preset-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.grades-calculator-form {
+  display: grid;
+  gap: 14px;
+}
+
+.grades-rows {
+  display: grid;
+  gap: 12px;
+}
+
+.grades-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel) 96%, var(--tone-grades) 4%);
+}
+
+.grades-row__remove {
+  align-self: stretch;
+}
+
 .grades-controls {
   margin: 10px 0 16px;
   grid-template-columns: minmax(180px, 240px);
@@ -2118,6 +2159,10 @@ a {
   .connect-grid,
   .grades-summary-grid,
   .grades-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .grades-row {
     grid-template-columns: 1fr;
   }
 

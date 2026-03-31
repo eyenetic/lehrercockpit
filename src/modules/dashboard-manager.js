@@ -19,6 +19,7 @@
   'use strict';
 
   var MANDATORY_MODULE_IDS = ['tagesbriefing', 'zugaenge'];
+  var TODAY_LAYOUT_STORAGE_KEY = 'lehrerCockpit.todayLayout.local';
 
   function isMandatoryModule(moduleId) {
     return MANDATORY_MODULE_IDS.includes(moduleId);
@@ -54,6 +55,30 @@
         label: 'Zugaenge',
         description: 'Direkte Arbeitswege fuer die wichtigsten Dienste des Tages.',
         mandatory: true
+      },
+      {
+        id: 'schedule',
+        label: 'Stundenplan',
+        description: 'Kompakte Vorschau auf deinen Stundenplan.',
+        mandatory: false
+      },
+      {
+        id: 'inbox',
+        label: 'Posteingang',
+        description: 'Letzte Dienstmail und itslearning-Updates.',
+        mandatory: false
+      },
+      {
+        id: 'documents',
+        label: 'Plaene',
+        description: 'Orgaplan und Klassenarbeitsplan in Kurzform.',
+        mandatory: false
+      },
+      {
+        id: 'grades',
+        label: 'Notenberechnung',
+        description: 'Schneller Einstieg in den Notenbereich.',
+        mandatory: false
       }
     ];
     var _todayLayout = null;
@@ -135,7 +160,7 @@
 
     function _loadTodayLayout() {
       try {
-        var raw = localStorage.getItem(_todayLayoutKey());
+        var raw = localStorage.getItem(window.MULTIUSER_ENABLED ? _todayLayoutKey() : TODAY_LAYOUT_STORAGE_KEY);
         return _sanitizeTodayLayout(raw ? JSON.parse(raw) : null);
       } catch (_error) {
         return _defaultTodayLayout();
@@ -144,7 +169,7 @@
 
     function _persistTodayLayout() {
       try {
-        localStorage.setItem(_todayLayoutKey(), JSON.stringify(_todayLayout));
+        localStorage.setItem(window.MULTIUSER_ENABLED ? _todayLayoutKey() : TODAY_LAYOUT_STORAGE_KEY, JSON.stringify(_todayLayout));
       } catch (_error) {
         // ignore storage failures
       }
@@ -380,33 +405,10 @@
       _persistTodayLayout();
       _emitLayoutChanged();
 
-      // PUT /api/v2/dashboard/heute-layout
-      // filters out mandatory modules before sending
-      var filtered = TODAY_LAYOUT_DEFINITION
-        .filter(function(item) { return !item.mandatory; })
-        .map(function(item, index) {
-          return {
-            id: item.id,
-            is_visible: _todayLayout.visibility[item.id] !== false,
-            sort_order: index + 1,
-          };
-        });
-
-      if (!filtered.length) {
-        return true;
-      }
-
-      try {
-        var resp = await fetch(_backendBase() + '/api/v2/dashboard/heute-layout', {
-          method: 'PUT',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ modules: filtered })
-        });
-        return resp.ok;
-      } catch (_e) {
-        return false;
-      }
+      // The Today layout is currently a UI personalization layer.
+      // It is stored locally for both local and hosted usage so preview cards
+      // can evolve independently of the backend module model.
+      return true;
     }
 
     return {

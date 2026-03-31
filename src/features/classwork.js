@@ -78,7 +78,7 @@ var LehrerClasswork = (function () {
     if (classwork.status === 'ok') {
       var classCount = (classwork.classes || []).length;
       var entryCount = (classwork.entries || []).length;
-      return entryCount + ' Eintraege fuer ' + classCount + ' Klassen erkannt. Unten arbeitest du nur mit der Klasse, die du gerade brauchst.';
+      return entryCount + ' Eintraege fuer ' + classCount + ' Klassen erkannt. Du kannst den Originalplan oeffnen oder mit dem letzten Import direkt hier arbeiten.';
     }
     return truncateText(classwork.detail || 'Der Klassenarbeitsplan ist verlinkt, aber noch nicht automatisch lesbar.', 140);
   }
@@ -237,6 +237,15 @@ var LehrerClasswork = (function () {
     if (showClasswork) {
       _bindExternalLink(_elements.classworkOpenLink, classwork.sourceUrl, 'Plan online öffnen');
       _elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
+      if (_elements.classworkUploadStatus) {
+        _elements.classworkUploadStatus.hidden = false;
+        _elements.classworkUploadStatus.textContent = classwork.updatedAt
+          ? 'Letzter Import: ' + classwork.updatedAt
+          : 'Noch kein Upload oder Import vorhanden.';
+      }
+    } else if (_elements.classworkUploadStatus) {
+      _elements.classworkUploadStatus.hidden = true;
+      _elements.classworkUploadStatus.textContent = '';
     }
     _elements.classworkUploadFeedback.textContent = _state.classworkUploadFeedback;
     _elements.classworkUploadFeedback.className = 'connect-feedback' + (_state.classworkUploadFeedbackKind ? ' ' + _state.classworkUploadFeedbackKind : '');

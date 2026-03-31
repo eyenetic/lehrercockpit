@@ -78,7 +78,6 @@
     todayInboxPreview: document.querySelector("#today-inbox-preview"),
     todayDocumentsPreview: document.querySelector("#today-documents-preview"),
     todayGradesPreview: document.querySelector("#today-grades-preview"),
-    todayAssistantPreview: document.querySelector("#today-assistant-preview"),
     heroNote: document.querySelector("#hero-note"),
     runtimeBanner: document.querySelector("#runtime-banner"),
     settingsButton: document.querySelector("#settings-button"),
@@ -172,34 +171,20 @@
     classworkUploadButton: document.querySelector("#classwork-upload-button"),
     classworkUploadFeedback: document.querySelector("#classwork-upload-feedback"),
     gradesDetail: document.querySelector("#grades-detail"),
-    gradesSummaryClass: document.querySelector("#grades-summary-class"),
     gradesSummaryCount: document.querySelector("#grades-summary-count"),
     gradesSummaryAverage: document.querySelector("#grades-summary-average"),
     gradesSummaryRisk: document.querySelector("#grades-summary-risk"),
-    gradesClassInput: document.querySelector("#grades-class-input"),
-    gradesTypeInput: document.querySelector("#grades-type-input"),
-    gradesStudentInput: document.querySelector("#grades-student-input"),
-    gradesTitleInput: document.querySelector("#grades-title-input"),
-    gradesValueInput: document.querySelector("#grades-value-input"),
-    gradesDateInput: document.querySelector("#grades-date-input"),
-    gradesCommentInput: document.querySelector("#grades-comment-input"),
+    gradesRows: document.querySelector("#grades-rows"),
+    gradesAddRow: document.querySelector("#grades-add-row"),
+    gradesReset: document.querySelector("#grades-reset"),
+    gradesPresetButtons: document.querySelector("#grades-preset-buttons"),
     gradesFeedback: document.querySelector("#grades-feedback"),
     gradesForm: document.querySelector("#grades-form"),
-    gradesClassFilter: document.querySelector("#grades-class-filter"),
     gradesList: document.querySelector("#grades-list"),
-    notesForm: document.querySelector("#class-notes-form"),
-    notesClassFilter: document.querySelector("#class-notes-class-filter"),
-    notesInput: document.querySelector("#class-notes-input"),
-    notesFeedback: document.querySelector("#class-notes-feedback"),
-    notesList: document.querySelector("#class-notes-list"),
-    notesClearButton: document.querySelector("#class-notes-clear"),
     documentList: document.querySelector("#document-list"),
     documentsExtraBlock: document.querySelector("#documents-extra-block"),
     documentSearch: document.querySelector("#document-search"),
     documentSearchWrap: document.querySelector("#document-search-wrap"),
-    assistantForm: document.querySelector("#assistant-form"),
-    assistantInput: document.querySelector("#assistant-input"),
-    assistantAnswer: document.querySelector("#assistant-answer"),
   };
 
   // channelLabels moved to src/features/inbox.js (Phase 16)
@@ -249,7 +234,6 @@
       case "schedule":
       case "inbox":
       case "documents":
-      case "assistant":
         return true;
       case "grades":
         return DashboardManager && typeof DashboardManager.isModuleVisible === 'function'
@@ -1030,14 +1014,6 @@
       `;
     }
 
-    if (elements.todayAssistantPreview) {
-      elements.todayAssistantPreview.innerHTML = `
-        <article class="today-mini-card">
-          <strong>Suche im Cockpit</strong>
-          <p>Fragen zu Stundenplan, Plaenen, Inbox und Dokumenten direkt aus dem Cockpit beantworten lassen.</p>
-        </article>
-      `;
-    }
   }
 
   function findNextLesson(data) {
@@ -1219,7 +1195,7 @@
 
   function getDefaultTodayLayout() {
     return {
-      order: ["briefing", "access", "schedule", "inbox", "documents", "grades", "assistant"],
+      order: ["briefing", "access", "schedule", "inbox", "documents", "grades"],
       visibility: {
         briefing: true,
         access: true,
@@ -1227,7 +1203,6 @@
         inbox: true,
         documents: true,
         grades: true,
-        assistant: true,
       },
     };
   }
@@ -1707,11 +1682,6 @@
       }
     });
 
-    elements.assistantForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      elements.assistantAnswer.textContent = respondToAssistant(elements.assistantInput.value);
-    });
-
     if (elements.itslearningConnectForm) {
       elements.itslearningConnectForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -1779,22 +1749,6 @@
       });
     }
 
-    if (elements.gradesClassFilter) {
-      elements.gradesClassFilter.addEventListener("change", (event) => {
-        state.gradesSelectedClass = event.target.value;
-        renderGrades();
-      });
-    }
-
-    if (elements.gradesClassInput) {
-      elements.gradesClassInput.addEventListener("change", (event) => {
-        if (event.target.value) {
-          state.gradesSelectedClass = event.target.value;
-          renderGrades();
-        }
-      });
-    }
-
     if (elements.gradesList) {
       elements.gradesList.addEventListener("click", async (event) => {
         const button = event.target.closest("[data-grade-delete]");
@@ -1802,27 +1756,6 @@
           return;
         }
         await deleteGradeEntry(button.dataset.gradeDelete);
-      });
-    }
-
-    if (elements.notesForm) {
-      elements.notesForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        await saveClassNote();
-      });
-    }
-
-    if (elements.notesClassFilter) {
-      elements.notesClassFilter.addEventListener("change", (event) => {
-        state.notesSelectedClass = event.target.value;
-        renderClassNotes(getGradeClasses(), state.notesSelectedClass);
-        renderNavSignals();
-      });
-    }
-
-    if (elements.notesClearButton) {
-      elements.notesClearButton.addEventListener("click", async () => {
-        await clearClassNote();
       });
     }
   }
@@ -2130,7 +2063,6 @@
       inbox: "Posteingang",
       documents: "Plaene",
       grades: "Notenberechnung",
-      assistant: "Assistenz",
     };
     if (!DashboardManager || typeof DashboardManager.getTodayLayout !== "function") {
       var localLayout = null;
@@ -2165,7 +2097,7 @@
     if (!modulesContainer) return;
     var items = getHeuteLayoutItems();
     modulesContainer.innerHTML = items.map(function(item) {
-      return '<button class="heute-sort-item" type="button" draggable="true" data-heute-sort-id="' + item.id + '">'
+      return '<div class="heute-sort-item" draggable="true" data-heute-sort-id="' + item.id + '">'
         + '<span class="heute-sort-item__grip" aria-hidden="true">⋮⋮</span>'
         + '<span class="heute-sort-item__copy-wrap">'
         + '<span class="heute-sort-item__copy">' + item.label + '</span>'
@@ -2175,7 +2107,7 @@
         + '<input type="checkbox" data-heute-visible-id="' + item.id + '"' + (item.visible ? ' checked' : '') + (item.mandatory ? ' disabled' : '') + ' />'
         + '<span>' + (item.mandatory ? 'immer aktiv' : 'anzeigen') + '</span>'
         + '</label>'
-        + '</button>';
+        + '</div>';
     }).join('');
 
     modulesContainer.querySelectorAll("[data-heute-sort-id]").forEach(function(item) {
@@ -2206,6 +2138,12 @@
         var dragged = modulesContainer.querySelector('[data-heute-sort-id="' + _heuteDragId + '"]');
         if (!dragged) return;
         modulesContainer.insertBefore(dragged, item);
+      });
+    });
+
+    modulesContainer.querySelectorAll('[data-heute-visible-id]').forEach(function(input) {
+      input.addEventListener('click', function(event) {
+        event.stopPropagation();
       });
     });
   }
@@ -2313,8 +2251,6 @@
     initTodayDisplay();
     normalizeLocalWebUntisState();
     applyTheme();
-    elements.assistantAnswer.textContent =
-      "Frag mich nach der Woche, nach dem Orgaplan, nach Dokumenten oder nach deiner Inbox.";
     registerEvents();
     window.addEventListener("dashboard-layout-changed", () => {
       if (state.data) {
@@ -2572,7 +2508,6 @@
     const orgaplanToday = hasTodayOrgaplanHint(data);
     const nextEvent = findNextLesson(data);
     const allGrades = (getGradebookData().entries || []);
-    const noteCount = (getNotesData().notes || []).length;
     const gradeRisk = summarizeGrades(allGrades).riskCount;
 
     const statuses = {
@@ -2580,8 +2515,7 @@
       schedule: nextEvent ? (isEventCurrent(nextEvent) ? "live" : "accent") : "",
       inbox: unreadCount ? "warning" : "",
       documents: changedDocuments ? "danger" : (classworkToday || orgaplanToday ? "warning" : ""),
-      grades: gradeRisk ? "danger" : (noteCount ? "accent" : ""),
-      assistant: "",
+      grades: gradeRisk ? "danger" : "",
     };
 
     elements.navLinks.forEach((button) => {
