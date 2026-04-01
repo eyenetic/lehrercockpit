@@ -56,6 +56,7 @@ GRADES_LOCAL_PATH = PROJECT_ROOT / "data" / "grades-local.json"
 NOTES_LOCAL_PATH = PROJECT_ROOT / "data" / "class-notes-local.json"
 ENV_FILE_PATH = PROJECT_ROOT / ".env.local"
 CLASSWORK_LOCAL_PATH = PROJECT_ROOT / "data" / "classwork-plan-local.xlsx"
+DOWLOADS_PATH = PROJECT_ROOT / "downloads"
 DASHBOARD_CACHE_TTL_SECONDS = int(os.environ.get("DASHBOARD_CACHE_TTL_SECONDS", "45"))
 
 CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "*")
@@ -154,6 +155,15 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 return
             result = get_mail_preview()
             self._send_json(result)
+            return
+
+        if parsed.path.startswith("/api/downloads/"):
+            filename = parsed.path.removeprefix("/api/downloads/")
+            if filename not in {"cockpit-agent-mac.zip", "cockpit-agent-windows.zip"}:
+                self._send_json({"error": "not_found"}, status=HTTPStatus.NOT_FOUND)
+                return
+            self.path = f"/downloads/{filename}"
+            super().do_GET()
             return
 
         if parsed.path == "/api/classwork":

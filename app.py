@@ -111,6 +111,7 @@ GRADES_LOCAL_PATH = PROJECT_ROOT / "data" / "grades-local.json"
 NOTES_LOCAL_PATH = PROJECT_ROOT / "data" / "class-notes-local.json"
 ENV_FILE_PATH = PROJECT_ROOT / ".env.local"
 CLASSWORK_LOCAL_PATH = PROJECT_ROOT / "data" / "classwork-plan-local.xlsx"
+DOWNLOADS_PATH = PROJECT_ROOT / "downloads"
 
 # ── Flask app ─────────────────────────────────────────────────────────────────
 
@@ -255,6 +256,18 @@ def api_mail() -> Response:
     if get_mail_preview is None:
         return jsonify({"status": "error", "detail": "Mail adapter not available."}), 500
     return jsonify(get_mail_preview())
+
+
+@app.route("/api/downloads/<path:filename>")
+def api_download(filename: str) -> Response:
+    if filename not in {"cockpit-agent-mac.zip", "cockpit-agent-windows.zip"}:
+        return jsonify({"error": "not_found"}), 404
+    return send_from_directory(
+        str(DOWNLOADS_PATH),
+        filename,
+        as_attachment=True,
+        mimetype="application/zip",
+    )
 
 
 # ── POST endpoints ────────────────────────────────────────────────────────────

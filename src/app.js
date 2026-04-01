@@ -2343,6 +2343,16 @@
   function initMailSetup() {
     const overlay = document.getElementById("mail-setup-overlay");
     if (!overlay) return;
+    const macDownload = document.getElementById("setup-download-mac");
+    const winDownload = document.getElementById("setup-download-windows");
+    const apiBase = getBackendApiBase();
+
+    if (macDownload) {
+      macDownload.href = `${apiBase}/api/downloads/cockpit-agent-mac.zip`;
+    }
+    if (winDownload) {
+      winDownload.href = `${apiBase}/api/downloads/cockpit-agent-windows.zip`;
+    }
 
     if (!localStorage.getItem("lc.mailSetup")) {
       overlay.hidden = false;
