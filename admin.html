@@ -1019,6 +1019,7 @@
               + '<button class="btn btn-sm" type="button" onclick="regenerateCode(' + u.id + ', \'' + esc(u.full_name || u.first_name) + '\')">Code neu</button>'
               + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" onclick="toggleActive(' + u.id + ', ' + u.is_active + ')">'
               + (u.is_active ? 'Deaktivieren' : 'Aktivieren') + '</button>'
+              + '<button class="btn btn-sm btn-danger" type="button" onclick="deleteUser(' + u.id + ', \'' + esc(u.full_name || u.first_name) + '\')">Loeschen</button>'
               + '</div></td>'
               + '</tr>';
           });
@@ -1175,6 +1176,22 @@
             } else {
               loadUsers();
             }
+          } catch (e) {
+            setFeedback('users-feedback', 'Verbindungsfehler.', 'error');
+          }
+        };
+
+        window.deleteUser = async function (id, name) {
+          if (!confirm('Moechtest du ' + name + ' wirklich dauerhaft loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.')) return;
+          try {
+            const resp = await apiFetch('/api/v2/admin/users/' + id, { method: 'DELETE' });
+            if (!resp.ok) {
+              const data = await resp.json().catch(function () { return {}; });
+              setFeedback('users-feedback', data.error || 'Lehrkraft konnte nicht geloescht werden.', 'error');
+              return;
+            }
+            setFeedback('users-feedback', 'Lehrkraft wurde geloescht.', 'success');
+            loadUsers();
           } catch (e) {
             setFeedback('users-feedback', 'Verbindungsfehler.', 'error');
           }

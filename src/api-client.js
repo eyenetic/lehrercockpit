@@ -85,6 +85,9 @@
       deactivateUser: function(id) {
         return apiFetch('/api/v2/admin/users/' + id + '/deactivate', { method: 'POST' });
       },
+      deleteUser: function(id) {
+        return apiFetch('/api/v2/admin/users/' + id, { method: 'DELETE' });
+      },
       rotateCode: function(id) {
         return apiFetch('/api/v2/admin/users/' + id + '/rotate-code', { method: 'POST' });
       },

@@ -269,6 +269,17 @@ def delete_user_route(user_id: int):
     try:
         with db_connection() as conn:
             deleted = delete_user(conn, user_id)
+            if deleted:
+                try:
+                    log_audit_event(
+                        conn,
+                        "teacher_deleted",
+                        user_id=user_id,
+                        ip_address=request.remote_addr,
+                        details={"deleted_by": g.current_user.id},
+                    )
+                except Exception:
+                    pass
         if not deleted:
             return error("User nicht gefunden", 404)
         return success()

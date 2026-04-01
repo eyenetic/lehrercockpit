@@ -26,6 +26,10 @@
   // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const AUTO_REFRESH_MS = 180000;
+  const LOCAL_MAIL_AGENT_BASES = [
+    "http://127.0.0.1:8765",
+    "http://localhost:8765",
+  ];
   const PANEL_COLLAPSE_LIMITS = {
     inbox: 10,
     grades: 4,
@@ -264,7 +268,7 @@
         if (resp.ok) {
           const v2Json = await resp.json();
           if (v2Json.ok) {
-            return normalizeV2Dashboard(v2Json);
+            return await overlayLocalMailAgentData(normalizeV2Dashboard(v2Json));
           }
         }
       } catch (e) {
@@ -302,14 +306,14 @@
           // Fail silently — v1 data is still usable
         }
 
-        return data;
+        return await overlayLocalMailAgentData(data);
       } catch (error) {
         continue;
       }
     }
 
     if (window.LEHRER_COCKPIT_FALLBACK_DATA) {
-      return normalizeDashboard(window.LEHRER_COCKPIT_FALLBACK_DATA);
+      return await overlayLocalMailAgentData(normalizeDashboard(window.LEHRER_COCKPIT_FALLBACK_DATA));
     }
 
     throw new Error("Dashboard-Daten konnten nicht geladen werden.");
@@ -375,6 +379,110 @@
     };
 
     return data;
+  }
+
+  async function fetchLocalMailAgent() {
+    for (const base of LOCAL_MAIL_AGENT_BASES) {
+      try {
+        const response = await fetch(`${base}/mail`, {
+          method: "GET",
+          mode: "cors",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          continue;
+        }
+        const data = await response.json();
+        if (data && data.status === "ok") {
+          return { ...data, agentBase: base };
+        }
+      } catch (_error) {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  async function fetchBackendMailPreview() {
+    try {
+      const apiBase = getBackendApiBase();
+      const url = `${apiBase}/api/mail`;
+      const response = await fetch(url, { cache: "no-store", credentials: "include" });
+      if (!response.ok) return null;
+      return await response.json();
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function buildMailAgentMessages(agentData) {
+    const messages = Array.isArray(agentData?.messages) ? agentData.messages : [];
+    return messages.map((item, index) => ({
+      id: `mail-agent-${index + 1}`,
+      channel: "mail",
+      channelLabel: "Dienstmail",
+      sender: String(item.sender || "Lokale Mail-App"),
+      title: String(item.subject || "(ohne Betreff)"),
+      snippet: String(item.sender || "Lokale Mail-App"),
+      priority: item.unread ? "high" : "low",
+      timestamp: String(item.date || ""),
+      sortKey: String(item.date || "").trim() || `${1000 - index}`,
+      unread: Boolean(item.unread),
+    }));
+  }
+
+  function buildMailAgentPriorities(messages) {
+    return messages
+      .filter((message) => message.unread)
+      .slice(0, 3)
+      .map((message, index) => ({
+        id: `prio-mail-agent-${index + 1}`,
+        title: message.title,
+        detail: message.sender,
+        priority: "high",
+        source: "Dienstmail",
+        due: "neu",
+      }));
+  }
+
+  async function overlayLocalMailAgentData(data) {
+    const agentData = await fetchLocalMailAgent();
+    if (!agentData) {
+      return data;
+    }
+
+    const mailMessages = buildMailAgentMessages(agentData);
+    const priorities = buildMailAgentPriorities(mailMessages);
+    const platform = String(agentData.platform || "").toLowerCase();
+    const sourceName = platform === "windows" ? "Outlook" : "Apple Mail";
+    const sourceUpdate = {
+      id: "mail",
+      name: "Dienstmail",
+      type: sourceName,
+      status: "ok",
+      cadence: "lokaler Agent",
+      lastSync: formatTime(new Date()),
+      nextStep: platform === "windows" ? "Outlook lokal verbunden" : "Apple Mail lokal verbunden",
+      detail: agentData.detail || `${mailMessages.length} Mails geladen`,
+    };
+
+    const merged = JSON.parse(JSON.stringify(data));
+    merged.localConnections = merged.localConnections || {};
+    merged.localConnections.mail = {
+      configured: true,
+      localAgent: true,
+      platform: platform || "mac",
+      account: sourceName,
+    };
+    merged.sources = Array.isArray(merged.sources)
+      ? [sourceUpdate].concat(merged.sources.filter((source) => source.id !== "mail"))
+      : [sourceUpdate];
+    merged.messages = mailMessages.concat((merged.messages || []).filter((message) => message.channel !== "mail"));
+    merged.priorities = priorities.concat((merged.priorities || []).filter((item) => item.source !== "Dienstmail")).slice(0, 4);
+    if (merged.meta && merged.meta.note) {
+      merged.meta.note = `${merged.meta.note} Dienstmail wird lokal ueber den Cockpit Agenten gespiegelt.`;
+    }
+    return merged;
   }
 
   // ── SECTION: v2 Module Data Overlay (Phase 11d) ─────────────────────────────
@@ -1342,21 +1450,27 @@
     const schoolportalUrl = base.schoolportal_url || "https://schulportal.berlin.de";
     if (elements.dienstmailOpenLink) {
       if (mailConnection?.configured) {
-        elements.dienstmailOpenLink.href = "message://";
-        elements.dienstmailOpenLink.textContent = "Dienstmail in Mail öffnen";
+        if (mailConnection.platform === "windows") {
+          bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
+          elements.dienstmailOpenLink.target = "_blank";
+          elements.dienstmailOpenLink.rel = "noreferrer";
+        } else {
+          elements.dienstmailOpenLink.href = "message://";
+          elements.dienstmailOpenLink.textContent = "Dienstmail in Mail oeffnen";
+          elements.dienstmailOpenLink.target = "_self";
+          elements.dienstmailOpenLink.rel = "";
+        }
         elements.dienstmailOpenLink.hidden = false;
-        elements.dienstmailOpenLink.target = "_self";
-        elements.dienstmailOpenLink.rel = "";
         elements.dienstmailOpenLink.style.pointerEvents = "auto";
         elements.dienstmailOpenLink.style.opacity = "1";
       } else {
-        bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal öffnen");
+        bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
         elements.dienstmailOpenLink.target = "_blank";
         elements.dienstmailOpenLink.rel = "noreferrer";
       }
     }
     if (elements.itslearningOpenLink) {
-      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning öffnen");
+      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning oeffnen");
       elements.itslearningOpenLink.hidden = !base.itslearning_base_url;
     }
   }
@@ -2274,13 +2388,10 @@
 
     function pollAgent(statusId) {
       const statusEl = document.getElementById(statusId);
-      const apiBase = getBackendApiBase();
-      const url = `${apiBase}/api/mail`;
       const timer = setInterval(async () => {
         try {
-          const response = await fetch(url);
-          const data = await response.json();
-          if (data.status === "ok") {
+          const data = (await fetchLocalMailAgent()) || (await fetchBackendMailPreview());
+          if (data && data.status === "ok") {
             clearInterval(timer);
             if (statusEl) statusEl.hidden = false;
             localStorage.setItem("lc.mailSetup", "connected");
