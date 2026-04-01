@@ -65,6 +65,7 @@ if _IS_RENDER:
 try:
     from backend.classwork_cache import load_cache, save_cache
     from backend.grades_store import create_grade_entry, load_gradebook, save_gradebook
+    from backend.mail_adapter import get_mail_preview
     from backend.notes_store import create_note, load_notes, save_notes
     from backend.file_utils import extract_multipart_file, parse_classwork_xlsx
     from backend.local_settings import save_classwork_file, save_itslearning_settings, save_nextcloud_settings
@@ -75,6 +76,7 @@ except Exception as _exc:
     create_grade_entry = None  # type: ignore[assignment]
     load_gradebook = None  # type: ignore[assignment]
     save_gradebook = None  # type: ignore[assignment]
+    get_mail_preview = None  # type: ignore[assignment]
     create_note = None  # type: ignore[assignment]
     load_notes = None  # type: ignore[assignment]
     save_notes = None  # type: ignore[assignment]
@@ -246,6 +248,13 @@ def api_notes() -> Response:
     resp = jsonify(load_notes(NOTES_LOCAL_PATH))
     resp.headers['X-Deprecated'] = 'Use /api/v2/modules/noten/data'
     return resp
+
+
+@app.route("/api/mail")
+def api_mail() -> Response:
+    if get_mail_preview is None:
+        return jsonify({"status": "error", "detail": "Mail adapter not available."}), 500
+    return jsonify(get_mail_preview())
 
 
 # ── POST endpoints ────────────────────────────────────────────────────────────

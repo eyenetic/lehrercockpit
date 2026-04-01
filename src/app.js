@@ -2226,6 +2226,72 @@
     if (badgeEl) badgeEl.textContent = "";
   }
 
+  function initMailSetup() {
+    const overlay = document.getElementById("mail-setup-overlay");
+    if (!overlay) return;
+
+    if (!localStorage.getItem("lc.mailSetup")) {
+      overlay.hidden = false;
+    }
+
+    function showStep(id) {
+      document.querySelectorAll(".setup-step").forEach((step) => {
+        step.hidden = true;
+      });
+      const el = document.getElementById(id);
+      if (el) el.hidden = false;
+    }
+
+    document.getElementById("setup-yes")
+      ?.addEventListener("click", () => showStep("setup-step-2"));
+
+    document.getElementById("setup-no")
+      ?.addEventListener("click", () => {
+        localStorage.setItem("lc.mailSetup", "skipped");
+        overlay.hidden = true;
+      });
+
+    document.getElementById("setup-mac")
+      ?.addEventListener("click", () => {
+        localStorage.setItem("lc.mailPlatform", "mac");
+        showStep("setup-step-mac");
+        pollAgent("setup-status-mac");
+      });
+
+    document.getElementById("setup-windows")
+      ?.addEventListener("click", () => {
+        localStorage.setItem("lc.mailPlatform", "windows");
+        showStep("setup-step-windows");
+        pollAgent("setup-status-win");
+      });
+
+    document.getElementById("setup-back-1")
+      ?.addEventListener("click", () => showStep("setup-step-1"));
+    document.getElementById("setup-back-2mac")
+      ?.addEventListener("click", () => showStep("setup-step-2"));
+    document.getElementById("setup-back-2win")
+      ?.addEventListener("click", () => showStep("setup-step-2"));
+
+    function pollAgent(statusId) {
+      const statusEl = document.getElementById(statusId);
+      const apiBase = getBackendApiBase();
+      const url = `${apiBase}/api/mail`;
+      const timer = setInterval(async () => {
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
+          if (data.status === "ok") {
+            clearInterval(timer);
+            if (statusEl) statusEl.hidden = false;
+            localStorage.setItem("lc.mailSetup", "connected");
+            setTimeout(() => { overlay.hidden = true; }, 2500);
+          }
+        } catch (_) {}
+      }, 3000);
+      setTimeout(() => clearInterval(timer), 120000);
+    }
+  }
+
   function initialize() {
     initTodayDisplay();
     normalizeLocalWebUntisState();
@@ -2320,6 +2386,7 @@
       loadGradebook();
       loadNotes();
     });
+    initMailSetup();
     window.setInterval(() => {
       refreshDashboard().then(() => {
         loadClassworkCache();

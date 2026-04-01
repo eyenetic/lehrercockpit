@@ -537,6 +537,10 @@
               </form>
             </details>
             <div id="nextcloud-connect-feedback" class="connect-feedback"></div>
+            <button class="secondary-link" type="button"
+              onclick="localStorage.removeItem('lc.mailSetup'); document.getElementById('mail-setup-overlay').hidden=false;">
+              Mail-Einbindung einrichten
+            </button>
           </article>
         </section>
       </main>
@@ -554,6 +558,96 @@
       </div>
       <div class="heute-anpassen-panel__footer">
         <button id="heute-anpassen-save" class="heute-anpassen-panel__save" type="button">Speichern</button>
+      </div>
+    </div>
+
+    <div id="mail-setup-overlay" class="setup-overlay" hidden>
+      <div class="setup-modal">
+
+        <div class="setup-step" id="setup-step-1">
+          <div class="setup-icon">✉</div>
+          <h2 class="setup-title">Dienstmail einbinden?</h2>
+          <p class="setup-body">
+            Das Cockpit kann deine letzten Dienstmails als Vorschau
+            anzeigen – direkt aus deiner lokalen Mail-App.
+            Die Mails verlassen deinen Computer nicht.
+          </p>
+          <div class="setup-actions">
+            <button class="primary-button" id="setup-yes" type="button">
+              Ja, Mails einbinden
+            </button>
+            <button class="setup-skip" id="setup-no" type="button">
+              Jetzt nicht
+            </button>
+          </div>
+        </div>
+
+        <div class="setup-step" id="setup-step-2" hidden>
+          <div class="setup-icon">💻</div>
+          <h2 class="setup-title">Welches Gerät nutzt du?</h2>
+          <p class="setup-body">
+            Das Cockpit unterstützt Apple Mail auf dem Mac
+            und Outlook auf Windows.
+          </p>
+          <div class="setup-os-grid">
+            <button class="setup-os-btn" id="setup-mac" type="button">
+              <span class="setup-os-icon"></span>
+              <strong>Mac</strong>
+              <span>Apple Mail</span>
+            </button>
+            <button class="setup-os-btn" id="setup-windows" type="button">
+              <span class="setup-os-icon">⊞</span>
+              <strong>Windows</strong>
+              <span>Outlook</span>
+            </button>
+          </div>
+          <button class="setup-back" id="setup-back-1" type="button">← Zurück</button>
+        </div>
+
+        <div class="setup-step" id="setup-step-mac" hidden>
+          <div class="setup-icon"></div>
+          <h2 class="setup-title">Cockpit Agent für Mac</h2>
+          <ol class="setup-list">
+            <li>Agent herunterladen und entpacken</li>
+            <li>Doppelklick auf <code>cockpit-agent</code></li>
+            <li>macOS-Berechtigung für Mail mit „OK" bestätigen</li>
+          </ol>
+          <a class="primary-button" href="/downloads/cockpit-agent-mac.zip" download>
+            Agent herunterladen (Mac)
+          </a>
+          <p class="setup-note">
+            Der Agent liest nur Betreff, Absender und Datum –
+            niemals den Mailinhalt.
+          </p>
+          <div id="setup-status-mac" class="setup-status" hidden>
+            <span class="setup-status-dot"></span>
+            Agent verbunden – Mails werden geladen
+          </div>
+          <button class="setup-back" id="setup-back-2mac" type="button">← Zurück</button>
+        </div>
+
+        <div class="setup-step" id="setup-step-windows" hidden>
+          <div class="setup-icon">⊞</div>
+          <h2 class="setup-title">Cockpit Agent für Windows</h2>
+          <ol class="setup-list">
+            <li>Agent herunterladen und entpacken</li>
+            <li>Doppelklick auf <code>cockpit-agent.exe</code></li>
+            <li>Outlook muss geöffnet sein</li>
+          </ol>
+          <a class="primary-button" href="/downloads/cockpit-agent-windows.zip" download>
+            Agent herunterladen (Windows)
+          </a>
+          <p class="setup-note">
+            Der Agent liest nur Betreff, Absender und Datum –
+            niemals den Mailinhalt.
+          </p>
+          <div id="setup-status-win" class="setup-status" hidden>
+            <span class="setup-status-dot"></span>
+            Agent verbunden – Mails werden geladen
+          </div>
+          <button class="setup-back" id="setup-back-2win" type="button">← Zurück</button>
+        </div>
+
       </div>
     </div>
 
@@ -590,18 +684,18 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=56"></script>
-    <script src="./src/api-client.js?v=56"></script>
-    <script src="./src/modules/dashboard-manager.js?v=56"></script>
-    <script src="./src/features/grades.js?v=56"></script>
-    <script src="./src/features/webuntis.js?v=56"></script>
-    <script src="./src/features/itslearning.js?v=56"></script>
-    <script src="./src/features/nextcloud.js?v=56"></script>
-    <script src="./src/features/documents.js?v=56"></script>
-    <script src="./src/features/classwork.js?v=56"></script>
-    <script src="./src/features/inbox.js?v=56"></script>
-    <script src="./src/features/zugaenge.js?v=56"></script>
-    <script src="./src/app.js?v=56"></script>
+    <script src="./data/mock-dashboard.js?v=57"></script>
+    <script src="./src/api-client.js?v=57"></script>
+    <script src="./src/modules/dashboard-manager.js?v=57"></script>
+    <script src="./src/features/grades.js?v=57"></script>
+    <script src="./src/features/webuntis.js?v=57"></script>
+    <script src="./src/features/itslearning.js?v=57"></script>
+    <script src="./src/features/nextcloud.js?v=57"></script>
+    <script src="./src/features/documents.js?v=57"></script>
+    <script src="./src/features/classwork.js?v=57"></script>
+    <script src="./src/features/inbox.js?v=57"></script>
+    <script src="./src/features/zugaenge.js?v=57"></script>
+    <script src="./src/app.js?v=57"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
