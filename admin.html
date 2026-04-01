@@ -740,6 +740,7 @@
         async function apiFetch(path, opts) {
           opts = opts || {};
           opts.credentials = 'include';
+          if (!opts.cache) opts.cache = 'no-store';
           if (opts.body && typeof opts.body === 'object') {
             opts.body = JSON.stringify(opts.body);
             opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});

@@ -130,6 +130,8 @@
     sourceList: document.querySelector("#source-list"),
     messageList: document.querySelector("#message-list"),
     dienstmailOpenLink: document.querySelector("#dienstmail-open-link"),
+    dienstmailSetupButton: document.querySelector("#dienstmail-setup-button"),
+    dienstmailSetupStatus: document.querySelector("#dienstmail-setup-status"),
     itslearningOpenLink: document.querySelector("#itslearning-open-link"),
     scheduleList: document.querySelector("#schedule-list"),
     webuntisViewSwitch: document.querySelector("#webuntis-view-switch"),
@@ -1473,6 +1475,35 @@
       bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning oeffnen");
       elements.itslearningOpenLink.hidden = !base.itslearning_base_url;
     }
+    renderMailSetupEntry();
+  }
+
+  function renderMailSetupEntry() {
+    if (!elements.dienstmailSetupStatus) return;
+    const mailConnection = connectionHint("mail");
+    const setupState = localStorage.getItem("lc.mailSetup") || "";
+    const platform = localStorage.getItem("lc.mailPlatform") || "";
+
+    if (mailConnection?.localAgent || setupState === "connected") {
+      elements.dienstmailSetupStatus.textContent = platform === "windows"
+        ? "Dienstmail-Vorschau ist lokal ueber Outlook verbunden."
+        : "Dienstmail-Vorschau ist lokal ueber Apple Mail verbunden.";
+      if (elements.dienstmailSetupButton) {
+        elements.dienstmailSetupButton.textContent = "Mail-Einbindung erneut oeffnen";
+      }
+      return;
+    }
+
+    if (platform === "windows") {
+      elements.dienstmailSetupStatus.textContent = "Windows-Agent vorbereitet. Outlook lokal oeffnen und den Agenten starten.";
+    } else if (platform === "mac") {
+      elements.dienstmailSetupStatus.textContent = "Mac-Agent vorbereitet. Apple Mail lokal freigeben und den Agenten starten.";
+    } else {
+      elements.dienstmailSetupStatus.textContent = "Dienstmail ist noch nicht eingerichtet.";
+    }
+    if (elements.dienstmailSetupButton) {
+      elements.dienstmailSetupButton.textContent = "Dienstmail einrichten";
+    }
   }
 
   function getRelevantInboxMessages(data) {
@@ -2358,6 +2389,11 @@
       overlay.hidden = false;
     }
 
+    elements.dienstmailSetupButton
+      ?.addEventListener("click", () => {
+        overlay.hidden = false;
+      });
+
     function showStep(id) {
       document.querySelectorAll(".setup-step").forEach((step) => {
         step.hidden = true;
@@ -2373,12 +2409,14 @@
       ?.addEventListener("click", () => {
         localStorage.setItem("lc.mailSetup", "skipped");
         overlay.hidden = true;
+        renderMailSetupEntry();
       });
 
     document.getElementById("setup-mac")
       ?.addEventListener("click", () => {
         localStorage.setItem("lc.mailPlatform", "mac");
         showStep("setup-step-mac");
+        renderMailSetupEntry();
         pollAgent("setup-status-mac");
       });
 
@@ -2386,6 +2424,7 @@
       ?.addEventListener("click", () => {
         localStorage.setItem("lc.mailPlatform", "windows");
         showStep("setup-step-windows");
+        renderMailSetupEntry();
         pollAgent("setup-status-win");
       });
 
@@ -2405,12 +2444,14 @@
             clearInterval(timer);
             if (statusEl) statusEl.hidden = false;
             localStorage.setItem("lc.mailSetup", "connected");
+            renderMailSetupEntry();
             setTimeout(() => { overlay.hidden = true; }, 2500);
           }
         } catch (_) {}
       }, 3000);
       setTimeout(() => clearInterval(timer), 120000);
     }
+    renderMailSetupEntry();
   }
 
   function initialize() {

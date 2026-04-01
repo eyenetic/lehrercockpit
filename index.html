@@ -35,7 +35,7 @@
       ];
     </script>
     <script>window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST; /* Lokal ohne Login, gehostet mit Multi-User */</script>
-    <link rel="stylesheet" href="./styles.css?v=59" />
+    <link rel="stylesheet" href="./styles.css?v=60" />
   </head>
   <body>
     <div class="app-shell">
@@ -232,6 +232,10 @@
                 <a id="dienstmail-open-link" class="secondary-link" href="https://schulportal.berlin.de" target="_blank" rel="noreferrer">Dienstmail im Schulportal öffnen</a>
                 <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen</a>
               </div>
+            </div>
+            <div class="meta-row" style="margin-bottom:14px;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+              <span id="dienstmail-setup-status" class="source-detail">Dienstmail ist noch nicht eingerichtet.</span>
+              <button id="dienstmail-setup-button" class="secondary-link" type="button">Dienstmail einrichten</button>
             </div>
 
             <!-- Inbox tab bar (Slice 3) -->
@@ -684,18 +688,18 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=59"></script>
-    <script src="./src/api-client.js?v=59"></script>
-    <script src="./src/modules/dashboard-manager.js?v=59"></script>
-    <script src="./src/features/grades.js?v=59"></script>
-    <script src="./src/features/webuntis.js?v=59"></script>
-    <script src="./src/features/itslearning.js?v=59"></script>
-    <script src="./src/features/nextcloud.js?v=59"></script>
-    <script src="./src/features/documents.js?v=59"></script>
-    <script src="./src/features/classwork.js?v=59"></script>
-    <script src="./src/features/inbox.js?v=59"></script>
-    <script src="./src/features/zugaenge.js?v=59"></script>
-    <script src="./src/app.js?v=59"></script>
+    <script src="./data/mock-dashboard.js?v=60"></script>
+    <script src="./src/api-client.js?v=60"></script>
+    <script src="./src/modules/dashboard-manager.js?v=60"></script>
+    <script src="./src/features/grades.js?v=60"></script>
+    <script src="./src/features/webuntis.js?v=60"></script>
+    <script src="./src/features/itslearning.js?v=60"></script>
+    <script src="./src/features/nextcloud.js?v=60"></script>
+    <script src="./src/features/documents.js?v=60"></script>
+    <script src="./src/features/classwork.js?v=60"></script>
+    <script src="./src/features/inbox.js?v=60"></script>
+    <script src="./src/features/zugaenge.js?v=60"></script>
+    <script src="./src/app.js?v=60"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,

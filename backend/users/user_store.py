@@ -225,7 +225,7 @@ def update_user(conn, user_id: int, **kwargs) -> Optional["User"]:
 
 
 def delete_user(conn, user_id: int) -> bool:
-    """Löscht einen User (und alle zugehörigen Daten via CASCADE).
+    """Löscht einen User hart.
 
     Args:
         conn: psycopg3 DB-Verbindung.
@@ -234,6 +234,14 @@ def delete_user(conn, user_id: int) -> bool:
     Returns:
         True wenn gelöscht, False wenn nicht gefunden.
     """
+    # Defensiv auch manuell abhängige Daten löschen, damit der Hard-Delete
+    # selbst auf älteren Datenbankschemata zuverlässig funktioniert.
+    conn.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+    conn.execute("DELETE FROM user_access_codes WHERE user_id = %s", (user_id,))
+    conn.execute("DELETE FROM user_module_configs WHERE user_id = %s", (user_id,))
+    conn.execute("DELETE FROM user_modules WHERE user_id = %s", (user_id,))
+    conn.execute("DELETE FROM grades WHERE user_id = %s", (user_id,))
+    conn.execute("DELETE FROM class_notes WHERE user_id = %s", (user_id,))
     result = conn.execute(
         "DELETE FROM users WHERE id = %s",
         (user_id,),
