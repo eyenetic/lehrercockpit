@@ -48,5 +48,7 @@ data/class-notes-local.json
 
 # Project-specific
 *.zip
+!downloads/cockpit-agent-mac.zip
+!downloads/cockpit-agent-windows.zip
 lehrer-cockpit-claude-opus-2026-03-19/
 .codesight/
