@@ -286,7 +286,7 @@
 
     if (_elements.gradesList) {
       if (!result.rows.length) {
-        _elements.gradesList.innerHTML = '<div class="empty-state">Trage mindestens eine gueltige Teilnote mit Gewichtung ein.</div>';
+        _elements.gradesList.innerHTML = '<div class="empty-state">Trage mindestens eine gültige Teilnote mit Gewichtung ein.</div>';
         return;
       }
 
@@ -325,7 +325,7 @@
     syncRowsFromDom();
     var result = buildCalculation();
     if (!result.rows.length) {
-      setFeedback('Bitte mindestens eine gueltige Teilnote und Gewichtung eintragen.', 'warning');
+      setFeedback('Bitte mindestens eine gültige Teilnote und Gewichtung eintragen.', 'warning');
       renderResult();
       return;
     }
