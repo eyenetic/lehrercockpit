@@ -2076,7 +2076,7 @@
 
   async function uploadClassworkFile(file) {
     if (!file.name.toLowerCase().match(/\.(xlsx|xlsm|xls|csv)$/)) {
-      state.classworkUploadFeedback = "Bitte eine XLSX-, XLSM-, XLS- oder CSV-Datei auswaehlen.";
+      state.classworkUploadFeedback = "Bitte eine XLSX-, XLSM-, XLS- oder CSV-Datei auswählen.";
       state.classworkUploadFeedbackKind = "warning";
       renderPlanDigest();
       return;
@@ -2745,38 +2745,6 @@
         button.textContent = baseLabel;
       }
     });
-  }
-
-  async function triggerClassworkUpload(file) {
-    if (!file) return;
-    const apiBase = getBackendApiBase();
-    const uploadUrl = `${apiBase}/api/classwork/upload`;
-
-    const labelText = elements.classworkUploadLabelText;
-    if (labelText) labelText.textContent = "⏳ Wird verarbeitet…";
-    if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "0.6";
-    setUploadStatus(`Datei "${file.name}" wird hochgeladen…`, "loading");
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file, file.name);
-
-      const response = await fetch(uploadUrl, { method: "POST", body: formData });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setUploadStatus(`Upload-Fehler: ${data.detail || response.status}`, "error");
-        return;
-      }
-
-      renderClassworkData(data);
-      setUploadStatus(`✓ "${file.name}" eingelesen. ${data.detail || ""}`, "ok");
-    } catch (err) {
-      setUploadStatus(`Upload fehlgeschlagen: ${err.message}`, "error");
-    } finally {
-      if (labelText) labelText.textContent = "📂 Hochladen";
-      if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "1";
-    }
   }
 
   // ── End Classwork Upload ───────────────────────────────────────────────────

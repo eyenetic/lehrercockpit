@@ -1183,15 +1183,15 @@
         };
 
         window.deleteUser = async function (id, name) {
-          if (!confirm('Moechtest du ' + name + ' wirklich dauerhaft loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.')) return;
+          if (!confirm('Möchtest du ' + name + ' wirklich dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
           try {
             const resp = await apiFetch('/api/v2/admin/users/' + id, { method: 'DELETE' });
             if (!resp.ok) {
               const data = await resp.json().catch(function () { return {}; });
-              setFeedback('users-feedback', data.error || 'Lehrkraft konnte nicht geloescht werden.', 'error');
+              setFeedback('users-feedback', data.error || 'Lehrkraft konnte nicht gelöscht werden.', 'error');
               return;
             }
-            setFeedback('users-feedback', 'Lehrkraft wurde geloescht.', 'success');
+            setFeedback('users-feedback', 'Lehrkraft wurde gelöscht.', 'success');
             loadUsers();
           } catch (e) {
             setFeedback('users-feedback', 'Verbindungsfehler.', 'error');
