@@ -106,7 +106,7 @@ var LehrerInbox = (function () {
             + '</div>'
             + '</article>';
         }).join('')
-      : '<div class="empty-state">Noch keine priorisierten Hinweise verfuegbar.</div>';
+      : '<div class="empty-state">Noch keine priorisierten Hinweise verfügbar.</div>';
   }
 
   function renderSources() {

@@ -180,8 +180,8 @@
             '" target="_blank" rel="noreferrer" data-nextcloud-link="' + link.id + '">' +
             '<span class="meta-tag low">Arbeitslink</span>' +
             '<strong>' + link.label + '</strong>' +
-            '<p>Direkt in Nextcloud oeffnen</p>' +
-            '<span class="quick-link-action">oeffnen</span>' +
+            '<p>Direkt in Nextcloud öffnen</p>' +
+            '<span class="quick-link-action">öffnen</span>' +
             '</a>'
           );
         })

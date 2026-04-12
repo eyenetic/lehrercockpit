@@ -198,7 +198,7 @@
         source && source.status === 'ok'
           ? updateCount + ' Update' + (updateCount === 1 ? '' : 's') + ' erscheinen oben im Kommunikationsbereich. Zugang bleibt lokal auf diesem Mac gespeichert.'
           : (source && source.detail) ||
-            'Lokale Verbindung fuer Benutzername und Passwort. Updates erscheinen danach oben im Kommunikationsbereich.';
+            'Lokale Verbindung für Benutzername und Passwort. Updates erscheinen danach oben im Kommunikationsbereich.';
     }
 
     if (_elements.itslearningUsername && !_elements.itslearningUsername.value && connection.username) {

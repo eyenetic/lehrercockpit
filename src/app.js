@@ -353,14 +353,14 @@
         entities: [],
         watchlist: [],
       },
-      shortcutHint: "WebUntis-Links koennen hier als Schnellzugriff gespeichert werden.",
+      shortcutHint: "WebUntis-Links können hier als Schnellzugriff gespeichert werden.",
     };
 
     data.planDigest = data.planDigest || {
       orgaplan: {
         status: "warning",
         title: "Orgaplan",
-        detail: "Noch kein Orgaplan-Digest verfuegbar.",
+        detail: "Noch kein Orgaplan-Digest verfügbar.",
         monthLabel: "",
         updatedAt: formatTime(now),
         highlights: [],
@@ -370,7 +370,7 @@
       classwork: {
         status: "warning",
         title: "Klassenarbeitsplan",
-        detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
+        detail: "Noch kein Klassenarbeitsplan-Digest verfügbar.",
         updatedAt: formatTime(now),
         previewRows: [],
         classes: [],
@@ -741,13 +741,13 @@
             entities: [],
             watchlist: [],
           },
-          shortcutHint: "WebUntis-Links koennen hier als Schnellzugriff gespeichert werden.",
+          shortcutHint: "WebUntis-Links können hier als Schnellzugriff gespeichert werden.",
         },
         planDigest: {
           orgaplan: {
             status: "warning",
             title: "Orgaplan",
-            detail: "Noch kein Orgaplan-Digest verfuegbar.",
+            detail: "Noch kein Orgaplan-Digest verfügbar.",
             monthLabel: "",
             updatedAt: formatTime(new Date()),
             highlights: [],
@@ -757,7 +757,7 @@
           classwork: {
             status: "warning",
             title: "Klassenarbeitsplan",
-            detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
+            detail: "Noch kein Klassenarbeitsplan-Digest verfügbar.",
             updatedAt: formatTime(new Date()),
             previewRows: [],
             classes: [],
@@ -783,8 +783,8 @@
     const schoolName =
       data.base?.school_name ||
       data.teacher?.school ||
-      (titleFromWorkspace.startsWith("Dein Tagesstart fuer ")
-        ? titleFromWorkspace.replace("Dein Tagesstart fuer ", "")
+      (titleFromWorkspace.startsWith("Dein Tagesstart für ")
+        ? titleFromWorkspace.replace("Dein Tagesstart für ", "")
         : "");
     if (elements.workspaceEyebrow) {
       elements.workspaceEyebrow.textContent = data.workspace.eyebrow || "Berlin Lehrer-Cockpit";
@@ -1022,20 +1022,20 @@
       .sort((left, right) => `${left.classLabel || ""}${left.summary || left.title || ""}`.localeCompare(`${right.classLabel || ""}${right.summary || right.title || ""}`));
 
     const classSelectionLabel = selectedClasses.length
-      ? (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewaehlt`)
-      : "Noch keine Klasse gewaehlt";
+      ? (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewählt`)
+      : "Noch keine Klasse gewählt";
 
     const cards = [
       {
-        title: "Stundenplan fuer den Tag",
+        title: "Stundenplan für den Tag",
         tone: "schedule",
         section: "schedule",
         copy: context.showWebuntis && context.todaySummary
           ? `${context.todaySummary.title}. ${context.todaySummary.copy}`
-          : "Noch kein Tagesplan aus WebUntis verfuegbar.",
+          : "Noch kein Tagesplan aus WebUntis verfügbar.",
       },
       {
-        title: "Orgaplan fuer den aktuellen Tag",
+        title: "Orgaplan für den aktuellen Tag",
         tone: "orgaplan",
         section: "documents",
         copy: context.showOrgaplan && context.orgaplanItem
@@ -1043,7 +1043,7 @@
           : "Heute wurde noch kein gesonderter Orgaplan-Hinweis erkannt.",
       },
       {
-        title: "Klassenarbeiten fuer den aktuellen Tag",
+        title: "Klassenarbeiten für den aktuellen Tag",
         tone: "classwork",
         section: "documents",
         meta: classSelectionLabel,
@@ -1054,7 +1054,7 @@
                     .map((entry) => `${entry.classLabel}: ${entry.summary || entry.title}`)
                     .slice(0, 3)
                     .join(" · ")
-                : `Heute keine Klassenarbeiten fuer ${classSelectionLabel.toLowerCase()}.`
+                : `Heute keine Klassenarbeiten für ${classSelectionLabel.toLowerCase()}.`
             )
           : "Noch kein Klassenarbeitsplan verbunden.",
       },
@@ -1126,8 +1126,9 @@
     if (elements.todayGradesPreview) {
       elements.todayGradesPreview.innerHTML = `
         <article class="today-mini-card">
-          <strong>Gewichtungen und Teilnoten</strong>
-          <p>Schneller Einstieg in Notenberechnung fuer gewichtete Teilnoten und einfache Kombinationen.</p>
+          <strong>Notenrechner</strong>
+          <p>Gewichtete Teilnoten schnell berechnen – 1/3 · 2/3, 50/50 oder freie Gewichtung.</p>
+          <button class="secondary-link" type="button" data-section-target="grades" style="margin-top:0.5rem;">Notenrechner öffnen</button>
         </article>
       `;
     }
@@ -1314,7 +1315,7 @@
                 <span class="meta-tag low">${link.kind}</span>
                 <strong>${link.title}</strong>
                 <p class="priority-copy">${link.note}</p>
-                <span class="quick-link-action">oeffnen</span>
+                <span class="quick-link-action">öffnen</span>
               </a>
             `
           )
@@ -1453,12 +1454,12 @@
     if (elements.dienstmailOpenLink) {
       if (mailConnection?.configured) {
         if (mailConnection.platform === "windows") {
-          bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
+          bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal öffnen");
           elements.dienstmailOpenLink.target = "_blank";
           elements.dienstmailOpenLink.rel = "noreferrer";
         } else {
           elements.dienstmailOpenLink.href = "message://";
-          elements.dienstmailOpenLink.textContent = "Dienstmail in Mail oeffnen";
+          elements.dienstmailOpenLink.textContent = "Dienstmail in Mail öffnen";
           elements.dienstmailOpenLink.target = "_self";
           elements.dienstmailOpenLink.rel = "";
         }
@@ -1472,7 +1473,7 @@
       }
     }
     if (elements.itslearningOpenLink) {
-      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning oeffnen");
+      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning öffnen");
       elements.itslearningOpenLink.hidden = !base.itslearning_base_url;
     }
     renderMailSetupEntry();
@@ -1489,13 +1490,13 @@
         ? "Dienstmail-Vorschau ist lokal ueber Outlook verbunden."
         : "Dienstmail-Vorschau ist lokal ueber Apple Mail verbunden.";
       if (elements.dienstmailSetupButton) {
-        elements.dienstmailSetupButton.textContent = "Mail-Einbindung erneut oeffnen";
+        elements.dienstmailSetupButton.textContent = "Mail-Einbindung erneut öffnen";
       }
       return;
     }
 
     if (platform === "windows") {
-      elements.dienstmailSetupStatus.textContent = "Windows-Agent vorbereitet. Outlook lokal oeffnen und den Agenten starten.";
+      elements.dienstmailSetupStatus.textContent = "Windows-Agent vorbereitet. Outlook lokal öffnen und den Agenten starten.";
     } else if (platform === "mac") {
       elements.dienstmailSetupStatus.textContent = "Mac-Agent vorbereitet. Apple Mail lokal freigeben und den Agenten starten.";
     } else {
@@ -2182,10 +2183,10 @@
   function getHeuteLayoutItems() {
     var labels = {
       briefing: "Tagesbriefing",
-      access: "Zugaenge",
+      access: "Zugänge",
       schedule: "Stundenplan",
       inbox: "Posteingang",
-      documents: "Plaene",
+      documents: "Pläne",
       grades: "Notenberechnung",
     };
     if (!DashboardManager || typeof DashboardManager.getTodayLayout !== "function") {
@@ -3351,7 +3352,7 @@
 
   function renderEmptyWeekColumn(column, hasAnyWeekEvents) {
     if (hasAnyWeekEvents) {
-      return `<div class="webuntis-week-empty">Kein iCal-Eintrag fuer diesen Tag</div>`;
+      return `<div class="webuntis-week-empty">Kein iCal-Eintrag für diesen Tag</div>`;
     }
 
     const nextEvent = findNextEventAfter(column.isoDate);
@@ -3359,7 +3360,7 @@
       return `<div class="webuntis-week-empty">Im iCal keine Termine. Naechster Eintrag am ${formatDate(new Date(nextEvent.startsAt))}.</div>`;
     }
 
-    return `<div class="webuntis-week-empty">Im iCal sind fuer diese Woche gerade keine Termine vorhanden.</div>`;
+    return `<div class="webuntis-week-empty">Im iCal sind für diese Woche gerade keine Termine vorhanden.</div>`;
   }
 
   function extractClassLabels(event) {

@@ -71,14 +71,14 @@ var LehrerClasswork = (function () {
         : 'Noch kein Orgaplan-Link hinterlegt.';
     }
     var month = orgaplan.monthLabel || 'diesem Monat';
-    return count + ' relevante Hinweise fuer ' + month + '. Hier stehen nur die naechsten Punkte, nicht der ganze Plan.';
+    return count + ' relevante Hinweise für ' + month + '. Hier stehen nur die nächsten Punkte, nicht der ganze Plan.';
   }
 
   function summarizeClassworkDigest(classwork) {
     if (classwork.status === 'ok') {
       var classCount = (classwork.classes || []).length;
       var entryCount = (classwork.entries || []).length;
-      return entryCount + ' Eintraege fuer ' + classCount + ' Klassen erkannt. Lade bei Bedarf eine neue Datei hoch oder arbeite mit dem zuletzt gemeinsam importierten Stand.';
+      return entryCount + ' Einträge für ' + classCount + ' Klassen erkannt. Lade bei Bedarf eine neue Datei hoch oder arbeite mit dem zuletzt gemeinsam importierten Stand.';
     }
     return truncateText(classwork.detail || 'Der Klassenarbeitsplan ist verlinkt, aber noch nicht automatisch lesbar.', 140);
   }
@@ -389,7 +389,7 @@ var LehrerClasswork = (function () {
           ? classwork.previewRows.map(function (row) {
               return '<article class="priority-item"><p class="priority-copy">' + row + '</p></article>';
             }).join('')
-          : '<div class="empty-state">Noch keine Klassenarbeiten fuer diese Auswahl erkannt.</div>';
+          : '<div class="empty-state">Noch keine Klassenarbeiten für diese Auswahl erkannt.</div>';
     }
   }
 
