@@ -22,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 
-HOST = "127.0.0.1"
+HOST = "localhost"
 PORT = int(os.environ.get("COCKPIT_AGENT_PORT", "8765"))
 MAX_MESSAGES = int(os.environ.get("COCKPIT_AGENT_MAX_MESSAGES", "12"))
 

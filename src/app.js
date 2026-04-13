@@ -27,8 +27,8 @@
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const AUTO_REFRESH_MS = 180000;
   const LOCAL_MAIL_AGENT_BASES = [
-    "http://127.0.0.1:8765",
     "http://localhost:8765",
+    "http://127.0.0.1:8765",
   ];
   const PANEL_COLLAPSE_LIMITS = {
     inbox: 10,
@@ -2445,6 +2445,7 @@
             if (statusEl) statusEl.hidden = false;
             localStorage.setItem("lc.mailSetup", "connected");
             renderMailSetupEntry();
+            refreshDashboard(true);
             setTimeout(() => { overlay.hidden = true; }, 2500);
           }
         } catch (_) {}
