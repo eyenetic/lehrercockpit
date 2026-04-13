@@ -26,9 +26,12 @@
   // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const AUTO_REFRESH_MS = 180000;
+  // localhost is treated as a "potentially trustworthy origin" by browsers
+  // even from HTTPS pages (per Secure Contexts spec). 127.0.0.1 is NOT
+  // reliably allowed in all browsers (Safari blocks it). So localhost first.
   const LOCAL_MAIL_AGENT_BASES = [
-    "http://127.0.0.1:8765",
     "http://localhost:8765",
+    "http://127.0.0.1:8765",
   ];
   const PANEL_COLLAPSE_LIMITS = {
     inbox: 10,
