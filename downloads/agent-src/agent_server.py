@@ -158,11 +158,13 @@ def read_windows_outlook(max_messages: int) -> dict[str, Any]:
         return error_payload("Outlook hat nicht rechtzeitig geantwortet.", "outlook", "windows")
 
     if result.returncode != 0:
-        return error_payload(
-            "Outlook ist nicht erreichbar. Bitte Outlook geoeffnet lassen und den Agenten erneut starten.",
-            "outlook",
-            "windows",
-        )
+        stderr = (result.stderr or "").strip()
+        detail = "Outlook ist nicht erreichbar. Bitte Outlook geöffnet lassen und den Agenten erneut starten."
+        if "not found" in stderr.lower() or "cannot find" in stderr.lower():
+            detail = "Outlook wurde nicht gefunden. Bitte Outlook installieren und öffnen."
+        elif "access" in stderr.lower() or "permission" in stderr.lower():
+            detail = "Zugriff auf Outlook verweigert. Bitte Outlook-Berechtigungen prüfen."
+        return error_payload(detail, "outlook", "windows")
 
     try:
         parsed = json.loads(result.stdout or "[]")
