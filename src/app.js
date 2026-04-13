@@ -2454,6 +2454,22 @@
     renderMailSetupEntry();
   }
 
+  function initPlansTabs() {
+    const buttons = document.querySelectorAll(".plans-tab-btn");
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetId = btn.getAttribute("aria-controls");
+        buttons.forEach((b) => {
+          b.classList.toggle("is-active", b === btn);
+          b.setAttribute("aria-selected", b === btn ? "true" : "false");
+        });
+        document.querySelectorAll(".plans-block[role='tabpanel']").forEach((panel) => {
+          panel.hidden = panel.id !== targetId;
+        });
+      });
+    });
+  }
+
   function initialize() {
     initTodayDisplay();
     normalizeLocalWebUntisState();
@@ -2543,6 +2559,7 @@
         setExpandableMeta: setExpandableMeta,
       });
     }
+    initPlansTabs();
     refreshDashboard().then(() => {
       loadClassworkCache();
       loadGradebook();
