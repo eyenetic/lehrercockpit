@@ -621,9 +621,13 @@
           <h2 class="setup-title">Cockpit Agent für Mac</h2>
           <ol class="setup-list">
             <li>Agent herunterladen und entpacken</li>
-            <li><strong>Rechtsklick</strong> auf <code>cockpit-agent.command</code> → „Öffnen" → im Dialog nochmals „Öffnen"</li>
+            <li><strong>Terminal öffnen</strong>, Datei <code>cockpit-agent.command</code> ins Terminal-Fenster ziehen und <kbd>Enter</kbd> drücken</li>
             <li>macOS-Berechtigung für Mail mit „OK" bestätigen</li>
           </ol>
+          <p class="setup-note" style="margin-top:0.5rem;">
+            <strong>Tipp:</strong> Falls macOS die Datei blockiert – im Terminal einmalig ausführen:<br />
+            <code>xattr -d com.apple.quarantine ~/Downloads/cockpit-agent.command</code>
+          </p>
           <a class="primary-button" id="setup-download-mac" href="#" download>
             Agent herunterladen (Mac)
           </a>
