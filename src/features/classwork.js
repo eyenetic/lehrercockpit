@@ -188,6 +188,17 @@ var LehrerClasswork = (function () {
 
   // ── Orgaplan item HTML ───────────────────────────────────────────────────────
 
+  function _orgaplanLevelTags(item) {
+    var levels = [];
+    if (item.general) levels.push('Allgemein');
+    if (joinOrgaplanSection(item.middle, item.middleNotes)) levels.push('Mittelstufe');
+    if (joinOrgaplanSection(item.upper, item.upperNotes)) levels.push('Oberstufe');
+    if (!levels.length) return '';
+    return levels.map(function (l) {
+      return '<span class="meta-tag orgaplan-level-tag">' + l + '</span>';
+    }).join('');
+  }
+
   function renderOrgaplanItem(item) {
     var sections = [
       { label: 'Allgemein', value: item.general },
@@ -195,14 +206,18 @@ var LehrerClasswork = (function () {
       { label: 'Oberstufe', value: joinOrgaplanSection(item.upper, item.upperNotes) },
     ].filter(function (s) { return s.value; });
 
+    var levelTags = _orgaplanLevelTags(item);
+
     if (!sections.length) {
-      return '<article class="priority-item">'
-        + '<div class="priority-top">'
-        + '<strong>' + item.title + '</strong>'
-        + '<span class="meta-tag low">' + item.dateLabel + '</span>'
+      return '<article class="orgaplan-entry">'
+        + '<div class="orgaplan-entry-head">'
+        + '<strong class="orgaplan-entry-date">' + item.dateLabel + '</strong>'
+        + '<span class="meta-tag low">' + (item.title || 'Orgaplan') + '</span>'
         + '</div>'
-        + '<p class="priority-copy">' + (item.detail || item.text) + '</p>'
-        + '</article>';
+        + (levelTags ? '<div class="orgaplan-level-row">' + levelTags + '</div>' : '')
+        + '<div class="orgaplan-entry-copy">'
+        + '<p>' + truncateText(item.detail || item.text || '', 220) + '</p>'
+        + '</div></article>';
     }
 
     return '<article class="orgaplan-entry">'
@@ -350,7 +365,9 @@ var LehrerClasswork = (function () {
       renderClassworkViewSwitch();
     }
 
-    var orgaplanItems = orgaplan.upcoming.length ? orgaplan.upcoming : orgaplan.highlights;
+    var orgaplanItems = (orgaplan.upcoming.length ? orgaplan.upcoming : orgaplan.highlights)
+      .slice()
+      .sort(function (a, b) { return (a.isoDate || a.dateLabel || '').localeCompare(b.isoDate || b.dateLabel || ''); });
     if (showOrgaplan) {
       _elements.orgaplanUpcomingList.innerHTML = orgaplanItems.length
         ? orgaplanItems.map(renderOrgaplanItem).join('')

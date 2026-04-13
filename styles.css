@@ -1901,6 +1901,21 @@ a {
   letter-spacing: 0.08em;
 }
 
+.orgaplan-level-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.orgaplan-level-tag {
+  font-size: 0.72rem;
+  background: var(--tint-soft, rgba(0,0,0,0.06));
+  color: var(--ink-soft);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
 /* ── Orgaplan Today / Week sections ──────────────────────────────────────── */
 
 .orgaplan-section-label {
