@@ -463,11 +463,18 @@
     return weekLabel(center.currentDate || new Date().toISOString().slice(0, 10), _state.webuntisWeekOffset || 0, center.currentWeekLabel || 'Aktuelle Woche');
   }
 
+  // Local date as YYYY-MM-DD, avoiding UTC offset bugs (e.g. Monday midnight UTC+2 = Sunday UTC)
+  function _toLocalISODate(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
   function groupEventsByDay(events) {
     var groups = new Map();
     events.forEach(function (event) {
       var date = new Date(event.startsAt);
-      var key = date.toISOString().slice(0, 10);
+      var key = _toLocalISODate(date);
       var label = _weekdayLabel(date) + ' ' + _formatDate(date);
       if (!groups.has(key)) groups.set(key, { key: key, label: label, events: [] });
       groups.get(key).events.push(event);
@@ -480,15 +487,15 @@
     var byKey = new Map();
     events.forEach(function (event) {
       var date = new Date(event.startsAt);
-      var key = date.toISOString().slice(0, 10);
+      var key = _toLocalISODate(date);
       if (!byKey.has(key)) byKey.set(key, []);
       byKey.get(key).push(event);
     });
-    var todayKey = new Date().toISOString().slice(0, 10);
+    var todayKey = _toLocalISODate(new Date());
     return Array.from({ length: 5 }, function (_, index) {
       var day = new Date(weekStart);
       day.setDate(weekStart.getDate() + index);
-      var key = day.toISOString().slice(0, 10);
+      var key = _toLocalISODate(day);
       return {
         key: key,
         weekday: day.toLocaleDateString('de-DE', { weekday: 'short' }),
