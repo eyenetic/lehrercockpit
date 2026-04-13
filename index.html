@@ -540,10 +540,6 @@
               </form>
             </details>
             <div id="nextcloud-connect-feedback" class="connect-feedback"></div>
-            <button class="secondary-link" type="button"
-              onclick="localStorage.removeItem('lc.mailSetup'); document.getElementById('mail-setup-overlay').hidden=false;">
-              Mail-Einbindung einrichten
-            </button>
           </article>
         </section>
       </main>
@@ -625,6 +621,7 @@
           <div id="setup-status-mac" class="setup-status" hidden>
             <span class="setup-status-dot"></span>
             Agent verbunden – Mails werden geladen
+            <button class="setup-skip" id="setup-close-mac" type="button" style="margin-left:auto;">Schließen</button>
           </div>
           <button class="setup-back" id="setup-back-2mac" type="button">← Zurück</button>
         </div>
@@ -647,6 +644,7 @@
           <div id="setup-status-win" class="setup-status" hidden>
             <span class="setup-status-dot"></span>
             Agent verbunden – Mails werden geladen
+            <button class="setup-skip" id="setup-close-win" type="button" style="margin-left:auto;">Schließen</button>
           </div>
           <button class="setup-back" id="setup-back-2win" type="button">← Zurück</button>
         </div>

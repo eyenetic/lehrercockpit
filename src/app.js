@@ -2436,6 +2436,15 @@
     document.getElementById("setup-back-2win")
       ?.addEventListener("click", () => showStep("setup-step-2"));
 
+    function closeOverlay() {
+      overlay.hidden = true;
+    }
+
+    document.getElementById("setup-close-mac")
+      ?.addEventListener("click", closeOverlay);
+    document.getElementById("setup-close-win")
+      ?.addEventListener("click", closeOverlay);
+
     function pollAgent(statusId) {
       const statusEl = document.getElementById(statusId);
       const timer = setInterval(async () => {
@@ -2446,7 +2455,7 @@
             if (statusEl) statusEl.hidden = false;
             localStorage.setItem("lc.mailSetup", "connected");
             renderMailSetupEntry();
-            setTimeout(() => { overlay.hidden = true; }, 2500);
+            setTimeout(closeOverlay, 1500);
           }
         } catch (_) {}
       }, 3000);
