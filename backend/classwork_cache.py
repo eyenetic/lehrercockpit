@@ -54,8 +54,11 @@ def _empty_cache() -> dict[str, Any]:
     return {
         "status": "pending",
         "title": "Klassenarbeitsplan",
-        "detail": "Noch kein Upload. Klicke auf '📂 Hochladen', um eine XLS/XLSX-Datei einzulesen.",
-        "updatedAt": "--:--",
+        "detail": "Noch kein Upload. Klicke auf 'Hochladen', um eine XLS/XLSX-Datei einzulesen.",
+        "updatedAt": "",
+        "uploadedAt": "",
+        "uploadedBy": "",
+        "uploadSource": "",
         "scrapedAt": None,
         "previewRows": [],
         "structuredRows": [],

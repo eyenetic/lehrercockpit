@@ -43,6 +43,20 @@
         body: JSON.stringify({ modules: modules })
       });
     },
+    post: function(path, body) {
+      return apiFetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+      });
+    },
+    fetchClassworkFromUrl: function(url) {
+      return apiFetch('/api/v2/modules/klassenarbeitsplan/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url })
+      });
+    },
     getModuleConfig: function(moduleId) { return apiFetch('/api/v2/modules/' + moduleId + '/config'); },
     saveModuleConfig: function(moduleId, config) {
       return apiFetch('/api/v2/modules/' + moduleId + '/config', {

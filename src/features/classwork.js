@@ -36,6 +36,7 @@ var LehrerClasswork = (function () {
   var _setExpandableMeta = null;
   var _weekdayLabel = null;
   var _getSelectedClassworkClasses = null;
+  var _refreshDashboard = null;
 
   function init(state, elements, callbacks) {
     _state = state;
@@ -47,6 +48,82 @@ var LehrerClasswork = (function () {
     _setExpandableMeta = callbacks.setExpandableMeta;
     _weekdayLabel = callbacks.weekdayLabel;
     _getSelectedClassworkClasses = callbacks.getSelectedClassworkClasses;
+    _refreshDashboard = callbacks.refreshDashboard || null;
+
+    // Grab classwork-specific elements not in the shared elements map
+    _elements.classworkUploadInfo = document.querySelector('#classwork-upload-info');
+    _elements.classworkSourceUrl  = document.querySelector('#classwork-source-url');
+    _elements.classworkFetchButton = document.querySelector('#classwork-fetch-button');
+    _elements.classworkClassPills = document.querySelector('#classwork-class-pills');
+    _elements.classworkPillSection = document.querySelector('#classwork-pill-section');
+
+    _initClassworkFetch();
+  }
+
+  // ── Auto-fetch from OneDrive URL ─────────────────────────────────────────────
+
+  function _initClassworkFetch() {
+    var btn = _elements.classworkFetchButton;
+    var urlInput = _elements.classworkSourceUrl;
+    if (!btn || !urlInput) return;
+
+    // Restore saved URL if any
+    var saved = localStorage.getItem('lc.classworkSourceUrl') || '';
+    if (saved) urlInput.value = saved;
+
+    btn.addEventListener('click', function () {
+      var url = urlInput.value.trim();
+      if (!url) {
+        _showFeedback('Bitte einen OneDrive-Link einfügen.', 'warning');
+        return;
+      }
+      localStorage.setItem('lc.classworkSourceUrl', url);
+      btn.disabled = true;
+      btn.textContent = 'Wird geladen …';
+      _showFeedback('', '');
+
+      if (window.LehrerAPI) {
+        window.LehrerAPI.fetchClassworkFromUrl(url)
+          .then(function (resp) { return resp.json(); })
+          .then(function (json) {
+            btn.disabled = false;
+            btn.textContent = 'Abrufen';
+            if (json.ok) {
+              _showFeedback('Klassenarbeitsplan erfolgreich aktualisiert.', 'success');
+              if (_refreshDashboard) _refreshDashboard(true);
+            } else {
+              _showFeedback(json.error || 'Abruf fehlgeschlagen.', 'warning');
+            }
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Abrufen';
+            _showFeedback('Netzwerkfehler: ' + err.message, 'warning');
+          });
+      }
+    });
+  }
+
+  function _showFeedback(msg, kind) {
+    if (!_elements.classworkUploadFeedback) return;
+    _elements.classworkUploadFeedback.textContent = msg;
+    _elements.classworkUploadFeedback.className = 'connect-feedback' + (kind ? ' ' + kind : '');
+  }
+
+  // ── Upload-Info anzeigen (wer hat wann hochgeladen) ──────────────────────────
+
+  function renderClassworkUploadInfo(classwork) {
+    var el = _elements.classworkUploadInfo;
+    if (!el) return;
+    var by = classwork.uploadedBy || '';
+    var at = classwork.uploadedAt || classwork.updatedAt || '';
+    var src = classwork.uploadSource || '';
+    if (!at) { el.hidden = true; return; }
+    var srcLabel = src === 'auto' ? 'Automatisch abgerufen' : 'Hochgeladen';
+    var byPart = by ? ' von <strong>' + by + '</strong>' : '';
+    el.innerHTML = '<span class="classwork-info-icon">✓</span>'
+      + srcLabel + byPart + ' am ' + at;
+    el.hidden = false;
   }
 
   // ── Utility ─────────────────────────────────────────────────────────────────
@@ -109,22 +186,51 @@ var LehrerClasswork = (function () {
   // ── Selector + view switch ───────────────────────────────────────────────────
 
   function renderClassworkSelector(classes, defaultClass) {
-    if (!_elements.classworkClassFilter) return;
-    var activeClasses = getSelectedClasses(classes, defaultClass);
-    var searchNeedle = String(_state.classworkClassSearch || '').trim().toLowerCase();
-    var filteredClasses = searchNeedle
-      ? classes.filter(function (classLabel) { return classLabel.toLowerCase().includes(searchNeedle); })
-      : classes.slice();
-    _elements.classworkClassFilter.disabled = !classes.length;
-    if (_elements.classworkClassSearch) _elements.classworkClassSearch.disabled = !classes.length;
-    if (!classes.length) {
-      _elements.classworkClassFilter.innerHTML = '<option value="">Keine Klasse erkannt</option>';
+    var pillContainer = _elements.classworkClassPills;
+    var pillSection = _elements.classworkPillSection;
+
+    if (!pillContainer) {
+      // Fallback: old select-based rendering
+      if (!_elements.classworkClassFilter) return;
+      var activeClasses = getSelectedClasses(classes, defaultClass);
+      _elements.classworkClassFilter.disabled = !classes.length;
+      if (!classes.length) {
+        _elements.classworkClassFilter.innerHTML = '<option value="">Keine Klasse erkannt</option>';
+        return;
+      }
+      _elements.classworkClassFilter.innerHTML = classes.map(function (c) {
+        return '<option value="' + c + '"' + (activeClasses.includes(c) ? ' selected' : '') + '>' + c + '</option>';
+      }).join('');
       return;
     }
-    _elements.classworkClassFilter.size = Math.min(Math.max(filteredClasses.length || classes.length, 3), 8);
-    _elements.classworkClassFilter.innerHTML = (filteredClasses.length ? filteredClasses : classes).map(function (classLabel) {
-      return '<option value="' + classLabel + '"' + (activeClasses.includes(classLabel) ? ' selected' : '') + '>' + classLabel + '</option>';
+
+    if (!classes.length) {
+      if (pillSection) pillSection.hidden = true;
+      return;
+    }
+    if (pillSection) pillSection.hidden = false;
+
+    var active = getSelectedClasses(classes, defaultClass);
+    pillContainer.innerHTML = classes.map(function (label) {
+      var isActive = active.includes(label);
+      return '<button type="button" class="classwork-pill' + (isActive ? ' is-active' : '') + '"'
+        + ' data-classwork-class="' + label + '">' + label + '</button>';
     }).join('');
+
+    pillContainer.querySelectorAll('[data-classwork-class]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var label = btn.dataset.classworkClass;
+        var current = getSelectedClasses(classes, defaultClass);
+        if (current.includes(label)) {
+          _state.classworkSelectedClasses = current.filter(function (c) { return c !== label; });
+          if (!_state.classworkSelectedClasses.length) _state.classworkSelectedClasses = [label];
+        } else {
+          _state.classworkSelectedClasses = current.concat([label]);
+        }
+        renderClassworkSelector(classes, defaultClass);
+        renderPlanDigest();
+      });
+    });
   }
 
   function renderClassworkViewSwitch() {
@@ -347,18 +453,19 @@ var LehrerClasswork = (function () {
     if (showClasswork) {
       _bindExternalLink(_elements.classworkOpenLink, classwork.sourceUrl, 'Plan online öffnen');
       _elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
+      renderClassworkUploadInfo(classwork);
       if (_elements.classworkUploadStatus) {
-        _elements.classworkUploadStatus.hidden = false;
-        _elements.classworkUploadStatus.textContent = classwork.updatedAt
-          ? 'Zuletzt hochgeladen am ' + classwork.updatedAt + '.'
-          : 'Noch kein gemeinsamer Upload vorhanden.';
+        _elements.classworkUploadStatus.hidden = true;
       }
-    } else if (_elements.classworkUploadStatus) {
-      _elements.classworkUploadStatus.hidden = true;
-      _elements.classworkUploadStatus.textContent = '';
+    } else if (_elements.classworkUploadInfo) {
+      _elements.classworkUploadInfo.hidden = true;
     }
-    _elements.classworkUploadFeedback.textContent = _state.classworkUploadFeedback;
-    _elements.classworkUploadFeedback.className = 'connect-feedback' + (_state.classworkUploadFeedbackKind ? ' ' + _state.classworkUploadFeedbackKind : '');
+    if (!_state.classworkUploadFeedback) {
+      // Don't overwrite feedback set by fetch button handler
+    } else {
+      _elements.classworkUploadFeedback.textContent = _state.classworkUploadFeedback;
+      _elements.classworkUploadFeedback.className = 'connect-feedback' + (_state.classworkUploadFeedbackKind ? ' ' + _state.classworkUploadFeedbackKind : '');
+    }
 
     if (showClasswork) {
       renderClassworkSelector(classes, classwork.defaultClass || '');

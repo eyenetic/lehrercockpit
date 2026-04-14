@@ -374,24 +374,37 @@
                 <div class="plans-block__body">
                   <section class="plan-digest-card tone-classwork" aria-labelledby="classwork-digest-title">
                     <h2 id="classwork-digest-title" class="sr-only">Klassenarbeitsplan Klassenansicht</h2>
-                    <p id="classwork-upload-status" class="scrape-status-text"></p>
-                    <p id="classwork-digest-detail" class="source-detail"></p>
-                    <div class="classwork-controls">
-                      <label class="classwork-select-field" for="classwork-class-search">
-                        <span>Klasse suchen</span>
-                        <input id="classwork-class-search" type="search" placeholder="z. B. 7a oder 10c" />
-                      </label>
-                      <label class="classwork-select-field" for="classwork-class-filter">
-                        <span>Meine Klassen</span>
-                        <select id="classwork-class-filter" multiple></select>
-                      </label>
-                      <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
-                    </div>
-                    <div class="classwork-actions">
-                      <button id="classwork-upload-button" class="secondary-link" type="button">Datei hochladen</button>
-                      <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
+
+                    <!-- Upload-Info: wer hat wann hochgeladen -->
+                    <div id="classwork-upload-info" class="classwork-upload-info" hidden></div>
+
+                    <!-- Auto-Abruf von URL -->
+                    <div class="classwork-source-row" id="classwork-source-row">
+                      <input id="classwork-source-url" class="classwork-url-input" type="url"
+                        placeholder="OneDrive-Link einfügen …" autocomplete="off" />
+                      <button id="classwork-fetch-button" class="primary-button-sm" type="button">Abrufen</button>
                     </div>
                     <p id="classwork-upload-feedback" class="connect-feedback"></p>
+
+                    <!-- Klassen-Auswahl als Pills -->
+                    <div class="classwork-pill-section" id="classwork-pill-section" hidden>
+                      <span class="classwork-pill-label">Meine Klassen</span>
+                      <div id="classwork-class-pills" class="classwork-pill-row"></div>
+                      <!-- Hidden select kept for compat with existing JS logic -->
+                      <select id="classwork-class-filter" multiple hidden></select>
+                      <input id="classwork-class-search" type="search" hidden />
+                    </div>
+
+                    <div class="classwork-toolbar">
+                      <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
+                      <div class="classwork-upload-action">
+                        <button id="classwork-upload-button" class="secondary-link" type="button">↑ Manuell hochladen</button>
+                        <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
+                      </div>
+                    </div>
+
+                    <p id="classwork-digest-detail" class="source-detail"></p>
+                    <p id="classwork-upload-status" class="scrape-status-text"></p>
                     <div id="classwork-preview-list" class="stack-list compact-list expandable-scroll" data-expand-panel="classwork"></div>
                     <button class="section-toggle" type="button" data-expand-toggle="classwork" data-expand-target="classwork-preview-list">Mehr anzeigen</button>
                   </section>

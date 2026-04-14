@@ -2583,6 +2583,7 @@
         setExpandableMeta: setExpandableMeta,
         weekdayLabel: weekdayLabel,
         getSelectedClassworkClasses: getSelectedClassworkClasses,
+        refreshDashboard: refreshDashboard,
       });
     }
     // Init LehrerDocuments with shared state, elements, and render callbacks
