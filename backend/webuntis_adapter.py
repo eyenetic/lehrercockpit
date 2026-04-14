@@ -185,7 +185,10 @@ def _parse_datetime(raw_value: str, now: datetime) -> datetime | None:
     if not raw_value:
         return None
 
+    # Track whether the original value was explicitly UTC (ends with Z)
+    is_utc = raw_value.endswith("Z")
     value = raw_value.rstrip("Z")
+
     formats = ("%Y%m%dT%H%M%S", "%Y%m%dT%H%M", "%Y%m%d")
     parsed: datetime | None = None
     for fmt in formats:
@@ -201,6 +204,13 @@ def _parse_datetime(raw_value: str, now: datetime) -> datetime | None:
     if len(value) == 8:
         parsed = parsed.replace(hour=0, minute=0)
 
+    if is_utc:
+        # Preserve UTC timezone so isoformat() emits "+00:00"
+        # The browser will then correctly convert to local time.
+        from datetime import timezone as _tz
+        return parsed.replace(tzinfo=_tz.utc)
+
+    # Floating time (no Z, no TZID) — treat as local/school time
     return parsed.replace(tzinfo=now.tzinfo)
 
 
