@@ -2444,15 +2444,22 @@
       if (el) el.hidden = false;
     }
 
+    function closeSetup() {
+      overlay.hidden = true;
+      if (!localStorage.getItem("lc.mailSetup")) {
+        localStorage.setItem("lc.mailSetup", "skipped");
+      }
+      renderMailSetupEntry();
+    }
+
+    document.getElementById("mail-setup-close")
+      ?.addEventListener("click", closeSetup);
+
     document.getElementById("setup-yes")
       ?.addEventListener("click", () => showStep("setup-step-2"));
 
     document.getElementById("setup-no")
-      ?.addEventListener("click", () => {
-        localStorage.setItem("lc.mailSetup", "skipped");
-        overlay.hidden = true;
-        renderMailSetupEntry();
-      });
+      ?.addEventListener("click", closeSetup);
 
     document.getElementById("setup-mac")
       ?.addEventListener("click", () => {

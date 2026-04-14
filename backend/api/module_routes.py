@@ -519,9 +519,11 @@ def klassenarbeitsplan_fetch():
             req = UrlRequest(attempt_url, headers=headers)
             with urlopen(req, timeout=25) as resp:
                 content_type = resp.headers.get("Content-Type", "").lower()
-                if any(t in content_type for t in ["spreadsheet", "excel", "octet-stream", "zip"]):
+                # Accept xlsx/xls/csv/zip; reject obvious HTML pages
+                if "text/html" not in content_type:
                     file_bytes = resp.read()
                     break
+                last_err = "Antwort war HTML statt Datei (evtl. Login erforderlich)"
         except URLError as exc:
             last_err = str(exc)
             continue

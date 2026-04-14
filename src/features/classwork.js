@@ -162,6 +162,16 @@ var LehrerClasswork = (function () {
 
   // ── Classwork class selection ────────────────────────────────────────────────
 
+  var _CLASSES_STORAGE_KEY = 'lc.classworkSelectedClasses';
+
+  function _saveSelectedClasses(classes) {
+    try { localStorage.setItem(_CLASSES_STORAGE_KEY, JSON.stringify(classes)); } catch (e) {}
+  }
+
+  function _loadSelectedClasses() {
+    try { return JSON.parse(localStorage.getItem(_CLASSES_STORAGE_KEY) || 'null'); } catch (e) { return null; }
+  }
+
   function getSelectedClasses(classes, defaultClass) {
     if (_getSelectedClassworkClasses) {
       return _getSelectedClassworkClasses(classes, defaultClass);
@@ -169,6 +179,13 @@ var LehrerClasswork = (function () {
     if (!classes.length) {
       _state.classworkSelectedClasses = [];
       return [];
+    }
+    // Restore from localStorage if not yet set in memory
+    if (!Array.isArray(_state.classworkSelectedClasses) || !_state.classworkSelectedClasses.length) {
+      var saved = _loadSelectedClasses();
+      if (Array.isArray(saved) && saved.length) {
+        _state.classworkSelectedClasses = saved;
+      }
     }
     if (Array.isArray(_state.classworkSelectedClasses) && _state.classworkSelectedClasses.length) {
       var selected = _state.classworkSelectedClasses.filter(function (label) {
@@ -180,6 +197,7 @@ var LehrerClasswork = (function () {
       }
     }
     _state.classworkSelectedClasses = [(defaultClass && classes.includes(defaultClass)) ? defaultClass : classes[0]];
+    _saveSelectedClasses(_state.classworkSelectedClasses);
     return _state.classworkSelectedClasses;
   }
 
@@ -227,6 +245,7 @@ var LehrerClasswork = (function () {
         } else {
           _state.classworkSelectedClasses = current.concat([label]);
         }
+        _saveSelectedClasses(_state.classworkSelectedClasses);
         renderClassworkSelector(classes, defaultClass);
         renderPlanDigest();
       });
