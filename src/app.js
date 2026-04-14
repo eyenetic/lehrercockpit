@@ -2502,6 +2502,22 @@
       setTimeout(() => clearInterval(timer), 120000);
     }
     renderMailSetupEntry();
+
+    // If mail was previously set up, poll in background so agent is detected quickly on page load
+    const existingSetup = localStorage.getItem("lc.mailSetup");
+    if (existingSetup === "connected" || existingSetup === "mac" || existingSetup === "windows") {
+      const bgTimer = setInterval(async () => {
+        try {
+          const data = await fetchLocalMailAgent();
+          if (data && data.status === "ok") {
+            clearInterval(bgTimer);
+            refreshDashboard(true);
+          }
+        } catch (_) {}
+      }, 4000);
+      // Stop background polling after 60 seconds; the 3-min auto-refresh takes over
+      setTimeout(() => clearInterval(bgTimer), 60000);
+    }
   }
 
   function initPlansTabs() {

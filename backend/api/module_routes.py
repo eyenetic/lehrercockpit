@@ -507,14 +507,25 @@ def klassenarbeitsplan_fetch():
     if not url:
         return error("Keine URL konfiguriert. Bitte zuerst einen OneDrive-Link eintragen.", 400)
 
+    # Build candidate download URLs, trying the most reliable first
+    import base64 as _b64
+
+    def _onedrive_api_url(share_url):
+        """Convert any OneDrive share link to the Graph-API download redirect URL."""
+        b64 = _b64.urlsafe_b64encode(share_url.encode()).decode().rstrip("=")
+        return f"https://api.onedrive.com/v1.0/shares/u!{b64}/root/content"
+
+    candidate_urls = [
+        _onedrive_api_url(url),                                          # Graph API (most reliable)
+        url + ("&" if "?" in url else "?") + "download=1",              # ?download=1 trick
+        url,                                                              # plain URL
+    ]
+
     # Download the file via urllib (works for public OneDrive share links)
     headers = {"User-Agent": "Mozilla/5.0 (compatible; LehrerCockpit/1.0)"}
     file_bytes = None
     last_err = ""
-    for attempt_url in [
-        url + ("&" if "?" in url else "?") + "download=1",
-        url,
-    ]:
+    for attempt_url in candidate_urls:
         try:
             req = UrlRequest(attempt_url, headers=headers)
             with urlopen(req, timeout=25) as resp:
