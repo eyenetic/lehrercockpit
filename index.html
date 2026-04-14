@@ -377,6 +377,13 @@
 
                     <!-- Upload-Info: wer hat wann hochgeladen -->
                     <div id="classwork-upload-info" class="classwork-upload-info" hidden></div>
+
+                    <!-- Direktabruf per Browser-Fetch (umgeht Datacenter-IP-Sperrung) -->
+                    <div class="classwork-source-row" id="classwork-source-row">
+                      <input id="classwork-source-url" class="classwork-url-input" type="url"
+                        placeholder="OneDrive-Freigabelink einfügen …" autocomplete="off" />
+                      <button id="classwork-fetch-button" class="primary-button-sm" type="button">Abrufen</button>
+                    </div>
                     <p id="classwork-upload-feedback" class="connect-feedback"></p>
 
                     <!-- Klassen-Auswahl als Pills -->
