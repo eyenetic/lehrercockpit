@@ -52,56 +52,8 @@ var LehrerClasswork = (function () {
 
     // Grab classwork-specific elements not in the shared elements map
     _elements.classworkUploadInfo = document.querySelector('#classwork-upload-info');
-    _elements.classworkSourceUrl  = document.querySelector('#classwork-source-url');
-    _elements.classworkFetchButton = document.querySelector('#classwork-fetch-button');
     _elements.classworkClassPills = document.querySelector('#classwork-class-pills');
     _elements.classworkPillSection = document.querySelector('#classwork-pill-section');
-
-    _initClassworkFetch();
-  }
-
-  // ── Auto-fetch from OneDrive URL ─────────────────────────────────────────────
-
-  function _initClassworkFetch() {
-    var btn = _elements.classworkFetchButton;
-    var urlInput = _elements.classworkSourceUrl;
-    if (!btn || !urlInput) return;
-
-    // Restore saved URL if any
-    var saved = localStorage.getItem('lc.classworkSourceUrl') || '';
-    if (saved) urlInput.value = saved;
-
-    btn.addEventListener('click', function () {
-      var url = urlInput.value.trim();
-      if (!url) {
-        _showFeedback('Bitte einen OneDrive-Link einfügen.', 'warning');
-        return;
-      }
-      localStorage.setItem('lc.classworkSourceUrl', url);
-      btn.disabled = true;
-      btn.textContent = 'Wird geladen …';
-      _showFeedback('', '');
-
-      if (window.LehrerAPI) {
-        window.LehrerAPI.fetchClassworkFromUrl(url)
-          .then(function (resp) { return resp.json(); })
-          .then(function (json) {
-            btn.disabled = false;
-            btn.textContent = 'Abrufen';
-            if (json.ok) {
-              _showFeedback('Klassenarbeitsplan erfolgreich aktualisiert.', 'success');
-              if (_refreshDashboard) _refreshDashboard(true);
-            } else {
-              _showFeedback(json.error || 'Abruf fehlgeschlagen.', 'warning');
-            }
-          })
-          .catch(function (err) {
-            btn.disabled = false;
-            btn.textContent = 'Abrufen';
-            _showFeedback('Netzwerkfehler: ' + err.message, 'warning');
-          });
-      }
-    });
   }
 
   function _showFeedback(msg, kind) {

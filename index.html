@@ -377,13 +377,6 @@
 
                     <!-- Upload-Info: wer hat wann hochgeladen -->
                     <div id="classwork-upload-info" class="classwork-upload-info" hidden></div>
-
-                    <!-- Auto-Abruf von URL -->
-                    <div class="classwork-source-row" id="classwork-source-row">
-                      <input id="classwork-source-url" class="classwork-url-input" type="url"
-                        placeholder="OneDrive-Link einfügen …" autocomplete="off" />
-                      <button id="classwork-fetch-button" class="primary-button-sm" type="button">Abrufen</button>
-                    </div>
                     <p id="classwork-upload-feedback" class="connect-feedback"></p>
 
                     <!-- Klassen-Auswahl als Pills -->
@@ -398,7 +391,7 @@
                     <div class="classwork-toolbar">
                       <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
                       <div class="classwork-upload-action">
-                        <button id="classwork-upload-button" class="secondary-link" type="button">↑ Manuell hochladen</button>
+                        <button id="classwork-upload-button" class="secondary-link" type="button">↑ Excel hochladen</button>
                         <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
                       </div>
                     </div>
@@ -635,13 +628,18 @@
           <h2 class="setup-title">Cockpit Agent für Mac</h2>
           <ol class="setup-list">
             <li>Agent herunterladen und entpacken</li>
-            <li><strong>Apple Mail öffnen</strong> (muss im Hintergrund laufen)</li>
+            <li><strong>Apple Mail öffnen</strong> – die App muss laufen</li>
             <li><strong>Terminal öffnen</strong>, Datei <code>cockpit-agent.command</code> ins Terminal-Fenster ziehen und <kbd>Enter</kbd> drücken</li>
-            <li>macOS-Berechtigung für Automatisierung mit „OK" bestätigen</li>
+            <li>macOS fragt: <em>„Terminal möchte Mail steuern"</em> → <strong>OK</strong> klicken</li>
           </ol>
           <p class="setup-note" style="margin-top:0.5rem;">
-            <strong>Tipp:</strong> Falls macOS die Datei blockiert – im Terminal einmalig ausführen:<br />
-            <code>xattr -d com.apple.quarantine ~/Downloads/cockpit-agent.command</code>
+            <strong>Kein Dialog erschienen?</strong> Berechtigungen manuell erteilen:<br />
+            System-Einstellungen → Datenschutz &amp; Sicherheit → Automatisierung →
+            <strong>Terminal</strong> → Haken bei <strong>Mail</strong> aktivieren
+          </p>
+          <p class="setup-note">
+            <strong>Datei blockiert?</strong> Im Terminal einmalig ausführen:<br />
+            <code>xattr -d com.apple.quarantine ~/Downloads/cockpit-agent-mac/cockpit-agent.command</code>
           </p>
           <a class="primary-button" id="setup-download-mac" href="#" download>
             Agent herunterladen (Mac)
