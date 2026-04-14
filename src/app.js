@@ -402,7 +402,7 @@
     return data;
   }
 
-  async function fetchLocalMailAgent() {
+  async function fetchLocalMailAgent({ requireOk = true } = {}) {
     for (const base of LOCAL_MAIL_AGENT_BASES) {
       try {
         const response = await fetch(`${base}/mail`, {
@@ -414,9 +414,9 @@
           continue;
         }
         const data = await response.json();
-        if (data && data.status === "ok") {
-          return { ...data, agentBase: base };
-        }
+        if (!data) continue;
+        if (requireOk && data.status !== "ok") continue;
+        return { ...data, agentBase: base };
       } catch (_error) {
         continue;
       }
@@ -467,15 +467,30 @@
   }
 
   async function overlayLocalMailAgentData(data) {
-    const agentData = await fetchLocalMailAgent();
+    // Accept any response (even status:error) so we can show agent errors to the user
+    const agentData = await fetchLocalMailAgent({ requireOk: false });
     if (!agentData) {
       return data;
     }
 
-    const mailMessages = buildMailAgentMessages(agentData);
-    const priorities = buildMailAgentPriorities(mailMessages);
     const platform = String(agentData.platform || "").toLowerCase();
     const sourceName = platform === "windows" ? "Outlook" : "Apple Mail";
+
+    // Agent reachable but returned an error (e.g. Mail not open, permissions missing)
+    if (agentData.status !== "ok") {
+      const merged = JSON.parse(JSON.stringify(data));
+      merged.localConnections = merged.localConnections || {};
+      merged.localConnections.mail = {
+        configured: true,
+        localAgent: true,
+        agentError: agentData.detail || "Agent hat einen Fehler gemeldet.",
+        platform: platform || "mac",
+      };
+      return merged;
+    }
+
+    const mailMessages = buildMailAgentMessages(agentData);
+    const priorities = buildMailAgentPriorities(mailMessages);
     const sourceUpdate = {
       id: "mail",
       name: "Dienstmail",
@@ -1504,9 +1519,15 @@
     const platform = localStorage.getItem("lc.mailPlatform") || "";
 
     if (mailConnection?.localAgent || setupState === "connected") {
-      elements.dienstmailSetupStatus.textContent = platform === "windows"
-        ? "Dienstmail-Vorschau ist lokal ueber Outlook verbunden."
-        : "Dienstmail-Vorschau ist lokal ueber Apple Mail verbunden.";
+      if (mailConnection?.agentError) {
+        elements.dienstmailSetupStatus.textContent = `Agent läuft, aber: ${mailConnection.agentError}`;
+        elements.dienstmailSetupStatus.style.color = "var(--warning, #b45309)";
+      } else {
+        elements.dienstmailSetupStatus.textContent = platform === "windows"
+          ? "Dienstmail-Vorschau ist lokal ueber Outlook verbunden."
+          : "Dienstmail-Vorschau ist lokal ueber Apple Mail verbunden.";
+        elements.dienstmailSetupStatus.style.color = "";
+      }
       if (elements.dienstmailSetupButton) {
         elements.dienstmailSetupButton.textContent = "Mail-Einbindung erneut oeffnen";
       }
@@ -2503,19 +2524,21 @@
     }
     renderMailSetupEntry();
 
-    // If mail was previously set up, poll in background so agent is detected quickly on page load
+    // Poll in background for up to 60s so agent is detected quickly on page load
+    // Triggers if setup was completed OR if user chose a platform (mac/windows)
     const existingSetup = localStorage.getItem("lc.mailSetup");
-    if (existingSetup === "connected" || existingSetup === "mac" || existingSetup === "windows") {
+    const chosenPlatform = localStorage.getItem("lc.mailPlatform");
+    if (existingSetup === "connected" || chosenPlatform) {
       const bgTimer = setInterval(async () => {
         try {
-          const data = await fetchLocalMailAgent();
+          const data = await fetchLocalMailAgent({ requireOk: true });
           if (data && data.status === "ok") {
             clearInterval(bgTimer);
+            localStorage.setItem("lc.mailSetup", "connected");
             refreshDashboard(true);
           }
         } catch (_) {}
       }, 4000);
-      // Stop background polling after 60 seconds; the 3-min auto-refresh takes over
       setTimeout(() => clearInterval(bgTimer), 60000);
     }
   }
