@@ -51,9 +51,79 @@ var LehrerClasswork = (function () {
     _refreshDashboard = callbacks.refreshDashboard || null;
 
     // Grab classwork-specific elements not in the shared elements map
-    _elements.classworkUploadInfo = document.querySelector('#classwork-upload-info');
-    _elements.classworkClassPills = document.querySelector('#classwork-class-pills');
-    _elements.classworkPillSection = document.querySelector('#classwork-pill-section');
+    _elements.classworkUploadInfo   = document.querySelector('#classwork-upload-info');
+    _elements.classworkSourceUrl    = document.querySelector('#classwork-source-url');
+    _elements.classworkFetchButton  = document.querySelector('#classwork-fetch-button');
+    _elements.classworkClassPills   = document.querySelector('#classwork-class-pills');
+    _elements.classworkPillSection  = document.querySelector('#classwork-pill-section');
+
+    _initClassworkFetch();
+  }
+
+  // ── Browser-seitiger Fetch (umgeht Datacenter-IP-Sperrung) ──────────────────
+
+  function _initClassworkFetch() {
+    var btn      = _elements.classworkFetchButton;
+    var urlInput = _elements.classworkSourceUrl;
+    if (!btn || !urlInput) return;
+
+    // Restore previously saved URL
+    var saved = localStorage.getItem('lc.classworkSourceUrl') || '';
+    if (saved) urlInput.value = saved;
+
+    btn.addEventListener('click', function () {
+      var url = urlInput.value.trim();
+      if (!url) { _showFeedback('Bitte den Freigabelink einfügen.', 'warning'); return; }
+
+      localStorage.setItem('lc.classworkSourceUrl', url);
+      btn.disabled = true;
+      btn.textContent = 'Wird geladen …';
+      _showFeedback('', '');
+
+      // Build download URL: OneDrive share links support ?download=1
+      var downloadUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'download=1';
+
+      fetch(downloadUrl, { mode: 'cors', credentials: 'omit', cache: 'no-store' })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          return resp.arrayBuffer();
+        })
+        .then(function (buffer) {
+          // POST raw bytes to existing upload endpoint
+          var apiBase = (window.BACKEND_API_URL || 'https://lehrercockpit.onrender.com');
+          return fetch(apiBase + '/api/classwork/upload', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: buffer,
+          });
+        })
+        .then(function (resp) { return resp.json(); })
+        .then(function (json) {
+          btn.disabled = false;
+          btn.textContent = 'Abrufen';
+          if (json.status === 'ok' || json.entries) {
+            _showFeedback('Klassenarbeitsplan aktualisiert.', 'success');
+            if (_refreshDashboard) _refreshDashboard(true);
+          } else {
+            _showFeedback(json.detail || json.error || 'Fehler beim Verarbeiten.', 'warning');
+          }
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          btn.textContent = 'Abrufen';
+          // CORS-Fehler: OneDrive erlaubt keinen direkten Browser-Zugriff
+          if (err.message && err.message.toLowerCase().indexOf('failed to fetch') >= 0 || err.name === 'TypeError') {
+            _showFeedback(
+              'Direktabruf nicht möglich (Freigabelink erlaubt keinen Browser-Zugriff). ' +
+              'Bitte Datei manuell herunterladen und ↑ hochladen.',
+              'warning'
+            );
+          } else {
+            _showFeedback('Fehler: ' + err.message, 'warning');
+          }
+        });
+    });
   }
 
   function _showFeedback(msg, kind) {
