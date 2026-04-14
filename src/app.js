@@ -25,6 +25,8 @@
   const CLASSWORK_SELECTED_CLASSES_KEY = "lehrerCockpit.classwork.selectedClasses";
   // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
+  const DASHBOARD_CACHE_KEY = "lc.dashboardCache";
+  const DASHBOARD_CACHE_MAX_AGE_MS = 600000; // 10 minutes
   const AUTO_REFRESH_MS = 180000;
   const LOCAL_MAIL_AGENT_BASES = [
     "http://localhost:8765",
@@ -256,6 +258,23 @@
   }
 
   // ── SECTION: API / data loading ─────────────────────────────────────────────
+
+  function saveDashboardCache(data) {
+    try {
+      localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+    } catch (_) {}
+  }
+
+  function loadDashboardCache() {
+    try {
+      const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.data) return null;
+      if (Date.now() - parsed.ts > DASHBOARD_CACHE_MAX_AGE_MS) return null;
+      return parsed.data;
+    } catch (_) { return null; }
+  }
 
   async function loadDashboard(forceRefresh = false) {
     // ── Phase 12: v2 PRIMARY path ──────────────────────────────────────────
@@ -2004,11 +2023,34 @@
   }
 
   async function refreshDashboard(forceRefresh = false) {
+    // Stale-while-revalidate: show cached data immediately, then update from network
+    if (!forceRefresh) {
+      const cached = loadDashboardCache();
+      if (cached) {
+        state.data = cached;
+        renderAll();
+        applyAppTitle();
+        updateWebUntisExternalLink();
+        // Continue fetching fresh data in background (no loading indicator)
+        try {
+          const fresh = await loadDashboard(false);
+          saveDashboardCache(fresh);
+          state.data = fresh;
+          renderAll();
+          applyAppTitle();
+          updateWebUntisExternalLink();
+        } catch (_) {}
+        return;
+      }
+    }
+
+    // No cache or forced refresh — show loading indicator
     if (elements.heroNote) {
       elements.heroNote.textContent = "Stand wird aktualisiert …";
     }
     try {
       state.data = await loadDashboard(forceRefresh);
+      saveDashboardCache(state.data);
       renderAll();
       applyAppTitle();
       updateWebUntisExternalLink();
