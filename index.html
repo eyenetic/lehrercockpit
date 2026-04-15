@@ -378,11 +378,10 @@
                     <!-- Upload-Info: wer hat wann hochgeladen -->
                     <div id="classwork-upload-info" class="classwork-upload-info" hidden></div>
 
-                    <!-- Direktabruf per Browser-Fetch (umgeht Datacenter-IP-Sperrung) -->
-                    <div class="classwork-source-row" id="classwork-source-row">
-                      <input id="classwork-source-url" class="classwork-url-input" type="url"
-                        placeholder="OneDrive-Freigabelink einfügen …" autocomplete="off" />
-                      <button id="classwork-fetch-button" class="primary-button-sm" type="button">Abrufen</button>
+                    <!-- Link zum Originalplan + Upload -->
+                    <div class="classwork-toolbar" id="classwork-toolbar-top">
+                      <a id="classwork-open-source" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>↗ Plan öffnen &amp; herunterladen</a>
+                      <input id="classwork-source-url" type="url" hidden />
                     </div>
                     <p id="classwork-upload-feedback" class="connect-feedback"></p>
 
