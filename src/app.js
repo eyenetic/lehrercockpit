@@ -1544,6 +1544,36 @@
     if (elements.dienstmailSetupButton) {
       elements.dienstmailSetupButton.textContent = "Dienstmail einrichten";
     }
+
+    // Show "Agent verbinden" button when platform chosen but not yet connected
+    const connectNowBtn = document.getElementById("dienstmail-connect-now");
+    if (connectNowBtn) {
+      connectNowBtn.hidden = !platform;
+      if (platform && !connectNowBtn._wired) {
+        connectNowBtn._wired = true;
+        connectNowBtn.addEventListener("click", async () => {
+          connectNowBtn.textContent = "Suche Agent …";
+          connectNowBtn.disabled = true;
+          const data = await fetchLocalMailAgent({ requireOk: false });
+          connectNowBtn.disabled = false;
+          if (!data) {
+            connectNowBtn.textContent = "Agent verbinden";
+            elements.dienstmailSetupStatus.textContent =
+              "Agent nicht gefunden. Läuft cockpit-agent.command im Terminal?";
+            elements.dienstmailSetupStatus.style.color = "var(--warning, #b45309)";
+          } else if (data.status === "ok") {
+            connectNowBtn.hidden = true;
+            localStorage.setItem("lc.mailSetup", "connected");
+            refreshDashboard(true);
+          } else {
+            connectNowBtn.textContent = "Agent verbinden";
+            elements.dienstmailSetupStatus.textContent =
+              `Agent läuft, aber: ${data.detail || "Fehler beim Mail-Lesen"}`;
+            elements.dienstmailSetupStatus.style.color = "var(--warning, #b45309)";
+          }
+        });
+      }
+    }
   }
 
   function getRelevantInboxMessages(data) {
