@@ -205,13 +205,15 @@ def _parse_datetime(raw_value: str, now: datetime) -> datetime | None:
         parsed = parsed.replace(hour=0, minute=0)
 
     if is_utc:
-        # Preserve UTC timezone so isoformat() emits "+00:00"
-        # The browser will then correctly convert to local time.
+        # Explicit UTC (Z suffix) → preserve +00:00 so browser converts correctly
         from datetime import timezone as _tz
         return parsed.replace(tzinfo=_tz.utc)
 
-    # Floating time (no Z, no TZID) — treat as local/school time
-    return parsed.replace(tzinfo=now.tzinfo)
+    # Floating time (no Z, no TZID) = already school/local time.
+    # Return naive so isoformat() emits no tz suffix and the browser
+    # treats it as local time — do NOT attach now.tzinfo (which is UTC
+    # on Render) as that would shift the time by +2h in the browser.
+    return parsed
 
 
 def _decode_ical_text(value: str) -> str:
