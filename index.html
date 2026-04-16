@@ -233,12 +233,6 @@
                 <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen</a>
               </div>
             </div>
-            <div class="meta-row" style="margin-bottom:14px;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-              <span id="dienstmail-setup-status" class="source-detail">Dienstmail ist noch nicht eingerichtet.</span>
-              <button id="dienstmail-setup-button" class="secondary-link" type="button">Dienstmail einrichten</button>
-              <button id="dienstmail-connect-now" class="secondary-link" type="button" hidden>Agent verbinden</button>
-            </div>
-
             <!-- Inbox tab bar (Slice 3) -->
             <div class="inbox-tabs" role="tablist">
               <button class="inbox-tab inbox-tab--active" data-inbox-tab="mail" role="tab" aria-selected="true">
@@ -562,10 +556,6 @@
               </form>
             </details>
             <div id="nextcloud-connect-feedback" class="connect-feedback"></div>
-            <button class="secondary-link" type="button"
-              onclick="localStorage.removeItem('lc.mailSetup'); document.getElementById('mail-setup-overlay').hidden=false;">
-              Mail-Einbindung einrichten
-            </button>
           </article>
         </section>
       </main>
@@ -583,107 +573,6 @@
       </div>
       <div class="heute-anpassen-panel__footer">
         <button id="heute-anpassen-save" class="heute-anpassen-panel__save" type="button">Speichern</button>
-      </div>
-    </div>
-
-    <div id="mail-setup-overlay" class="setup-overlay" hidden>
-      <div class="setup-modal">
-        <button id="mail-setup-close" class="setup-close-btn" type="button" aria-label="Schließen">✕</button>
-
-        <div class="setup-step" id="setup-step-1">
-          <div class="setup-icon">✉</div>
-          <h2 class="setup-title">Dienstmail einbinden?</h2>
-          <p class="setup-body">
-            Das Cockpit kann deine letzten Dienstmails als Vorschau
-            anzeigen – direkt aus deiner lokalen Mail-App.
-            Die Mails verlassen deinen Computer nicht.
-          </p>
-          <div class="setup-actions">
-            <button class="primary-button" id="setup-yes" type="button">
-              Ja, Mails einbinden
-            </button>
-            <button class="setup-skip" id="setup-no" type="button">
-              Jetzt nicht
-            </button>
-          </div>
-        </div>
-
-        <div class="setup-step" id="setup-step-2" hidden>
-          <div class="setup-icon">💻</div>
-          <h2 class="setup-title">Welches Gerät nutzt du?</h2>
-          <p class="setup-body">
-            Das Cockpit unterstützt Apple Mail auf dem Mac
-            und Outlook auf Windows.
-          </p>
-          <div class="setup-os-grid">
-            <button class="setup-os-btn" id="setup-mac" type="button">
-              <span class="setup-os-icon"></span>
-              <strong>Mac</strong>
-              <span>Apple Mail</span>
-            </button>
-            <button class="setup-os-btn" id="setup-windows" type="button">
-              <span class="setup-os-icon">⊞</span>
-              <strong>Windows</strong>
-              <span>Outlook</span>
-            </button>
-          </div>
-          <button class="setup-back" id="setup-back-1" type="button">← Zurück</button>
-        </div>
-
-        <div class="setup-step" id="setup-step-mac" hidden>
-          <div class="setup-icon"></div>
-          <h2 class="setup-title">Cockpit Agent für Mac</h2>
-          <ol class="setup-list">
-            <li>Agent herunterladen und entpacken</li>
-            <li><strong>Apple Mail öffnen</strong> – die App muss laufen</li>
-            <li><strong>Terminal öffnen</strong>, Datei <code>cockpit-agent.command</code> ins Terminal-Fenster ziehen und <kbd>Enter</kbd> drücken</li>
-            <li>macOS fragt: <em>„Terminal möchte Mail steuern"</em> → <strong>OK</strong> klicken</li>
-          </ol>
-          <p class="setup-note" style="margin-top:0.5rem;">
-            <strong>Kein Dialog erschienen?</strong> Berechtigungen manuell erteilen:<br />
-            System-Einstellungen → Datenschutz &amp; Sicherheit → Automatisierung →
-            <strong>Terminal</strong> → Haken bei <strong>Mail</strong> aktivieren
-          </p>
-          <p class="setup-note">
-            <strong>Datei blockiert?</strong> Im Terminal einmalig ausführen:<br />
-            <code>xattr -d com.apple.quarantine ~/Downloads/cockpit-agent-mac/cockpit-agent.command</code>
-          </p>
-          <a class="primary-button" id="setup-download-mac" href="#" download>
-            Agent herunterladen (Mac)
-          </a>
-          <p class="setup-note">
-            Der Agent liest nur Betreff, Absender und Datum –
-            niemals den Mailinhalt.
-          </p>
-          <div id="setup-status-mac" class="setup-status" hidden>
-            <span class="setup-status-dot"></span>
-            Agent verbunden – Mails werden geladen
-          </div>
-          <button class="setup-back" id="setup-back-2mac" type="button">← Zurück</button>
-        </div>
-
-        <div class="setup-step" id="setup-step-windows" hidden>
-          <div class="setup-icon">⊞</div>
-          <h2 class="setup-title">Cockpit Agent für Windows</h2>
-          <ol class="setup-list">
-            <li>Agent herunterladen und entpacken</li>
-            <li>Doppelklick auf <code>cockpit-agent.bat</code></li>
-            <li>Outlook muss geöffnet sein</li>
-          </ol>
-          <a class="primary-button" id="setup-download-windows" href="#" download>
-            Agent herunterladen (Windows)
-          </a>
-          <p class="setup-note">
-            Der Agent liest nur Betreff, Absender und Datum –
-            niemals den Mailinhalt.
-          </p>
-          <div id="setup-status-win" class="setup-status" hidden>
-            <span class="setup-status-dot"></span>
-            Agent verbunden – Mails werden geladen
-          </div>
-          <button class="setup-back" id="setup-back-2win" type="button">← Zurück</button>
-        </div>
-
       </div>
     </div>
 
