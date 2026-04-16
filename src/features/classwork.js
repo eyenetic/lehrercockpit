@@ -116,14 +116,14 @@ var LehrerClasswork = (function () {
         : 'Noch kein Orgaplan-Link hinterlegt.';
     }
     var month = orgaplan.monthLabel || 'diesem Monat';
-    return count + ' relevante Hinweise fuer ' + month + '. Hier stehen nur die naechsten Punkte, nicht der ganze Plan.';
+    return count + ' relevante Hinweise für ' + month + '. Hier stehen nur die nächsten Punkte, nicht der ganze Plan.';
   }
 
   function summarizeClassworkDigest(classwork) {
     if (classwork.status === 'ok') {
       var classCount = (classwork.classes || []).length;
       var entryCount = (classwork.entries || []).length;
-      return entryCount + ' Eintraege fuer ' + classCount + ' Klassen erkannt. Lade bei Bedarf eine neue Datei hoch oder arbeite mit dem zuletzt gemeinsam importierten Stand.';
+      return entryCount + ' Einträge für ' + classCount + ' Klassen erkannt. Lade bei Bedarf eine neue Datei hoch oder arbeite mit dem zuletzt gemeinsam importierten Stand.';
     }
     return truncateText(classwork.detail || 'Der Klassenarbeitsplan ist verlinkt, aber noch nicht automatisch lesbar.', 140);
   }
@@ -240,16 +240,19 @@ var LehrerClasswork = (function () {
   // ── List + calendar HTML builders ────────────────────────────────────────────
 
   function renderClassworkList(entries) {
-    return entries.map(function (entry) {
-      return '<article class="classwork-entry">'
-        + '<div class="classwork-entry-top">'
-        + '<div><strong>' + entry.dateLabel + '</strong><p>' + _weekdayLabel(entry.weekdayLabel) + '</p></div>'
-        + '<span class="meta-tag low">' + entry.kind + '</span>'
-        + '</div>'
-        + '<p class="classwork-entry-title">' + (entry.summary || entry.title) + '</p>'
-        + '<div class="meta-row"><span class="meta-tag">' + entry.classLabel + '</span></div>'
-        + '</article>';
-    }).join('');
+    return '<div class="cw-table">'
+      + '<div class="cw-table-head">'
+      + '<span>Datum</span><span>Klasse</span><span>Art</span><span>Bezeichnung</span>'
+      + '</div>'
+      + entries.map(function (entry) {
+          return '<div class="cw-row">'
+            + '<span class="cw-row-date">' + _weekdayLabel(entry.weekdayLabel).slice(0, 2) + ' ' + entry.dateLabel + '</span>'
+            + '<span class="cw-row-class"><span class="meta-tag">' + entry.classLabel + '</span></span>'
+            + '<span class="cw-row-kind"><span class="meta-tag low">' + entry.kind + '</span></span>'
+            + '<span class="cw-row-title">' + (entry.summary || entry.title) + '</span>'
+            + '</div>';
+        }).join('')
+      + '</div>';
   }
 
   function renderClassworkCalendar(entries) {
@@ -259,27 +262,32 @@ var LehrerClasswork = (function () {
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key).push(entry);
     });
-    return '<div class="classwork-calendar">'
+    return '<div class="cw-table">'
+      + '<div class="cw-table-head"><span>Datum</span><span>Klasse</span><span>Art</span><span>Bezeichnung</span></div>'
       + Array.from(grouped.entries()).map(function (pair) {
           var dayEntries = pair[1];
-          return '<section class="classwork-day">'
-            + '<div class="classwork-day-head">'
-            + '<span class="webuntis-weekday">' + _weekdayLabel(dayEntries[0].weekdayLabel) + '</span>'
-            + '<strong>' + dayEntries[0].dateLabel + '</strong>'
-            + '</div>'
-            + '<div class="classwork-day-items">'
-            + dayEntries.map(function (entry) {
-                return '<article class="classwork-calendar-item">'
-                  + '<span class="meta-tag low">' + entry.kind + '</span>'
-                  + '<strong>' + (entry.summary || entry.title) + '</strong>'
-                  + '</article>';
-              }).join('')
-            + '</div></section>';
+          var dayAbbr = _weekdayLabel(dayEntries[0].weekdayLabel).slice(0, 2);
+          var dateLabel = dayEntries[0].dateLabel;
+          return dayEntries.map(function (entry) {
+            return '<div class="cw-row">'
+              + '<span class="cw-row-date">' + dayAbbr + ' ' + dateLabel + '</span>'
+              + '<span class="cw-row-class"><span class="meta-tag">' + entry.classLabel + '</span></span>'
+              + '<span class="cw-row-kind"><span class="meta-tag low">' + entry.kind + '</span></span>'
+              + '<span class="cw-row-title">' + (entry.summary || entry.title) + '</span>'
+              + '</div>';
+          }).join('');
         }).join('')
       + '</div>';
   }
 
   // ── Orgaplan item HTML ───────────────────────────────────────────────────────
+
+  function _orgaplanLevelClass(label) {
+    if (label === 'Allgemein') return 'orgaplan-label--allgemein';
+    if (label === 'Mittelstufe') return 'orgaplan-label--mittelstufe';
+    if (label === 'Oberstufe') return 'orgaplan-label--oberstufe';
+    return '';
+  }
 
   function _orgaplanLevelTags(item) {
     var levels = [];
@@ -288,7 +296,7 @@ var LehrerClasswork = (function () {
     if (joinOrgaplanSection(item.upper, item.upperNotes)) levels.push('Oberstufe');
     if (!levels.length) return '';
     return levels.map(function (l) {
-      return '<span class="meta-tag orgaplan-level-tag">' + l + '</span>';
+      return '<span class="meta-tag orgaplan-level-tag ' + _orgaplanLevelClass(l) + '">' + l + '</span>';
     }).join('');
   }
 
@@ -321,7 +329,7 @@ var LehrerClasswork = (function () {
       + '<div class="orgaplan-entry-copy">'
       + sections.map(function (section) {
           return '<div class="orgaplan-row">'
-            + '<span class="orgaplan-label">' + section.label + '</span>'
+            + '<span class="orgaplan-label ' + _orgaplanLevelClass(section.label) + '">' + section.label + '</span>'
             + '<p>' + truncateText(section.value, 220) + '</p>'
             + '</div>';
         }).join('')
@@ -347,7 +355,7 @@ var LehrerClasswork = (function () {
       var bodyHtml = sections.length
         ? sections.map(function (s) {
             return '<div class="orgaplan-row orgaplan-row--today">'
-              + '<span class="orgaplan-label">' + s.label + '</span>'
+              + '<span class="orgaplan-label ' + _orgaplanLevelClass(s.label) + '">' + s.label + '</span>'
               + '<p>' + truncateText(s.value, 280) + '</p>'
               + '</div>';
           }).join('')
@@ -394,7 +402,7 @@ var LehrerClasswork = (function () {
             var bodyHtml = sections.length
               ? sections.map(function (s) {
                   return '<div class="orgaplan-row">'
-                    + '<span class="orgaplan-label">' + s.label + '</span>'
+                    + '<span class="orgaplan-label ' + _orgaplanLevelClass(s.label) + '">' + s.label + '</span>'
                     + '<p>' + truncateText(s.value, 200) + '</p>'
                     + '</div>';
                 }).join('')
@@ -505,7 +513,7 @@ var LehrerClasswork = (function () {
           ? classwork.previewRows.map(function (row) {
               return '<article class="priority-item"><p class="priority-copy">' + row + '</p></article>';
             }).join('')
-          : '<div class="empty-state">Noch keine Klassenarbeiten fuer diese Auswahl erkannt.</div>';
+          : '<div class="empty-state">Noch keine Klassenarbeiten für diese Auswahl erkannt.</div>';
     }
   }
 
