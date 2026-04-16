@@ -60,6 +60,8 @@
           <button class="nav-link" type="button" data-section-target="inbox">Posteingang</button>
           <button class="nav-link" type="button" data-section-target="documents">Pläne</button>
           <button class="nav-link" type="button" data-section-target="grades">Notenrechner</button>
+          <!-- Mehr-Button: nur auf Mobile sichtbar -->
+          <button class="nav-link nav-more-btn" type="button" id="mobile-more-btn" aria-label="Mehr">Mehr</button>
         </nav>
 
         <div class="sidebar-theme">
@@ -576,6 +578,54 @@
       </div>
     </div>
 
+    <!-- Mobile Mehr-Sheet -->
+    <div id="mobile-more-sheet" class="more-sheet" hidden aria-modal="true" role="dialog">
+      <div class="more-sheet-backdrop" id="more-sheet-backdrop"></div>
+      <div class="more-sheet-panel">
+        <div class="more-sheet-handle" aria-hidden="true"></div>
+        <div class="more-sheet-user" id="more-sheet-user-name">Lehrkraft</div>
+        <div class="more-sheet-actions">
+          <button class="more-sheet-row" type="button" id="more-sheet-theme-toggle">
+            <span class="more-sheet-row-icon">☀</span>
+            <span id="more-sheet-theme-label">Dark Mode</span>
+          </button>
+          <a class="more-sheet-row" href="./admin.html" id="more-sheet-admin-link" hidden>
+            <span class="more-sheet-row-icon">⚙</span>
+            Admin-Bereich
+          </a>
+          <button class="more-sheet-row" type="button" id="more-sheet-change-code-btn">
+            <span class="more-sheet-row-icon">🔑</span>
+            Zugangscode ändern
+          </button>
+          <button class="more-sheet-row more-sheet-row--danger" type="button" id="more-sheet-logout-btn">
+            <span class="more-sheet-row-icon">↩</span>
+            Abmelden
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Code-ändern Modal -->
+    <div id="change-code-modal" class="modal-overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="change-code-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="change-code-title">Zugangscode ändern</h2>
+          <button class="modal-close" type="button" id="change-code-close" aria-label="Schließen">✕</button>
+        </div>
+        <p style="font-size:0.85rem;color:var(--muted);margin:0 0 1rem;">Mind. 6 Zeichen, nur Buchstaben und Ziffern. Du wirst nach dem Speichern automatisch ausgeloggt.</p>
+        <form id="change-code-form">
+          <div style="display:flex;flex-direction:column;gap:0.75rem;">
+            <input type="text" id="change-code-input" class="form-input" placeholder="Neuer Zugangscode" autocomplete="off" minlength="6" required style="font-size:1rem;letter-spacing:0.05em;" />
+            <div id="change-code-feedback" style="font-size:0.82rem;color:var(--error);min-height:1.2em;"></div>
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+              <button type="button" id="change-code-cancel" class="btn">Abbrechen</button>
+              <button type="submit" class="btn btn-primary" id="change-code-submit">Speichern</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script>
 // Auth-Check: wenn nicht eingeloggt → Login
 // initUserInfo() is defined in the next script block and called here — after the async
@@ -636,15 +686,108 @@ function initUserInfo() {
     const logoutBtn = document.getElementById('sidebar-logout-btn');
     if (info) info.style.display = 'flex';
     if (name) name.textContent = window.CURRENT_USER.full_name || window.CURRENT_USER.first_name;
-    // Phase 13: show admin link based on is_admin flag (+ role compat for pre-migration sessions)
     const isAdminUser = window.CURRENT_USER.is_admin === true || window.CURRENT_USER.role === 'admin';
     if (adminLink) adminLink.style.display = isAdminUser ? 'inline-flex' : 'none';
+
+    async function doLogout() {
+      const backendUrl = window.BACKEND_API_URL || '';
+      await fetch(backendUrl + '/api/v2/auth/logout', {method: 'POST', credentials: 'include'});
+      window.location.href = './login.html';
+    }
+
     if (logoutBtn && !logoutBtn.dataset.bound) {
       logoutBtn.dataset.bound = 'true';
-      logoutBtn.addEventListener('click', async function() {
-        const backendUrl = window.BACKEND_API_URL || '';
-        await fetch(backendUrl + '/api/v2/auth/logout', {method: 'POST', credentials: 'include'});
-        window.location.href = './login.html';
+      logoutBtn.addEventListener('click', doLogout);
+    }
+
+    // ── Mobile Mehr-Sheet ──────────────────────────────────────────────────────
+    const moreBtn = document.getElementById('mobile-more-btn');
+    const moreSheet = document.getElementById('mobile-more-sheet');
+    const moreBackdrop = document.getElementById('more-sheet-backdrop');
+    const moreUserName = document.getElementById('more-sheet-user-name');
+    const moreAdminLink = document.getElementById('more-sheet-admin-link');
+    const moreThemeBtn = document.getElementById('more-sheet-theme-toggle');
+    const moreThemeLabel = document.getElementById('more-sheet-theme-label');
+    const moreLogoutBtn = document.getElementById('more-sheet-logout-btn');
+    const moreChangeCodeBtn = document.getElementById('more-sheet-change-code-btn');
+
+    if (moreUserName) moreUserName.textContent = window.CURRENT_USER.full_name || window.CURRENT_USER.first_name;
+    if (moreAdminLink) moreAdminLink.hidden = !isAdminUser;
+
+    function openMoreSheet() { if (moreSheet) moreSheet.hidden = false; }
+    function closeMoreSheet() { if (moreSheet) moreSheet.hidden = true; }
+
+    if (moreBtn) moreBtn.addEventListener('click', openMoreSheet);
+    if (moreBackdrop) moreBackdrop.addEventListener('click', closeMoreSheet);
+    if (moreLogoutBtn) moreLogoutBtn.addEventListener('click', doLogout);
+
+    // Sync theme label in sheet
+    function syncMoreThemeLabel() {
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      if (moreThemeLabel) moreThemeLabel.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      if (moreThemeBtn) {
+        const icon = moreThemeBtn.querySelector('.more-sheet-row-icon');
+        if (icon) icon.textContent = isDark ? '☀' : '☽';
+      }
+    }
+    syncMoreThemeLabel();
+
+    if (moreThemeBtn) {
+      moreThemeBtn.addEventListener('click', function() {
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) themeToggle.click();
+        syncMoreThemeLabel();
+      });
+    }
+
+    // ── Code ändern ────────────────────────────────────────────────────────────
+    const changeCodeModal = document.getElementById('change-code-modal');
+    const changeCodeForm = document.getElementById('change-code-form');
+    const changeCodeInput = document.getElementById('change-code-input');
+    const changeCodeFeedback = document.getElementById('change-code-feedback');
+    const changeCodeClose = document.getElementById('change-code-close');
+    const changeCodeCancel = document.getElementById('change-code-cancel');
+
+    function openChangeCode() { closeMoreSheet(); if (changeCodeModal) changeCodeModal.hidden = false; }
+    function closeChangeCode() {
+      if (changeCodeModal) changeCodeModal.hidden = true;
+      if (changeCodeInput) changeCodeInput.value = '';
+      if (changeCodeFeedback) changeCodeFeedback.textContent = '';
+    }
+
+    if (moreChangeCodeBtn) moreChangeCodeBtn.addEventListener('click', openChangeCode);
+    if (changeCodeClose) changeCodeClose.addEventListener('click', closeChangeCode);
+    if (changeCodeCancel) changeCodeCancel.addEventListener('click', closeChangeCode);
+
+    if (changeCodeForm) {
+      changeCodeForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const newCode = (changeCodeInput ? changeCodeInput.value.trim() : '');
+        if (!newCode) return;
+        const submitBtn = document.getElementById('change-code-submit');
+        if (submitBtn) submitBtn.disabled = true;
+        if (changeCodeFeedback) changeCodeFeedback.textContent = '';
+        try {
+          const backendUrl = window.BACKEND_API_URL || '';
+          const resp = await fetch(backendUrl + '/api/v2/auth/me/change-code', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({new_code: newCode}),
+          });
+          const data = await resp.json().catch(function() { return {}; });
+          if (!resp.ok) {
+            if (changeCodeFeedback) changeCodeFeedback.textContent = data.error || 'Fehler beim Speichern.';
+            if (submitBtn) submitBtn.disabled = false;
+          } else {
+            // Success — logout so user has to re-login with new code
+            alert('Code geändert! Du wirst jetzt ausgeloggt.');
+            doLogout();
+          }
+        } catch (err) {
+          if (changeCodeFeedback) changeCodeFeedback.textContent = 'Verbindungsfehler.';
+          if (submitBtn) submitBtn.disabled = false;
+        }
       });
     }
   }
