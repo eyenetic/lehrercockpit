@@ -28,10 +28,6 @@
   const DASHBOARD_CACHE_KEY = "lc.dashboardCache";
   const DASHBOARD_CACHE_MAX_AGE_MS = 600000; // 10 minutes
   const AUTO_REFRESH_MS = 180000;
-  const LOCAL_MAIL_AGENT_BASES = [
-    "http://localhost:8765",
-    "http://127.0.0.1:8765",
-  ];
   const PANEL_COLLAPSE_LIMITS = {
     inbox: 10,
     grades: 4,
@@ -289,7 +285,7 @@
         if (resp.ok) {
           const v2Json = await resp.json();
           if (v2Json.ok) {
-            return await overlayLocalMailAgentData(normalizeV2Dashboard(v2Json));
+            return normalizeV2Dashboard(v2Json);
           }
         }
       } catch (e) {
@@ -327,14 +323,14 @@
           // Fail silently — v1 data is still usable
         }
 
-        return await overlayLocalMailAgentData(data);
+        return data;
       } catch (error) {
         continue;
       }
     }
 
     if (window.LEHRER_COCKPIT_FALLBACK_DATA) {
-      return await overlayLocalMailAgentData(normalizeDashboard(window.LEHRER_COCKPIT_FALLBACK_DATA));
+      return normalizeDashboard(window.LEHRER_COCKPIT_FALLBACK_DATA);
     }
 
     throw new Error("Dashboard-Daten konnten nicht geladen werden.");
@@ -402,28 +398,6 @@
     return data;
   }
 
-  async function fetchLocalMailAgent({ requireOk = true } = {}) {
-    for (const base of LOCAL_MAIL_AGENT_BASES) {
-      try {
-        const response = await fetch(`${base}/mail`, {
-          method: "GET",
-          mode: "cors",
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          continue;
-        }
-        const data = await response.json();
-        if (!data) continue;
-        if (requireOk && data.status !== "ok") continue;
-        return { ...data, agentBase: base };
-      } catch (_error) {
-        continue;
-      }
-    }
-    return null;
-  }
-
   async function fetchBackendMailPreview() {
     try {
       const apiBase = getBackendApiBase();
@@ -434,91 +408,6 @@
     } catch (_error) {
       return null;
     }
-  }
-
-  function buildMailAgentMessages(agentData) {
-    const messages = Array.isArray(agentData?.messages) ? agentData.messages : [];
-    return messages.map((item, index) => ({
-      id: `mail-agent-${index + 1}`,
-      channel: "mail",
-      channelLabel: "Dienstmail",
-      sender: String(item.sender || "Lokale Mail-App"),
-      title: String(item.subject || "(ohne Betreff)"),
-      snippet: String(item.sender || "Lokale Mail-App"),
-      priority: item.unread ? "high" : "low",
-      timestamp: String(item.date || ""),
-      sortKey: String(item.date || "").trim() || `${1000 - index}`,
-      unread: Boolean(item.unread),
-    }));
-  }
-
-  function buildMailAgentPriorities(messages) {
-    return messages
-      .filter((message) => message.unread)
-      .slice(0, 3)
-      .map((message, index) => ({
-        id: `prio-mail-agent-${index + 1}`,
-        title: message.title,
-        detail: message.sender,
-        priority: "high",
-        source: "Dienstmail",
-        due: "neu",
-      }));
-  }
-
-  async function overlayLocalMailAgentData(data) {
-    // Accept any response (even status:error) so we can show agent errors to the user
-    const agentData = await fetchLocalMailAgent({ requireOk: false });
-    if (!agentData) {
-      return data;
-    }
-
-    const platform = String(agentData.platform || "").toLowerCase();
-    const sourceName = platform === "windows" ? "Outlook" : "Apple Mail";
-
-    // Agent reachable but returned an error (e.g. Mail not open, permissions missing)
-    if (agentData.status !== "ok") {
-      const merged = JSON.parse(JSON.stringify(data));
-      merged.localConnections = merged.localConnections || {};
-      merged.localConnections.mail = {
-        configured: true,
-        localAgent: true,
-        agentError: agentData.detail || "Agent hat einen Fehler gemeldet.",
-        platform: platform || "mac",
-      };
-      return merged;
-    }
-
-    const mailMessages = buildMailAgentMessages(agentData);
-    const priorities = buildMailAgentPriorities(mailMessages);
-    const sourceUpdate = {
-      id: "mail",
-      name: "Dienstmail",
-      type: sourceName,
-      status: "ok",
-      cadence: "lokaler Agent",
-      lastSync: formatTime(new Date()),
-      nextStep: platform === "windows" ? "Outlook lokal verbunden" : "Apple Mail lokal verbunden",
-      detail: agentData.detail || `${mailMessages.length} Mails geladen`,
-    };
-
-    const merged = JSON.parse(JSON.stringify(data));
-    merged.localConnections = merged.localConnections || {};
-    merged.localConnections.mail = {
-      configured: true,
-      localAgent: true,
-      platform: platform || "mac",
-      account: sourceName,
-    };
-    merged.sources = Array.isArray(merged.sources)
-      ? [sourceUpdate].concat(merged.sources.filter((source) => source.id !== "mail"))
-      : [sourceUpdate];
-    merged.messages = mailMessages.concat((merged.messages || []).filter((message) => message.channel !== "mail"));
-    merged.priorities = priorities.concat((merged.priorities || []).filter((item) => item.source !== "Dienstmail")).slice(0, 4);
-    if (merged.meta && merged.meta.note) {
-      merged.meta.note = `${merged.meta.note} Dienstmail wird lokal ueber den Cockpit Agenten gespiegelt.`;
-    }
-    return merged;
   }
 
   // ── SECTION: v2 Module Data Overlay (Phase 11d) ─────────────────────────────
@@ -1485,25 +1374,10 @@
     const mailConnection = connectionHint("mail");
     const schoolportalUrl = base.schoolportal_url || "https://schulportal.berlin.de";
     if (elements.dienstmailOpenLink) {
-      if (mailConnection?.configured) {
-        if (mailConnection.platform === "windows") {
-          bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
-          elements.dienstmailOpenLink.target = "_blank";
-          elements.dienstmailOpenLink.rel = "noreferrer";
-        } else {
-          elements.dienstmailOpenLink.href = "message://";
-          elements.dienstmailOpenLink.textContent = "Dienstmail in Mail oeffnen";
-          elements.dienstmailOpenLink.target = "_self";
-          elements.dienstmailOpenLink.rel = "";
-        }
-        elements.dienstmailOpenLink.hidden = false;
-        elements.dienstmailOpenLink.style.pointerEvents = "auto";
-        elements.dienstmailOpenLink.style.opacity = "1";
-      } else {
-        bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
-        elements.dienstmailOpenLink.target = "_blank";
-        elements.dienstmailOpenLink.rel = "noreferrer";
-      }
+      bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
+      elements.dienstmailOpenLink.target = "_blank";
+      elements.dienstmailOpenLink.rel = "noreferrer";
+      elements.dienstmailOpenLink.hidden = false;
     }
     if (elements.itslearningOpenLink) {
       bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning oeffnen");
@@ -1513,66 +1387,13 @@
   }
 
   function renderMailSetupEntry() {
-    if (!elements.dienstmailSetupStatus) return;
-    const mailConnection = connectionHint("mail");
-    const setupState = localStorage.getItem("lc.mailSetup") || "";
-    const platform = localStorage.getItem("lc.mailPlatform") || "";
-
-    if (mailConnection?.localAgent || setupState === "connected") {
-      if (mailConnection?.agentError) {
-        elements.dienstmailSetupStatus.textContent = `Agent läuft, aber: ${mailConnection.agentError}`;
-        elements.dienstmailSetupStatus.style.color = "var(--warning, #b45309)";
-      } else {
-        elements.dienstmailSetupStatus.textContent = platform === "windows"
-          ? "Dienstmail-Vorschau ist lokal ueber Outlook verbunden."
-          : "Dienstmail-Vorschau ist lokal ueber Apple Mail verbunden.";
-        elements.dienstmailSetupStatus.style.color = "";
-      }
-      if (elements.dienstmailSetupButton) {
-        elements.dienstmailSetupButton.textContent = "Mail-Einbindung erneut oeffnen";
-      }
-      return;
-    }
-
-    if (platform === "windows") {
-      elements.dienstmailSetupStatus.textContent = "Windows-Agent vorbereitet. Outlook lokal oeffnen und den Agenten starten.";
-    } else if (platform === "mac") {
-      elements.dienstmailSetupStatus.textContent = "Mac-Agent vorbereitet. Apple Mail lokal freigeben und den Agenten starten.";
-    } else {
-      elements.dienstmailSetupStatus.textContent = "Dienstmail ist noch nicht eingerichtet.";
+    // Berliner Dienstmail hat kein IMAP — kein lokaler Agent mehr.
+    // Schulportal-Link wird direkt in renderInboxLinks gesetzt.
+    if (elements.dienstmailSetupStatus) {
+      elements.dienstmailSetupStatus.textContent = "Dienstmail ist über das Schulportal erreichbar.";
     }
     if (elements.dienstmailSetupButton) {
-      elements.dienstmailSetupButton.textContent = "Dienstmail einrichten";
-    }
-
-    // Show "Agent verbinden" button when platform chosen but not yet connected
-    const connectNowBtn = document.getElementById("dienstmail-connect-now");
-    if (connectNowBtn) {
-      connectNowBtn.hidden = !platform;
-      if (platform && !connectNowBtn._wired) {
-        connectNowBtn._wired = true;
-        connectNowBtn.addEventListener("click", async () => {
-          connectNowBtn.textContent = "Suche Agent …";
-          connectNowBtn.disabled = true;
-          const data = await fetchLocalMailAgent({ requireOk: false });
-          connectNowBtn.disabled = false;
-          if (!data) {
-            connectNowBtn.textContent = "Agent verbinden";
-            elements.dienstmailSetupStatus.textContent =
-              "Agent nicht gefunden. Läuft cockpit-agent.command im Terminal?";
-            elements.dienstmailSetupStatus.style.color = "var(--warning, #b45309)";
-          } else if (data.status === "ok") {
-            connectNowBtn.hidden = true;
-            localStorage.setItem("lc.mailSetup", "connected");
-            refreshDashboard(true);
-          } else {
-            connectNowBtn.textContent = "Agent verbinden";
-            elements.dienstmailSetupStatus.textContent =
-              `Agent läuft, aber: ${data.detail || "Fehler beim Mail-Lesen"}`;
-            elements.dienstmailSetupStatus.style.color = "var(--warning, #b45309)";
-          }
-        });
-      }
+      elements.dienstmailSetupButton.hidden = true;
     }
   }
 
@@ -2465,112 +2286,9 @@
   }
 
   function initMailSetup() {
-    const overlay = document.getElementById("mail-setup-overlay");
-    if (!overlay) return;
-    const macDownload = document.getElementById("setup-download-mac");
-    const winDownload = document.getElementById("setup-download-windows");
-    const apiBase = getBackendApiBase();
-
-    if (macDownload) {
-      macDownload.href = `${apiBase}/api/downloads/cockpit-agent-mac.zip`;
-    }
-    if (winDownload) {
-      winDownload.href = `${apiBase}/api/downloads/cockpit-agent-windows.zip`;
-    }
-
-    if (!localStorage.getItem("lc.mailSetup")) {
-      overlay.hidden = false;
-    }
-
-    elements.dienstmailSetupButton
-      ?.addEventListener("click", () => {
-        overlay.hidden = false;
-      });
-
-    function showStep(id) {
-      document.querySelectorAll(".setup-step").forEach((step) => {
-        step.hidden = true;
-      });
-      const el = document.getElementById(id);
-      if (el) el.hidden = false;
-    }
-
-    function closeSetup() {
-      overlay.hidden = true;
-      if (!localStorage.getItem("lc.mailSetup")) {
-        localStorage.setItem("lc.mailSetup", "skipped");
-      }
-      renderMailSetupEntry();
-    }
-
-    document.getElementById("mail-setup-close")
-      ?.addEventListener("click", closeSetup);
-
-    document.getElementById("setup-yes")
-      ?.addEventListener("click", () => showStep("setup-step-2"));
-
-    document.getElementById("setup-no")
-      ?.addEventListener("click", closeSetup);
-
-    document.getElementById("setup-mac")
-      ?.addEventListener("click", () => {
-        localStorage.setItem("lc.mailPlatform", "mac");
-        showStep("setup-step-mac");
-        renderMailSetupEntry();
-        pollAgent("setup-status-mac");
-      });
-
-    document.getElementById("setup-windows")
-      ?.addEventListener("click", () => {
-        localStorage.setItem("lc.mailPlatform", "windows");
-        showStep("setup-step-windows");
-        renderMailSetupEntry();
-        pollAgent("setup-status-win");
-      });
-
-    document.getElementById("setup-back-1")
-      ?.addEventListener("click", () => showStep("setup-step-1"));
-    document.getElementById("setup-back-2mac")
-      ?.addEventListener("click", () => showStep("setup-step-2"));
-    document.getElementById("setup-back-2win")
-      ?.addEventListener("click", () => showStep("setup-step-2"));
-
-    function pollAgent(statusId) {
-      const statusEl = document.getElementById(statusId);
-      const timer = setInterval(async () => {
-        try {
-          const data = (await fetchLocalMailAgent()) || (await fetchBackendMailPreview());
-          if (data && data.status === "ok") {
-            clearInterval(timer);
-            if (statusEl) statusEl.hidden = false;
-            localStorage.setItem("lc.mailSetup", "connected");
-            renderMailSetupEntry();
-            refreshDashboard(true);
-            setTimeout(() => { overlay.hidden = true; }, 2500);
-          }
-        } catch (_) {}
-      }, 3000);
-      setTimeout(() => clearInterval(timer), 120000);
-    }
+    // Mail-Agent-Setup entfernt: lokaler Agent zu komplex für Lehrkräfte,
+    // Berliner Dienstmail hat kein IMAP. Nur Link zum Schulportal.
     renderMailSetupEntry();
-
-    // Poll in background for up to 60s so agent is detected quickly on page load
-    // Triggers if setup was completed OR if user chose a platform (mac/windows)
-    const existingSetup = localStorage.getItem("lc.mailSetup");
-    const chosenPlatform = localStorage.getItem("lc.mailPlatform");
-    if (existingSetup === "connected" || chosenPlatform) {
-      const bgTimer = setInterval(async () => {
-        try {
-          const data = await fetchLocalMailAgent({ requireOk: true });
-          if (data && data.status === "ok") {
-            clearInterval(bgTimer);
-            localStorage.setItem("lc.mailSetup", "connected");
-            refreshDashboard(true);
-          }
-        } catch (_) {}
-      }, 4000);
-      setTimeout(() => clearInterval(bgTimer), 60000);
-    }
   }
 
   function initPlansTabs() {
