@@ -563,6 +563,78 @@ def test_post_users_with_admin_role_sets_is_admin_true(client):
     )
 
 
+# ── DELETE /api/v2/admin/users/<id> ───────────────────────────────────────────
+
+def _make_two_call_db_mock():
+    """Returns a side_effect list for db_connection called twice (delete + audit)."""
+    mock_ctx1, mock_conn1 = _make_db_context_mock()
+    mock_ctx2, mock_conn2 = _make_db_context_mock()
+    return [mock_ctx1, mock_ctx2], mock_conn1, mock_conn2
+
+
+def test_delete_user_with_admin_returns_200(client):
+    """DELETE /api/v2/admin/users/<id> mit Admin + delete_user=True → 200 ok."""
+    admin = _make_admin_user(id=1)
+    side_effects, mock_conn1, mock_conn2 = _make_two_call_db_mock()
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        with patch.object(backend.api.admin_routes, "db_connection", side_effect=side_effects):
+            with patch.object(backend.api.admin_routes, "delete_user", return_value=True):
+                with patch.object(backend.api.admin_routes, "log_audit_event"):
+                    response = client.delete("/api/v2/admin/users/5")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data.get("ok") is True
+
+
+def test_delete_user_own_account_returns_400(client):
+    """DELETE /api/v2/admin/users/<own_id> → 400 (eigenes Konto nicht löschbar)."""
+    admin = _make_admin_user(id=1)
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        response = client.delete("/api/v2/admin/users/1")
+
+    assert response.status_code == 400
+
+
+def test_delete_user_not_found_returns_404(client):
+    """DELETE /api/v2/admin/users/<id> wenn delete_user=False → 404."""
+    admin = _make_admin_user(id=1)
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        with patch.object(backend.api.admin_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(backend.api.admin_routes, "delete_user", return_value=False):
+                response = client.delete("/api/v2/admin/users/999")
+
+    assert response.status_code == 404
+
+
+def test_delete_user_without_auth_returns_401(client):
+    """DELETE /api/v2/admin/users/<id> ohne Auth → 401."""
+    with patch.object(backend.api.helpers, "get_current_user", return_value=None):
+        response = client.delete("/api/v2/admin/users/5")
+
+    assert response.status_code == 401
+
+
+def test_delete_user_db_error_returns_500(client):
+    """DELETE /api/v2/admin/users/<id> wenn delete_user wirft → 500."""
+    admin = _make_admin_user(id=1)
+    mock_ctx, mock_conn = _make_db_context_mock()
+
+    with patch.object(backend.api.helpers, "get_current_user", return_value=admin):
+        with patch.object(backend.api.admin_routes, "db_connection", return_value=mock_ctx):
+            with patch.object(
+                backend.api.admin_routes, "delete_user",
+                side_effect=RuntimeError("DB-Fehler"),
+            ):
+                response = client.delete("/api/v2/admin/users/5")
+
+    assert response.status_code == 500
+
+
 def test_post_users_with_teacher_role_and_is_admin_true(client):
     """POST /api/v2/admin/users with role='teacher' + is_admin=True → canonical new form."""
     admin = _make_admin_user()
