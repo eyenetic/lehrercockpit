@@ -956,6 +956,23 @@
 
         // ── Users Tab ─────────────────────────────────────────────────────────
 
+        // Event delegation einmalig auf dem statischen Container — nicht bei jedem Render neu
+        (function () {
+          const container = document.getElementById('users-table-container');
+          if (!container) return;
+          container.addEventListener('click', function (e) {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            const uid = parseInt(btn.dataset.uid, 10);
+            const name = btn.dataset.name || '';
+            if (action === 'edit-user')          window.editUser(uid);
+            else if (action === 'regen-code')    window.regenerateCode(uid, name);
+            else if (action === 'toggle-active') window.toggleActive(uid, btn.dataset.active === 'true');
+            else if (action === 'delete-user')   window.deleteUser(uid, name);
+          });
+        })();
+
         async function loadUsers() {
           const container = document.getElementById('users-table-container');
           try {
@@ -1009,18 +1026,6 @@
 
           html += '</tbody></table>';
           container.innerHTML = html;
-
-          container.addEventListener('click', function (e) {
-            const btn = e.target.closest('button[data-action]');
-            if (!btn) return;
-            const action = btn.dataset.action;
-            const uid = parseInt(btn.dataset.uid, 10);
-            const name = btn.dataset.name || '';
-            if (action === 'edit-user')      window.editUser(uid);
-            else if (action === 'regen-code')     window.regenerateCode(uid, name);
-            else if (action === 'toggle-active')  window.toggleActive(uid, btn.dataset.active === 'true');
-            else if (action === 'delete-user')    window.deleteUser(uid, name);
-          });
         }
 
         // ── Add User Modal ────────────────────────────────────────────────────
