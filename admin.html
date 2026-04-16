@@ -604,6 +604,7 @@
                     <option value="login_success">✅ Anmeldung erfolgreich</option>
                     <option value="login_failure">❌ Anmeldung fehlgeschlagen</option>
                     <option value="teacher_created">👤 Lehrkraft erstellt</option>
+                    <option value="teacher_deleted">🗑 Lehrkraft gelöscht</option>
                     <option value="teacher_deactivated">🚫 Lehrkraft deaktiviert</option>
                     <option value="code_rotated">🔑 Zugangscode erneuert</option>
                     <option value="bootstrap_created">⚙️ Bootstrap-Admin erstellt</option>
@@ -727,7 +728,7 @@
         // ── Helper ────────────────────────────────────────────────────────────
 
         function esc(str) {
-          return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
         }
 
         function setFeedback(id, msg, type) {
@@ -1016,17 +1017,30 @@
               + '<td>' + statusBadge + '</td>'
               + '<td>' + hasCode + '</td>'
               + '<td><div class="actions-cell">'
-              + '<button class="btn btn-sm" type="button" onclick="editUser(' + u.id + ')">Bearbeiten</button>'
-              + '<button class="btn btn-sm" type="button" onclick="regenerateCode(' + u.id + ', \'' + esc(u.full_name || u.first_name) + '\')">Code neu</button>'
-              + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" onclick="toggleActive(' + u.id + ', ' + u.is_active + ')">'
+              + '<button class="btn btn-sm" type="button" data-action="edit-user" data-uid="' + u.id + '">Bearbeiten</button>'
+              + '<button class="btn btn-sm" type="button" data-action="regen-code" data-uid="' + u.id + '" data-name="' + esc(u.full_name || u.first_name) + '">Code neu</button>'
+              + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" data-action="toggle-active" data-uid="' + u.id + '" data-active="' + u.is_active + '">'
               + (u.is_active ? 'Deaktivieren' : 'Aktivieren') + '</button>'
-              + '<button class="btn btn-sm btn-danger" type="button" onclick="deleteUser(' + u.id + ', \'' + esc(u.full_name || u.first_name) + '\')">Loeschen</button>'
+              + '<button class="btn btn-sm btn-danger" type="button" data-action="delete-user" data-uid="' + u.id + '" data-name="' + esc(u.full_name || u.first_name) + '">Löschen</button>'
               + '</div></td>'
               + '</tr>';
           });
 
           html += '</tbody></table>';
           container.innerHTML = html;
+
+          // Event delegation for action buttons (avoids inline onclick + quote escaping issues)
+          container.addEventListener('click', function (e) {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            const uid = parseInt(btn.dataset.uid, 10);
+            const name = btn.dataset.name || '';
+            if (action === 'delete-user') window.deleteUser(uid, name);
+            else if (action === 'regen-code') window.regenerateCode(uid, name);
+            else if (action === 'toggle-active') window.toggleActive(uid, btn.dataset.active === 'true');
+            else if (action === 'edit-user') window.editUser(uid);
+          });
         }
 
         // ── Add User Modal ────────────────────────────────────────────────────
