@@ -326,9 +326,13 @@
       _elements.gradesSummaryRisk.textContent = formatNumber(result.totalWeight.toFixed(2)).replace(',00', '') + '%';
     }
     if (_elements.gradesSummaryAverage) {
-      _elements.gradesSummaryAverage.textContent = isFinite(result.weightedAverage)
-        ? approximateGradeLabel(result.weightedAverage) + ' · ' + formatGrade(result.weightedAverage)
-        : '-';
+      if (isFinite(result.weightedAverage)) {
+        _elements.gradesSummaryAverage.innerHTML =
+          approximateGradeLabel(result.weightedAverage)
+          + '<span class="grade-avg-num">' + formatGrade(result.weightedAverage) + '</span>';
+      } else {
+        _elements.gradesSummaryAverage.textContent = '-';
+      }
     }
 
     if (_elements.gradesList) {
