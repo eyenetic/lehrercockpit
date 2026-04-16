@@ -284,30 +284,13 @@ var LehrerInbox = (function () {
   }
 
   /**
-   * Wire up tab switching. Safe to call multiple times — idempotent.
+   * Initialize inbox — renders itslearning messages directly (no tabs).
+   * Safe to call multiple times — idempotent.
    */
   function initInboxTabs() {
-    var tabBar = document.querySelector('.inbox-tabs');
-    if (!tabBar || _tabsInitialized) return;
+    if (_tabsInitialized) return;
     _tabsInitialized = true;
-
-    tabBar.addEventListener('click', function (event) {
-      var btn = event.target.closest('[data-inbox-tab]');
-      if (!btn) return;
-      _activateTab(btn.dataset.inboxTab);
-    });
-
-    // Restore previously selected tab from localStorage
-    var stored = '';
-    try { stored = localStorage.getItem(INBOX_TAB_STORAGE_KEY) || ''; } catch (_e) {}
-    if (stored === 'itslearning') {
-      _activateTab('itslearning');
-    }
-
-    // Render badges with current data
-    if (_getRelevantInboxMessages) {
-      renderBadges(_getRelevantInboxMessages());
-    }
+    renderItslearningTab();
   }
 
   return {

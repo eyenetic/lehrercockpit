@@ -235,27 +235,8 @@
                 <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen</a>
               </div>
             </div>
-            <!-- Inbox tab bar (Slice 3) -->
-            <div class="inbox-tabs" role="tablist">
-              <button class="inbox-tab inbox-tab--active" data-inbox-tab="mail" role="tab" aria-selected="true">
-                Dienstmail
-                <span class="inbox-tab__badge" id="inbox-badge-mail"></span>
-              </button>
-              <button class="inbox-tab" data-inbox-tab="itslearning" role="tab" aria-selected="false">
-                itslearning
-                <span class="inbox-tab__badge" id="inbox-badge-itslearning"></span>
-              </button>
-            </div>
-
-            <!-- Tab panel: Dienstmail — preserves existing #message-list -->
-            <div class="inbox-tab-panel inbox-tab-panel--active" data-inbox-panel="mail">
-              <div id="message-list" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
-            </div>
-
-            <!-- Tab panel: itslearning -->
-            <div class="inbox-tab-panel" data-inbox-panel="itslearning">
-              <div id="message-list-itslearning" class="stack-list expandable-scroll"></div>
-            </div>
+            <!-- itslearning Posteingang (Dienstmail entfernt) -->
+            <div id="message-list-itslearning" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
           </article>
         </section>
 
