@@ -9,6 +9,8 @@ from flask_limiter.util import get_remote_address
 from backend.db import db_connection
 from backend.auth.session import create_session, delete_session
 from backend.users.user_service import authenticate_by_code
+from backend.users.user_store import set_access_code
+from backend.auth.access_code import hash_code, get_code_prefix
 from backend.migrations import log_audit_event
 from backend.api.helpers import (
     require_auth,
@@ -123,3 +125,43 @@ def me():
     Response 200: {"ok": true, "user": {...}}
     """
     return success({"user": g.current_user.to_dict()})
+
+
+@auth_bp.route("/me/change-code", methods=["POST"])
+@require_auth
+def change_my_code():
+    """Zugangscode für den eingeloggten User ändern.
+
+    Body: {"new_code": "..."}
+    Regeln: mind. 6 Zeichen, nur Buchstaben und Ziffern.
+    Response 200: {"ok": true}
+    """
+    body = request.get_json(silent=True) or {}
+    new_code = body.get("new_code", "")
+
+    if not new_code or not isinstance(new_code, str):
+        return error("Neuer Code erforderlich", 422)
+
+    new_code = new_code.strip()
+
+    if len(new_code) < 6:
+        return error("Der Code muss mindestens 6 Zeichen haben", 422)
+
+    if not new_code.isalnum():
+        return error("Der Code darf nur Buchstaben und Ziffern enthalten", 422)
+
+    try:
+        with db_connection() as conn:
+            code_hash = hash_code(new_code)
+            prefix = get_code_prefix(new_code)
+            set_access_code(conn, g.current_user.id, code_hash, code_prefix=prefix)
+            log_audit_event(
+                conn,
+                "code_rotated",
+                user_id=g.current_user.id,
+                ip_address=request.remote_addr,
+                details={"self_service": True},
+            )
+        return success()
+    except Exception as exc:
+        return error(f"Fehler beim Ändern des Codes: {type(exc).__name__}", 500)
