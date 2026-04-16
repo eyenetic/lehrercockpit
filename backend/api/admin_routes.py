@@ -269,19 +269,24 @@ def delete_user_route(user_id: int):
     try:
         with db_connection() as conn:
             deleted = delete_user(conn, user_id)
-            if deleted:
-                try:
-                    log_audit_event(
-                        conn,
-                        "teacher_deleted",
-                        user_id=user_id,
-                        ip_address=request.remote_addr,
-                        details={"deleted_by": g.current_user.id},
-                    )
-                except Exception:
-                    pass
+
         if not deleted:
             return error("User nicht gefunden", 404)
+
+        # Audit-Log in separater Transaktion — user_id=None, weil der User
+        # bereits gelöscht ist und der FK-Constraint sonst die Transaktion abbricht.
+        try:
+            with db_connection() as conn:
+                log_audit_event(
+                    conn,
+                    "teacher_deleted",
+                    user_id=None,
+                    ip_address=request.remote_addr,
+                    details={"deleted_user_id": user_id, "deleted_by": g.current_user.id},
+                )
+        except Exception:
+            pass  # Audit-Fehler darf Delete nicht blockieren
+
         return success()
     except Exception as exc:
         return error(f"Fehler beim Löschen des Users: {type(exc).__name__}: {exc}", 500)
