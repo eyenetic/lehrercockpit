@@ -170,22 +170,45 @@
 
   function approximateGradeLabel(value) {
     if (!isFinite(value)) return '-';
+
+    // Notenpunkte-Bereich (0–15, Gymnasiale Oberstufe): Werte über 6 werden direkt
+    // als Notenpunkte interpretiert und in Notenstufen umgerechnet.
+    if (value > 6) {
+      var ptBands = [
+        { min: 14.5, label: '1+' },
+        { min: 13.5, label: '1'  },
+        { min: 12.5, label: '1-' },
+        { min: 11.5, label: '2+' },
+        { min: 10.5, label: '2'  },
+        { min:  9.5, label: '2-' },
+        { min:  8.5, label: '3+' },
+        { min:  7.5, label: '3'  },
+        { min:  6.5, label: '3-' },
+        { min:  0,   label: '4+' },
+      ];
+      for (var j = 0; j < ptBands.length; j += 1) {
+        if (value >= ptBands[j].min) return ptBands[j].label;
+      }
+      return '4+';
+    }
+
+    // Traditionelle Notenskala 1–6
     var bands = [
       { max: 0.85, label: '1+' },
       { max: 1.15, label: '1' },
-      { max: 1.5, label: '1-' },
+      { max: 1.5,  label: '1-' },
       { max: 1.85, label: '2+' },
       { max: 2.15, label: '2' },
-      { max: 2.5, label: '2-' },
+      { max: 2.5,  label: '2-' },
       { max: 2.85, label: '3+' },
       { max: 3.15, label: '3' },
-      { max: 3.5, label: '3-' },
+      { max: 3.5,  label: '3-' },
       { max: 3.85, label: '4+' },
       { max: 4.15, label: '4' },
-      { max: 4.5, label: '4-' },
+      { max: 4.5,  label: '4-' },
       { max: 4.85, label: '5+' },
       { max: 5.15, label: '5' },
-      { max: 5.5, label: '5-' },
+      { max: 5.5,  label: '5-' },
       { max: Infinity, label: '6' },
     ];
     for (var i = 0; i < bands.length; i += 1) {
@@ -286,7 +309,7 @@
 
     if (_elements.gradesList) {
       if (!result.rows.length) {
-        _elements.gradesList.innerHTML = '<div class="empty-state">Trage mindestens eine gueltige Teilnote mit Gewichtung ein.</div>';
+        _elements.gradesList.innerHTML = '<div class="empty-state">Trage mindestens eine gültige Teilnote mit Gewichtung ein.</div>';
         return;
       }
 
@@ -325,7 +348,7 @@
     syncRowsFromDom();
     var result = buildCalculation();
     if (!result.rows.length) {
-      setFeedback('Bitte mindestens eine gueltige Teilnote und Gewichtung eintragen.', 'warning');
+      setFeedback('Bitte mindestens eine gültige Teilnote und Gewichtung eintragen.', 'warning');
       renderResult();
       return;
     }
