@@ -130,32 +130,8 @@ var LehrerInbox = (function () {
   }
 
   function renderMessages() {
-    if (!_elements || !_elements.messageList) return;
-    var filteredMessages = _getRelevantInboxMessages()
-      .filter(function (msg) { return msg.channel === _state.selectedChannel; })
-      .sort(compareMessages);
-    _setExpandableMeta(_elements.messageList, filteredMessages.length, filteredMessages.length);
-    _elements.messageList.classList.remove('is-collapsed');
-    _elements.messageList.classList.add('is-expanded');
-
-    _elements.messageList.innerHTML = filteredMessages.length
-      ? filteredMessages.map(function (message) {
-          return '<article class="message-item">'
-            + '<div class="message-top">'
-            + '<div>'
-            + '<strong>' + message.title + '</strong>'
-            + '<p class="message-snippet">' + message.sender + ' - ' + message.timestamp + '</p>'
-            + '</div>'
-            + '<span class="meta-tag ' + messagePriorityClass(message.priority) + '">' + (message.unread ? 'neu' : 'gesehen') + '</span>'
-            + '</div>'
-            + '<p class="message-snippet">' + message.snippet + '</p>'
-            + '<div class="meta-row">'
-            + '<span class="meta-tag">' + message.channelLabel + '</span>'
-            + '<span class="meta-tag">' + priorityLabel(message.priority) + '</span>'
-            + '</div>'
-            + '</article>';
-        }).join('')
-      : '<div class="empty-state">Fuer diesen Kanal liegen gerade keine Hinweise vor.</div>';
+    // Dienstmail-Tab entfernt — delegiert an renderItslearningTab für Live-Updates
+    renderItslearningTab();
   }
 
   function renderDocumentMonitor() {
