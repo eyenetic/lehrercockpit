@@ -38,8 +38,21 @@
     <link rel="stylesheet" href="./styles.css?v=62" />
   </head>
   <body>
+    <!-- Mobile top bar (hidden on desktop via CSS) -->
+    <div class="mobile-topbar" id="mobile-topbar">
+      <button class="burger-btn" id="burger-btn" type="button" aria-label="Navigation öffnen" aria-expanded="false" aria-controls="app-sidebar">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <span class="mobile-brand-title" id="mobile-topbar-title">Lehrer-Cockpit</span>
+      <span style="width:40px;"></span>
+    </div>
+    <!-- Drawer backdrop -->
+    <div class="drawer-backdrop" id="drawer-backdrop"></div>
+
     <div class="app-shell">
-      <aside class="app-sidebar">
+      <aside class="app-sidebar" id="app-sidebar">
         <div class="brand-block">
           <div class="brand-mark" aria-hidden="true">
             <img class="brand-mark-icon brand-mark-light" src="./icons/icon-192.png" alt="" />
@@ -60,8 +73,6 @@
           <button class="nav-link" type="button" data-section-target="inbox">Posteingang</button>
           <button class="nav-link" type="button" data-section-target="documents">Pläne</button>
           <button class="nav-link" type="button" data-section-target="grades">Notenrechner</button>
-          <!-- Mehr-Button: nur auf Mobile sichtbar -->
-          <button class="nav-link nav-more-btn" type="button" id="mobile-more-btn" aria-label="Mehr">Mehr</button>
         </nav>
 
         <div class="sidebar-theme">
@@ -785,6 +796,56 @@ function initUserInfo() {
   }
 }
 if (window.CURRENT_USER) initUserInfo();
+    </script>
+    <script>
+// Mobile drawer navigation
+(function() {
+  var burgerBtn = document.getElementById('burger-btn');
+  var backdrop = document.getElementById('drawer-backdrop');
+  var sidebar = document.querySelector('.app-sidebar');
+  if (!burgerBtn || !backdrop || !sidebar) return;
+
+  // Sync topbar title from app-title-display
+  var topbarTitle = document.getElementById('mobile-topbar-title');
+  var appTitleDisplay = document.getElementById('app-title-display');
+  if (topbarTitle && appTitleDisplay) {
+    var observer = new MutationObserver(function() {
+      topbarTitle.textContent = appTitleDisplay.textContent;
+    });
+    observer.observe(appTitleDisplay, {childList: true, subtree: true, characterData: true});
+    topbarTitle.textContent = appTitleDisplay.textContent;
+  }
+
+  function openDrawer() {
+    sidebar.classList.add('drawer-open');
+    backdrop.classList.add('visible');
+    burgerBtn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    sidebar.classList.remove('drawer-open');
+    backdrop.classList.remove('visible');
+    burgerBtn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  burgerBtn.addEventListener('click', function() {
+    if (sidebar.classList.contains('drawer-open')) closeDrawer();
+    else openDrawer();
+  });
+  backdrop.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDrawer();
+  });
+
+  // Close drawer when a nav-link is clicked (on mobile)
+  var sidebarNav = document.querySelector('.sidebar-nav');
+  if (sidebarNav) {
+    sidebarNav.addEventListener('click', function(e) {
+      if (e.target.closest('.nav-link') && window.innerWidth <= 768) closeDrawer();
+    });
+  }
+})();
     </script>
   </body>
 </html>
