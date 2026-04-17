@@ -672,6 +672,17 @@
       + '</div>';
   }
 
+  // On mobile, scroll the week grid so the "today" column is in view
+  function _scrollWeekToToday(container) {
+    if (!container || window.innerWidth > 768) return;
+    requestAnimationFrame(function () {
+      var todayCol = container.querySelector('.webuntis-week-column.is-today');
+      var cols = container.querySelector('.webuntis-week-columns');
+      if (!todayCol || !cols) return;
+      cols.scrollLeft = todayCol.offsetLeft - 12;
+    });
+  }
+
   function renderWebUntisSchedule() {
     if (!_state || !_elements) return;
     var events = getWebUntisEvents();
@@ -683,11 +694,13 @@
         return;
       }
       _elements.scheduleList.innerHTML = renderWeekSchedule([], center);
+      _scrollWeekToToday(_elements.scheduleList);
       return;
     }
 
     if (_state.webuntisView !== 'day') {
       _elements.scheduleList.innerHTML = renderWeekSchedule(events, center);
+      _scrollWeekToToday(_elements.scheduleList);
       return;
     }
 
