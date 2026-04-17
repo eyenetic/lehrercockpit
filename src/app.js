@@ -1012,13 +1012,7 @@
     const classwork = data.planDigest?.classwork || {};
 
     if (elements.todaySchedulePreview) {
-      elements.todaySchedulePreview.innerHTML = nextEvent
-        ? `<article class="today-mini-card">
-            <strong>${nextEvent.title}</strong>
-            <p>${nextEvent.time}${nextEvent.location ? ` · ${nextEvent.location}` : ""}</p>
-            <span class="meta-tag low">Naechster Termin</span>
-          </article>`
-        : `<div class="empty-state">Heute liegt kein weiterer Termin vor.</div>`;
+      elements.todaySchedulePreview.innerHTML = renderTodayFullSchedule(data);
     }
 
     if (elements.todayInboxPreview) {
@@ -1072,6 +1066,42 @@
     return events
       .filter((event) => isSameDay(new Date(event.startsAt), now))
       .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt))[0] || null;
+  }
+
+  function renderTodayFullSchedule(data) {
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    const events = (data.webuntisCenter?.events || [])
+      .filter((e) => e.startsAt)
+      .filter((e) => {
+        const s = new Date(e.startsAt);
+        return s >= todayStart && s < tomorrowStart;
+      })
+      .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+
+    if (!events.length) {
+      return '<div class="empty-state">Kein Stundenplan für heute eingetragen.</div>';
+    }
+
+    return '<div class="today-schedule-list">'
+      + events.map((e) => {
+          const start = new Date(e.startsAt);
+          const end = e.endsAt ? new Date(e.endsAt) : null;
+          const isCurrent = start <= now && (!end || end > now);
+          const isPast = end ? end <= now : start < now;
+          const stateClass = isCurrent ? ' is-current' : isPast ? ' is-past' : '';
+          const timeStr = e.time || start.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+          const endStr = end ? end.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+          return '<div class="today-schedule-row' + stateClass + '">'
+            + '<span class="today-schedule-time">' + timeStr + (endStr ? '–' + endStr : '') + '</span>'
+            + '<span class="today-schedule-title">' + (e.title || '') + (e.location ? ' <span class="today-schedule-loc">· ' + e.location + '</span>' : '') + '</span>'
+            + (isCurrent ? '<span class="meta-tag today-schedule-now">jetzt</span>' : '')
+            + '</div>';
+        }).join('')
+      + '</div>';
   }
 
   function pickOrgaplanBriefing(data) {
