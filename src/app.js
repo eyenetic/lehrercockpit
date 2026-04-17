@@ -1033,9 +1033,9 @@
         title: "Stundenplan für den Tag",
         tone: "schedule",
         section: "schedule",
-        copy: context.showWebuntis && context.todaySummary
-          ? `${context.todaySummary.title}. ${context.todaySummary.copy}`
-          : "Noch kein Tagesplan aus WebUntis verfügbar.",
+        html: context.showWebuntis
+          ? renderTodayFullSchedule(data)
+          : '<div class="empty-state">Noch kein Tagesplan aus WebUntis verfügbar.</div>',
       },
       {
         title: "Orgaplan für den aktuellen Tag",
@@ -1068,7 +1068,7 @@
         <article class="today-focus-card today-focus-card-${card.tone}"${card.section ? ` data-briefing-target="${card.section}" role="button" tabindex="0"` : ""}>
           <strong>${card.title}</strong>
           ${card.meta ? `<span class="today-focus-meta">${card.meta}</span>` : ""}
-          <p>${card.copy}</p>
+          ${card.html ? card.html : `<p>${card.copy}</p>`}
         </article>
       `)
       .join("");
