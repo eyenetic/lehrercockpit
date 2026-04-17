@@ -2716,6 +2716,83 @@ details[open] > .orgaplan-upcoming-summary::before {
 
   /* Hide mobile-specific stuff no longer needed */
   .nav-more-btn { display: none; }
+
+  /* ── Drawer inner layout ───────────────────────────────────────── */
+
+  /* Brand block: compact horizontal strip */
+  .app-sidebar .brand-block {
+    padding: 16px 18px 12px;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 0;
+  }
+  .app-sidebar .brand-mark-icon {
+    width: 32px; height: 32px;
+  }
+  .app-sidebar .brand-subtitle { display: none; }
+  .app-sidebar .eyebrow {
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+  }
+  .app-sidebar .brand-title {
+    font-size: 1rem;
+  }
+
+  /* Nav links: single column, generous tap targets */
+  .app-sidebar .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 10px 6px;
+  }
+  .app-sidebar .nav-link {
+    padding: 13px 14px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 10px;
+    text-align: left;
+    width: 100%;
+  }
+
+  /* Darstellung: compact inline row */
+  .app-sidebar .sidebar-theme {
+    margin-top: 0;
+    padding: 8px 10px;
+    border-top: 1px solid var(--line);
+  }
+  .app-sidebar .sidebar-theme .card-kicker { display: none; }
+  .app-sidebar .theme-toggle {
+    width: 100%;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--panel-soft);
+    border: 1px solid var(--line);
+  }
+
+  /* User info: clean bottom section */
+  .app-sidebar .sidebar-user-info {
+    margin-top: auto;
+    padding: 10px 10px 6px;
+    border-top: 1px solid var(--line);
+  }
+  .app-sidebar .sidebar-user-info > span {
+    padding: 0 4px;
+    margin-bottom: 6px;
+  }
+  .app-sidebar .sidebar-user-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .app-sidebar .sidebar-user-actions a,
+  .app-sidebar .sidebar-user-actions button {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    text-align: left;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 480px) {
