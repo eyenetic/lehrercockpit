@@ -2186,6 +2186,47 @@
     });
   }
 
+  function _renderHeuteAnpassenClasses() {
+    var section = document.getElementById('heute-anpassen-classes-section');
+    var pillsEl = document.getElementById('heute-anpassen-class-pills');
+    if (!section || !pillsEl) return;
+
+    var classes = [];
+    try { classes = getData().planDigest.classwork.classes || []; } catch (_e) {}
+    if (!classes.length) { section.hidden = true; return; }
+    section.hidden = false;
+
+    var STORAGE_KEY = 'lc.classworkSelectedClasses';
+    function loadSelected() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || classes; } catch (_e) { return classes.slice(); }
+    }
+    function saveSelected(sel) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sel)); } catch (_e) {}
+    }
+
+    function render() {
+      var selected = loadSelected();
+      pillsEl.innerHTML = classes.map(function (label) {
+        var active = selected.includes(label);
+        return '<button type="button" class="classwork-pill' + (active ? ' is-active' : '') + '"'
+          + ' data-ha-class="' + label + '">' + label + '</button>';
+      }).join('');
+      pillsEl.querySelectorAll('[data-ha-class]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var lbl = btn.dataset.haClass;
+          var cur = loadSelected();
+          var next = cur.includes(lbl) ? cur.filter(function (c) { return c !== lbl; }) : cur.concat([lbl]);
+          if (!next.length) next = [lbl]; // mindestens eine Klasse
+          saveSelected(next);
+          render();
+          // Sofort Dashboard aktualisieren
+          if (typeof renderAll === 'function') renderAll();
+        });
+      });
+    }
+    render();
+  }
+
   function initHeuteAnpassen() {
     var panel = document.getElementById('heute-anpassen-panel');
     var modulesContainer = document.getElementById('heute-anpassen-modules');
@@ -2203,6 +2244,7 @@
       if (openBtn) {
         openBtn.addEventListener('click', function() {
           renderHeuteAnpassenList(modulesContainer);
+          _renderHeuteAnpassenClasses();
           panel.hidden = false;
         });
       }

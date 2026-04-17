@@ -92,6 +92,7 @@
             <a href="./admin.html" id="sidebar-admin-link" style="display:none;">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Admin-Bereich
             </a>
+            <button id="sidebar-change-code-btn">🔑 Code ändern</button>
             <button id="sidebar-logout-btn">Abmelden</button>
           </div>
         </div>
@@ -575,6 +576,10 @@
       <div class="heute-anpassen-panel__body">
         <p class="heute-anpassen-panel__hint">Tagesbriefing und Zugänge sind immer sichtbar.</p>
         <div id="heute-anpassen-modules" class="heute-anpassen-modules"></div>
+        <div id="heute-anpassen-classes-section" class="heute-anpassen-classes-section" hidden>
+          <p class="heute-anpassen-panel__hint" style="margin-top:1rem;">Klassenarbeiten auf „Heute" — welche Klassen sollen angezeigt werden?</p>
+          <div id="heute-anpassen-class-pills" class="classwork-pill-row" style="margin-top:6px;flex-wrap:wrap;gap:6px;display:flex;"></div>
+        </div>
       </div>
       <div class="heute-anpassen-panel__footer">
         <button id="heute-anpassen-save" class="heute-anpassen-panel__save" type="button">Speichern</button>
@@ -759,6 +764,8 @@ function initUserInfo() {
     }
 
     if (moreChangeCodeBtn) moreChangeCodeBtn.addEventListener('click', openChangeCode);
+    const sidebarChangeCodeBtn = document.getElementById('sidebar-change-code-btn');
+    if (sidebarChangeCodeBtn) sidebarChangeCodeBtn.addEventListener('click', openChangeCode);
     if (changeCodeClose) changeCodeClose.addEventListener('click', closeChangeCode);
     if (changeCodeCancel) changeCodeCancel.addEventListener('click', closeChangeCode);
 
