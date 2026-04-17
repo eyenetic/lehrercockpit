@@ -561,13 +561,13 @@
 
   function renderEmptyWeekColumn(column, hasAnyWeekEvents) {
     if (hasAnyWeekEvents) {
-      return '<div class="webuntis-week-empty">Kein iCal-Eintrag fuer diesen Tag</div>';
+      return '<div class="webuntis-week-empty">Kein iCal-Eintrag für diesen Tag</div>';
     }
     var nextEvent = findNextEventAfter(column.isoDate);
     if (nextEvent) {
-      return '<div class="webuntis-week-empty">Im iCal keine Termine. Naechster Eintrag am ' + _formatDate(new Date(nextEvent.startsAt)) + '.</div>';
+      return '<div class="webuntis-week-empty">Im iCal keine Termine. Nächster Eintrag am ' + _formatDate(new Date(nextEvent.startsAt)) + '.</div>';
     }
-    return '<div class="webuntis-week-empty">Im iCal sind fuer diese Woche gerade keine Termine vorhanden.</div>';
+    return '<div class="webuntis-week-empty">Im iCal sind für diese Woche gerade keine Termine vorhanden.</div>';
   }
 
   function renderDayEvent(event) {
@@ -672,6 +672,17 @@
       + '</div>';
   }
 
+  // On mobile, scroll the week grid so the "today" column is in view
+  function _scrollWeekToToday(container) {
+    if (!container || window.innerWidth > 768) return;
+    requestAnimationFrame(function () {
+      var todayCol = container.querySelector('.webuntis-week-column.is-today');
+      var cols = container.querySelector('.webuntis-week-columns');
+      if (!todayCol || !cols) return;
+      cols.scrollLeft = todayCol.offsetLeft - 12;
+    });
+  }
+
   function renderWebUntisSchedule() {
     if (!_state || !_elements) return;
     var events = getWebUntisEvents();
@@ -683,11 +694,13 @@
         return;
       }
       _elements.scheduleList.innerHTML = renderWeekSchedule([], center);
+      _scrollWeekToToday(_elements.scheduleList);
       return;
     }
 
     if (_state.webuntisView !== 'day') {
       _elements.scheduleList.innerHTML = renderWeekSchedule(events, center);
+      _scrollWeekToToday(_elements.scheduleList);
       return;
     }
 
@@ -761,7 +774,7 @@
             + '<p class="priority-copy">' + item.detail + '</p>'
             + '</article>';
         }).join('')
-      : '<div class="empty-state">Noch keine geoeffneten Plaene im Radar.</div>';
+      : '<div class="empty-state">Noch keine geöffneten Pläne im Radar.</div>';
   }
 
   function renderWebUntisPlanStrip() {
@@ -778,7 +791,7 @@
             + '<strong>' + plan.label + '</strong>'
             + '</button>';
         }).join('')
-      : '<div class="empty-state">Noch keine Plaene gespeichert.</div>';
+      : '<div class="empty-state">Noch keine Pläne gespeichert.</div>';
 
     _elements.webuntisPlanStrip.querySelectorAll('[data-plan-chip]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -836,13 +849,13 @@
     }
     if (_elements.webuntisPickerResultsSection) _elements.webuntisPickerResultsSection.hidden = !query;
     if (_elements.webuntisPickerResultsLabel) {
-      _elements.webuntisPickerResultsLabel.textContent = query ? 'Treffer fuer "' + _state.webuntisPickerSearch + '"' : 'Suche';
+      _elements.webuntisPickerResultsLabel.textContent = query ? 'Treffer für "' + _state.webuntisPickerSearch + '"' : 'Suche';
     }
     if (_elements.webuntisPickerResults) {
       _elements.webuntisPickerResults.innerHTML = query
         ? (searchResults.length
           ? searchResults.map(function (e) { return renderPickerItem(e, { active: isEntityActive(center, e), showFavorite: e.id !== 'personal' }); }).join('')
-          : '<div class="empty-state">Keine passenden Plaene gefunden.</div>')
+          : '<div class="empty-state">Keine passenden Pläne gefunden.</div>')
         : '';
     }
     if (_elements.webuntisPickerFavorites) {

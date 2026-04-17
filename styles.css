@@ -2497,13 +2497,13 @@ details[open] > .orgaplan-upcoming-summary::before {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .webuntis-week-columns,
   .compact-link-grid,
   .classwork-calendar,
   .grades-grid,
   .nextcloud-workspaces {
     grid-template-columns: 1fr;
   }
+  /* webuntis-week-columns handled by the 768px rule (horizontal scroll) */
 
   .webuntis-event {
     grid-template-columns: 1fr;
@@ -4043,7 +4043,7 @@ details[open] > .orgaplan-upcoming-summary::before {
   flex-shrink: 0;
 }
 
-/* Schedule list inside briefing focus card — tighter rows */
+/* Schedule list inside briefing focus card — tighter rows, allow text wrap */
 .today-focus-card .today-schedule-list {
   gap: 1px;
   margin: 0 -4px;
@@ -4051,5 +4051,88 @@ details[open] > .orgaplan-upcoming-summary::before {
 .today-focus-card .today-schedule-row {
   font-size: 0.8rem;
   padding: 5px 8px;
-  grid-template-columns: 6rem 1fr auto;
+  grid-template-columns: 5.5rem 1fr auto;
+}
+.today-focus-card .today-schedule-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.3;
+  font-size: 0.79rem;
+}
+
+/* ── Heute-Module-Grid: non-briefing cards always in column 2 ───────────── */
+.today-module-card:not([data-today-module="briefing"]) {
+  grid-column: 2;
+}
+
+/* ── Modal overlay (Code ändern, etc.) ─────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  padding: 16px;
+}
+.modal-overlay[hidden] { display: none; }
+.modal {
+  background: var(--bg);
+  border-radius: var(--radius-lg, 12px);
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+.modal-close:hover { background: var(--surface-hover); color: var(--ink); }
+
+/* ── Mobile WebUntis: horizontally scrollable week ──────────────────────── */
+@media (max-width: 768px) {
+  .webuntis-week-columns {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 6px;
+    grid-template-columns: unset;
+  }
+  .webuntis-week-column {
+    flex: 0 0 72vw;
+    max-width: 300px;
+    scroll-snap-align: start;
+  }
+  .webuntis-week-column.is-today {
+    flex: 0 0 78vw;
+    border-color: var(--accent);
+    border-width: 2px;
+  }
 }
