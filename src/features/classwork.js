@@ -36,6 +36,7 @@ var LehrerClasswork = (function () {
   var _setExpandableMeta = null;
   var _weekdayLabel = null;
   var _getSelectedClassworkClasses = null;
+  var _refreshDashboard = null;
 
   function init(state, elements, callbacks) {
     _state = state;
@@ -47,6 +48,50 @@ var LehrerClasswork = (function () {
     _setExpandableMeta = callbacks.setExpandableMeta;
     _weekdayLabel = callbacks.weekdayLabel;
     _getSelectedClassworkClasses = callbacks.getSelectedClassworkClasses;
+    _refreshDashboard = callbacks.refreshDashboard || null;
+
+    // Grab classwork-specific elements not in the shared elements map
+    _elements.classworkUploadInfo  = document.querySelector('#classwork-upload-info');
+    _elements.classworkOpenSource  = document.querySelector('#classwork-open-source');
+    _elements.classworkSourceUrl   = document.querySelector('#classwork-source-url');
+    _elements.classworkClassPills  = document.querySelector('#classwork-class-pills');
+    _elements.classworkPillSection = document.querySelector('#classwork-pill-section');
+
+    _initSourceLink();
+  }
+
+  // ── "Plan öffnen"-Link aus gespeicherter URL befüllen ──────────────────────
+
+  function _initSourceLink() {
+    var saved = localStorage.getItem('lc.classworkSourceUrl') || '';
+    var link = _elements.classworkOpenSource;
+    if (!link) return;
+    if (saved) {
+      link.href = saved;
+      link.hidden = false;
+    }
+  }
+
+  function _showFeedback(msg, kind) {
+    if (!_elements.classworkUploadFeedback) return;
+    _elements.classworkUploadFeedback.textContent = msg;
+    _elements.classworkUploadFeedback.className = 'connect-feedback' + (kind ? ' ' + kind : '');
+  }
+
+  // ── Upload-Info anzeigen (wer hat wann hochgeladen) ──────────────────────────
+
+  function renderClassworkUploadInfo(classwork) {
+    var el = _elements.classworkUploadInfo;
+    if (!el) return;
+    var by = classwork.uploadedBy || '';
+    var at = classwork.uploadedAt || classwork.updatedAt || '';
+    var src = classwork.uploadSource || '';
+    if (!at) { el.hidden = true; return; }
+    var srcLabel = src === 'auto' ? 'Automatisch abgerufen' : 'Hochgeladen';
+    var byPart = by ? ' von <strong>' + by + '</strong>' : '';
+    el.innerHTML = '<span class="classwork-info-icon">✓</span>'
+      + srcLabel + byPart + ' am ' + at;
+    el.hidden = false;
   }
 
   // ── Utility ─────────────────────────────────────────────────────────────────
@@ -85,6 +130,16 @@ var LehrerClasswork = (function () {
 
   // ── Classwork class selection ────────────────────────────────────────────────
 
+  var _CLASSES_STORAGE_KEY = 'lc.classworkSelectedClasses';
+
+  function _saveSelectedClasses(classes) {
+    try { localStorage.setItem(_CLASSES_STORAGE_KEY, JSON.stringify(classes)); } catch (e) {}
+  }
+
+  function _loadSelectedClasses() {
+    try { return JSON.parse(localStorage.getItem(_CLASSES_STORAGE_KEY) || 'null'); } catch (e) { return null; }
+  }
+
   function getSelectedClasses(classes, defaultClass) {
     if (_getSelectedClassworkClasses) {
       return _getSelectedClassworkClasses(classes, defaultClass);
@@ -92,6 +147,13 @@ var LehrerClasswork = (function () {
     if (!classes.length) {
       _state.classworkSelectedClasses = [];
       return [];
+    }
+    // Restore from localStorage if not yet set in memory
+    if (!Array.isArray(_state.classworkSelectedClasses) || !_state.classworkSelectedClasses.length) {
+      var saved = _loadSelectedClasses();
+      if (Array.isArray(saved) && saved.length) {
+        _state.classworkSelectedClasses = saved;
+      }
     }
     if (Array.isArray(_state.classworkSelectedClasses) && _state.classworkSelectedClasses.length) {
       var selected = _state.classworkSelectedClasses.filter(function (label) {
@@ -103,28 +165,59 @@ var LehrerClasswork = (function () {
       }
     }
     _state.classworkSelectedClasses = [(defaultClass && classes.includes(defaultClass)) ? defaultClass : classes[0]];
+    _saveSelectedClasses(_state.classworkSelectedClasses);
     return _state.classworkSelectedClasses;
   }
 
   // ── Selector + view switch ───────────────────────────────────────────────────
 
   function renderClassworkSelector(classes, defaultClass) {
-    if (!_elements.classworkClassFilter) return;
-    var activeClasses = getSelectedClasses(classes, defaultClass);
-    var searchNeedle = String(_state.classworkClassSearch || '').trim().toLowerCase();
-    var filteredClasses = searchNeedle
-      ? classes.filter(function (classLabel) { return classLabel.toLowerCase().includes(searchNeedle); })
-      : classes.slice();
-    _elements.classworkClassFilter.disabled = !classes.length;
-    if (_elements.classworkClassSearch) _elements.classworkClassSearch.disabled = !classes.length;
-    if (!classes.length) {
-      _elements.classworkClassFilter.innerHTML = '<option value="">Keine Klasse erkannt</option>';
+    var pillContainer = _elements.classworkClassPills;
+    var pillSection = _elements.classworkPillSection;
+
+    if (!pillContainer) {
+      // Fallback: old select-based rendering
+      if (!_elements.classworkClassFilter) return;
+      var activeClasses = getSelectedClasses(classes, defaultClass);
+      _elements.classworkClassFilter.disabled = !classes.length;
+      if (!classes.length) {
+        _elements.classworkClassFilter.innerHTML = '<option value="">Keine Klasse erkannt</option>';
+        return;
+      }
+      _elements.classworkClassFilter.innerHTML = classes.map(function (c) {
+        return '<option value="' + c + '"' + (activeClasses.includes(c) ? ' selected' : '') + '>' + c + '</option>';
+      }).join('');
       return;
     }
-    _elements.classworkClassFilter.size = Math.min(Math.max(filteredClasses.length || classes.length, 3), 8);
-    _elements.classworkClassFilter.innerHTML = (filteredClasses.length ? filteredClasses : classes).map(function (classLabel) {
-      return '<option value="' + classLabel + '"' + (activeClasses.includes(classLabel) ? ' selected' : '') + '>' + classLabel + '</option>';
+
+    if (!classes.length) {
+      if (pillSection) pillSection.hidden = true;
+      return;
+    }
+    if (pillSection) pillSection.hidden = false;
+
+    var active = getSelectedClasses(classes, defaultClass);
+    pillContainer.innerHTML = classes.map(function (label) {
+      var isActive = active.includes(label);
+      return '<button type="button" class="classwork-pill' + (isActive ? ' is-active' : '') + '"'
+        + ' data-classwork-class="' + label + '">' + label + '</button>';
     }).join('');
+
+    pillContainer.querySelectorAll('[data-classwork-class]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var label = btn.dataset.classworkClass;
+        var current = getSelectedClasses(classes, defaultClass);
+        if (current.includes(label)) {
+          _state.classworkSelectedClasses = current.filter(function (c) { return c !== label; });
+          if (!_state.classworkSelectedClasses.length) _state.classworkSelectedClasses = [label];
+        } else {
+          _state.classworkSelectedClasses = current.concat([label]);
+        }
+        _saveSelectedClasses(_state.classworkSelectedClasses);
+        renderClassworkSelector(classes, defaultClass);
+        renderPlanDigest();
+      });
+    });
   }
 
   function renderClassworkViewSwitch() {
@@ -147,16 +240,19 @@ var LehrerClasswork = (function () {
   // ── List + calendar HTML builders ────────────────────────────────────────────
 
   function renderClassworkList(entries) {
-    return entries.map(function (entry) {
-      return '<article class="classwork-entry">'
-        + '<div class="classwork-entry-top">'
-        + '<div><strong>' + entry.dateLabel + '</strong><p>' + _weekdayLabel(entry.weekdayLabel) + '</p></div>'
-        + '<span class="meta-tag low">' + entry.kind + '</span>'
-        + '</div>'
-        + '<p class="classwork-entry-title">' + (entry.summary || entry.title) + '</p>'
-        + '<div class="meta-row"><span class="meta-tag">' + entry.classLabel + '</span></div>'
-        + '</article>';
-    }).join('');
+    return '<div class="cw-table">'
+      + '<div class="cw-table-head">'
+      + '<span>Datum</span><span>Klasse</span><span>Art</span><span>Bezeichnung</span>'
+      + '</div>'
+      + entries.map(function (entry) {
+          return '<div class="cw-row">'
+            + '<span class="cw-row-date">' + _weekdayLabel(entry.weekdayLabel).slice(0, 2) + ' ' + entry.dateLabel + '</span>'
+            + '<span class="cw-row-class"><span class="meta-tag">' + entry.classLabel + '</span></span>'
+            + '<span class="cw-row-kind"><span class="meta-tag low">' + entry.kind + '</span></span>'
+            + '<span class="cw-row-title">' + (entry.summary || entry.title) + '</span>'
+            + '</div>';
+        }).join('')
+      + '</div>';
   }
 
   function renderClassworkCalendar(entries) {
@@ -166,27 +262,43 @@ var LehrerClasswork = (function () {
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key).push(entry);
     });
-    return '<div class="classwork-calendar">'
+    return '<div class="cw-table">'
+      + '<div class="cw-table-head"><span>Datum</span><span>Klasse</span><span>Art</span><span>Bezeichnung</span></div>'
       + Array.from(grouped.entries()).map(function (pair) {
           var dayEntries = pair[1];
-          return '<section class="classwork-day">'
-            + '<div class="classwork-day-head">'
-            + '<span class="webuntis-weekday">' + _weekdayLabel(dayEntries[0].weekdayLabel) + '</span>'
-            + '<strong>' + dayEntries[0].dateLabel + '</strong>'
-            + '</div>'
-            + '<div class="classwork-day-items">'
-            + dayEntries.map(function (entry) {
-                return '<article class="classwork-calendar-item">'
-                  + '<span class="meta-tag low">' + entry.kind + '</span>'
-                  + '<strong>' + (entry.summary || entry.title) + '</strong>'
-                  + '</article>';
-              }).join('')
-            + '</div></section>';
+          var dayAbbr = _weekdayLabel(dayEntries[0].weekdayLabel).slice(0, 2);
+          var dateLabel = dayEntries[0].dateLabel;
+          return dayEntries.map(function (entry) {
+            return '<div class="cw-row">'
+              + '<span class="cw-row-date">' + dayAbbr + ' ' + dateLabel + '</span>'
+              + '<span class="cw-row-class"><span class="meta-tag">' + entry.classLabel + '</span></span>'
+              + '<span class="cw-row-kind"><span class="meta-tag low">' + entry.kind + '</span></span>'
+              + '<span class="cw-row-title">' + (entry.summary || entry.title) + '</span>'
+              + '</div>';
+          }).join('');
         }).join('')
       + '</div>';
   }
 
   // ── Orgaplan item HTML ───────────────────────────────────────────────────────
+
+  function _orgaplanLevelClass(label) {
+    if (label === 'Allgemein') return 'orgaplan-label--allgemein';
+    if (label === 'Mittelstufe') return 'orgaplan-label--mittelstufe';
+    if (label === 'Oberstufe') return 'orgaplan-label--oberstufe';
+    return '';
+  }
+
+  function _orgaplanLevelTags(item) {
+    var levels = [];
+    if (item.general) levels.push('Allgemein');
+    if (joinOrgaplanSection(item.middle, item.middleNotes)) levels.push('Mittelstufe');
+    if (joinOrgaplanSection(item.upper, item.upperNotes)) levels.push('Oberstufe');
+    if (!levels.length) return '';
+    return levels.map(function (l) {
+      return '<span class="meta-tag orgaplan-level-tag ' + _orgaplanLevelClass(l) + '">' + l + '</span>';
+    }).join('');
+  }
 
   function renderOrgaplanItem(item) {
     var sections = [
@@ -195,14 +307,18 @@ var LehrerClasswork = (function () {
       { label: 'Oberstufe', value: joinOrgaplanSection(item.upper, item.upperNotes) },
     ].filter(function (s) { return s.value; });
 
+    var levelTags = _orgaplanLevelTags(item);
+
     if (!sections.length) {
-      return '<article class="priority-item">'
-        + '<div class="priority-top">'
-        + '<strong>' + item.title + '</strong>'
-        + '<span class="meta-tag low">' + item.dateLabel + '</span>'
+      return '<article class="orgaplan-entry">'
+        + '<div class="orgaplan-entry-head">'
+        + '<strong class="orgaplan-entry-date">' + item.dateLabel + '</strong>'
+        + '<span class="meta-tag low">' + (item.title || 'Orgaplan') + '</span>'
         + '</div>'
-        + '<p class="priority-copy">' + (item.detail || item.text) + '</p>'
-        + '</article>';
+        + (levelTags ? '<div class="orgaplan-level-row">' + levelTags + '</div>' : '')
+        + '<div class="orgaplan-entry-copy">'
+        + '<p>' + truncateText(item.detail || item.text || '', 220) + '</p>'
+        + '</div></article>';
     }
 
     return '<article class="orgaplan-entry">'
@@ -213,7 +329,7 @@ var LehrerClasswork = (function () {
       + '<div class="orgaplan-entry-copy">'
       + sections.map(function (section) {
           return '<div class="orgaplan-row">'
-            + '<span class="orgaplan-label">' + section.label + '</span>'
+            + '<span class="orgaplan-label ' + _orgaplanLevelClass(section.label) + '">' + section.label + '</span>'
             + '<p>' + truncateText(section.value, 220) + '</p>'
             + '</div>';
         }).join('')
@@ -239,7 +355,7 @@ var LehrerClasswork = (function () {
       var bodyHtml = sections.length
         ? sections.map(function (s) {
             return '<div class="orgaplan-row orgaplan-row--today">'
-              + '<span class="orgaplan-label">' + s.label + '</span>'
+              + '<span class="orgaplan-label ' + _orgaplanLevelClass(s.label) + '">' + s.label + '</span>'
               + '<p>' + truncateText(s.value, 280) + '</p>'
               + '</div>';
           }).join('')
@@ -286,7 +402,7 @@ var LehrerClasswork = (function () {
             var bodyHtml = sections.length
               ? sections.map(function (s) {
                   return '<div class="orgaplan-row">'
-                    + '<span class="orgaplan-label">' + s.label + '</span>'
+                    + '<span class="orgaplan-label ' + _orgaplanLevelClass(s.label) + '">' + s.label + '</span>'
                     + '<p>' + truncateText(s.value, 200) + '</p>'
                     + '</div>';
                 }).join('')
@@ -331,26 +447,34 @@ var LehrerClasswork = (function () {
     }
     if (showClasswork) {
       _bindExternalLink(_elements.classworkOpenLink, classwork.sourceUrl, 'Plan online öffnen');
-      _elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
-      if (_elements.classworkUploadStatus) {
-        _elements.classworkUploadStatus.hidden = false;
-        _elements.classworkUploadStatus.textContent = classwork.updatedAt
-          ? 'Zuletzt hochgeladen am ' + classwork.updatedAt + '.'
-          : 'Noch kein gemeinsamer Upload vorhanden.';
+      // Also update the "Plan öffnen" shortcut link if a source URL is saved
+      if (_elements.classworkOpenSource) {
+        var savedUrl = localStorage.getItem('lc.classworkSourceUrl') || classwork.sourceUrl || '';
+        if (savedUrl) { _elements.classworkOpenSource.href = savedUrl; _elements.classworkOpenSource.hidden = false; }
       }
-    } else if (_elements.classworkUploadStatus) {
-      _elements.classworkUploadStatus.hidden = true;
-      _elements.classworkUploadStatus.textContent = '';
+      _elements.classworkDigestDetail.textContent = summarizeClassworkDigest(classwork);
+      renderClassworkUploadInfo(classwork);
+      if (_elements.classworkUploadStatus) {
+        _elements.classworkUploadStatus.hidden = true;
+      }
+    } else if (_elements.classworkUploadInfo) {
+      _elements.classworkUploadInfo.hidden = true;
     }
-    _elements.classworkUploadFeedback.textContent = _state.classworkUploadFeedback;
-    _elements.classworkUploadFeedback.className = 'connect-feedback' + (_state.classworkUploadFeedbackKind ? ' ' + _state.classworkUploadFeedbackKind : '');
+    if (!_state.classworkUploadFeedback) {
+      // Don't overwrite feedback set by fetch button handler
+    } else {
+      _elements.classworkUploadFeedback.textContent = _state.classworkUploadFeedback;
+      _elements.classworkUploadFeedback.className = 'connect-feedback' + (_state.classworkUploadFeedbackKind ? ' ' + _state.classworkUploadFeedbackKind : '');
+    }
 
     if (showClasswork) {
       renderClassworkSelector(classes, classwork.defaultClass || '');
       renderClassworkViewSwitch();
     }
 
-    var orgaplanItems = orgaplan.upcoming.length ? orgaplan.upcoming : orgaplan.highlights;
+    var orgaplanItems = (orgaplan.upcoming.length ? orgaplan.upcoming : orgaplan.highlights)
+      .slice()
+      .sort(function (a, b) { return (a.isoDate || a.dateLabel || '').localeCompare(b.isoDate || b.dateLabel || ''); });
     if (showOrgaplan) {
       _elements.orgaplanUpcomingList.innerHTML = orgaplanItems.length
         ? orgaplanItems.map(renderOrgaplanItem).join('')

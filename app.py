@@ -297,6 +297,17 @@ def api_classwork_upload() -> Response:
     except Exception as exc:
         return jsonify({"error": "parse-failed", "detail": f"Datei konnte nicht gelesen werden: {type(exc).__name__}: {exc}"}), 422
 
+    # Attach uploader metadata
+    from datetime import datetime as _dt
+    result["uploadedAt"] = _dt.now().strftime("%d.%m.%Y %H:%M")
+    result["uploadSource"] = "upload"
+    try:
+        from backend.api.helpers import get_current_user
+        user = get_current_user()
+        result["uploadedBy"] = user.full_name if user else ""
+    except Exception:
+        result["uploadedBy"] = ""
+
     if save_cache:
         save_cache(CLASSWORK_CACHE_PATH, result)
 

@@ -29,6 +29,17 @@ class WebUntisSyncResult:
 
 
 def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntisSyncResult:
+    # Normalise to naive local time so comparisons with floating iCal datetimes
+    # (which have no tzinfo) don't raise TypeError.  If now is UTC-aware we
+    # convert to Europe/Berlin first so the clock reads correctly.
+    if now.tzinfo is not None:
+        try:
+            from zoneinfo import ZoneInfo
+            now = now.astimezone(ZoneInfo("Europe/Berlin")).replace(tzinfo=None)
+        except Exception:
+            # Fallback: just strip tzinfo (still correct on Render which runs UTC+0
+            # and Berlin is UTC+1/+2, but avoids crashing)
+            now = now.replace(tzinfo=None)
     if not ical_url:
         if base_url:
             return WebUntisSyncResult(
@@ -185,7 +196,10 @@ def _parse_datetime(raw_value: str, now: datetime) -> datetime | None:
     if not raw_value:
         return None
 
+    # Track whether the original value was explicitly UTC (ends with Z)
+    is_utc = raw_value.endswith("Z")
     value = raw_value.rstrip("Z")
+
     formats = ("%Y%m%dT%H%M%S", "%Y%m%dT%H%M", "%Y%m%d")
     parsed: datetime | None = None
     for fmt in formats:
@@ -201,7 +215,16 @@ def _parse_datetime(raw_value: str, now: datetime) -> datetime | None:
     if len(value) == 8:
         parsed = parsed.replace(hour=0, minute=0)
 
-    return parsed.replace(tzinfo=now.tzinfo)
+    if is_utc:
+        # Explicit UTC (Z suffix) → preserve +00:00 so browser converts correctly
+        from datetime import timezone as _tz
+        return parsed.replace(tzinfo=_tz.utc)
+
+    # Floating time (no Z, no TZID) = already school/local time.
+    # Return naive so isoformat() emits no tz suffix and the browser
+    # treats it as local time — do NOT attach now.tzinfo (which is UTC
+    # on Render) as that would shift the time by +2h in the browser.
+    return parsed
 
 
 def _decode_ical_text(value: str) -> str:

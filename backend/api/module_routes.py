@@ -15,7 +15,7 @@ from backend.modules.module_registry import (
     get_module_by_id,
     get_default_module_set,
 )
-from backend.admin.admin_service import get_system_setting
+from backend.admin.admin_service import get_system_setting, set_system_setting
 from backend.api.helpers import require_auth, success, error, mask_config
 from backend.users.user_service import (
     get_grades,
@@ -461,6 +461,112 @@ def klassenarbeitsplan_data():
         })
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
+
+
+@module_bp.route("/klassenarbeitsplan/config", methods=["POST"])
+@require_auth
+def klassenarbeitsplan_save_config():
+    """Speichert die OneDrive-URL für den Klassenarbeitsplan."""
+    body = request.get_json(silent=True) or {}
+    url = str(body.get("url", "")).strip()
+    try:
+        with db_connection() as conn:
+            set_system_setting(conn, "klassenarbeitsplan_url", url)
+        return success({"saved": True, "url": url})
+    except Exception as exc:
+        return error(f"Speichern fehlgeschlagen: {exc}", 500)
+
+
+@module_bp.route("/klassenarbeitsplan/fetch", methods=["POST"])
+@require_auth
+def klassenarbeitsplan_fetch():
+    """Lädt die Klassenarbeitsplan-XLSX direkt von einer konfigurierten URL (z. B. OneDrive)."""
+    from urllib.request import urlopen, Request as UrlRequest
+    from urllib.error import URLError
+    from datetime import datetime as _dt
+    from pathlib import Path
+
+    body = request.get_json(silent=True) or {}
+    url = str(body.get("url", "")).strip()
+
+    # If URL provided in body, persist it
+    if url:
+        try:
+            with db_connection() as conn:
+                set_system_setting(conn, "klassenarbeitsplan_url", url)
+        except Exception:
+            pass
+    else:
+        try:
+            with db_connection() as conn:
+                url = get_system_setting(conn, "klassenarbeitsplan_url", None) or \
+                      get_system_setting(conn, "classwork_url", None) or ""
+        except Exception:
+            pass
+
+    if not url:
+        return error("Keine URL konfiguriert. Bitte zuerst einen OneDrive-Link eintragen.", 400)
+
+    # Build candidate download URLs, trying the most reliable first
+    import base64 as _b64
+
+    def _onedrive_api_url(share_url):
+        """Convert any OneDrive share link to the Graph-API download redirect URL."""
+        b64 = _b64.urlsafe_b64encode(share_url.encode()).decode().rstrip("=")
+        return f"https://api.onedrive.com/v1.0/shares/u!{b64}/root/content"
+
+    candidate_urls = [
+        _onedrive_api_url(url),                                          # Graph API (most reliable)
+        url + ("&" if "?" in url else "?") + "download=1",              # ?download=1 trick
+        url,                                                              # plain URL
+    ]
+
+    # Download the file via urllib (works for public OneDrive share links)
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; LehrerCockpit/1.0)"}
+    file_bytes = None
+    last_err = ""
+    for attempt_url in candidate_urls:
+        try:
+            req = UrlRequest(attempt_url, headers=headers)
+            with urlopen(req, timeout=25) as resp:
+                content_type = resp.headers.get("Content-Type", "").lower()
+                # Accept xlsx/xls/csv/zip; reject obvious HTML pages
+                if "text/html" not in content_type:
+                    file_bytes = resp.read()
+                    break
+                last_err = "Antwort war HTML statt Datei (evtl. Login erforderlich)"
+        except URLError as exc:
+            last_err = str(exc)
+            continue
+
+    if not file_bytes:
+        return error(f"Datei konnte nicht heruntergeladen werden. Bitte Link prüfen. ({last_err})", 422)
+
+    # Parse the XLSX
+    try:
+        from backend.file_utils import parse_classwork_xlsx
+    except ImportError as exc:
+        return error(f"parse_classwork_xlsx nicht verfügbar: {exc}", 500)
+
+    try:
+        result = parse_classwork_xlsx(file_bytes)
+    except Exception as exc:
+        return error(f"Datei konnte nicht gelesen werden: {type(exc).__name__}: {exc}", 422)
+
+    # Attach metadata
+    result["uploadedAt"] = _dt.now().strftime("%d.%m.%Y %H:%M")
+    result["uploadSource"] = "auto"
+    result["uploadedBy"] = g.current_user.full_name if hasattr(g, "current_user") else ""
+
+    # Save to cache
+    try:
+        from backend.classwork_cache import save_cache as _save_cache
+        cache_path = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-cache.json"
+        _save_cache(cache_path, result)
+    except Exception:
+        pass
+
+    return success({"data": result, "fetchedFrom": url})
 
 
 # ── Noten / Grades v2 (Phase 9b) ─────────────────────────────────────────────

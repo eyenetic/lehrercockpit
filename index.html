@@ -35,11 +35,24 @@
       ];
     </script>
     <script>window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST; /* Lokal ohne Login, gehostet mit Multi-User */</script>
-    <link rel="stylesheet" href="./styles.css?v=61" />
+    <link rel="stylesheet" href="./styles.css?v=62" />
   </head>
   <body>
+    <!-- Mobile top bar (hidden on desktop via CSS) -->
+    <div class="mobile-topbar" id="mobile-topbar">
+      <button class="burger-btn" id="burger-btn" type="button" aria-label="Navigation öffnen" aria-expanded="false" aria-controls="app-sidebar">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <span class="mobile-brand-title" id="mobile-topbar-title">Lehrer-Cockpit</span>
+      <span style="width:40px;"></span>
+    </div>
+    <!-- Drawer backdrop -->
+    <div class="drawer-backdrop" id="drawer-backdrop"></div>
+
     <div class="app-shell">
-      <aside class="app-sidebar">
+      <aside class="app-sidebar" id="app-sidebar">
         <div class="brand-block">
           <div class="brand-mark" aria-hidden="true">
             <img class="brand-mark-icon brand-mark-light" src="./icons/icon-192.png" alt="" />
@@ -79,6 +92,7 @@
             <a href="./admin.html" id="sidebar-admin-link" style="display:none;">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Admin-Bereich
             </a>
+            <button id="sidebar-change-code-btn">🔑 Code ändern</button>
             <button id="sidebar-logout-btn">Abmelden</button>
           </div>
         </div>
@@ -121,7 +135,7 @@
           <section class="card tone-access today-module-card" data-today-module="access" aria-labelledby="today-zugaenge-title">
             <div class="section-head section-head-wrap">
               <div>
-                <p class="card-kicker">Zugänge</p>
+                <p class="card-kicker">Zugaenge</p>
                 <h2 id="today-zugaenge-title">Direkte Arbeitswege</h2>
               </div>
             </div>
@@ -233,32 +247,8 @@
                 <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen</a>
               </div>
             </div>
-            <div class="meta-row" style="margin-bottom:14px;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-              <span id="dienstmail-setup-status" class="source-detail">Dienstmail ist noch nicht eingerichtet.</span>
-              <button id="dienstmail-setup-button" class="secondary-link" type="button">Dienstmail einrichten</button>
-            </div>
-
-            <!-- Inbox tab bar (Slice 3) -->
-            <div class="inbox-tabs" role="tablist">
-              <button class="inbox-tab inbox-tab--active" data-inbox-tab="mail" role="tab" aria-selected="true">
-                Dienstmail
-                <span class="inbox-tab__badge" id="inbox-badge-mail"></span>
-              </button>
-              <button class="inbox-tab" data-inbox-tab="itslearning" role="tab" aria-selected="false">
-                itslearning
-                <span class="inbox-tab__badge" id="inbox-badge-itslearning"></span>
-              </button>
-            </div>
-
-            <!-- Tab panel: Dienstmail — preserves existing #message-list -->
-            <div class="inbox-tab-panel inbox-tab-panel--active" data-inbox-panel="mail">
-              <div id="message-list" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
-            </div>
-
-            <!-- Tab panel: itslearning -->
-            <div class="inbox-tab-panel" data-inbox-panel="itslearning">
-              <div id="message-list-itslearning" class="stack-list expandable-scroll"></div>
-            </div>
+            <!-- itslearning Posteingang (Dienstmail entfernt) -->
+            <div id="message-list-itslearning" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
           </article>
         </section>
 
@@ -272,10 +262,21 @@
               <span class="pill pill-live">lokal</span>
             </div>
             <p id="grades-detail" class="source-detail">
-              Einfache Hilfe für Gewichtungen, Teilnoten und schnelle Berechnungen. Kein Notenbuch, keine Speicherung im Schulportal.
+              Einfache Hilfe fuer Gewichtungen, Teilnoten und schnelle Berechnungen. Kein Notenbuch, keine Speicherung im Schulportal.
             </p>
             <div class="grades-layout grades-layout-simple">
               <section class="grades-panel tone-grades-panel">
+                <div class="sidebar-head">
+                  <div>
+                    <p class="card-kicker">Notenskala</p>
+                    <h2>Skalenwahl</h2>
+                  </div>
+                </div>
+                <div id="grades-scale-buttons" class="grades-preset-buttons" style="margin-bottom:1rem;">
+                  <button class="filter-button active" type="button" data-grade-scale="1to6plus">1– 6 mit Tendenzen</button>
+                  <button class="filter-button" type="button" data-grade-scale="1to6">1– 6 (einfach)</button>
+                  <button class="filter-button" type="button" data-grade-scale="punkte">Notenpunkte 0–15</button>
+                </div>
                 <div class="sidebar-head">
                   <div>
                     <p class="card-kicker">Presets</p>
@@ -291,8 +292,9 @@
                 <form id="grades-form" class="connect-form grades-calculator-form">
                   <div id="grades-rows" class="grades-rows"></div>
                   <div class="assistant-actions grades-actions">
-                    <button id="grades-add-row" class="secondary-link" type="button">Teilnote hinzufügen</button>
-                    <button id="grades-reset" class="secondary-link" type="button">Zurücksetzen</button>
+                    <button id="grades-add-row" class="secondary-link" type="button">Teilnote hinzufuegen</button>
+                    <button class="primary-button" type="submit">Berechnen</button>
+                    <button id="grades-reset" class="secondary-link" type="button">Zuruecksetzen</button>
                   </div>
                 </form>
                 <div id="grades-feedback" class="connect-feedback"></div>
@@ -340,53 +342,73 @@
               </label>
             </div>
 
-            <!-- Orgaplan block (Slice 3) -->
-            <div class="plans-block" id="plans-block-orgaplan">
-              <div class="plans-block__header">
-                <span class="plans-block__title">Orgaplan</span>
-                <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>PDF öffnen</a>
+            <!-- Pläne Tabs -->
+            <div class="plans-tabs">
+              <div class="plans-tab-bar" role="tablist">
+                <button class="plans-tab-btn is-active" role="tab" aria-selected="true"
+                  aria-controls="plans-block-orgaplan" data-plans-tab="orgaplan">Orgaplan</button>
+                <button class="plans-tab-btn" role="tab" aria-selected="false"
+                  aria-controls="plans-block-klassenarbeitsplan" data-plans-tab="klassenarbeitsplan">Klassenarbeitsplan</button>
               </div>
-              <div class="plans-block__body">
-                <section class="plan-digest-card tone-orgaplan" aria-labelledby="orgaplan-digest-title">
-                  <h2 id="orgaplan-digest-title" class="sr-only">Orgaplan Hinweise und Termine</h2>
-                  <p id="orgaplan-digest-detail" class="source-detail"></p>
-                  <div id="orgaplan-upcoming-list" class="stack-list compact-list"></div>
-                </section>
-              </div>
-            </div>
 
-            <!-- Klassenarbeitsplan block (Slice 3) -->
-            <div class="plans-block" id="plans-block-klassenarbeitsplan">
-              <div class="plans-block__header">
-                <span class="plans-block__title">Klassenarbeitsplan</span>
-                <div class="classwork-actions">
-                  <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>Originalplan öffnen</a>
+              <!-- Orgaplan panel -->
+              <div class="plans-block" id="plans-block-orgaplan" role="tabpanel">
+                <div class="plans-block__header">
+                  <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>PDF öffnen</a>
+                </div>
+                <div class="plans-block__body">
+                  <section class="plan-digest-card tone-orgaplan" aria-labelledby="orgaplan-digest-title">
+                    <h2 id="orgaplan-digest-title" class="sr-only">Orgaplan Hinweise und Termine</h2>
+                    <p id="orgaplan-digest-detail" class="source-detail"></p>
+                    <div id="orgaplan-upcoming-list" class="stack-list compact-list"></div>
+                  </section>
                 </div>
               </div>
-              <div class="plans-block__body">
-                <section class="plan-digest-card tone-classwork" aria-labelledby="classwork-digest-title">
-                  <h2 id="classwork-digest-title" class="sr-only">Klassenarbeitsplan Klassenansicht</h2>
-                  <p id="classwork-upload-status" class="scrape-status-text"></p>
-                  <p id="classwork-digest-detail" class="source-detail"></p>
-                  <div class="classwork-controls">
-                    <label class="classwork-select-field" for="classwork-class-search">
-                      <span>Klasse suchen</span>
-                      <input id="classwork-class-search" type="search" placeholder="z. B. 7a oder 10c" />
-                    </label>
-                    <label class="classwork-select-field" for="classwork-class-filter">
-                      <span>Meine Klassen</span>
-                      <select id="classwork-class-filter" multiple></select>
-                    </label>
-                    <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
-                  </div>
+
+              <!-- Klassenarbeitsplan panel -->
+              <div class="plans-block" id="plans-block-klassenarbeitsplan" role="tabpanel" hidden>
+                <div class="plans-block__header">
                   <div class="classwork-actions">
-                    <button id="classwork-upload-button" class="secondary-link" type="button">Datei hochladen</button>
-                    <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
+                    <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>Originalplan öffnen</a>
                   </div>
-                  <p id="classwork-upload-feedback" class="connect-feedback"></p>
-                  <div id="classwork-preview-list" class="stack-list compact-list expandable-scroll" data-expand-panel="classwork"></div>
-                  <button class="section-toggle" type="button" data-expand-toggle="classwork" data-expand-target="classwork-preview-list">Mehr anzeigen</button>
-                </section>
+                </div>
+                <div class="plans-block__body">
+                  <section class="plan-digest-card tone-classwork" aria-labelledby="classwork-digest-title">
+                    <h2 id="classwork-digest-title" class="sr-only">Klassenarbeitsplan Klassenansicht</h2>
+
+                    <!-- Upload-Info: wer hat wann hochgeladen -->
+                    <div id="classwork-upload-info" class="classwork-upload-info" hidden></div>
+
+                    <!-- Link zum Originalplan + Upload -->
+                    <div class="classwork-toolbar" id="classwork-toolbar-top">
+                      <a id="classwork-open-source" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>↗ Plan öffnen &amp; herunterladen</a>
+                      <input id="classwork-source-url" type="url" hidden />
+                    </div>
+                    <p id="classwork-upload-feedback" class="connect-feedback"></p>
+
+                    <!-- Klassen-Auswahl als Pills -->
+                    <div class="classwork-pill-section" id="classwork-pill-section" hidden>
+                      <span class="classwork-pill-label">Meine Klassen</span>
+                      <div id="classwork-class-pills" class="classwork-pill-row"></div>
+                      <!-- Hidden select kept for compat with existing JS logic -->
+                      <select id="classwork-class-filter" multiple hidden></select>
+                      <input id="classwork-class-search" type="search" hidden />
+                    </div>
+
+                    <div class="classwork-toolbar">
+                      <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
+                      <div class="classwork-upload-action">
+                        <button id="classwork-upload-button" class="secondary-link" type="button">↑ Excel hochladen</button>
+                        <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
+                      </div>
+                    </div>
+
+                    <p id="classwork-digest-detail" class="source-detail"></p>
+                    <p id="classwork-upload-status" class="scrape-status-text"></p>
+                    <div id="classwork-preview-list" class="stack-list compact-list expandable-scroll" data-expand-panel="classwork"></div>
+                    <button class="section-toggle" type="button" data-expand-toggle="classwork" data-expand-target="classwork-preview-list">Mehr anzeigen</button>
+                  </section>
+                </div>
               </div>
             </div>
 
@@ -407,8 +429,8 @@
           <article class="card compact-panel tone-access" aria-labelledby="quicklinks-title">
             <div class="section-head section-head-compact">
               <div>
-                <p class="card-kicker">Zugänge</p>
-                <h2 id="quicklinks-title">Wichtige Zugänge</h2>
+                <p class="card-kicker">Zugaenge</p>
+                <h2 id="quicklinks-title">Wichtige Zugaenge</h2>
               </div>
             </div>
             <div id="quick-link-grid" class="link-grid compact-link-grid expandable-scroll" data-expand-panel="access"></div>
@@ -462,20 +484,20 @@
               <a id="nextcloud-open-root" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/" target="_blank" rel="noreferrer" data-nextcloud-link="root">
                 <span class="meta-tag low">Arbeitsbereich</span>
                 <strong>Nextcloud</strong>
-                <p>Dateien, Freigaben und Teamordner direkt öffnen</p>
-                <span class="quick-link-action">öffnen</span>
+                <p>Dateien, Freigaben und Teamordner direkt oeffnen</p>
+                <span class="quick-link-action">oeffnen</span>
               </a>
               <a id="nextcloud-open-q1q2" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901" target="_blank" rel="noreferrer" data-nextcloud-link="q1q2">
                 <span class="meta-tag low">Fehlzeiten</span>
                 <strong>Q1 / Q2</strong>
-                <p>11. Klasse direkt in Nextcloud öffnen</p>
-                <span class="quick-link-action">öffnen</span>
+                <p>11. Klasse direkt in Nextcloud oeffnen</p>
+                <span class="quick-link-action">oeffnen</span>
               </a>
               <a id="nextcloud-open-q3q4" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900" target="_blank" rel="noreferrer" data-nextcloud-link="q3q4">
                 <span class="meta-tag low">Fehlzeiten</span>
                 <strong>Q3 / Q4</strong>
-                <p>12. Klasse direkt in Nextcloud öffnen</p>
-                <span class="quick-link-action">öffnen</span>
+                <p>12. Klasse direkt in Nextcloud oeffnen</p>
+                <span class="quick-link-action">oeffnen</span>
               </a>
             </div>
             <div id="nextcloud-custom-links" class="nextcloud-workspaces" hidden></div>
@@ -554,101 +576,61 @@
       <div class="heute-anpassen-panel__body">
         <p class="heute-anpassen-panel__hint">Tagesbriefing und Zugänge sind immer sichtbar.</p>
         <div id="heute-anpassen-modules" class="heute-anpassen-modules"></div>
+        <div id="heute-anpassen-classes-section" class="heute-anpassen-classes-section" hidden>
+          <p class="heute-anpassen-panel__hint" style="margin-top:1rem;">Klassenarbeiten auf „Heute" — welche Klassen sollen angezeigt werden?</p>
+          <div id="heute-anpassen-class-pills" class="classwork-pill-row" style="margin-top:6px;flex-wrap:wrap;gap:6px;display:flex;"></div>
+        </div>
       </div>
       <div class="heute-anpassen-panel__footer">
         <button id="heute-anpassen-save" class="heute-anpassen-panel__save" type="button">Speichern</button>
       </div>
     </div>
 
-    <div id="mail-setup-overlay" class="setup-overlay" hidden>
-      <div class="setup-modal">
-
-        <div class="setup-step" id="setup-step-1">
-          <div class="setup-icon">✉</div>
-          <h2 class="setup-title">Dienstmail einbinden?</h2>
-          <p class="setup-body">
-            Das Cockpit kann deine letzten Dienstmails als Vorschau
-            anzeigen – direkt aus deiner lokalen Mail-App.
-            Die Mails verlassen deinen Computer nicht.
-          </p>
-          <div class="setup-actions">
-            <button class="primary-button" id="setup-yes" type="button">
-              Ja, Mails einbinden
-            </button>
-            <button class="setup-skip" id="setup-no" type="button">
-              Jetzt nicht
-            </button>
-          </div>
-        </div>
-
-        <div class="setup-step" id="setup-step-2" hidden>
-          <div class="setup-icon">💻</div>
-          <h2 class="setup-title">Welches Gerät nutzt du?</h2>
-          <p class="setup-body">
-            Das Cockpit unterstützt Apple Mail auf dem Mac
-            und Outlook auf Windows.
-          </p>
-          <div class="setup-os-grid">
-            <button class="setup-os-btn" id="setup-mac" type="button">
-              <span class="setup-os-icon"></span>
-              <strong>Mac</strong>
-              <span>Apple Mail</span>
-            </button>
-            <button class="setup-os-btn" id="setup-windows" type="button">
-              <span class="setup-os-icon">⊞</span>
-              <strong>Windows</strong>
-              <span>Outlook</span>
-            </button>
-          </div>
-          <button class="setup-back" id="setup-back-1" type="button">← Zurück</button>
-        </div>
-
-        <div class="setup-step" id="setup-step-mac" hidden>
-          <div class="setup-icon"></div>
-          <h2 class="setup-title">Cockpit Agent für Mac</h2>
-          <ol class="setup-list">
-            <li>Agent herunterladen und entpacken</li>
-            <li>Doppelklick auf <code>cockpit-agent.command</code></li>
-            <li>macOS-Berechtigung für Mail mit „OK" bestätigen</li>
-          </ol>
-          <a class="primary-button" id="setup-download-mac" href="#" download>
-            Agent herunterladen (Mac)
+    <!-- Mobile Mehr-Sheet -->
+    <div id="mobile-more-sheet" class="more-sheet" hidden aria-modal="true" role="dialog">
+      <div class="more-sheet-backdrop" id="more-sheet-backdrop"></div>
+      <div class="more-sheet-panel">
+        <div class="more-sheet-handle" aria-hidden="true"></div>
+        <div class="more-sheet-user" id="more-sheet-user-name">Lehrkraft</div>
+        <div class="more-sheet-actions">
+          <button class="more-sheet-row" type="button" id="more-sheet-theme-toggle">
+            <span class="more-sheet-row-icon">☀</span>
+            <span id="more-sheet-theme-label">Dark Mode</span>
+          </button>
+          <a class="more-sheet-row" href="./admin.html" id="more-sheet-admin-link" hidden>
+            <span class="more-sheet-row-icon">⚙</span>
+            Admin-Bereich
           </a>
-          <p class="setup-note">
-            Der Agent liest nur Betreff, Absender und Datum –
-            niemals den Mailinhalt.
-          </p>
-          <div id="setup-status-mac" class="setup-status" hidden>
-            <span class="setup-status-dot"></span>
-            Agent verbunden – Mails werden geladen
-            <button class="setup-skip" id="setup-close-mac" type="button" style="margin-left:auto;">Schließen</button>
-          </div>
-          <button class="setup-back" id="setup-back-2mac" type="button">← Zurück</button>
+          <button class="more-sheet-row" type="button" id="more-sheet-change-code-btn">
+            <span class="more-sheet-row-icon">🔑</span>
+            Zugangscode ändern
+          </button>
+          <button class="more-sheet-row more-sheet-row--danger" type="button" id="more-sheet-logout-btn">
+            <span class="more-sheet-row-icon">↩</span>
+            Abmelden
+          </button>
         </div>
+      </div>
+    </div>
 
-        <div class="setup-step" id="setup-step-windows" hidden>
-          <div class="setup-icon">⊞</div>
-          <h2 class="setup-title">Cockpit Agent für Windows</h2>
-          <ol class="setup-list">
-            <li>Agent herunterladen und entpacken</li>
-            <li>Doppelklick auf <code>cockpit-agent.bat</code></li>
-            <li>Outlook muss geöffnet sein</li>
-          </ol>
-          <a class="primary-button" id="setup-download-windows" href="#" download>
-            Agent herunterladen (Windows)
-          </a>
-          <p class="setup-note">
-            Der Agent liest nur Betreff, Absender und Datum –
-            niemals den Mailinhalt.
-          </p>
-          <div id="setup-status-win" class="setup-status" hidden>
-            <span class="setup-status-dot"></span>
-            Agent verbunden – Mails werden geladen
-            <button class="setup-skip" id="setup-close-win" type="button" style="margin-left:auto;">Schließen</button>
-          </div>
-          <button class="setup-back" id="setup-back-2win" type="button">← Zurück</button>
+    <!-- Code-ändern Modal -->
+    <div id="change-code-modal" class="modal-overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="change-code-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="change-code-title">Zugangscode ändern</h2>
+          <button class="modal-close" type="button" id="change-code-close" aria-label="Schließen">✕</button>
         </div>
-
+        <p style="font-size:0.85rem;color:var(--muted);margin:0 0 1rem;">Mind. 6 Zeichen, nur Buchstaben und Ziffern. Du wirst nach dem Speichern automatisch ausgeloggt.</p>
+        <form id="change-code-form">
+          <div style="display:flex;flex-direction:column;gap:0.75rem;">
+            <input type="text" id="change-code-input" class="form-input" placeholder="Neuer Zugangscode" autocomplete="off" minlength="6" required style="font-size:1rem;letter-spacing:0.05em;" />
+            <div id="change-code-feedback" style="font-size:0.82rem;color:var(--error);min-height:1.2em;"></div>
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+              <button type="button" id="change-code-cancel" class="btn">Abbrechen</button>
+              <button type="submit" class="btn btn-primary" id="change-code-submit">Speichern</button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -685,18 +667,18 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=61"></script>
-    <script src="./src/api-client.js?v=61"></script>
-    <script src="./src/modules/dashboard-manager.js?v=61"></script>
-    <script src="./src/features/grades.js?v=61"></script>
-    <script src="./src/features/webuntis.js?v=61"></script>
-    <script src="./src/features/itslearning.js?v=61"></script>
-    <script src="./src/features/nextcloud.js?v=61"></script>
-    <script src="./src/features/documents.js?v=61"></script>
-    <script src="./src/features/classwork.js?v=61"></script>
-    <script src="./src/features/inbox.js?v=61"></script>
-    <script src="./src/features/zugaenge.js?v=61"></script>
-    <script src="./src/app.js?v=61"></script>
+    <script src="./data/mock-dashboard.js?v=62"></script>
+    <script src="./src/api-client.js?v=62"></script>
+    <script src="./src/modules/dashboard-manager.js?v=62"></script>
+    <script src="./src/features/grades.js?v=62"></script>
+    <script src="./src/features/webuntis.js?v=62"></script>
+    <script src="./src/features/itslearning.js?v=62"></script>
+    <script src="./src/features/nextcloud.js?v=62"></script>
+    <script src="./src/features/documents.js?v=62"></script>
+    <script src="./src/features/classwork.js?v=62"></script>
+    <script src="./src/features/inbox.js?v=62"></script>
+    <script src="./src/features/zugaenge.js?v=62"></script>
+    <script src="./src/app.js?v=62"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
@@ -712,20 +694,165 @@ function initUserInfo() {
     const logoutBtn = document.getElementById('sidebar-logout-btn');
     if (info) info.style.display = 'flex';
     if (name) name.textContent = window.CURRENT_USER.full_name || window.CURRENT_USER.first_name;
-    // Phase 13: show admin link based on is_admin flag (+ role compat for pre-migration sessions)
     const isAdminUser = window.CURRENT_USER.is_admin === true || window.CURRENT_USER.role === 'admin';
     if (adminLink) adminLink.style.display = isAdminUser ? 'inline-flex' : 'none';
+
+    async function doLogout() {
+      const backendUrl = window.BACKEND_API_URL || '';
+      await fetch(backendUrl + '/api/v2/auth/logout', {method: 'POST', credentials: 'include'});
+      window.location.href = './login.html';
+    }
+
     if (logoutBtn && !logoutBtn.dataset.bound) {
       logoutBtn.dataset.bound = 'true';
-      logoutBtn.addEventListener('click', async function() {
-        const backendUrl = window.BACKEND_API_URL || '';
-        await fetch(backendUrl + '/api/v2/auth/logout', {method: 'POST', credentials: 'include'});
-        window.location.href = './login.html';
+      logoutBtn.addEventListener('click', doLogout);
+    }
+
+    // ── Mobile Mehr-Sheet ──────────────────────────────────────────────────────
+    const moreBtn = document.getElementById('mobile-more-btn');
+    const moreSheet = document.getElementById('mobile-more-sheet');
+    const moreBackdrop = document.getElementById('more-sheet-backdrop');
+    const moreUserName = document.getElementById('more-sheet-user-name');
+    const moreAdminLink = document.getElementById('more-sheet-admin-link');
+    const moreThemeBtn = document.getElementById('more-sheet-theme-toggle');
+    const moreThemeLabel = document.getElementById('more-sheet-theme-label');
+    const moreLogoutBtn = document.getElementById('more-sheet-logout-btn');
+    const moreChangeCodeBtn = document.getElementById('more-sheet-change-code-btn');
+
+    if (moreUserName) moreUserName.textContent = window.CURRENT_USER.full_name || window.CURRENT_USER.first_name;
+    if (moreAdminLink) moreAdminLink.hidden = !isAdminUser;
+
+    function openMoreSheet() { if (moreSheet) moreSheet.hidden = false; }
+    function closeMoreSheet() { if (moreSheet) moreSheet.hidden = true; }
+
+    if (moreBtn) moreBtn.addEventListener('click', openMoreSheet);
+    if (moreBackdrop) moreBackdrop.addEventListener('click', closeMoreSheet);
+    if (moreLogoutBtn) moreLogoutBtn.addEventListener('click', doLogout);
+
+    // Sync theme label in sheet
+    function syncMoreThemeLabel() {
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      if (moreThemeLabel) moreThemeLabel.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      if (moreThemeBtn) {
+        const icon = moreThemeBtn.querySelector('.more-sheet-row-icon');
+        if (icon) icon.textContent = isDark ? '☀' : '☽';
+      }
+    }
+    syncMoreThemeLabel();
+
+    if (moreThemeBtn) {
+      moreThemeBtn.addEventListener('click', function() {
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) themeToggle.click();
+        syncMoreThemeLabel();
+      });
+    }
+
+    // ── Code ändern ────────────────────────────────────────────────────────────
+    const changeCodeModal = document.getElementById('change-code-modal');
+    const changeCodeForm = document.getElementById('change-code-form');
+    const changeCodeInput = document.getElementById('change-code-input');
+    const changeCodeFeedback = document.getElementById('change-code-feedback');
+    const changeCodeClose = document.getElementById('change-code-close');
+    const changeCodeCancel = document.getElementById('change-code-cancel');
+
+    function openChangeCode() { closeMoreSheet(); if (changeCodeModal) changeCodeModal.hidden = false; }
+    function closeChangeCode() {
+      if (changeCodeModal) changeCodeModal.hidden = true;
+      if (changeCodeInput) changeCodeInput.value = '';
+      if (changeCodeFeedback) changeCodeFeedback.textContent = '';
+    }
+
+    if (moreChangeCodeBtn) moreChangeCodeBtn.addEventListener('click', openChangeCode);
+    const sidebarChangeCodeBtn = document.getElementById('sidebar-change-code-btn');
+    if (sidebarChangeCodeBtn) sidebarChangeCodeBtn.addEventListener('click', openChangeCode);
+    if (changeCodeClose) changeCodeClose.addEventListener('click', closeChangeCode);
+    if (changeCodeCancel) changeCodeCancel.addEventListener('click', closeChangeCode);
+
+    if (changeCodeForm) {
+      changeCodeForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const newCode = (changeCodeInput ? changeCodeInput.value.trim() : '');
+        if (!newCode) return;
+        const submitBtn = document.getElementById('change-code-submit');
+        if (submitBtn) submitBtn.disabled = true;
+        if (changeCodeFeedback) changeCodeFeedback.textContent = '';
+        try {
+          const backendUrl = window.BACKEND_API_URL || '';
+          const resp = await fetch(backendUrl + '/api/v2/auth/me/change-code', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({new_code: newCode}),
+          });
+          const data = await resp.json().catch(function() { return {}; });
+          if (!resp.ok) {
+            if (changeCodeFeedback) changeCodeFeedback.textContent = data.error || 'Fehler beim Speichern.';
+            if (submitBtn) submitBtn.disabled = false;
+          } else {
+            // Success — logout so user has to re-login with new code
+            alert('Code geändert! Du wirst jetzt ausgeloggt.');
+            doLogout();
+          }
+        } catch (err) {
+          if (changeCodeFeedback) changeCodeFeedback.textContent = 'Verbindungsfehler.';
+          if (submitBtn) submitBtn.disabled = false;
+        }
       });
     }
   }
 }
 if (window.CURRENT_USER) initUserInfo();
+    </script>
+    <script>
+// Mobile drawer navigation
+(function() {
+  var burgerBtn = document.getElementById('burger-btn');
+  var backdrop = document.getElementById('drawer-backdrop');
+  var sidebar = document.querySelector('.app-sidebar');
+  if (!burgerBtn || !backdrop || !sidebar) return;
+
+  // Sync topbar title from app-title-display
+  var topbarTitle = document.getElementById('mobile-topbar-title');
+  var appTitleDisplay = document.getElementById('app-title-display');
+  if (topbarTitle && appTitleDisplay) {
+    var observer = new MutationObserver(function() {
+      topbarTitle.textContent = appTitleDisplay.textContent;
+    });
+    observer.observe(appTitleDisplay, {childList: true, subtree: true, characterData: true});
+    topbarTitle.textContent = appTitleDisplay.textContent;
+  }
+
+  function openDrawer() {
+    sidebar.classList.add('drawer-open');
+    backdrop.classList.add('visible');
+    burgerBtn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    sidebar.classList.remove('drawer-open');
+    backdrop.classList.remove('visible');
+    burgerBtn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+
+  burgerBtn.addEventListener('click', function() {
+    if (sidebar.classList.contains('drawer-open')) closeDrawer();
+    else openDrawer();
+  });
+  backdrop.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDrawer();
+  });
+
+  // Close drawer when a nav-link is clicked (on mobile)
+  var sidebarNav = document.querySelector('.sidebar-nav');
+  if (sidebarNav) {
+    sidebarNav.addEventListener('click', function(e) {
+      if (e.target.closest('.nav-link') && window.innerWidth <= 768) closeDrawer();
+    });
+  }
+})();
     </script>
   </body>
 </html>

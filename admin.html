@@ -470,18 +470,9 @@
         </div>
 
         <nav class="admin-tabs" role="tablist" aria-label="Admin-Bereiche">
-          <button class="admin-tab active" type="button" data-tab="users" role="tab" aria-selected="true">
-            👥 Lehrkräfte
-          </button>
-          <button class="admin-tab" type="button" data-tab="settings" role="tab" aria-selected="false">
-            ⚙️ System
-          </button>
-          <button class="admin-tab" type="button" data-tab="modules" role="tab" aria-selected="false">
-            📦 Module
-          </button>
-          <button class="admin-tab" type="button" data-tab="audit" role="tab" aria-selected="false">
-            🔍 Audit-Log
-          </button>
+          <button class="admin-tab active" type="button" data-tab="users" role="tab" aria-selected="true">Lehrkräfte</button>
+          <button class="admin-tab" type="button" data-tab="settings" role="tab" aria-selected="false">Einstellungen</button>
+          <button class="admin-tab" type="button" data-tab="audit" role="tab" aria-selected="false">Protokoll</button>
         </nav>
 
         <div class="admin-topbar-actions">
@@ -572,17 +563,6 @@
                 <button type="submit" class="btn btn-primary" id="btn-save-settings">Speichern</button>
               </div>
             </form>
-          </div>
-        </section>
-
-        <!-- Tab: Module -->
-        <section class="admin-section" id="tab-modules" role="tabpanel">
-          <div class="admin-card">
-            <h2 class="admin-section-title" style="margin-bottom:1rem;">Modul-Defaults</h2>
-            <div id="modules-feedback"></div>
-            <div id="modules-table-container">
-              <p class="loading-row">Lade Module…</p>
-            </div>
           </div>
         </section>
 
@@ -727,7 +707,9 @@
         // ── Helper ────────────────────────────────────────────────────────────
 
         function esc(str) {
-          return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return String(str || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
         function setFeedback(id, msg, type) {
@@ -781,7 +763,6 @@
           setupTabs();
           loadUsers();
           loadSettings();
-          loadModules();
           setupModals();
 
           // ── Audit log event wiring ─────────────────────────────────────────
@@ -975,6 +956,23 @@
 
         // ── Users Tab ─────────────────────────────────────────────────────────
 
+        // Event delegation einmalig auf dem statischen Container — nicht bei jedem Render neu
+        (function () {
+          const container = document.getElementById('users-table-container');
+          if (!container) return;
+          container.addEventListener('click', function (e) {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            const uid = parseInt(btn.dataset.uid, 10);
+            const name = btn.dataset.name || '';
+            if (action === 'edit-user')          window.editUser(uid);
+            else if (action === 'regen-code')    window.regenerateCode(uid, name);
+            else if (action === 'toggle-active') window.toggleActive(uid, btn.dataset.active === 'true');
+            else if (action === 'delete-user')   window.deleteUser(uid, name);
+          });
+        })();
+
         async function loadUsers() {
           const container = document.getElementById('users-table-container');
           try {
@@ -1010,17 +1008,18 @@
               ? '<span style="color:var(--success);">✓</span>'
               : '<span style="color:var(--muted);">–</span>';
 
+            const uName = esc(u.full_name || u.first_name || '');
             html += '<tr>'
               + '<td>' + esc(u.full_name || (u.first_name + ' ' + u.last_name)) + '</td>'
               + '<td>' + roleBadge + '</td>'
               + '<td>' + statusBadge + '</td>'
               + '<td>' + hasCode + '</td>'
               + '<td><div class="actions-cell">'
-              + '<button class="btn btn-sm" type="button" onclick="editUser(' + u.id + ')">Bearbeiten</button>'
-              + '<button class="btn btn-sm" type="button" onclick="regenerateCode(' + u.id + ', \'' + esc(u.full_name || u.first_name) + '\')">Code neu</button>'
-              + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" onclick="toggleActive(' + u.id + ', ' + u.is_active + ')">'
+              + '<button class="btn btn-sm" type="button" data-action="edit-user" data-uid="' + u.id + '">Bearbeiten</button>'
+              + '<button class="btn btn-sm" type="button" data-action="regen-code" data-uid="' + u.id + '" data-name="' + uName + '">Code neu</button>'
+              + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" data-action="toggle-active" data-uid="' + u.id + '" data-active="' + u.is_active + '">'
               + (u.is_active ? 'Deaktivieren' : 'Aktivieren') + '</button>'
-              + '<button class="btn btn-sm btn-danger" type="button" onclick="deleteUser(' + u.id + ', \'' + esc(u.full_name || u.first_name) + '\')">Loeschen</button>'
+              + '<button class="btn btn-sm btn-danger" type="button" data-action="delete-user" data-uid="' + u.id + '" data-name="' + uName + '">Löschen</button>'
               + '</div></td>'
               + '</tr>';
           });

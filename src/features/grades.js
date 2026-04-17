@@ -18,6 +18,7 @@
   var _elements = null;
   var _callbacks = {};
   var _activePreset = 'one-third';
+  var _activeScale = '1to6plus'; // '1to6' | '1to6plus' | 'punkte'
   var _rows = [];
 
   var PRESETS = {
@@ -69,6 +70,20 @@
       _elements.gradesReset.dataset.bound = 'true';
       _elements.gradesReset.addEventListener('click', function () {
         applyPreset(_activePreset);
+      });
+    }
+
+    var scaleButtons = document.getElementById('grades-scale-buttons');
+    if (scaleButtons && !scaleButtons.dataset.bound) {
+      scaleButtons.dataset.bound = 'true';
+      scaleButtons.addEventListener('click', function (event) {
+        var button = event.target.closest('[data-grade-scale]');
+        if (!button) return;
+        _activeScale = button.dataset.gradeScale;
+        scaleButtons.querySelectorAll('[data-grade-scale]').forEach(function (b) {
+          b.classList.toggle('active', b === button);
+        });
+        renderResult();
       });
     }
 
@@ -139,6 +154,24 @@
   function parseGradeValue(value) {
     var token = String(value || '').trim();
     if (!token) return NaN;
+
+    // Notenpunkte-Modus: nur Ganzzahlen 0–15
+    if (_activeScale === 'punkte') {
+      var numeric = Number(token.replace(',', '.'));
+      if (isFinite(numeric) && numeric >= 0 && numeric <= 15) return numeric;
+      return NaN;
+    }
+
+    // 1–6 einfach: nur ganzzahlige Noten
+    if (_activeScale === '1to6') {
+      var simpleMapping = { '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6 };
+      if (simpleMapping[token] !== undefined) return simpleMapping[token];
+      var n = Number(token.replace(',', '.'));
+      if (isFinite(n) && n >= 1 && n <= 6) return n;
+      return NaN;
+    }
+
+    // 1–6 mit Tendenzen (Standard)
     var mapping = {
       '1+': 0.7, '1': 1, '1-': 1.3,
       '2+': 1.7, '2': 2, '2-': 2.3,
@@ -148,8 +181,8 @@
       '6': 6,
     };
     if (mapping[token] !== undefined) return mapping[token];
-    var numeric = Number(token.replace(',', '.'));
-    return isFinite(numeric) ? numeric : NaN;
+    var numeric2 = Number(token.replace(',', '.'));
+    return isFinite(numeric2) ? numeric2 : NaN;
   }
 
   function parseWeight(value) {
@@ -170,22 +203,36 @@
 
   function approximateGradeLabel(value) {
     if (!isFinite(value)) return '-';
+
+    // Notenpunkte (0–15): Schnitt → Notenstufe
+    if (_activeScale === 'punkte') {
+      var ptBands = [
+        { min: 14.5, label: '1+' }, { min: 13.5, label: '1'  }, { min: 12.5, label: '1-' },
+        { min: 11.5, label: '2+' }, { min: 10.5, label: '2'  }, { min:  9.5, label: '2-' },
+        { min:  8.5, label: '3+' }, { min:  7.5, label: '3'  }, { min:  6.5, label: '3-' },
+        { min:  5.5, label: '4+' }, { min:  4.5, label: '4'  }, { min:  3.5, label: '4-' },
+        { min:  2.5, label: '5+' }, { min:  1.5, label: '5'  }, { min:  0.5, label: '5-' },
+        { min:  0,   label: '6'  },
+      ];
+      for (var j = 0; j < ptBands.length; j += 1) {
+        if (value >= ptBands[j].min) return ptBands[j].label;
+      }
+      return '6';
+    }
+
+    // 1–6 einfach: auf ganze Note runden
+    if (_activeScale === '1to6') {
+      var rounded = Math.min(6, Math.max(1, Math.round(value)));
+      return String(rounded);
+    }
+
+    // 1–6 mit Tendenzen (Standard)
     var bands = [
-      { max: 0.85, label: '1+' },
-      { max: 1.15, label: '1' },
-      { max: 1.5, label: '1-' },
-      { max: 1.85, label: '2+' },
-      { max: 2.15, label: '2' },
-      { max: 2.5, label: '2-' },
-      { max: 2.85, label: '3+' },
-      { max: 3.15, label: '3' },
-      { max: 3.5, label: '3-' },
-      { max: 3.85, label: '4+' },
-      { max: 4.15, label: '4' },
-      { max: 4.5, label: '4-' },
-      { max: 4.85, label: '5+' },
-      { max: 5.15, label: '5' },
-      { max: 5.5, label: '5-' },
+      { max: 0.85, label: '1+' }, { max: 1.15, label: '1'  }, { max: 1.5,  label: '1-' },
+      { max: 1.85, label: '2+' }, { max: 2.15, label: '2'  }, { max: 2.5,  label: '2-' },
+      { max: 2.85, label: '3+' }, { max: 3.15, label: '3'  }, { max: 3.5,  label: '3-' },
+      { max: 3.85, label: '4+' }, { max: 4.15, label: '4'  }, { max: 4.5,  label: '4-' },
+      { max: 4.85, label: '5+' }, { max: 5.15, label: '5'  }, { max: 5.5,  label: '5-' },
       { max: Infinity, label: '6' },
     ];
     for (var i = 0; i < bands.length; i += 1) {
@@ -249,7 +296,7 @@
           '</label>' +
           '<label class="connect-field">' +
             '<span>Note</span>' +
-            '<input type="text" data-grade-field="value" value="' + escapeHtml(row.value) + '" placeholder="z. B. 2-" autocomplete="off" />' +
+            '<input type="text" data-grade-field="value" value="' + escapeHtml(row.value) + '" placeholder="' + (_activeScale === 'punkte' ? 'z. B. 10' : _activeScale === '1to6' ? 'z. B. 3' : 'z. B. 2-') + '" autocomplete="off" />' +
           '</label>' +
           '<label class="connect-field">' +
             '<span>Gewichtung in %</span>' +
@@ -279,9 +326,13 @@
       _elements.gradesSummaryRisk.textContent = formatNumber(result.totalWeight.toFixed(2)).replace(',00', '') + '%';
     }
     if (_elements.gradesSummaryAverage) {
-      _elements.gradesSummaryAverage.textContent = isFinite(result.weightedAverage)
-        ? approximateGradeLabel(result.weightedAverage) + ' · ' + formatGrade(result.weightedAverage)
-        : '-';
+      if (isFinite(result.weightedAverage)) {
+        _elements.gradesSummaryAverage.innerHTML =
+          approximateGradeLabel(result.weightedAverage)
+          + '<span class="grade-avg-num">' + formatGrade(result.weightedAverage) + '</span>';
+      } else {
+        _elements.gradesSummaryAverage.textContent = '-';
+      }
     }
 
     if (_elements.gradesList) {

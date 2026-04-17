@@ -130,32 +130,8 @@ var LehrerInbox = (function () {
   }
 
   function renderMessages() {
-    if (!_elements || !_elements.messageList) return;
-    var filteredMessages = _getRelevantInboxMessages()
-      .filter(function (msg) { return msg.channel === _state.selectedChannel; })
-      .sort(compareMessages);
-    _setExpandableMeta(_elements.messageList, filteredMessages.length, filteredMessages.length);
-    _elements.messageList.classList.remove('is-collapsed');
-    _elements.messageList.classList.add('is-expanded');
-
-    _elements.messageList.innerHTML = filteredMessages.length
-      ? filteredMessages.map(function (message) {
-          return '<article class="message-item">'
-            + '<div class="message-top">'
-            + '<div>'
-            + '<strong>' + message.title + '</strong>'
-            + '<p class="message-snippet">' + message.sender + ' - ' + message.timestamp + '</p>'
-            + '</div>'
-            + '<span class="meta-tag ' + messagePriorityClass(message.priority) + '">' + (message.unread ? 'neu' : 'gesehen') + '</span>'
-            + '</div>'
-            + '<p class="message-snippet">' + message.snippet + '</p>'
-            + '<div class="meta-row">'
-            + '<span class="meta-tag">' + message.channelLabel + '</span>'
-            + '<span class="meta-tag">' + priorityLabel(message.priority) + '</span>'
-            + '</div>'
-            + '</article>';
-        }).join('')
-      : '<div class="empty-state">Fuer diesen Kanal liegen gerade keine Hinweise vor.</div>';
+    // Dienstmail-Tab entfernt — delegiert an renderItslearningTab für Live-Updates
+    renderItslearningTab();
   }
 
   function renderDocumentMonitor() {
@@ -284,30 +260,13 @@ var LehrerInbox = (function () {
   }
 
   /**
-   * Wire up tab switching. Safe to call multiple times — idempotent.
+   * Initialize inbox — renders itslearning messages directly (no tabs).
+   * Safe to call multiple times — idempotent.
    */
   function initInboxTabs() {
-    var tabBar = document.querySelector('.inbox-tabs');
-    if (!tabBar || _tabsInitialized) return;
+    if (_tabsInitialized) return;
     _tabsInitialized = true;
-
-    tabBar.addEventListener('click', function (event) {
-      var btn = event.target.closest('[data-inbox-tab]');
-      if (!btn) return;
-      _activateTab(btn.dataset.inboxTab);
-    });
-
-    // Restore previously selected tab from localStorage
-    var stored = '';
-    try { stored = localStorage.getItem(INBOX_TAB_STORAGE_KEY) || ''; } catch (_e) {}
-    if (stored === 'itslearning') {
-      _activateTab('itslearning');
-    }
-
-    // Render badges with current data
-    if (_getRelevantInboxMessages) {
-      renderBadges(_getRelevantInboxMessages());
-    }
+    renderItslearningTab();
   }
 
   return {

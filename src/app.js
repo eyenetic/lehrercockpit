@@ -25,14 +25,9 @@
   const CLASSWORK_SELECTED_CLASSES_KEY = "lehrerCockpit.classwork.selectedClasses";
   // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
+  const DASHBOARD_CACHE_KEY = "lc.dashboardCache";
+  const DASHBOARD_CACHE_MAX_AGE_MS = 600000; // 10 minutes
   const AUTO_REFRESH_MS = 180000;
-  // localhost is treated as a "potentially trustworthy origin" by browsers
-  // even from HTTPS pages (per Secure Contexts spec). 127.0.0.1 is NOT
-  // reliably allowed in all browsers (Safari blocks it). So localhost first.
-  const LOCAL_MAIL_AGENT_BASES = [
-    "http://localhost:8765",
-    "http://127.0.0.1:8765",
-  ];
   const PANEL_COLLAPSE_LIMITS = {
     inbox: 10,
     grades: 4,
@@ -260,6 +255,23 @@
 
   // ── SECTION: API / data loading ─────────────────────────────────────────────
 
+  function saveDashboardCache(data) {
+    try {
+      localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+    } catch (_) {}
+  }
+
+  function loadDashboardCache() {
+    try {
+      const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.data) return null;
+      if (Date.now() - parsed.ts > DASHBOARD_CACHE_MAX_AGE_MS) return null;
+      return parsed.data;
+    } catch (_) { return null; }
+  }
+
   async function loadDashboard(forceRefresh = false) {
     // ── Phase 12: v2 PRIMARY path ──────────────────────────────────────────
     // When running in multi-user SaaS mode, call GET /api/v2/dashboard/data
@@ -273,7 +285,7 @@
         if (resp.ok) {
           const v2Json = await resp.json();
           if (v2Json.ok) {
-            return await overlayLocalMailAgentData(normalizeV2Dashboard(v2Json));
+            return normalizeV2Dashboard(v2Json);
           }
         }
       } catch (e) {
@@ -311,14 +323,14 @@
           // Fail silently — v1 data is still usable
         }
 
-        return await overlayLocalMailAgentData(data);
+        return data;
       } catch (error) {
         continue;
       }
     }
 
     if (window.LEHRER_COCKPIT_FALLBACK_DATA) {
-      return await overlayLocalMailAgentData(normalizeDashboard(window.LEHRER_COCKPIT_FALLBACK_DATA));
+      return normalizeDashboard(window.LEHRER_COCKPIT_FALLBACK_DATA);
     }
 
     throw new Error("Dashboard-Daten konnten nicht geladen werden.");
@@ -356,14 +368,14 @@
         entities: [],
         watchlist: [],
       },
-      shortcutHint: "WebUntis-Links können hier als Schnellzugriff gespeichert werden.",
+      shortcutHint: "WebUntis-Links koennen hier als Schnellzugriff gespeichert werden.",
     };
 
     data.planDigest = data.planDigest || {
       orgaplan: {
         status: "warning",
         title: "Orgaplan",
-        detail: "Noch kein Orgaplan-Digest verfügbar.",
+        detail: "Noch kein Orgaplan-Digest verfuegbar.",
         monthLabel: "",
         updatedAt: formatTime(now),
         highlights: [],
@@ -373,7 +385,7 @@
       classwork: {
         status: "warning",
         title: "Klassenarbeitsplan",
-        detail: "Noch kein Klassenarbeitsplan-Digest verfügbar.",
+        detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
         updatedAt: formatTime(now),
         previewRows: [],
         classes: [],
@@ -386,28 +398,6 @@
     return data;
   }
 
-  async function fetchLocalMailAgent() {
-    for (const base of LOCAL_MAIL_AGENT_BASES) {
-      try {
-        const response = await fetch(`${base}/mail`, {
-          method: "GET",
-          mode: "cors",
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          continue;
-        }
-        const data = await response.json();
-        if (data && data.status === "ok") {
-          return { ...data, agentBase: base };
-        }
-      } catch (_error) {
-        continue;
-      }
-    }
-    return null;
-  }
-
   async function fetchBackendMailPreview() {
     try {
       const apiBase = getBackendApiBase();
@@ -418,76 +408,6 @@
     } catch (_error) {
       return null;
     }
-  }
-
-  function buildMailAgentMessages(agentData) {
-    const messages = Array.isArray(agentData?.messages) ? agentData.messages : [];
-    return messages.map((item, index) => ({
-      id: `mail-agent-${index + 1}`,
-      channel: "mail",
-      channelLabel: "Dienstmail",
-      sender: String(item.sender || "Lokale Mail-App"),
-      title: String(item.subject || "(ohne Betreff)"),
-      snippet: String(item.sender || "Lokale Mail-App"),
-      priority: item.unread ? "high" : "low",
-      timestamp: String(item.date || ""),
-      sortKey: String(item.date || "").trim() || `${1000 - index}`,
-      unread: Boolean(item.unread),
-    }));
-  }
-
-  function buildMailAgentPriorities(messages) {
-    return messages
-      .filter((message) => message.unread)
-      .slice(0, 3)
-      .map((message, index) => ({
-        id: `prio-mail-agent-${index + 1}`,
-        title: message.title,
-        detail: message.sender,
-        priority: "high",
-        source: "Dienstmail",
-        due: "neu",
-      }));
-  }
-
-  async function overlayLocalMailAgentData(data) {
-    const agentData = await fetchLocalMailAgent();
-    if (!agentData) {
-      return data;
-    }
-
-    const mailMessages = buildMailAgentMessages(agentData);
-    const priorities = buildMailAgentPriorities(mailMessages);
-    const platform = String(agentData.platform || "").toLowerCase();
-    const sourceName = platform === "windows" ? "Outlook" : "Apple Mail";
-    const sourceUpdate = {
-      id: "mail",
-      name: "Dienstmail",
-      type: sourceName,
-      status: "ok",
-      cadence: "lokaler Agent",
-      lastSync: formatTime(new Date()),
-      nextStep: platform === "windows" ? "Outlook lokal verbunden" : "Apple Mail lokal verbunden",
-      detail: agentData.detail || `${mailMessages.length} Mails geladen`,
-    };
-
-    const merged = JSON.parse(JSON.stringify(data));
-    merged.localConnections = merged.localConnections || {};
-    merged.localConnections.mail = {
-      configured: true,
-      localAgent: true,
-      platform: platform || "mac",
-      account: sourceName,
-    };
-    merged.sources = Array.isArray(merged.sources)
-      ? [sourceUpdate].concat(merged.sources.filter((source) => source.id !== "mail"))
-      : [sourceUpdate];
-    merged.messages = mailMessages.concat((merged.messages || []).filter((message) => message.channel !== "mail"));
-    merged.priorities = priorities.concat((merged.priorities || []).filter((item) => item.source !== "Dienstmail")).slice(0, 4);
-    if (merged.meta && merged.meta.note) {
-      merged.meta.note = `${merged.meta.note} Dienstmail wird lokal ueber den Cockpit Agenten gespiegelt.`;
-    }
-    return merged;
   }
 
   // ── SECTION: v2 Module Data Overlay (Phase 11d) ─────────────────────────────
@@ -744,13 +664,13 @@
             entities: [],
             watchlist: [],
           },
-          shortcutHint: "WebUntis-Links können hier als Schnellzugriff gespeichert werden.",
+          shortcutHint: "WebUntis-Links koennen hier als Schnellzugriff gespeichert werden.",
         },
         planDigest: {
           orgaplan: {
             status: "warning",
             title: "Orgaplan",
-            detail: "Noch kein Orgaplan-Digest verfügbar.",
+            detail: "Noch kein Orgaplan-Digest verfuegbar.",
             monthLabel: "",
             updatedAt: formatTime(new Date()),
             highlights: [],
@@ -760,7 +680,7 @@
           classwork: {
             status: "warning",
             title: "Klassenarbeitsplan",
-            detail: "Noch kein Klassenarbeitsplan-Digest verfügbar.",
+            detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
             updatedAt: formatTime(new Date()),
             previewRows: [],
             classes: [],
@@ -786,8 +706,8 @@
     const schoolName =
       data.base?.school_name ||
       data.teacher?.school ||
-      (titleFromWorkspace.startsWith("Dein Tagesstart für ")
-        ? titleFromWorkspace.replace("Dein Tagesstart für ", "")
+      (titleFromWorkspace.startsWith("Dein Tagesstart fuer ")
+        ? titleFromWorkspace.replace("Dein Tagesstart fuer ", "")
         : "");
     if (elements.workspaceEyebrow) {
       elements.workspaceEyebrow.textContent = data.workspace.eyebrow || "Berlin Lehrer-Cockpit";
@@ -1025,12 +945,12 @@
       .sort((left, right) => `${left.classLabel || ""}${left.summary || left.title || ""}`.localeCompare(`${right.classLabel || ""}${right.summary || right.title || ""}`));
 
     const classSelectionLabel = selectedClasses.length
-      ? (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewählt`)
-      : "Noch keine Klasse gewählt";
+      ? (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewaehlt`)
+      : "Noch keine Klasse gewaehlt";
 
     const cards = [
       {
-        title: "Stundenplan für den Tag",
+        title: "Stundenplan fuer den Tag",
         tone: "schedule",
         section: "schedule",
         html: context.showWebuntis
@@ -1038,7 +958,7 @@
           : '<div class="empty-state">Noch kein Tagesplan aus WebUntis verfügbar.</div>',
       },
       {
-        title: "Orgaplan für den aktuellen Tag",
+        title: "Orgaplan fuer den aktuellen Tag",
         tone: "orgaplan",
         section: "documents",
         copy: context.showOrgaplan && context.orgaplanItem
@@ -1046,7 +966,7 @@
           : "Heute wurde noch kein gesonderter Orgaplan-Hinweis erkannt.",
       },
       {
-        title: "Klassenarbeiten für den aktuellen Tag",
+        title: "Klassenarbeiten fuer den aktuellen Tag",
         tone: "classwork",
         section: "documents",
         meta: classSelectionLabel,
@@ -1057,7 +977,7 @@
                     .map((entry) => `${entry.classLabel}: ${entry.summary || entry.title}`)
                     .slice(0, 3)
                     .join(" · ")
-                : `Heute keine Klassenarbeiten für ${classSelectionLabel.toLowerCase()}.`
+                : `Heute keine Klassenarbeiten fuer ${classSelectionLabel.toLowerCase()}.`
             )
           : "Noch kein Klassenarbeitsplan verbunden.",
       },
@@ -1092,13 +1012,7 @@
     const classwork = data.planDigest?.classwork || {};
 
     if (elements.todaySchedulePreview) {
-      elements.todaySchedulePreview.innerHTML = nextEvent
-        ? `<article class="today-mini-card">
-            <strong>${nextEvent.title}</strong>
-            <p>${nextEvent.time}${nextEvent.location ? ` · ${nextEvent.location}` : ""}</p>
-            <span class="meta-tag low">Naechster Termin</span>
-          </article>`
-        : `<div class="empty-state">Heute liegt kein weiterer Termin vor.</div>`;
+      elements.todaySchedulePreview.innerHTML = renderTodayFullSchedule(data);
     }
 
     if (elements.todayInboxPreview) {
@@ -1129,9 +1043,8 @@
     if (elements.todayGradesPreview) {
       elements.todayGradesPreview.innerHTML = `
         <article class="today-mini-card">
-          <strong>Notenrechner</strong>
-          <p>Gewichtete Teilnoten schnell berechnen – 1/3 · 2/3, 50/50 oder freie Gewichtung.</p>
-          <button class="secondary-link" type="button" data-section-target="grades" style="margin-top:0.5rem;">Notenrechner öffnen</button>
+          <strong>Gewichtungen und Teilnoten</strong>
+          <p>Schneller Einstieg in Notenberechnung fuer gewichtete Teilnoten und einfache Kombinationen.</p>
         </article>
       `;
     }
@@ -1153,6 +1066,42 @@
     return events
       .filter((event) => isSameDay(new Date(event.startsAt), now))
       .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt))[0] || null;
+  }
+
+  function renderTodayFullSchedule(data) {
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    const events = (data.webuntisCenter?.events || [])
+      .filter((e) => e.startsAt)
+      .filter((e) => {
+        const s = new Date(e.startsAt);
+        return s >= todayStart && s < tomorrowStart;
+      })
+      .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+
+    if (!events.length) {
+      return '<div class="empty-state">Kein Stundenplan für heute eingetragen.</div>';
+    }
+
+    return '<div class="today-schedule-list">'
+      + events.map((e) => {
+          const start = new Date(e.startsAt);
+          const end = e.endsAt ? new Date(e.endsAt) : null;
+          const isCurrent = start <= now && (!end || end > now);
+          const isPast = end ? end <= now : start < now;
+          const stateClass = isCurrent ? ' is-current' : isPast ? ' is-past' : '';
+          const timeStr = e.time || start.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+          const endStr = end ? end.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+          return '<div class="today-schedule-row' + stateClass + '">'
+            + '<span class="today-schedule-time">' + timeStr + (endStr ? '–' + endStr : '') + '</span>'
+            + '<span class="today-schedule-title">' + (e.title || '') + (e.location ? ' <span class="today-schedule-loc">· ' + e.location + '</span>' : '') + '</span>'
+            + (isCurrent ? '<span class="meta-tag today-schedule-now">jetzt</span>' : '')
+            + '</div>';
+        }).join('')
+      + '</div>';
   }
 
   function pickOrgaplanBriefing(data) {
@@ -1318,7 +1267,7 @@
                 <span class="meta-tag low">${link.kind}</span>
                 <strong>${link.title}</strong>
                 <p class="priority-copy">${link.note}</p>
-                <span class="quick-link-action">öffnen</span>
+                <span class="quick-link-action">oeffnen</span>
               </a>
             `
           )
@@ -1455,58 +1404,26 @@
     const mailConnection = connectionHint("mail");
     const schoolportalUrl = base.schoolportal_url || "https://schulportal.berlin.de";
     if (elements.dienstmailOpenLink) {
-      if (mailConnection?.configured) {
-        if (mailConnection.platform === "windows") {
-          bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal öffnen");
-          elements.dienstmailOpenLink.target = "_blank";
-          elements.dienstmailOpenLink.rel = "noreferrer";
-        } else {
-          elements.dienstmailOpenLink.href = "message://";
-          elements.dienstmailOpenLink.textContent = "Dienstmail in Mail öffnen";
-          elements.dienstmailOpenLink.target = "_self";
-          elements.dienstmailOpenLink.rel = "";
-        }
-        elements.dienstmailOpenLink.hidden = false;
-        elements.dienstmailOpenLink.style.pointerEvents = "auto";
-        elements.dienstmailOpenLink.style.opacity = "1";
-      } else {
-        bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
-        elements.dienstmailOpenLink.target = "_blank";
-        elements.dienstmailOpenLink.rel = "noreferrer";
-      }
+      bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
+      elements.dienstmailOpenLink.target = "_blank";
+      elements.dienstmailOpenLink.rel = "noreferrer";
+      elements.dienstmailOpenLink.hidden = false;
     }
     if (elements.itslearningOpenLink) {
-      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning öffnen");
+      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning oeffnen");
       elements.itslearningOpenLink.hidden = !base.itslearning_base_url;
     }
     renderMailSetupEntry();
   }
 
   function renderMailSetupEntry() {
-    if (!elements.dienstmailSetupStatus) return;
-    const mailConnection = connectionHint("mail");
-    const setupState = localStorage.getItem("lc.mailSetup") || "";
-    const platform = localStorage.getItem("lc.mailPlatform") || "";
-
-    if (mailConnection?.localAgent || setupState === "connected") {
-      elements.dienstmailSetupStatus.textContent = platform === "windows"
-        ? "Dienstmail-Vorschau ist lokal ueber Outlook verbunden."
-        : "Dienstmail-Vorschau ist lokal ueber Apple Mail verbunden.";
-      if (elements.dienstmailSetupButton) {
-        elements.dienstmailSetupButton.textContent = "Mail-Einbindung erneut öffnen";
-      }
-      return;
-    }
-
-    if (platform === "windows") {
-      elements.dienstmailSetupStatus.textContent = "Windows-Agent vorbereitet. Outlook lokal öffnen und den Agenten starten.";
-    } else if (platform === "mac") {
-      elements.dienstmailSetupStatus.textContent = "Mac-Agent vorbereitet. Apple Mail lokal freigeben und den Agenten starten.";
-    } else {
-      elements.dienstmailSetupStatus.textContent = "Dienstmail ist noch nicht eingerichtet.";
+    // Berliner Dienstmail hat kein IMAP — kein lokaler Agent mehr.
+    // Schulportal-Link wird direkt in renderInboxLinks gesetzt.
+    if (elements.dienstmailSetupStatus) {
+      elements.dienstmailSetupStatus.textContent = "Dienstmail ist über das Schulportal erreichbar.";
     }
     if (elements.dienstmailSetupButton) {
-      elements.dienstmailSetupButton.textContent = "Dienstmail einrichten";
+      elements.dienstmailSetupButton.hidden = true;
     }
   }
 
@@ -2008,11 +1925,34 @@
   }
 
   async function refreshDashboard(forceRefresh = false) {
+    // Stale-while-revalidate: show cached data immediately, then update from network
+    if (!forceRefresh) {
+      const cached = loadDashboardCache();
+      if (cached) {
+        state.data = cached;
+        renderAll();
+        applyAppTitle();
+        updateWebUntisExternalLink();
+        // Continue fetching fresh data in background (no loading indicator)
+        try {
+          const fresh = await loadDashboard(false);
+          saveDashboardCache(fresh);
+          state.data = fresh;
+          renderAll();
+          applyAppTitle();
+          updateWebUntisExternalLink();
+        } catch (_) {}
+        return;
+      }
+    }
+
+    // No cache or forced refresh — show loading indicator
     if (elements.heroNote) {
       elements.heroNote.textContent = "Stand wird aktualisiert …";
     }
     try {
       state.data = await loadDashboard(forceRefresh);
+      saveDashboardCache(state.data);
       renderAll();
       applyAppTitle();
       updateWebUntisExternalLink();
@@ -2079,7 +2019,7 @@
 
   async function uploadClassworkFile(file) {
     if (!file.name.toLowerCase().match(/\.(xlsx|xlsm|xls|csv)$/)) {
-      state.classworkUploadFeedback = "Bitte eine XLSX-, XLSM-, XLS- oder CSV-Datei auswählen.";
+      state.classworkUploadFeedback = "Bitte eine XLSX-, XLSM-, XLS- oder CSV-Datei auswaehlen.";
       state.classworkUploadFeedbackKind = "warning";
       renderPlanDigest();
       return;
@@ -2186,10 +2126,10 @@
   function getHeuteLayoutItems() {
     var labels = {
       briefing: "Tagesbriefing",
-      access: "Zugänge",
+      access: "Zugaenge",
       schedule: "Stundenplan",
       inbox: "Posteingang",
-      documents: "Pläne",
+      documents: "Plaene",
       grades: "Notenberechnung",
     };
     if (!DashboardManager || typeof DashboardManager.getTodayLayout !== "function") {
@@ -2276,6 +2216,47 @@
     });
   }
 
+  function _renderHeuteAnpassenClasses() {
+    var section = document.getElementById('heute-anpassen-classes-section');
+    var pillsEl = document.getElementById('heute-anpassen-class-pills');
+    if (!section || !pillsEl) return;
+
+    var classes = [];
+    try { classes = getData().planDigest.classwork.classes || []; } catch (_e) {}
+    if (!classes.length) { section.hidden = true; return; }
+    section.hidden = false;
+
+    var STORAGE_KEY = 'lc.classworkSelectedClasses';
+    function loadSelected() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || classes; } catch (_e) { return classes.slice(); }
+    }
+    function saveSelected(sel) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sel)); } catch (_e) {}
+    }
+
+    function render() {
+      var selected = loadSelected();
+      pillsEl.innerHTML = classes.map(function (label) {
+        var active = selected.includes(label);
+        return '<button type="button" class="classwork-pill' + (active ? ' is-active' : '') + '"'
+          + ' data-ha-class="' + label + '">' + label + '</button>';
+      }).join('');
+      pillsEl.querySelectorAll('[data-ha-class]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var lbl = btn.dataset.haClass;
+          var cur = loadSelected();
+          var next = cur.includes(lbl) ? cur.filter(function (c) { return c !== lbl; }) : cur.concat([lbl]);
+          if (!next.length) next = [lbl]; // mindestens eine Klasse
+          saveSelected(next);
+          render();
+          // Sofort Dashboard aktualisieren
+          if (typeof renderAll === 'function') renderAll();
+        });
+      });
+    }
+    render();
+  }
+
   function initHeuteAnpassen() {
     var panel = document.getElementById('heute-anpassen-panel');
     var modulesContainer = document.getElementById('heute-anpassen-modules');
@@ -2293,6 +2274,7 @@
       if (openBtn) {
         openBtn.addEventListener('click', function() {
           renderHeuteAnpassenList(modulesContainer);
+          _renderHeuteAnpassenClasses();
           panel.hidden = false;
         });
       }
@@ -2376,95 +2358,25 @@
   }
 
   function initMailSetup() {
-    const overlay = document.getElementById("mail-setup-overlay");
-    if (!overlay) return;
-    const macDownload = document.getElementById("setup-download-mac");
-    const winDownload = document.getElementById("setup-download-windows");
-    const apiBase = getBackendApiBase();
-
-    if (macDownload) {
-      macDownload.href = `${apiBase}/api/downloads/cockpit-agent-mac.zip`;
-    }
-    if (winDownload) {
-      winDownload.href = `${apiBase}/api/downloads/cockpit-agent-windows.zip`;
-    }
-
-    if (!localStorage.getItem("lc.mailSetup")) {
-      overlay.hidden = false;
-    }
-
-    elements.dienstmailSetupButton
-      ?.addEventListener("click", () => {
-        overlay.hidden = false;
-      });
-
-    function showStep(id) {
-      document.querySelectorAll(".setup-step").forEach((step) => {
-        step.hidden = true;
-      });
-      const el = document.getElementById(id);
-      if (el) el.hidden = false;
-    }
-
-    document.getElementById("setup-yes")
-      ?.addEventListener("click", () => showStep("setup-step-2"));
-
-    document.getElementById("setup-no")
-      ?.addEventListener("click", () => {
-        localStorage.setItem("lc.mailSetup", "skipped");
-        overlay.hidden = true;
-        renderMailSetupEntry();
-      });
-
-    document.getElementById("setup-mac")
-      ?.addEventListener("click", () => {
-        localStorage.setItem("lc.mailPlatform", "mac");
-        showStep("setup-step-mac");
-        renderMailSetupEntry();
-        pollAgent("setup-status-mac");
-      });
-
-    document.getElementById("setup-windows")
-      ?.addEventListener("click", () => {
-        localStorage.setItem("lc.mailPlatform", "windows");
-        showStep("setup-step-windows");
-        renderMailSetupEntry();
-        pollAgent("setup-status-win");
-      });
-
-    document.getElementById("setup-back-1")
-      ?.addEventListener("click", () => showStep("setup-step-1"));
-    document.getElementById("setup-back-2mac")
-      ?.addEventListener("click", () => showStep("setup-step-2"));
-    document.getElementById("setup-back-2win")
-      ?.addEventListener("click", () => showStep("setup-step-2"));
-
-    function closeOverlay() {
-      overlay.hidden = true;
-    }
-
-    document.getElementById("setup-close-mac")
-      ?.addEventListener("click", closeOverlay);
-    document.getElementById("setup-close-win")
-      ?.addEventListener("click", closeOverlay);
-
-    function pollAgent(statusId) {
-      const statusEl = document.getElementById(statusId);
-      const timer = setInterval(async () => {
-        try {
-          const data = (await fetchLocalMailAgent()) || (await fetchBackendMailPreview());
-          if (data && data.status === "ok") {
-            clearInterval(timer);
-            if (statusEl) statusEl.hidden = false;
-            localStorage.setItem("lc.mailSetup", "connected");
-            renderMailSetupEntry();
-            setTimeout(closeOverlay, 1500);
-          }
-        } catch (_) {}
-      }, 3000);
-      setTimeout(() => clearInterval(timer), 120000);
-    }
+    // Mail-Agent-Setup entfernt: lokaler Agent zu komplex für Lehrkräfte,
+    // Berliner Dienstmail hat kein IMAP. Nur Link zum Schulportal.
     renderMailSetupEntry();
+  }
+
+  function initPlansTabs() {
+    const buttons = document.querySelectorAll(".plans-tab-btn");
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetId = btn.getAttribute("aria-controls");
+        buttons.forEach((b) => {
+          b.classList.toggle("is-active", b === btn);
+          b.setAttribute("aria-selected", b === btn ? "true" : "false");
+        });
+        document.querySelectorAll(".plans-block[role='tabpanel']").forEach((panel) => {
+          panel.hidden = panel.id !== targetId;
+        });
+      });
+    });
   }
 
   function initialize() {
@@ -2537,6 +2449,7 @@
         setExpandableMeta: setExpandableMeta,
         weekdayLabel: weekdayLabel,
         getSelectedClassworkClasses: getSelectedClassworkClasses,
+        refreshDashboard: refreshDashboard,
       });
     }
     // Init LehrerDocuments with shared state, elements, and render callbacks
@@ -2556,6 +2469,7 @@
         setExpandableMeta: setExpandableMeta,
       });
     }
+    initPlansTabs();
     refreshDashboard().then(() => {
       loadClassworkCache();
       loadGradebook();
@@ -2757,6 +2671,38 @@
         button.textContent = baseLabel;
       }
     });
+  }
+
+  async function triggerClassworkUpload(file) {
+    if (!file) return;
+    const apiBase = getBackendApiBase();
+    const uploadUrl = `${apiBase}/api/classwork/upload`;
+
+    const labelText = elements.classworkUploadLabelText;
+    if (labelText) labelText.textContent = "⏳ Wird verarbeitet…";
+    if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "0.6";
+    setUploadStatus(`Datei "${file.name}" wird hochgeladen…`, "loading");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+
+      const response = await fetch(uploadUrl, { method: "POST", body: formData });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setUploadStatus(`Upload-Fehler: ${data.detail || response.status}`, "error");
+        return;
+      }
+
+      renderClassworkData(data);
+      setUploadStatus(`✓ "${file.name}" eingelesen. ${data.detail || ""}`, "ok");
+    } catch (err) {
+      setUploadStatus(`Upload fehlgeschlagen: ${err.message}`, "error");
+    } finally {
+      if (labelText) labelText.textContent = "📂 Hochladen";
+      if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "1";
+    }
   }
 
   // ── End Classwork Upload ───────────────────────────────────────────────────
@@ -3332,7 +3278,7 @@
 
   function renderEmptyWeekColumn(column, hasAnyWeekEvents) {
     if (hasAnyWeekEvents) {
-      return `<div class="webuntis-week-empty">Kein iCal-Eintrag für diesen Tag</div>`;
+      return `<div class="webuntis-week-empty">Kein iCal-Eintrag fuer diesen Tag</div>`;
     }
 
     const nextEvent = findNextEventAfter(column.isoDate);
@@ -3340,7 +3286,7 @@
       return `<div class="webuntis-week-empty">Im iCal keine Termine. Naechster Eintrag am ${formatDate(new Date(nextEvent.startsAt))}.</div>`;
     }
 
-    return `<div class="webuntis-week-empty">Im iCal sind für diese Woche gerade keine Termine vorhanden.</div>`;
+    return `<div class="webuntis-week-empty">Im iCal sind fuer diese Woche gerade keine Termine vorhanden.</div>`;
   }
 
   function extractClassLabels(event) {
