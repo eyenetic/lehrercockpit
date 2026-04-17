@@ -15,7 +15,7 @@ from backend.auth.access_code import hash_code, get_code_prefix
 
 # ── Konfiguration ──────────────────────────────────────────────────────────
 # Den gewünschten neuen Code hier eintragen (mind. 6 Zeichen):
-NEW_CODE = "lehrer123"
+NEW_CODE = "Heg16042"
 # ──────────────────────────────────────────────────────────────────────────
 
 def list_users(conn):
