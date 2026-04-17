@@ -3987,3 +3987,58 @@ details[open] > .orgaplan-upcoming-summary::before {
   color: var(--muted);
   margin-top: 1px;
 }
+
+/* ── Heute: Vollständiger Tagesplan ────────────────────────────────────── */
+.today-schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.today-schedule-row {
+  display: grid;
+  grid-template-columns: 7rem 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.83rem;
+  transition: background 120ms;
+}
+.today-schedule-row.is-past {
+  opacity: 0.38;
+}
+.today-schedule-row.is-current {
+  background: color-mix(in srgb, var(--tone-schedule, var(--accent)) 10%, transparent);
+  border-left: 3px solid var(--tone-schedule, var(--accent));
+  padding-left: 7px;
+  font-weight: 600;
+  opacity: 1;
+}
+.today-schedule-time {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.today-schedule-row.is-current .today-schedule-time {
+  color: var(--tone-schedule, var(--accent));
+}
+.today-schedule-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+.today-schedule-loc {
+  color: var(--muted);
+  font-weight: 400;
+}
+.today-schedule-now {
+  background: color-mix(in srgb, var(--tone-schedule, var(--accent)) 15%, transparent);
+  color: var(--tone-schedule, var(--accent));
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
