@@ -1093,10 +1093,14 @@
           const isCurrent = start <= now && (!end || end > now);
           const isPast = end ? end <= now : start < now;
           const stateClass = isCurrent ? ' is-current' : isPast ? ' is-past' : '';
-          const timeStr = e.time || start.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+          const startStr = start.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
           const endStr = end ? end.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+          // e.time may already contain a full range like "08:00 - 09:35" — use it directly, otherwise build from start/end
+          const timeStr = e.time && e.time.includes(':') && (e.time.includes(' - ') || e.time.includes('–'))
+            ? e.time
+            : (startStr + (endStr ? '–' + endStr : ''));
           return '<div class="today-schedule-row' + stateClass + '">'
-            + '<span class="today-schedule-time">' + timeStr + (endStr ? '–' + endStr : '') + '</span>'
+            + '<span class="today-schedule-time">' + timeStr + '</span>'
             + '<span class="today-schedule-title">' + (e.title || '') + (e.location ? ' <span class="today-schedule-loc">· ' + e.location + '</span>' : '') + '</span>'
             + (isCurrent ? '<span class="meta-tag today-schedule-now">jetzt</span>' : '')
             + '</div>';
@@ -2226,12 +2230,15 @@
     if (!classes.length) { section.hidden = true; return; }
     section.hidden = false;
 
-    var STORAGE_KEY = 'lc.classworkSelectedClasses';
+    var STORAGE_KEY = CLASSWORK_SELECTED_CLASSES_KEY;
     function loadSelected() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || classes; } catch (_e) { return classes.slice(); }
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || []; } catch (_e) { return []; }
     }
     function saveSelected(sel) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sel)); } catch (_e) {}
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sel));
+        state.classworkSelectedClasses = sel; // state sync
+      } catch (_e) {}
     }
 
     function render() {
