@@ -4042,3 +4042,14 @@ details[open] > .orgaplan-upcoming-summary::before {
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* Schedule list inside briefing focus card — tighter rows */
+.today-focus-card .today-schedule-list {
+  gap: 1px;
+  margin: 0 -4px;
+}
+.today-focus-card .today-schedule-row {
+  font-size: 0.8rem;
+  padding: 5px 8px;
+  grid-template-columns: 6rem 1fr auto;
+}
