@@ -56,7 +56,7 @@ def login():
     body = request.get_json(silent=True) or {}
     code = body.get("code", "")
 
-    if not code or not isinstance(code, str) or len(code.strip()) < 8:
+    if not code or not isinstance(code, str) or len(code.strip()) < 6:
         return error("Code erforderlich", 422)
 
     code = code.strip()
