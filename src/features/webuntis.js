@@ -638,6 +638,84 @@
       + '</section>';
   }
 
+  // ── Time-grid helpers ────────────────────────────────────────────────────
+  function _eventMinutes(event) {
+    // Returns {start, end} in minutes-since-midnight, or null if missing
+    if (!event.startsAt) return null;
+    var s = new Date(event.startsAt);
+    var e = event.endsAt ? new Date(event.endsAt) : new Date(s.getTime() + 45 * 60000);
+    return { start: s.getHours() * 60 + s.getMinutes(), end: e.getHours() * 60 + e.getMinutes() };
+  }
+
+  function renderTimeGridColumn(columnEvents, gridStart, gridEnd, isCancelled) {
+    // Groups overlapping events into tracks (columns within a day)
+    var totalMin = gridEnd - gridStart;
+    var tracks = []; // each track is an array of events
+    columnEvents.forEach(function (ev) {
+      var m = _eventMinutes(ev);
+      if (!m) return;
+      var placed = false;
+      for (var t = 0; t < tracks.length; t++) {
+        var conflict = tracks[t].some(function (prev) {
+          var pm = _eventMinutes(prev);
+          return pm && m.start < pm.end && m.end > pm.start;
+        });
+        if (!conflict) { tracks[t].push(ev); placed = true; break; }
+      }
+      if (!placed) tracks.push([ev]);
+    });
+    var trackCount = tracks.length || 1;
+    var html = '';
+    tracks.forEach(function (track, ti) {
+      track.forEach(function (ev) {
+        var m = _eventMinutes(ev);
+        if (!m) return;
+        var top = Math.max(0, (m.start - gridStart) / totalMin * 100);
+        var height = Math.max(4, (m.end - m.start) / totalMin * 100);
+        var cancelled = isCancelledEvent(ev);
+        var timingClass = getEventTimingClass(ev);
+        var left = (ti / trackCount * 100).toFixed(1);
+        var width = (100 / trackCount).toFixed(1);
+        html += '<div class="tg-event ' + timingClass + (cancelled ? ' is-cancelled' : '') + '"'
+          + ' style="top:' + top.toFixed(2) + '%;height:' + height.toFixed(2) + '%;'
+          + 'left:' + left + '%;width:' + width + '%;">'
+          + '<span class="tg-event-title">' + (ev.title || '') + '</span>'
+          + (ev.location ? '<span class="tg-event-loc">' + ev.location + '</span>' : '')
+          + '</div>';
+      });
+    });
+    return html;
+  }
+
+  function renderTimeGrid(columns, gridStart, gridEnd) {
+    var totalMin = gridEnd - gridStart;
+    // Build hour tick marks
+    var ticks = '';
+    for (var h = Math.ceil(gridStart / 60) * 60; h <= gridEnd; h += 60) {
+      var pct = (h - gridStart) / totalMin * 100;
+      ticks += '<div class="tg-tick" style="top:' + pct.toFixed(2) + '%">'
+        + '<span class="tg-tick-label">' + String(Math.floor(h / 60)).padStart(2, '0') + ':00</span>'
+        + '</div>';
+    }
+    var gridHeight = Math.round(totalMin * 2.2); // ~2.2px per minute
+    return '<div class="tg-wrap">'
+      + '<div class="tg-axis" style="height:' + gridHeight + 'px">' + ticks + '</div>'
+      + '<div class="tg-body">'
+      + columns.map(function (col) {
+          return '<div class="tg-col' + (col.isToday ? ' is-today' : '') + '">'
+            + '<div class="tg-col-head">'
+            + '<span class="tg-col-day">' + col.weekday + '</span>'
+            + '<strong class="tg-col-date">' + col.date + '</strong>'
+            + '</div>'
+            + '<div class="tg-col-body" style="height:' + gridHeight + 'px">'
+            + renderTimeGridColumn(col.events, gridStart, gridEnd)
+            + '</div>'
+            + '</div>';
+        }).join('')
+      + '</div>'
+      + '</div>';
+  }
+
   function renderWeekSchedule(events, center) {
     var columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, _state.webuntisWeekOffset || 0));
     var hasAnyWeekEvents = columns.some(function (c) { return c.events.length > 0; });
@@ -648,27 +726,26 @@
       : (nextFutureEvent
         ? 'Naechster bekannter Termin: ' + _formatDate(new Date(nextFutureEvent.startsAt))
         : 'keine Eintraege im iCal');
+
+    // Calculate time range from actual events (min 07:30–16:30)
+    var gridStart = 7 * 60 + 30, gridEnd = 16 * 60 + 30;
+    if (hasAnyWeekEvents) {
+      columns.forEach(function (col) {
+        col.events.forEach(function (ev) {
+          var m = _eventMinutes(ev);
+          if (!m) return;
+          if (m.start < gridStart) gridStart = Math.floor(m.start / 30) * 30;
+          if (m.end > gridEnd) gridEnd = Math.ceil(m.end / 30) * 30;
+        });
+      });
+    }
+
     return '<div class="webuntis-week-board">'
       + '<div class="webuntis-agenda-head">'
       + '<strong>' + getWebUntisRangeLabel(center) + '</strong>'
       + '<span>' + countLabel + '</span>'
       + '</div>'
-      + '<div class="webuntis-week-columns">'
-      + columns.map(function (column) {
-        return '<section class="webuntis-week-column' + (column.isToday ? ' is-today' : '') + '">'
-          + '<div class="webuntis-week-column-head">'
-          + '<div class="webuntis-week-column-head-row">'
-          + '<span class="webuntis-weekday' + (column.isToday ? ' is-today' : '') + '">' + column.weekday + '</span>'
-          + (column.isToday ? '<span class="webuntis-today-chip" aria-label="Heute">Heute</span>' : '')
-          + '</div>'
-          + '<strong class="webuntis-week-column-date">' + column.date + '</strong>'
-          + '</div>'
-          + '<div class="webuntis-week-column-items">'
-          + (column.events.length ? column.events.map(renderWeekEvent).join('') : renderEmptyWeekColumn(column, hasAnyWeekEvents))
-          + '</div>'
-          + '</section>';
-      }).join('')
-      + '</div>'
+      + renderTimeGrid(columns, gridStart, gridEnd)
       + '</div>';
   }
 

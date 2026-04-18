@@ -4047,9 +4047,36 @@ details[open] > .orgaplan-upcoming-summary::before {
   font-size: 0.79rem;
 }
 
-/* ── Heute-Module-Grid: non-briefing cards always in column 2 ───────────── */
-.today-module-card:not([data-today-module="briefing"]) {
-  grid-column: 2;
+/* ── Heute-Module-Grid: non-briefing cards always in column 2 (desktop) ── */
+@media (min-width: 769px) {
+  .today-module-card:not([data-today-module="briefing"]) {
+    grid-column: 2;
+  }
+}
+/* Mobile: single column, all cards full width */
+@media (max-width: 768px) {
+  #today-overview-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .today-module-card[data-today-module="briefing"] {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+/* ── Initial layout: hide optional cards until JS applies layout ─────────── */
+.layout-pending .today-module-card:not([data-today-module="briefing"]):not([data-today-module="access"]) {
+  visibility: hidden;
+}
+
+/* ── Next-day preview label ─────────────────────────────────────────────── */
+.today-schedule-preview-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
 }
 
 /* ── Modal overlay (Code ändern, etc.) ─────────────────────────────────── */
@@ -4121,4 +4148,131 @@ details[open] > .orgaplan-upcoming-summary::before {
     border-color: var(--accent);
     border-width: 2px;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TIME GRID (WebUntis-style Wochenansicht)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.tg-wrap {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.tg-axis {
+  position: relative;
+  flex: 0 0 36px;
+  min-width: 36px;
+  border-right: 1px solid var(--line);
+  margin-top: 44px; /* align with column headers */
+}
+.tg-tick {
+  position: absolute;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  transform: translateY(-0.5em);
+}
+.tg-tick-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding-right: 4px;
+  line-height: 1;
+  white-space: nowrap;
+  text-align: right;
+  width: 100%;
+}
+.tg-body {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 2px;
+}
+.tg-col {
+  flex: 1 1 0;
+  min-width: 52px;
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+}
+.tg-col.is-today > .tg-col-head {
+  color: var(--accent);
+  font-weight: 700;
+}
+.tg-col-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 2px 6px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+}
+.tg-col-day {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+.tg-col.is-today .tg-col-day { color: var(--accent); }
+.tg-col-date {
+  font-size: 1rem;
+  font-weight: 700;
+  color: inherit;
+}
+.tg-col-body {
+  position: relative;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent calc(100% / var(--tg-hours, 9) - 1px),
+    var(--line) calc(100% / var(--tg-hours, 9) - 1px),
+    var(--line) calc(100% / var(--tg-hours, 9))
+  );
+}
+.tg-event {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 2px 3px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  border-left: 3px solid var(--accent);
+  overflow: hidden;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  cursor: default;
+  z-index: 1;
+}
+.tg-event.is-past {
+  opacity: 0.45;
+  background: var(--panel-soft);
+  border-left-color: var(--muted);
+}
+.tg-event.is-current {
+  background: color-mix(in srgb, var(--accent) 20%, var(--panel));
+  border-left-color: var(--accent);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 25%, transparent);
+  z-index: 2;
+}
+.tg-event.is-cancelled {
+  opacity: 0.35;
+  text-decoration: line-through;
+  border-left-color: var(--error, #dc2626);
+  background: color-mix(in srgb, var(--error, #dc2626) 8%, var(--panel));
+}
+.tg-event-title {
+  display: block;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tg-event-loc {
+  display: block;
+  color: var(--muted);
+  font-size: 0.65rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
