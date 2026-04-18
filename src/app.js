@@ -944,9 +944,11 @@
       .filter((entry) => entry.isoDate === todayIso && (!selectedClasses.length || selectedClasses.includes(entry.classLabel)))
       .sort((left, right) => `${left.classLabel || ""}${left.summary || left.title || ""}`.localeCompare(`${right.classLabel || ""}${right.summary || right.title || ""}`));
 
-    const classSelectionLabel = selectedClasses.length
-      ? (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewaehlt`)
-      : "Noch keine Klasse gewaehlt";
+    const allClasses = (classwork.classes || []).filter(Boolean);
+    const showingAll = !selectedClasses.length || selectedClasses.length === allClasses.length;
+    const classSelectionLabel = showingAll
+      ? "Alle Klassen"
+      : (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewaehlt`);
 
     const cards = [
       {
@@ -1068,25 +1070,47 @@
       .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt))[0] || null;
   }
 
+  function _nextSchoolDay(fromDate) {
+    // Returns start of next Monday (or next day if weekday) after fromDate
+    const d = new Date(fromDate);
+    d.setDate(d.getDate() + 1);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    return startOfDay(d);
+  }
+
   function renderTodayFullSchedule(data) {
     const now = new Date();
     const todayStart = startOfDay(now);
     const tomorrowStart = new Date(todayStart);
     tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const allEvents = (data.webuntisCenter?.events || []).filter((e) => e.startsAt);
 
-    const events = (data.webuntisCenter?.events || [])
-      .filter((e) => e.startsAt)
-      .filter((e) => {
-        const s = new Date(e.startsAt);
-        return s >= todayStart && s < tomorrowStart;
-      })
+    let events = allEvents
+      .filter((e) => { const s = new Date(e.startsAt); return s >= todayStart && s < tomorrowStart; })
       .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
 
-    if (!events.length) {
-      return '<div class="empty-state">Kein Stundenplan für heute eingetragen.</div>';
+    // On weekends or when today has no events + it's after 15:00 → show next school day
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+    const isLateWithNoMore = !events.length && now.getHours() >= 15;
+    let previewLabel = null;
+    if (!events.length && (isWeekend || isLateWithNoMore)) {
+      const nextDay = _nextSchoolDay(now);
+      const nextDayEnd = new Date(nextDay);
+      nextDayEnd.setDate(nextDayEnd.getDate() + 1);
+      events = allEvents
+        .filter((e) => { const s = new Date(e.startsAt); return s >= nextDay && s < nextDayEnd; })
+        .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+      if (events.length) {
+        previewLabel = nextDay.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      }
     }
 
-    return '<div class="today-schedule-list">'
+    if (!events.length) {
+      return '<div class="empty-state">Kein Stundenplan eingetragen.</div>';
+    }
+
+    return (previewLabel ? '<div class="today-schedule-preview-label">Nächster Schultag: ' + previewLabel + '</div>' : '')
+      + '<div class="today-schedule-list">'
       + events.map((e) => {
           const start = new Date(e.startsAt);
           const end = e.endsAt ? new Date(e.endsAt) : null;
@@ -1354,6 +1378,9 @@
       card.hidden = false;
       elements.todayOverviewGrid.appendChild(card);
     });
+
+    // Remove loading guard — layout is now applied
+    elements.todayOverviewGrid.classList.remove("layout-pending");
   }
 
   function renderExpandableSections() {
@@ -2566,24 +2593,18 @@
 
   function getSelectedClassworkClasses(classes, defaultClass = "") {
     const availableClasses = Array.isArray(classes) ? classes.filter(Boolean) : [];
-    if (!availableClasses.length) {
-      state.classworkSelectedClasses = [];
-      return [];
+    if (!availableClasses.length) return [];
+
+    // Check if user has ever explicitly saved a selection
+    const hasStoredSelection = localStorage.getItem(CLASSWORK_SELECTED_CLASSES_KEY) !== null;
+    if (!hasStoredSelection) {
+      // Nothing saved yet → show all classes (no filter)
+      return availableClasses;
     }
 
     const sanitized = (state.classworkSelectedClasses || []).filter((label) => availableClasses.includes(label));
-    if (sanitized.length) {
-      state.classworkSelectedClasses = sanitized;
-      return sanitized;
-    }
-
-    const nextSelection = defaultClass && availableClasses.includes(defaultClass)
-      ? [defaultClass]
-      : [availableClasses[0]];
-
-    state.classworkSelectedClasses = nextSelection;
-    persistClassworkSelectedClasses();
-    return nextSelection;
+    // Saved but all selected classes were removed from available → fall back to all
+    return sanitized.length ? sanitized : availableClasses;
   }
 
   async function loadClassworkCache() {
