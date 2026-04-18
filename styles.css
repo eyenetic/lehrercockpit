@@ -4148,6 +4148,26 @@ details[open] > .orgaplan-upcoming-summary::before {
     border-color: var(--accent);
     border-width: 2px;
   }
+
+  /* Time-grid: each day column fills ~85% of screen → one day per swipe */
+  .tg-wrap {
+    scroll-snap-type: x mandatory;
+  }
+  .tg-col {
+    flex: 0 0 80vw !important;
+    min-width: unset !important;
+    scroll-snap-align: start;
+  }
+  .tg-axis {
+    flex: 0 0 36px;
+    min-width: 36px;
+  }
+  .tg-event-title {
+    font-size: 0.75rem;
+  }
+  .tg-event-loc {
+    font-size: 0.65rem;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
