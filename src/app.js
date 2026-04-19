@@ -1125,7 +1125,7 @@
             : (startStr + (endStr ? '–' + endStr : ''));
           return '<div class="today-schedule-row' + stateClass + '">'
             + '<span class="today-schedule-time">' + timeStr + '</span>'
-            + '<span class="today-schedule-title">' + (e.title || '') + (e.location ? ' <span class="today-schedule-loc">· ' + e.location + '</span>' : '') + '</span>'
+            + '<span class="today-schedule-title">' + (e.title || '') + (e.location ? '<span class="today-schedule-loc">' + e.location + '</span>' : '') + '</span>'
             + (isCurrent ? '<span class="meta-tag today-schedule-now">jetzt</span>' : '')
             + '</div>';
         }).join('')

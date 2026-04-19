@@ -4019,6 +4019,10 @@ details[open] > .orgaplan-upcoming-summary::before {
   color: var(--muted);
   font-weight: 400;
 }
+/* In der normalen Liste: Raum inline mit Punkt-Trenner */
+.today-schedule-loc::before {
+  content: " · ";
+}
 .today-schedule-now {
   background: color-mix(in srgb, var(--tone-schedule, var(--accent)) 15%, transparent);
   color: var(--tone-schedule, var(--accent));
@@ -4040,11 +4044,21 @@ details[open] > .orgaplan-upcoming-summary::before {
   grid-template-columns: 5.5rem 1fr auto;
 }
 .today-focus-card .today-schedule-title {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
-  line-height: 1.3;
-  font-size: 0.79rem;
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.25;
+  font-size: 0.82rem;
+}
+/* In der Fokus-Karte: Raum als eigene Sub-Zeile, kein Punkt-Trenner */
+.today-focus-card .today-schedule-loc {
+  display: block;
+  font-size: 0.7rem;
+  margin-top: 1px;
+}
+.today-focus-card .today-schedule-loc::before {
+  content: none;
 }
 
 /* ── Heute-Module-Grid: non-briefing cards always in column 2 (desktop) ── */
