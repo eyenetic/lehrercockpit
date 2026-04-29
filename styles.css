@@ -806,8 +806,8 @@ a {
 }
 
 .today-focus-card strong {
-  font-size: 0.92rem;
-  line-height: 1.3;
+  font-size: 0.85rem;
+  line-height: 1.2;
 }
 
 .today-focus-card p {
@@ -4039,26 +4039,22 @@ details[open] > .orgaplan-upcoming-summary::before {
   margin: 0 -4px;
 }
 .today-focus-card .today-schedule-row {
-  font-size: 0.8rem;
-  padding: 5px 8px;
-  grid-template-columns: 5.5rem 1fr auto;
+  font-size: 0.85rem;
+  padding: 6px 8px;
+  grid-template-columns: 5.5rem 1fr;
 }
 .today-focus-card .today-schedule-title {
-  display: flex;
-  flex-direction: column;
   white-space: nowrap;
   overflow: hidden;
-  line-height: 1.25;
-  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
 }
-/* In der Fokus-Karte: Raum als eigene Sub-Zeile, kein Punkt-Trenner */
+/* In der Fokus-Karte: Raum inline mit Punkt-Trenner, kein Umbruch */
 .today-focus-card .today-schedule-loc {
-  display: block;
-  font-size: 0.7rem;
-  margin-top: 1px;
+  display: inline;
 }
 .today-focus-card .today-schedule-loc::before {
-  content: none;
+  content: " · ";
 }
 
 /* ── Heute-Module-Grid: non-briefing cards always in column 2 (desktop) ── */
@@ -4085,12 +4081,12 @@ details[open] > .orgaplan-upcoming-summary::before {
 
 /* ── Next-day preview label ─────────────────────────────────────────────── */
 .today-schedule-preview-label {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 /* ── Modal overlay (Code ändern, etc.) ─────────────────────────────────── */

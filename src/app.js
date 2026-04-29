@@ -952,7 +952,7 @@
 
     const cards = [
       {
-        title: "Stundenplan fuer den Tag",
+        title: "Stundenplan",
         tone: "schedule",
         section: "schedule",
         html: context.showWebuntis
