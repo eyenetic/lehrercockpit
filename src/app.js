@@ -2509,6 +2509,12 @@
       if (classlistRoot) window.LehrerClasslist.init(classlistRoot);
     }
 
+    // Einsammlungen
+    if (window.LehrerCollections) {
+      var collectionsRoot = document.getElementById('collections-root');
+      if (collectionsRoot) window.LehrerCollections.init(collectionsRoot);
+    }
+
     initPlansTabs();
     refreshDashboard().then(() => {
       loadClassworkCache();
