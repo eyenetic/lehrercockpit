@@ -73,6 +73,7 @@
           <button class="nav-link" type="button" data-section-target="inbox">Posteingang</button>
           <button class="nav-link" type="button" data-section-target="documents">Pläne</button>
           <button class="nav-link" type="button" data-section-target="grades">Notenrechner</button>
+          <button class="nav-link" type="button" data-section-target="classlist">Klassen</button>
         </nav>
 
         <div class="sidebar-theme">
@@ -564,6 +565,12 @@
             <div id="nextcloud-connect-feedback" class="connect-feedback"></div>
           </article>
         </section>
+
+        <!-- ── Klassenlisten ──────────────────────────────────────────── -->
+        <section class="content-grid classlist-grid" data-view-section="classlist">
+          <div id="classlist-root"></div>
+        </section>
+
       </main>
     </div>
 
@@ -676,6 +683,8 @@
     <script src="./src/features/nextcloud.js?v=62"></script>
     <script src="./src/features/documents.js?v=62"></script>
     <script src="./src/features/classwork.js?v=62"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="./src/features/classlist.js?v=64"></script>
     <script src="./src/features/inbox.js?v=62"></script>
     <script src="./src/features/zugaenge.js?v=62"></script>
     <script src="./src/app.js?v=62"></script>

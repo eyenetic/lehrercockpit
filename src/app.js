@@ -2503,6 +2503,12 @@
         setExpandableMeta: setExpandableMeta,
       });
     }
+    // Klassenlisten
+    if (window.LehrerClasslist) {
+      var classlistRoot = document.getElementById('classlist-root');
+      if (classlistRoot) window.LehrerClasslist.init(classlistRoot);
+    }
+
     initPlansTabs();
     refreshDashboard().then(() => {
       loadClassworkCache();
