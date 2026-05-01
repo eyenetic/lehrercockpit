@@ -242,6 +242,31 @@ def run_migrations(conn) -> None:
     except Exception as _is_admin_exc:
         print(f"[migrations] is_admin migration skipped (already applied?): {_is_admin_exc}", flush=True)
 
+    # ── email column + reset_tokens table ────────────────────────────────────
+    try:
+        conn.execute("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT
+        """)
+    except Exception as _email_exc:
+        print(f"[migrations] email column skipped: {_email_exc}", flush=True)
+
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id          SERIAL PRIMARY KEY,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token       TEXT NOT NULL UNIQUE,
+                expires_at  TIMESTAMPTZ NOT NULL,
+                used        BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_reset_tokens_token ON password_reset_tokens(token)
+        """)
+    except Exception as _token_exc:
+        print(f"[migrations] password_reset_tokens skipped: {_token_exc}", flush=True)
+
     print("[migrations] Alle Migrationen erfolgreich ausgeführt.", flush=True)
 
 

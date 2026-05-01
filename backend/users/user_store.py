@@ -38,6 +38,7 @@ class User:
     # is_admin is a persisted DB column (Phase 13). Default False for backward compat
     # when constructed without the column (e.g. legacy code paths).
     is_admin: bool = False
+    email: Optional[str] = None
 
     @property
     def full_name(self) -> str:
@@ -88,10 +89,11 @@ def _normalize_role_and_admin(role: str, is_admin: bool = False):
 def _row_to_user(row) -> User:
     """Konvertiert eine DB-Zeile in ein User-Objekt.
 
-    Expects columns: id, first_name, last_name, role, is_active, created_at, updated_at, is_admin
-    Falls back gracefully if is_admin column is missing (row has only 7 columns).
+    Expects columns: id, first_name, last_name, role, is_active, created_at, updated_at, is_admin[, email]
+    Falls back gracefully if columns are missing (legacy code paths).
     """
     is_admin = bool(row[7]) if len(row) > 7 else False
+    email    = row[8] if len(row) > 8 else None
     return User(
         id=row[0],
         first_name=row[1],
@@ -101,6 +103,7 @@ def _row_to_user(row) -> User:
         created_at=row[5],
         updated_at=row[6],
         is_admin=is_admin,
+        email=email,
     )
 
 
@@ -131,7 +134,7 @@ def create_user(
         """
         INSERT INTO users (first_name, last_name, role, is_admin)
         VALUES (%s, %s, %s, %s)
-        RETURNING id, first_name, last_name, role, is_active, created_at, updated_at, is_admin
+        RETURNING id, first_name, last_name, role, is_active, created_at, updated_at, is_admin, email
         """,
         (first_name, last_name, normalized_role, normalized_is_admin),
     ).fetchone()
@@ -150,7 +153,7 @@ def get_user_by_id(conn, user_id: int) -> Optional["User"]:
     """
     row = conn.execute(
         """
-        SELECT id, first_name, last_name, role, is_active, created_at, updated_at, is_admin
+        SELECT id, first_name, last_name, role, is_active, created_at, updated_at, is_admin, email
         FROM users
         WHERE id = %s
         """,
@@ -170,7 +173,7 @@ def get_all_users(conn) -> List["User"]:
     """
     rows = conn.execute(
         """
-        SELECT id, first_name, last_name, role, is_active, created_at, updated_at, is_admin
+        SELECT id, first_name, last_name, role, is_active, created_at, updated_at, is_admin, email
         FROM users
         ORDER BY last_name, first_name
         """
@@ -178,7 +181,7 @@ def get_all_users(conn) -> List["User"]:
     return [_row_to_user(row) for row in rows]
 
 
-_ALLOWED_UPDATE_FIELDS = {"first_name", "last_name", "role", "is_active", "is_admin"}
+_ALLOWED_UPDATE_FIELDS = {"first_name", "last_name", "role", "is_active", "is_admin", "email"}
 
 
 def update_user(conn, user_id: int, **kwargs) -> Optional["User"]:
@@ -217,7 +220,7 @@ def update_user(conn, user_id: int, **kwargs) -> Optional["User"]:
         UPDATE users
         SET {set_clauses}, updated_at = NOW()
         WHERE id = %s
-        RETURNING id, first_name, last_name, role, is_active, created_at, updated_at, is_admin
+        RETURNING id, first_name, last_name, role, is_active, created_at, updated_at, is_admin, email
         """,
         values,
     ).fetchone()

@@ -13,6 +13,14 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 API_URL = os.environ.get("API_URL", "http://localhost:5000")
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")  # Fernet key for module config encryption
 
+# SMTP (für Passwort-Reset-E-Mails)
+SMTP_HOST     = os.environ.get("SMTP_HOST", "")
+SMTP_PORT     = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER     = os.environ.get("SMTP_USER", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM     = os.environ.get("SMTP_FROM", SMTP_USER)   # Absender-Adresse, fällt auf SMTP_USER zurück
+SMTP_USE_TLS  = os.environ.get("SMTP_USE_TLS", "true").lower() not in ("0", "false", "no")
+
 # Login rate limiting — ENV-configurable thresholds
 # Set LOGIN_RATE_LIMIT_MAX and LOGIN_RATE_LIMIT_WINDOW_SECONDS in your deployment ENV to tune.
 LOGIN_RATE_LIMIT_MAX = int(os.environ.get("LOGIN_RATE_LIMIT_MAX", "10"))

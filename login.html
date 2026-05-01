@@ -163,6 +163,7 @@
         Bitte gib deinen persönlichen Zugangscode ein.
       </p>
 
+      <!-- ── Login-Formular ── -->
       <form class="login-form" id="login-form" autocomplete="off">
         <label for="access-code">
           Zugangscode
@@ -179,79 +180,170 @@
         <p class="login-hint">Deinen Code bekommst du von der Schuladministration.</p>
         <p id="error-message" hidden class="login-error" role="alert" aria-live="assertive"></p>
         <button type="submit" id="submit-btn" class="login-submit">Anmelden</button>
+        <button type="button" id="forgot-link" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">Code vergessen?</button>
+      </form>
+
+      <!-- ── Code-vergessen-Formular ── -->
+      <form class="login-form" id="forgot-form" autocomplete="off" hidden>
+        <p style="margin:0;font-size:0.88rem;color:var(--muted);">Gib deine E-Mail-Adresse ein – du erhältst einen Link zum Zurücksetzen.</p>
+        <label for="reset-email">
+          E-Mail-Adresse
+          <input type="email" id="reset-email" placeholder="deine@schule.de" autocomplete="email" />
+        </label>
+        <p id="forgot-message" hidden class="login-error" role="alert"></p>
+        <p id="forgot-success" hidden style="margin:0;padding:0.5rem 0.75rem;border-radius:var(--radius-sm);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#15803d;font-size:0.82rem;"></p>
+        <button type="submit" id="forgot-btn" class="login-submit">Reset-Link senden</button>
+        <button type="button" id="back-to-login" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">← Zurück zum Login</button>
+      </form>
+
+      <!-- ── Neuen Code setzen (via Reset-Token aus URL) ── -->
+      <form class="login-form" id="reset-form" autocomplete="off" hidden>
+        <p style="margin:0;font-size:0.88rem;color:var(--muted);" id="reset-greeting">Neuen Zugangscode vergeben.</p>
+        <label for="new-code-input">
+          Neuer Zugangscode
+          <input type="text" id="new-code-input" placeholder="Mind. 8 Zeichen, nur Buchstaben & Ziffern" autocomplete="off" spellcheck="false" minlength="8" />
+        </label>
+        <p class="login-hint">Mind. 8 Zeichen, nur Buchstaben und Ziffern (keine Sonderzeichen).</p>
+        <p id="reset-error" hidden class="login-error" role="alert"></p>
+        <p id="reset-success" hidden style="margin:0;padding:0.5rem 0.75rem;border-radius:var(--radius-sm);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#15803d;font-size:0.82rem;"></p>
+        <button type="submit" id="reset-btn" class="login-submit">Neuen Code speichern</button>
       </form>
     </div>
 
     <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
     <script>
       document.addEventListener('DOMContentLoaded', function () {
-        const form = document.getElementById('login-form');
-        const codeInput = document.getElementById('access-code');
-        const errorMsg = document.getElementById('error-message');
-        const submitBtn = document.getElementById('submit-btn');
+        const API = window.BACKEND_API_URL || '';
 
-        // Leitet basierend auf Rolle weiter
-        // Phase 13+: All users land on dashboard after login.
-        // is_admin users see an admin link on the dashboard — no auto-redirect to admin.html.
-        // Onboarding takes priority if not complete.
+        const loginForm  = document.getElementById('login-form');
+        const forgotForm = document.getElementById('forgot-form');
+        const resetForm  = document.getElementById('reset-form');
+
+        // ── Hilfsfunktionen ────────────────────────────────────────────────
+        function showOnly(form) {
+          [loginForm, forgotForm, resetForm].forEach(function(f){ f.hidden = (f !== form); });
+        }
+
         function redirectByRole(user) {
-          // All users: onboarding first if not complete
-          if (user && user.onboarding_complete === false) {
-            window.location.href = './onboarding.html';
-            return;
-          }
-          // Everyone lands on the dashboard — admin link shown there for is_admin users
+          if (user && user.onboarding_complete === false) { window.location.href = './onboarding.html'; return; }
           window.location.href = './index.html';
         }
 
-        // Prüfe ob bereits eingeloggt
-        async function checkSession() {
-          try {
-            const backendUrl = window.BACKEND_API_URL || '';
-            const resp = await fetch(backendUrl + '/api/v2/auth/me', { credentials: 'include' });
-            if (resp.ok) {
-              const data = await resp.json();
-              if (data.ok) {
-                redirectByRole(data.user);
+        // ── Reset-Token in URL? → Reset-Formular zeigen ───────────────────
+        const urlParams = new URLSearchParams(window.location.search);
+        const resetToken = urlParams.get('reset_token');
+        if (resetToken) {
+          (async function() {
+            try {
+              const r = await fetch(API + '/api/v2/auth/reset-info?token=' + encodeURIComponent(resetToken));
+              const d = await r.json();
+              if (r.ok && d.ok) {
+                document.getElementById('reset-greeting').textContent =
+                  'Hallo ' + d.first_name + ', vergib dir einen neuen Zugangscode.';
+                showOnly(resetForm);
+              } else {
+                document.getElementById('reset-error').textContent = d.error || 'Ungültiger oder abgelaufener Reset-Link.';
+                document.getElementById('reset-error').hidden = false;
+                showOnly(resetForm);
+                document.getElementById('reset-btn').disabled = true;
               }
+            } catch(e) {
+              showOnly(loginForm);
             }
-          } catch (e) {
-            // nicht eingeloggt, Formular zeigen
-          }
+          })();
         }
 
-        // Login-Submit
-        form.addEventListener('submit', async function (e) {
-          e.preventDefault();
-          const code = codeInput.value.trim();
-          if (!code) return;
-
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Anmelden…';
-          errorMsg.hidden = true;
-
+        // ── Session prüfen ────────────────────────────────────────────────
+        async function checkSession() {
+          if (resetToken) return; // Reset-Flow hat Vorrang
           try {
-            const backendUrl = window.BACKEND_API_URL || '';
-            const resp = await fetch(backendUrl + '/api/v2/auth/login', {
-              method: 'POST',
+            const resp = await fetch(API + '/api/v2/auth/me', { credentials: 'include' });
+            if (resp.ok) { const d = await resp.json(); if (d.ok) redirectByRole(d.user); }
+          } catch(e) {}
+        }
+
+        // ── Login ──────────────────────────────────────────────────────────
+        loginForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const code = document.getElementById('access-code').value.trim();
+          const errorMsg = document.getElementById('error-message');
+          const submitBtn = document.getElementById('submit-btn');
+          if (!code) return;
+          submitBtn.disabled = true; submitBtn.textContent = 'Anmelden…'; errorMsg.hidden = true;
+          try {
+            const resp = await fetch(API + '/api/v2/auth/login', {
+              method: 'POST', credentials: 'include',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ code }),
-              credentials: 'include',
+            });
+            const data = await resp.json();
+            if (resp.ok && data.ok) { redirectByRole(data.user); }
+            else { errorMsg.textContent = data.error || 'Ungültiger Zugangscode.'; errorMsg.hidden = false; }
+          } catch(e) { errorMsg.textContent = 'Verbindungsfehler. Bitte erneut versuchen.'; errorMsg.hidden = false; }
+          finally { submitBtn.disabled = false; submitBtn.textContent = 'Anmelden'; }
+        });
+
+        // ── Code vergessen / zurück ────────────────────────────────────────
+        document.getElementById('forgot-link').addEventListener('click', function() { showOnly(forgotForm); });
+        document.getElementById('back-to-login').addEventListener('click', function() { showOnly(loginForm); });
+
+        // ── Forgot-Formular absenden ───────────────────────────────────────
+        forgotForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const email = document.getElementById('reset-email').value.trim();
+          const msg   = document.getElementById('forgot-message');
+          const ok    = document.getElementById('forgot-success');
+          const btn   = document.getElementById('forgot-btn');
+          if (!email) return;
+          btn.disabled = true; btn.textContent = 'Sende…'; msg.hidden = true; ok.hidden = true;
+          try {
+            const resp = await fetch(API + '/api/v2/auth/request-reset', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email }),
             });
             const data = await resp.json();
             if (resp.ok && data.ok) {
-              redirectByRole(data.user);
+              ok.textContent = 'Falls ein Account mit dieser E-Mail existiert, wurde ein Link versendet. Bitte prüfe auch deinen Spam-Ordner.';
+              ok.hidden = false;
             } else {
-              errorMsg.textContent = data.error || 'Ungültiger Zugangscode.';
-              errorMsg.hidden = false;
+              msg.textContent = data.error || 'Fehler beim Senden.';
+              msg.hidden = false;
             }
-          } catch (e) {
-            errorMsg.textContent = 'Verbindungsfehler. Bitte versuche es erneut.';
-            errorMsg.hidden = false;
-          } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Anmelden';
-          }
+          } catch(e) { msg.textContent = 'Verbindungsfehler.'; msg.hidden = false; }
+          finally { btn.disabled = false; btn.textContent = 'Reset-Link senden'; }
+        });
+
+        // ── Neuen Code setzen ──────────────────────────────────────────────
+        resetForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const newCode = document.getElementById('new-code-input').value.trim();
+          const errEl   = document.getElementById('reset-error');
+          const okEl    = document.getElementById('reset-success');
+          const btn     = document.getElementById('reset-btn');
+          errEl.hidden = true; okEl.hidden = true;
+          if (newCode.length < 8) { errEl.textContent = 'Mindestens 8 Zeichen erforderlich.'; errEl.hidden = false; return; }
+          if (!/^[a-zA-Z0-9]+$/.test(newCode)) { errEl.textContent = 'Nur Buchstaben und Ziffern erlaubt.'; errEl.hidden = false; return; }
+          btn.disabled = true; btn.textContent = 'Speichern…';
+          try {
+            const resp = await fetch(API + '/api/v2/auth/reset-code', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: resetToken, new_code: newCode }),
+            });
+            const data = await resp.json();
+            if (resp.ok && data.ok) {
+              okEl.textContent = '✅ Zugangscode geändert! Du wirst zum Login weitergeleitet…';
+              okEl.hidden = false;
+              btn.hidden = true;
+              // URL bereinigen und zum Login
+              setTimeout(function() { window.location.href = './login.html'; }, 2500);
+            } else {
+              errEl.textContent = data.error || 'Fehler beim Speichern.';
+              errEl.hidden = false;
+            }
+          } catch(e) { errEl.textContent = 'Verbindungsfehler.'; errEl.hidden = false; }
+          finally { btn.disabled = false; if (!btn.hidden) btn.textContent = 'Neuen Code speichern'; }
         });
 
         checkSession();
