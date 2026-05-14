@@ -18,8 +18,8 @@ from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, request
 
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+# Denselben Limiter-Singleton aus auth_routes nutzen, damit init_app() greift
+from backend.api.auth_routes import limiter
 
 from backend.db import db_connection
 from backend.auth.access_code import hash_code, get_code_prefix
@@ -30,7 +30,6 @@ from backend.api.helpers import success, error
 from backend.config import FRONTEND_URL
 
 reset_bp = Blueprint("reset", __name__)
-limiter  = Limiter(key_func=get_remote_address, default_limits=[])
 
 TOKEN_TTL_MINUTES = 15
 
