@@ -236,6 +236,54 @@
         flex-shrink: 0;
         margin-top: 0.05em;
       }
+
+      /* ── Expandable hints ────────────────────────────────────── */
+      .step-hint {
+        margin-top: 0.25rem;
+      }
+      .step-hint summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+        cursor: pointer;
+        user-select: none;
+        list-style: none;
+        padding: 0.25rem 0;
+      }
+      .step-hint summary::-webkit-details-marker { display: none; }
+      .step-hint summary::before {
+        content: "▸";
+        font-size: 0.65rem;
+        transition: transform 150ms ease;
+      }
+      .step-hint[open] summary::before { transform: rotate(90deg); }
+      .step-hint-body {
+        margin-top: 0.5rem;
+        padding: 0.65rem 0.85rem;
+        background: var(--panel-soft);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        font-size: 0.79rem;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .step-hint-body ol {
+        margin: 0;
+        padding-left: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+      .step-hint-body ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        list-style: disc;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
     </style>
   </head>
   <body class="onboarding-page">
@@ -282,9 +330,17 @@
             placeholder="https://mese.webuntis.com/WebUntis/ical?…"
             autocomplete="off"
           />
-          <p class="field-hint">
-            Zu finden in WebUntis unter: Mein Konto → Kalender → iCal-Export → URL kopieren
-          </p>
+          <details class="step-hint">
+            <summary>ℹ️ Wo finde ich die iCal-URL?</summary>
+            <div class="step-hint-body">
+              <ol>
+                <li>Auf webuntis.com einloggen</li>
+                <li>Oben rechts auf deinen Namen klicken → „Mein Profil"</li>
+                <li>Tab „Kalenderabonnement" öffnen</li>
+                <li>Die URL unter „Kalender (iCal)" kopieren</li>
+              </ol>
+            </div>
+          </details>
         </div>
         <div id="webuntis-feedback"></div>
       </div>
@@ -310,6 +366,16 @@
           <label for="its-password">Passwort</label>
           <input type="password" id="its-password" placeholder="••••••••" autocomplete="new-password" />
         </div>
+        <details class="step-hint">
+          <summary>ℹ️ Hinweise zu itslearning</summary>
+          <div class="step-hint-body">
+            <ul>
+              <li>Benutzername: meist vorname.nachname (z.&nbsp;B. max.mustermann)</li>
+              <li>Passwort: dein normales itslearning-Passwort</li>
+              <li>Die Basis-URL findest du in deinem Browser, wenn du auf itslearning eingeloggt bist (z.&nbsp;B. https://schule.itslearning.com)</li>
+            </ul>
+          </div>
+        </details>
         <div id="itslearning-feedback"></div>
       </div>
 
@@ -332,6 +398,16 @@
             Empfehlung: Nutze ein App-Passwort (Nextcloud → Einstellungen → Sicherheit → App-Passwörter).
           </p>
         </div>
+        <details class="step-hint">
+          <summary>ℹ️ Hinweise zu Nextcloud</summary>
+          <div class="step-hint-body">
+            <ul>
+              <li>Server-URL: die Adresse deiner Nextcloud-Instanz (z.&nbsp;B. https://cloud.schule.de)</li>
+              <li>Benutzername und Passwort: deine Nextcloud-Anmeldedaten</li>
+              <li>Tipp: Ein App-Passwort ist sicherer als dein Haupt-Passwort (Nextcloud → Einstellungen → Sicherheit)</li>
+            </ul>
+          </div>
+        </details>
         <div id="nextcloud-feedback"></div>
       </div>
 

@@ -267,6 +267,26 @@ def run_migrations(conn) -> None:
     except Exception as _token_exc:
         print(f"[migrations] password_reset_tokens skipped: {_token_exc}", flush=True)
 
+    # ── access_requests (Waitlist/Registration) ───────────────────────────────
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS access_requests (
+                id          SERIAL PRIMARY KEY,
+                name        TEXT NOT NULL,
+                email       TEXT NOT NULL,
+                status      TEXT NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending', 'approved', 'rejected')),
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                approved_at TIMESTAMPTZ
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_access_requests_status
+                ON access_requests(status)
+        """)
+    except Exception as _reg_exc:
+        print(f"[migrations] access_requests migration skipped (already applied?): {_reg_exc}", flush=True)
+
     print("[migrations] Alle Migrationen erfolgreich ausgeführt.", flush=True)
 
 

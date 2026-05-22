@@ -147,6 +147,123 @@
         opacity: 0.55;
         cursor: not-allowed;
       }
+
+      /* ── Register form ───────────────────────────── */
+      .login-form input[type="email"] {
+        padding: 0.6rem 0.75rem;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        background: var(--panel-soft);
+        color: var(--ink);
+        font-size: 1rem;
+        transition: border-color 120ms ease;
+      }
+      .login-form input[type="email"]:focus {
+        border-color: var(--accent);
+        outline: none;
+      }
+      .login-register-success {
+        margin: 0;
+        padding: 0.65rem 0.85rem;
+        border-radius: var(--radius-sm);
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #15803d;
+        font-size: 0.84rem;
+        line-height: 1.5;
+      }
+
+      /* ── Privacy Modal ───────────────────────────── */
+      .login-footer {
+        display: flex;
+        justify-content: center;
+        margin-top: 0.25rem;
+      }
+      .btn-privacy {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-decoration: underline;
+        padding: 0;
+      }
+      .btn-privacy:hover { color: var(--ink); }
+
+      .privacy-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 1rem;
+      }
+      .privacy-overlay[hidden] { display: none !important; }
+      .privacy-panel {
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+        padding: 1.75rem;
+        width: 100%;
+        max-width: 480px;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .privacy-panel h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .privacy-panel h3 {
+        margin: 0 0 0.25rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .privacy-panel p,
+      .privacy-panel li {
+        margin: 0;
+        font-size: 0.82rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .privacy-panel ul {
+        padding-left: 1.2rem;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+      .privacy-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .privacy-section:last-of-type { border-bottom: none; }
+      .privacy-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .privacy-close {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 1.25rem;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0 0.25rem;
+      }
+      .privacy-close:hover { color: var(--ink); }
     </style>
   </head>
   <body class="login-page">
@@ -181,6 +298,7 @@
         <p id="error-message" hidden class="login-error" role="alert" aria-live="assertive"></p>
         <button type="submit" id="submit-btn" class="login-submit">Anmelden</button>
         <button type="button" id="forgot-link" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">Code vergessen?</button>
+        <button type="button" id="register-link" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">Noch kein Zugang? Hier anmelden</button>
       </form>
 
       <!-- ── Code-vergessen-Formular ── -->
@@ -208,6 +326,77 @@
         <p id="reset-success" hidden style="margin:0;padding:0.5rem 0.75rem;border-radius:var(--radius-sm);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#15803d;font-size:0.82rem;"></p>
         <button type="submit" id="reset-btn" class="login-submit">Neuen Code speichern</button>
       </form>
+
+      <!-- ── Registrierungsformular (Interesse anmelden) ── -->
+      <form class="login-form" id="register-form" autocomplete="off" hidden>
+        <p style="margin:0;font-size:0.88rem;color:var(--muted);">Noch kein Zugang? Melde dein Interesse an – du bekommst deinen Code per E-Mail.</p>
+        <label for="register-name">
+          Name
+          <input type="text" id="register-name" placeholder="Vorname Nachname" autocomplete="name" />
+        </label>
+        <label for="register-email">
+          E-Mail-Adresse
+          <input type="email" id="register-email" placeholder="deine@schule.de" autocomplete="email" />
+        </label>
+        <p id="register-error" hidden class="login-error" role="alert"></p>
+        <p id="register-success" hidden class="login-register-success"></p>
+        <button type="submit" id="register-btn" class="login-submit">Anfrage senden</button>
+        <button type="button" id="back-from-register" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">← Zurück zum Login</button>
+      </form>
+
+      <!-- ── Footer ── -->
+      <div class="login-footer">
+        <button type="button" class="btn-privacy" id="btn-privacy">Datenschutz</button>
+      </div>
+    </div>
+
+    <!-- ── Datenschutz-Modal ── -->
+    <div class="privacy-overlay" id="privacy-modal" hidden role="dialog" aria-modal="true" aria-labelledby="privacy-title">
+      <div class="privacy-panel">
+        <div class="privacy-header">
+          <h2 id="privacy-title">Datenschutz &amp; Datensicherheit</h2>
+          <button class="privacy-close" id="privacy-close" aria-label="Schließen" type="button">✕</button>
+        </div>
+
+        <div class="privacy-section">
+          <h3>Verantwortliche Stelle</h3>
+          <p>Lehrer-Cockpit Plattform – privat betriebener Dienst für Lehrkräfte.</p>
+        </div>
+
+        <div class="privacy-section">
+          <h3>Was wird gespeichert?</h3>
+          <ul>
+            <li>Name und E-Mail-Adresse (Kontodaten)</li>
+            <li>WebUntis-Kalender-URL (iCal)</li>
+            <li>Verschlüsselte Zugangsdaten zu verbundenen Diensten (itslearning, Nextcloud)</li>
+          </ul>
+        </div>
+
+        <div class="privacy-section">
+          <h3>Passwortsicherheit</h3>
+          <p>Zugangscodes werden mit <strong>Argon2id</strong> gehasht – einer modernen kryptografischen Funktion, die als State-of-the-Art für Passwortspeicherung gilt. Es wird kein Klartext-Passwort gespeichert; eine Wiederherstellung ist technisch nicht möglich.</p>
+        </div>
+
+        <div class="privacy-section">
+          <h3>Was NICHT eingegeben werden soll</h3>
+          <p>Bitte gib <strong>keine personenbezogenen Schülerdaten</strong> ein – also keine Schülernamen, Noten mit Namensangabe oder andere datenschutzrelevante Informationen zu Schülerinnen und Schülern.</p>
+        </div>
+
+        <div class="privacy-section">
+          <h3>Datenweitergabe</h3>
+          <p>Es erfolgt <strong>keine Weitergabe von Daten an Dritte</strong>. Es werden keine Tracking-Tools, keine Werbedienste und keine Analyseplattformen eingesetzt.</p>
+        </div>
+
+        <div class="privacy-section">
+          <h3>DSGVO</h3>
+          <p>Die Plattform verarbeitet ausschließlich die Daten, die für den Betrieb des Dienstes technisch notwendig sind, und speichert diese nicht länger als erforderlich.</p>
+        </div>
+
+        <div class="privacy-section">
+          <h3>Kontakt</h3>
+          <p>Bei Fragen zum Datenschutz wende dich direkt über die Plattform an den Betreiber.</p>
+        </div>
+      </div>
     </div>
 
     <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
@@ -215,13 +404,14 @@
       document.addEventListener('DOMContentLoaded', function () {
         const API = window.BACKEND_API_URL || '';
 
-        const loginForm  = document.getElementById('login-form');
-        const forgotForm = document.getElementById('forgot-form');
-        const resetForm  = document.getElementById('reset-form');
+        const loginForm    = document.getElementById('login-form');
+        const forgotForm   = document.getElementById('forgot-form');
+        const resetForm    = document.getElementById('reset-form');
+        const registerForm = document.getElementById('register-form');
 
         // ── Hilfsfunktionen ────────────────────────────────────────────────
         function showOnly(form) {
-          [loginForm, forgotForm, resetForm].forEach(function(f){ f.hidden = (f !== form); });
+          [loginForm, forgotForm, resetForm, registerForm].forEach(function(f){ f.hidden = (f !== form); });
         }
 
         function redirectByRole(user) {
@@ -286,6 +476,55 @@
         // ── Code vergessen / zurück ────────────────────────────────────────
         document.getElementById('forgot-link').addEventListener('click', function() { showOnly(forgotForm); });
         document.getElementById('back-to-login').addEventListener('click', function() { showOnly(loginForm); });
+
+        // ── Registrierung ──────────────────────────────────────────────────
+        document.getElementById('register-link').addEventListener('click', function() { showOnly(registerForm); });
+        document.getElementById('back-from-register').addEventListener('click', function() { showOnly(loginForm); });
+
+        registerForm.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const name  = document.getElementById('register-name').value.trim();
+          const email = document.getElementById('register-email').value.trim();
+          const errEl = document.getElementById('register-error');
+          const okEl  = document.getElementById('register-success');
+          const btn   = document.getElementById('register-btn');
+          errEl.hidden = true; okEl.hidden = true;
+          if (!name) { errEl.textContent = 'Bitte gib deinen Namen ein.'; errEl.hidden = false; return; }
+          if (!email) { errEl.textContent = 'Bitte gib deine E-Mail-Adresse ein.'; errEl.hidden = false; return; }
+          btn.disabled = true; btn.textContent = 'Sende…';
+          try {
+            const resp = await fetch(API + '/api/v2/register-interest', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, email }),
+            });
+            const data = await resp.json();
+            if (resp.ok && data.ok) {
+              okEl.textContent = 'Schön, dass du dabei sein willst! Du wirst freigeschaltet und bekommst demnächst deinen Code. 🎉';
+              okEl.hidden = false;
+              btn.hidden = true;
+              document.getElementById('back-from-register').textContent = '← Zurück zum Login';
+            } else if (resp.status === 409) {
+              errEl.textContent = data.error || 'Diese E-Mail ist bereits registriert.';
+              errEl.hidden = false;
+            } else {
+              errEl.textContent = data.error || 'Fehler beim Senden der Anfrage.';
+              errEl.hidden = false;
+            }
+          } catch(e) { errEl.textContent = 'Verbindungsfehler. Bitte erneut versuchen.'; errEl.hidden = false; }
+          finally { if (!btn.hidden) { btn.disabled = false; btn.textContent = 'Anfrage senden'; } }
+        });
+
+        // ── Datenschutz-Modal ──────────────────────────────────────────────
+        document.getElementById('btn-privacy').addEventListener('click', function() {
+          document.getElementById('privacy-modal').hidden = false;
+        });
+        document.getElementById('privacy-close').addEventListener('click', function() {
+          document.getElementById('privacy-modal').hidden = true;
+        });
+        document.getElementById('privacy-modal').addEventListener('click', function(e) {
+          if (e.target === this) this.hidden = true;
+        });
 
         // ── Forgot-Formular absenden ───────────────────────────────────────
         forgotForm.addEventListener('submit', async function(e) {

@@ -7,6 +7,7 @@ from .admin_routes import admin_bp
 from .dashboard_routes import dashboard_bp
 from .module_routes import module_bp
 from .reset_routes import reset_bp
+from .register_routes import register_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -16,3 +17,4 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(dashboard_bp, url_prefix="/api/v2/dashboard")
     app.register_blueprint(module_bp, url_prefix="/api/v2/modules")
     app.register_blueprint(reset_bp, url_prefix="/api/v2/auth")
+    app.register_blueprint(register_bp, url_prefix="/api/v2")

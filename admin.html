@@ -458,6 +458,53 @@
         font-size: 0.85rem;
         padding: 2rem;
       }
+
+      /* ── Request badges ──────────────────────────────────────── */
+      .badge-pending  { background: rgba(234,179,8,0.15); color: #a16207; }
+      .badge-approved { background: rgba(22,163,74,0.12); color: var(--success); }
+      .badge-rejected { background: var(--panel-soft); color: var(--muted); }
+
+      /* ── Toast notification ──────────────────────────────────── */
+      .admin-toast {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        background: var(--panel);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+        padding: 1rem 1.25rem;
+        max-width: 340px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+      }
+      .admin-toast[hidden] { display: none !important; }
+      .admin-toast-title {
+        font-weight: 700;
+        color: var(--ink);
+        font-size: 0.88rem;
+      }
+      .admin-toast-code {
+        font-family: "Geist Mono", monospace;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--accent);
+        letter-spacing: 0.06em;
+        word-break: break-all;
+      }
+      .admin-toast-close {
+        background: none;
+        border: none;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.78rem;
+        padding: 0;
+        align-self: flex-end;
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body class="admin-page">
@@ -471,6 +518,7 @@
 
         <nav class="admin-tabs" role="tablist" aria-label="Admin-Bereiche">
           <button class="admin-tab active" type="button" data-tab="users" role="tab" aria-selected="true">Lehrkräfte</button>
+          <button class="admin-tab" type="button" data-tab="requests" role="tab" aria-selected="false">Zugansanfragen</button>
           <button class="admin-tab" type="button" data-tab="settings" role="tab" aria-selected="false">Einstellungen</button>
           <button class="admin-tab" type="button" data-tab="audit" role="tab" aria-selected="false">Protokoll</button>
         </nav>
@@ -494,6 +542,20 @@
             <div id="users-feedback"></div>
             <div id="users-table-container">
               <p class="loading-row">Lade Lehrkräfte…</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab: Zugansanfragen -->
+        <section class="admin-section" id="tab-requests" role="tabpanel">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-section-title">Zugansanfragen</h2>
+              <button class="btn btn-sm" id="btn-requests-refresh" type="button">Aktualisieren</button>
+            </div>
+            <div id="requests-feedback"></div>
+            <div id="requests-table-container">
+              <p class="loading-row">Lade Anfragen…</p>
             </div>
           </div>
         </section>
@@ -697,6 +759,18 @@
       </div>
     </div>
 
+    <!-- Toast für Zugangscode nach Freischaltung -->
+    <div class="admin-toast" id="approve-toast" hidden>
+      <span class="admin-toast-title">Lehrkraft freigeschaltet!</span>
+      <span style="font-size:0.8rem;color:var(--muted);">Zugangscode (einmalig anzeigen):</span>
+      <span class="admin-toast-code" id="approve-toast-code">–</span>
+      <span style="font-size:0.76rem;color:var(--muted);">⚠️ Jetzt kopieren – wird nur einmal angezeigt.</span>
+      <div style="display:flex;gap:0.5rem;margin-top:0.25rem;">
+        <button class="btn btn-sm" id="approve-toast-copy" type="button">Kopieren</button>
+        <button class="admin-toast-close" id="approve-toast-close" type="button">Schließen</button>
+      </div>
+    </div>
+
     <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
     <script src="./src/api-client.js"></script>
     <script>
@@ -833,6 +907,10 @@
               if (tab === 'audit') {
                 _auditOffset = 0;
                 loadAuditLog();
+              }
+              // Load requests when switching to requests tab
+              if (tab === 'requests') {
+                loadAccessRequests();
               }
             });
           });
@@ -1324,6 +1402,137 @@
             setFeedback('modules-feedback', 'Verbindungsfehler.', 'error');
           }
         };
+
+        // ── Access Requests Tab ───────────────────────────────────────────────
+
+        async function loadAccessRequests() {
+          var container = document.getElementById('requests-table-container');
+          if (container) container.innerHTML = '<p class="loading-row">Lade Anfragen…</p>';
+          try {
+            var resp = await apiFetch('/api/v2/admin/access-requests');
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            var data = await resp.json();
+            renderRequestsTable(data.requests || [], container);
+          } catch (e) {
+            if (container) container.innerHTML = '<p class="feedback-msg error">Fehler beim Laden der Anfragen.</p>';
+          }
+        }
+
+        function renderRequestsTable(requests, container) {
+          if (!container) return;
+          if (!requests.length) {
+            container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:1rem 0;">Keine Anfragen vorhanden.</p>';
+            return;
+          }
+          var html = '<table class="user-table"><thead><tr>'
+            + '<th>Name</th><th>E-Mail</th><th>Datum</th><th>Status</th><th>Aktionen</th>'
+            + '</tr></thead><tbody>';
+          requests.forEach(function (req) {
+            var date = req.created_at ? new Date(req.created_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '–';
+            var statusBadge, actions;
+            if (req.status === 'pending') {
+              statusBadge = '<span class="badge badge-pending">Ausstehend</span>';
+              actions = '<div class="actions-cell">'
+                + '<button class="btn btn-sm btn-primary" type="button" data-req-action="approve" data-req-id="' + req.id + '" data-req-name="' + esc(req.name) + '">Freigeben</button>'
+                + '<button class="btn btn-sm" type="button" data-req-action="reject" data-req-id="' + req.id + '">Ablehnen</button>'
+                + '</div>';
+            } else if (req.status === 'approved') {
+              statusBadge = '<span class="badge badge-approved">Freigeschaltet</span>';
+              actions = '–';
+            } else {
+              statusBadge = '<span class="badge badge-rejected">Abgelehnt</span>';
+              actions = '–';
+            }
+            html += '<tr>'
+              + '<td>' + esc(req.name) + '</td>'
+              + '<td style="font-size:0.82rem;">' + esc(req.email) + '</td>'
+              + '<td style="font-size:0.78rem;color:var(--muted);white-space:nowrap;">' + esc(date) + '</td>'
+              + '<td>' + statusBadge + '</td>'
+              + '<td>' + actions + '</td>'
+              + '</tr>';
+          });
+          html += '</tbody></table>';
+          container.innerHTML = html;
+        }
+
+        // Event delegation for requests table
+        (function () {
+          var reqContainer = document.getElementById('requests-table-container');
+          if (!reqContainer) return;
+          reqContainer.addEventListener('click', async function (e) {
+            var btn = e.target.closest('button[data-req-action]');
+            if (!btn) return;
+            var action = btn.dataset.reqAction;
+            var reqId  = parseInt(btn.dataset.reqId, 10);
+            var reqName = btn.dataset.reqName || '';
+            if (action === 'approve') {
+              if (!confirm('Lehrkraft "' + reqName + '" freischalten und Zugangscode senden?')) return;
+              btn.disabled = true; btn.textContent = 'Freigeben…';
+              try {
+                var resp = await apiFetch('/api/v2/admin/access-requests/' + reqId + '/approve', { method: 'POST' });
+                var data = await resp.json();
+                if (!resp.ok) {
+                  setFeedback('requests-feedback', data.error || 'Fehler beim Freischalten.', 'error');
+                } else {
+                  loadAccessRequests();
+                  showApproveToast(data.code || '');
+                }
+              } catch (err) {
+                setFeedback('requests-feedback', 'Verbindungsfehler.', 'error');
+              } finally {
+                btn.disabled = false; btn.textContent = 'Freigeben';
+              }
+            } else if (action === 'reject') {
+              if (!confirm('Anfrage ablehnen?')) return;
+              btn.disabled = true; btn.textContent = 'Ablehnen…';
+              try {
+                var resp2 = await apiFetch('/api/v2/admin/access-requests/' + reqId + '/reject', { method: 'POST' });
+                if (!resp2.ok) {
+                  var d2 = await resp2.json();
+                  setFeedback('requests-feedback', d2.error || 'Fehler.', 'error');
+                } else {
+                  loadAccessRequests();
+                }
+              } catch (err2) {
+                setFeedback('requests-feedback', 'Verbindungsfehler.', 'error');
+              } finally {
+                btn.disabled = false; btn.textContent = 'Ablehnen';
+              }
+            }
+          });
+        })();
+
+        var btnRequestsRefresh = document.getElementById('btn-requests-refresh');
+        if (btnRequestsRefresh) {
+          btnRequestsRefresh.addEventListener('click', loadAccessRequests);
+        }
+
+        function showApproveToast(code) {
+          var toast = document.getElementById('approve-toast');
+          var codeEl = document.getElementById('approve-toast-code');
+          if (!toast || !codeEl) return;
+          codeEl.textContent = code;
+          toast.hidden = false;
+          // auto-hide after 60s
+          setTimeout(function () { toast.hidden = true; }, 60000);
+        }
+
+        var toastCopy  = document.getElementById('approve-toast-copy');
+        var toastClose = document.getElementById('approve-toast-close');
+        if (toastCopy) {
+          toastCopy.addEventListener('click', function () {
+            var code = document.getElementById('approve-toast-code').textContent;
+            navigator.clipboard.writeText(code).then(function () {
+              toastCopy.textContent = 'Kopiert!';
+              setTimeout(function () { toastCopy.textContent = 'Kopieren'; }, 1500);
+            });
+          });
+        }
+        if (toastClose) {
+          toastClose.addEventListener('click', function () {
+            document.getElementById('approve-toast').hidden = true;
+          });
+        }
 
         // ── Close modal on overlay click ──────────────────────────────────────
 

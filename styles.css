@@ -1307,9 +1307,12 @@ a {
 .webuntis-week-column-head {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   font-size: 0.78rem;
   color: var(--muted);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 2px;
 }
 
 .webuntis-week-columns {
@@ -4584,35 +4587,51 @@ details[open] > .orgaplan-upcoming-summary::before {
 }
 .tg-col {
   flex: 1 1 0;
-  min-width: 52px;
+  min-width: 56px;
   display: flex;
   flex-direction: column;
   scroll-snap-align: start;
+  border-right: 1px solid var(--line);
 }
+.tg-col:last-child { border-right: none; }
 .tg-col.is-today > .tg-col-head {
   color: var(--accent);
   font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
 }
 .tg-col-head {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 4px 2px 6px;
-  min-height: 44px;
-  border-bottom: 1px solid var(--line);
+  gap: 2px;
+  padding: 6px 4px 8px;
+  min-height: 48px;
+  border-bottom: 2px solid var(--line-strong);
 }
 .tg-col-day {
-  font-size: 0.65rem;
+  font-size: 0.63rem;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.09em;
   color: var(--muted);
+  font-weight: 600;
 }
 .tg-col.is-today .tg-col-day { color: var(--accent); }
 .tg-col-date {
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: inherit;
+  line-height: 1.1;
+}
+.tg-col.is-today .tg-col-date {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
 }
 .tg-col-body {
   position: relative;
@@ -4627,26 +4646,33 @@ details[open] > .orgaplan-upcoming-summary::before {
 .tg-event {
   position: absolute;
   box-sizing: border-box;
-  padding: 2px 3px;
-  border-radius: 3px;
+  padding: 3px 5px;
+  border-radius: 5px;
   background: color-mix(in srgb, var(--accent) 14%, var(--panel));
   border-left: 3px solid var(--accent);
   overflow: hidden;
   font-size: 0.7rem;
-  line-height: 1.25;
+  line-height: 1.3;
   cursor: default;
   z-index: 1;
+  transition: box-shadow 120ms ease;
+}
+.tg-event:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  z-index: 3;
 }
 .tg-event.is-past {
-  opacity: 0.45;
+  opacity: 0.4;
   background: var(--panel-soft);
   border-left-color: var(--muted);
 }
 .tg-event.is-current {
-  background: color-mix(in srgb, var(--accent) 20%, var(--panel));
+  background: color-mix(in srgb, var(--accent) 22%, var(--panel));
   border-left-color: var(--accent);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 25%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent);
   z-index: 2;
+  outline: 1.5px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline-offset: 0;
 }
 .tg-event.is-cancelled {
   opacity: 0.35;
