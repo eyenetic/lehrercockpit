@@ -932,8 +932,32 @@ def get_dashboard_data():
 
     # Build the base section from base_result.data (Phase 12)
     base_data = base_result.get("data", {}) if base_result.get("ok") else {}
+    quick_links = list(base_data.get("quick_links", []))
+
+    # Custom links des Users aus user_module_configs holen
+    try:
+        with db_connection() as conn:
+            custom_row = conn.execute(
+                "SELECT config_data FROM user_module_configs WHERE user_id = %s AND module_id = 'custom_links'",
+                (user_id,)
+            ).fetchone()
+        if custom_row:
+            import json
+            custom_data = custom_row[0] if isinstance(custom_row[0], dict) else json.loads(custom_row[0])
+            for cl in custom_data.get("links", []):
+                if cl.get("url") and cl.get("title"):
+                    quick_links.append({
+                        "id": "custom-" + cl["title"].lower().replace(" ", "-")[:20],
+                        "title": cl["title"],
+                        "url": cl["url"],
+                        "kind": cl.get("category", "sonstiges"),
+                        "note": cl.get("title", ""),
+                    })
+    except Exception:
+        pass
+
     base_section = {
-        "quick_links": base_data.get("quick_links", []),
+        "quick_links": quick_links,
         "workspace": base_data.get("workspace", {}),
         "berlin_focus": base_data.get("berlin_focus", []),
         "documents": base_data.get("documents", None),  # None = deferred

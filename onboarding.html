@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./styles.auth.css" />
+    <link rel="stylesheet" href="./styles.css?v=66" />
+    <link rel="stylesheet" href="./styles.auth.css?v=66" />
     <style>
       body.onboarding-page {
         display: flex;
@@ -284,6 +284,15 @@
         flex-direction: column;
         gap: 0.2rem;
       }
+
+      /* ── Schulwebseite scannen – Link-Auswahl ────────────────── */
+      .link-category { margin-top: 0.75rem; }
+      .link-category-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+      .link-checkbox-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid var(--line); }
+      .link-checkbox-row:last-child { border-bottom: none; }
+      .link-checkbox-row input[type="checkbox"] { accent-color: var(--accent); }
+      .link-checkbox-row label { font-size: 0.85rem; color: var(--ink); cursor: pointer; flex: 1; }
+      .link-checkbox-row .link-url { font-size: 0.72rem; color: var(--muted); }
     </style>
   </head>
   <body class="onboarding-page">
@@ -411,6 +420,26 @@
         <div id="nextcloud-feedback"></div>
       </div>
 
+      <!-- Schritt: Schulwebseite scannen -->
+      <div class="onboarding-step" id="step-school-links">
+        <h2>Schulwebseite scannen</h2>
+        <p>Gib die URL der Schulwebseite ein – wir extrahieren nützliche Links automatisch für deine Direkten Zugriffe.</p>
+        <div class="form-field">
+          <label for="school-url">Schulwebseite</label>
+          <input type="url" id="school-url" placeholder="https://meine-schule.de" autocomplete="off" />
+          <p class="field-hint">z.B. https://hermann-ehlers-schule.de</p>
+        </div>
+        <button type="button" id="scan-school-btn" class="btn-next" style="align-self:flex-start">Jetzt scannen</button>
+        <div id="scan-feedback"></div>
+
+        <!-- Link-Auswahl (erscheint nach dem Scan) -->
+        <div id="school-links-result" hidden>
+          <p style="font-size:0.83rem;color:var(--muted);margin:0.5rem 0;">Wähle aus, welche Links du in deinen Direkten Zugriffen haben möchtest:</p>
+          <div id="school-links-groups"></div>
+          <!-- Checkboxen werden per JS eingefügt, nach Kategorie gruppiert -->
+        </div>
+      </div>
+
       <!-- Letzter Schritt: Fertig -->
       <div class="onboarding-step" id="step-finish">
         <div class="welcome-icon">🎉</div>
@@ -436,11 +465,12 @@
 
         // Module IDs die Onboarding brauchen könnten
         const MODULE_STEPS = [
-          { id: 'step-welcome',    moduleId: null,          always: true },
-          { id: 'step-webuntis',   moduleId: 'webuntis',    always: false },
-          { id: 'step-itslearning',moduleId: 'itslearning', always: false },
-          { id: 'step-nextcloud',  moduleId: 'nextcloud',   always: false },
-          { id: 'step-finish',     moduleId: null,          always: true },
+          { id: 'step-welcome',      moduleId: null,           always: true },
+          { id: 'step-webuntis',     moduleId: 'webuntis',     always: false },
+          { id: 'step-itslearning',  moduleId: 'itslearning',  always: false },
+          { id: 'step-nextcloud',    moduleId: 'nextcloud',    always: false },
+          { id: 'step-school-links', moduleId: 'school-links', always: true },
+          { id: 'step-finish',       moduleId: null,           always: true },
         ];
 
         let currentStepIndex = 0;
@@ -557,7 +587,7 @@
         }
 
         function clearFeedback() {
-          ['welcome-feedback', 'webuntis-feedback', 'itslearning-feedback', 'nextcloud-feedback', 'finish-feedback'].forEach(function (id) {
+          ['welcome-feedback', 'webuntis-feedback', 'itslearning-feedback', 'nextcloud-feedback', 'scan-feedback', 'finish-feedback'].forEach(function (id) {
             const el = document.getElementById(id);
             if (el) el.innerHTML = '';
           });
@@ -603,6 +633,34 @@
               return false;
             }
             config = { server_url: server, username: user, password: pass };
+          } else if (step.moduleId === 'school-links') {
+            // Sammelt alle angehakten Checkboxen als Links-Array
+            const checkboxes = document.querySelectorAll('#school-links-groups input[type="checkbox"]:checked');
+            if (checkboxes.length === 0) return true; // Nichts ausgewählt → überspringen ok
+            const links = [];
+            checkboxes.forEach(function (cb) {
+              try {
+                links.push(JSON.parse(cb.dataset.link));
+              } catch (e) { /* ignore */ }
+            });
+            if (links.length === 0) return true;
+            try {
+              const resp = await fetch(BACKEND + '/api/v2/modules/save-custom-links', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ links: links }),
+                credentials: 'include',
+              });
+              if (!resp.ok) {
+                const err = await resp.json().catch(function () { return {}; });
+                showFeedback('scan-feedback', err.error || 'Fehler beim Speichern der Links.', 'error');
+                return false;
+              }
+              return true;
+            } catch (e) {
+              showFeedback('scan-feedback', 'Verbindungsfehler beim Speichern.', 'error');
+              return false;
+            }
           }
 
           try {
@@ -623,6 +681,110 @@
             return false;
           }
         }
+
+        // ── Schulwebseite scannen ────────────────────────────────────────────
+
+        var _CATEGORY_LABELS = {
+          'tools':     '🔧 Tools & Plattformen',
+          'dokumente': '📄 Dokumente',
+          'kalender':  '📅 Kalender & Zeiten',
+          'kontakt':   '👥 Kontakt',
+          'sonstiges': '↗ Weitere Links',
+        };
+        var _AUTO_CHECK_CATEGORIES = ['tools', 'dokumente', 'kalender'];
+
+        function renderScannedLinks(links) {
+          var container = document.getElementById('school-links-groups');
+          container.innerHTML = '';
+
+          // Group by category
+          var groups = {};
+          links.forEach(function (link) {
+            var cat = link.category || 'sonstiges';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(link);
+          });
+
+          // Render in priority order
+          var catOrder = ['tools', 'dokumente', 'kalender', 'kontakt', 'sonstiges'];
+          catOrder.forEach(function (cat) {
+            if (!groups[cat] || groups[cat].length === 0) return;
+            var div = document.createElement('div');
+            div.className = 'link-category';
+            var label = document.createElement('div');
+            label.className = 'link-category-label';
+            label.textContent = _CATEGORY_LABELS[cat] || cat;
+            div.appendChild(label);
+
+            groups[cat].forEach(function (link, i) {
+              var row = document.createElement('div');
+              row.className = 'link-checkbox-row';
+              var cbId = 'sl-cb-' + cat + '-' + i;
+              var cb = document.createElement('input');
+              cb.type = 'checkbox';
+              cb.id = cbId;
+              cb.dataset.link = JSON.stringify(link);
+              cb.checked = _AUTO_CHECK_CATEGORIES.indexOf(cat) !== -1;
+              var lbl = document.createElement('label');
+              lbl.htmlFor = cbId;
+              lbl.textContent = link.icon + ' ' + link.title;
+              var urlSpan = document.createElement('span');
+              urlSpan.className = 'link-url';
+              try {
+                urlSpan.textContent = new URL(link.url).hostname;
+              } catch (e) {
+                urlSpan.textContent = '';
+              }
+              row.appendChild(cb);
+              row.appendChild(lbl);
+              row.appendChild(urlSpan);
+              div.appendChild(row);
+            });
+            container.appendChild(div);
+          });
+
+          document.getElementById('school-links-result').hidden = false;
+        }
+
+        document.getElementById('scan-school-btn').addEventListener('click', async function () {
+          var btn = document.getElementById('scan-school-btn');
+          var urlVal = document.getElementById('school-url').value.trim();
+          var feedbackEl = document.getElementById('scan-feedback');
+          feedbackEl.innerHTML = '';
+
+          if (!urlVal || !urlVal.startsWith('http')) {
+            feedbackEl.innerHTML = '<p class="onboarding-feedback error">Bitte eine gültige URL eingeben (beginnt mit https://).</p>';
+            return;
+          }
+
+          btn.disabled = true;
+          btn.textContent = 'Scanne…';
+
+          try {
+            var resp = await fetch(BACKEND + '/api/v2/modules/scrape-school-website', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: urlVal }),
+              credentials: 'include',
+            });
+            var data = await resp.json().catch(function () { return {}; });
+            if (!resp.ok || !data.ok) {
+              feedbackEl.innerHTML = '<p class="onboarding-feedback error">' + (data.error || 'Webseite konnte nicht geladen werden.') + '</p>';
+            } else {
+              var links = data.links || [];
+              if (links.length === 0) {
+                feedbackEl.innerHTML = '<p class="onboarding-feedback error">Keine nützlichen Links auf dieser Seite gefunden.</p>';
+              } else {
+                renderScannedLinks(links);
+              }
+            }
+          } catch (e) {
+            feedbackEl.innerHTML = '<p class="onboarding-feedback error">Verbindungsfehler beim Scannen.</p>';
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Jetzt scannen';
+          }
+        });
 
         // Event-Handler
         document.getElementById('btn-next').addEventListener('click', async function () {

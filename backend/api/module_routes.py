@@ -4,6 +4,7 @@ Enthält auch CRUD-Endpunkte für Modul-Konfigurationen und
 öffentliche Registry-Metadaten (kein Auth erforderlich).
 """
 import dataclasses
+import json
 from datetime import datetime, timezone
 from flask import Blueprint, request, g
 
@@ -706,3 +707,45 @@ def delete_note_entry(class_name: str):
         return success()
     except Exception as exc:
         return error(f"Fehler beim Löschen der Notiz: {type(exc).__name__}: {exc}", 500)
+
+
+# ── Schulwebseite scannen / Custom Links ─────────────────────────────────────
+
+@module_bp.route("/scrape-school-website", methods=["POST"])
+@require_auth
+def scrape_school_website():
+    """Scrapt eine Schulwebseite und gibt kategorisierte Links zurück."""
+    body = request.get_json(silent=True) or {}
+    url = (body.get("url") or "").strip()
+    if not url or not url.startswith("http"):
+        return error("Bitte eine gültige URL eingeben.", 422)
+    try:
+        from backend.school_scraper import scrape_school_links
+        links = scrape_school_links(url)
+        return success({"links": links})
+    except Exception as exc:
+        return error(f"Webseite konnte nicht geladen werden: {exc}", 502)
+
+
+@module_bp.route("/save-custom-links", methods=["POST"])
+@require_auth
+def save_custom_links():
+    """Speichert benutzerdefinierte Links in user_module_configs."""
+    body = request.get_json(silent=True) or {}
+    links = body.get("links", [])
+    # Validierung: max 30 Links, jeder hat title + url
+    if not isinstance(links, list):
+        return error("Ungültige Links.", 422)
+    links = [l for l in links if isinstance(l, dict) and l.get("title") and l.get("url")][:30]
+
+    user_id = g.current_user.id
+
+    with db_connection() as conn:
+        conn.execute("""
+            INSERT INTO user_module_configs (user_id, module_id, config_data)
+            VALUES (%s, 'custom_links', %s)
+            ON CONFLICT (user_id, module_id) DO UPDATE
+                SET config_data = EXCLUDED.config_data, updated_at = NOW()
+        """, (user_id, json.dumps({"links": links})))
+
+    return success({"saved": len(links)})
