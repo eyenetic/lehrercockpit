@@ -1078,6 +1078,102 @@
     return startOfDay(d);
   }
 
+  // ── Lerngruppen-Erkennung & Klausur-Verknüpfung ─────────────────────────────
+  // Leitet aus einer WebUntis-Stunde die Lerngruppe ab und verknüpft sie – aber
+  // NUR wo die Datenlage es hergibt – mit dem Klassenarbeitsplan (Sek I) bzw.
+  // dem Orgaplan (Oberstufe, nur als Tageskontext, nie an die Einzelstunde).
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function _normClassLabel(value) {
+    return String(value || "").toLowerCase().replace(/\s+/g, "");
+  }
+
+  // Sek-I-Klasse wie "8a", "10b" → eindeutig mit dem Klassenarbeitsplan koppelbar.
+  function _isSekOneClass(label) {
+    return /^(?:[5-9]|1[0-3])[a-z]$/i.test(String(label || "").trim());
+  }
+
+  // Oberstufe wie "Q1/Q2", "Q3", "S2" → nur Tageskontext, keine Kurszuordnung möglich.
+  function _isOberstufeClass(label) {
+    return /^(?:q\d|s\d)/i.test(String(label || "").trim());
+  }
+
+  // Nächste anstehende Arbeit für eine konkrete Sek-I-Klasse im Zeithorizont.
+  function _upcomingClassworkForLabel(data, label, now, horizonDays) {
+    const target = _normClassLabel(label);
+    if (!target) return null;
+    const entries = data.planDigest?.classwork?.entries || [];
+    const todayStart = startOfDay(now);
+    const horizon = new Date(todayStart);
+    horizon.setDate(horizon.getDate() + (horizonDays || 14));
+    return entries
+      .filter((e) => e.isoDate && _normClassLabel(e.classLabel) === target)
+      .map((e) => ({ entry: e, when: new Date(`${e.isoDate}T00:00:00`) }))
+      .filter((x) => x.when >= todayStart && x.when <= horizon)
+      .sort((a, b) => a.when - b.when)[0] || null;
+  }
+
+  // Kompaktes "wann"-Label relativ zu heute: heute / morgen / Wochentag / TT.MM.
+  function _relativeDayLabel(when, now) {
+    const todayStart = startOfDay(now);
+    const diffDays = Math.round((startOfDay(when) - todayStart) / 86400000);
+    if (diffDays <= 0) return "heute";
+    if (diffDays === 1) return "morgen";
+    if (diffDays <= 6) return when.toLocaleDateString("de-DE", { weekday: "short" });
+    return when.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  }
+
+  // Baut – wenn zulässig – ein Klausur-Flag für eine einzelne Stunde.
+  // Gibt null zurück, wenn keine sichere Verknüpfung möglich ist.
+  function _classworkFlagForEvent(data, event, now) {
+    const labels = extractClassLabels(event);
+    if (!labels.length) return null;
+    for (const label of labels) {
+      if (!_isSekOneClass(label)) continue; // Oberstufe & Sonstiges: nie an die Stunde
+      const hit = _upcomingClassworkForLabel(data, label, now, 14);
+      if (!hit) continue;
+      const when = _relativeDayLabel(hit.when, now);
+      const isToday = when === "heute";
+      const kindShort = (hit.entry.kind || "Arbeit").toUpperCase().slice(0, 4);
+      return {
+        text: `${kindShort} ${when}`,
+        tone: isToday ? "exam-today" : "exam",
+        title: `${hit.entry.classLabel}: ${hit.entry.summary || hit.entry.title} (${hit.entry.dateLabel})`,
+      };
+    }
+    return null;
+  }
+
+  // Tageskontext-Banner für die Oberstufe: zeigt heutige Orgaplan-"upper"-Infos
+  // mit Klausurbezug – aber ohne zu behaupten, welcher Kurs schreibt.
+  function _todayOberstufeExamBanner(data, todayEvents, now) {
+    const orgaplan = data.planDigest?.orgaplan;
+    if (!orgaplan) return "";
+    // Nur relevant, wenn heute überhaupt eine eigene Oberstufen-Stunde ansteht
+    // (dann können an LK-Klausurtagen im eigenen Kurs Schüler:innen fehlen).
+    const hasOberstufeToday = (todayEvents || []).some((ev) =>
+      extractClassLabels(ev).some((l) => _isOberstufeClass(l)));
+    if (!hasOberstufeToday) return "";
+    const todayIso = startOfDay(now).toLocaleDateString("en-CA"); // YYYY-MM-DD lokal
+    const candidates = [...(orgaplan.today_entries || []), ...(orgaplan.upcoming || [])];
+    const todayEntry = candidates.find((e) => (e.isoDate || "").slice(0, 10) === todayIso);
+    const upperText = (todayEntry?.upper || "").trim();
+    if (!upperText) return "";
+    if (!/klausur|klaus|prüf|pruef|abitur|\blk\b|\bgk\b|\bkla\b/i.test(upperText)) return "";
+    return '<div class="today-oberstufe-banner">'
+      + '<span class="ts-banner-icon" aria-hidden="true">🎓</span>'
+      + '<span><strong>Oberstufe heute:</strong> ' + escapeHtml(upperText)
+      + ' <span class="ts-banner-hint">· laut Orgaplan, ohne Kurszuordnung</span></span>'
+      + '</div>';
+  }
+
   function renderTodayFullSchedule(data) {
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -1109,7 +1205,11 @@
       return '<div class="empty-state">Kein Stundenplan eingetragen.</div>';
     }
 
+    // Synthese statt Rohliste: Tageskontext-Banner (Oberstufe) nur wenn nicht Vorschau-Modus.
+    const oberstufeBanner = previewLabel ? '' : _todayOberstufeExamBanner(data, events, now);
+
     return (previewLabel ? '<div class="today-schedule-preview-label">Nächster Schultag: ' + previewLabel + '</div>' : '')
+      + oberstufeBanner
       + '<div class="today-schedule-list">'
       + events.map((e) => {
           const start = new Date(e.startsAt);
@@ -1123,9 +1223,17 @@
           const timeStr = e.time && e.time.includes(':') && (e.time.includes(' - ') || e.time.includes('–'))
             ? e.time
             : (startStr + (endStr ? '–' + endStr : ''));
+          // Sichere Verknüpfung mit dem Klassenarbeitsplan (nur Sek I) – sonst kein Flag.
+          const flag = isPast ? null : _classworkFlagForEvent(data, e, now);
+          const flagsHtml = flag
+            ? '<span class="today-schedule-flags"><span class="ts-flag ts-flag--' + flag.tone + '" title="' + escapeHtml(flag.title) + '">' + escapeHtml(flag.text) + '</span></span>'
+            : '';
           return '<div class="today-schedule-row' + stateClass + '">'
             + '<span class="today-schedule-time">' + timeStr + '</span>'
-            + '<span class="today-schedule-title">' + (e.title || '') + (e.location ? '<span class="today-schedule-loc">' + e.location + '</span>' : '') + '</span>'
+            + '<span class="today-schedule-main">'
+            +   '<span class="today-schedule-title">' + (e.title || '') + (e.location ? '<span class="today-schedule-loc">' + e.location + '</span>' : '') + '</span>'
+            +   flagsHtml
+            + '</span>'
             + (isCurrent ? '<span class="meta-tag today-schedule-now">jetzt</span>' : '')
             + '</div>';
         }).join('')

@@ -4036,6 +4036,74 @@ details[open] > .orgaplan-upcoming-summary::before {
   flex-shrink: 0;
 }
 
+/* ── Synthese: Stundenspalte trägt Titel + Klausur-Flags ─────────────────── */
+.today-schedule-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.today-schedule-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ts-flag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* Kommende Arbeit (sicher verknüpft, Sek I) — ruhiges Amber */
+.ts-flag--exam {
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  color: var(--warning);
+}
+.ts-flag--exam::before {
+  content: "✎";
+  font-size: 0.72rem;
+}
+/* Arbeit heute — prominenter, rot */
+.ts-flag--exam-today {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+.ts-flag--exam-today::before {
+  content: "⚠";
+  font-size: 0.72rem;
+}
+
+/* ── Tageskontext-Banner: Oberstufe (nur Hinweis, keine Kurszuordnung) ───── */
+.today-oberstufe-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 11px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--line));
+  font-size: 0.8rem;
+  color: var(--ink);
+  line-height: 1.45;
+}
+.today-oberstufe-banner .ts-banner-icon {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+}
+.today-oberstufe-banner strong {
+  font-weight: 600;
+}
+.today-oberstufe-banner .ts-banner-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 /* Schedule list inside briefing focus card — tighter rows, allow text wrap */
 .today-focus-card .today-schedule-list {
   gap: 1px;
