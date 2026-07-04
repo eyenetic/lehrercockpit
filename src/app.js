@@ -1214,20 +1214,26 @@
       + events.map((e) => {
           const start = new Date(e.startsAt);
           const end = e.endsAt ? new Date(e.endsAt) : null;
-          const isCurrent = start <= now && (!end || end > now);
+          const cancelled = !!e.cancelled;
+          const isCurrent = !cancelled && start <= now && (!end || end > now);
           const isPast = end ? end <= now : start < now;
-          const stateClass = isCurrent ? ' is-current' : isPast ? ' is-past' : '';
+          const stateClass = (cancelled ? ' is-cancelled' : '') + (isCurrent ? ' is-current' : isPast ? ' is-past' : '');
           const startStr = start.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
           const endStr = end ? end.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
           // e.time may already contain a full range like "08:00 - 09:35" — use it directly, otherwise build from start/end
           const timeStr = e.time && e.time.includes(':') && (e.time.includes(' - ') || e.time.includes('–'))
             ? e.time
             : (startStr + (endStr ? '–' + endStr : ''));
-          // Sichere Verknüpfung mit dem Klassenarbeitsplan (nur Sek I) – sonst kein Flag.
-          const flag = isPast ? null : _classworkFlagForEvent(data, e, now);
-          const flagsHtml = flag
-            ? '<span class="today-schedule-flags"><span class="ts-flag ts-flag--' + flag.tone + '" title="' + escapeHtml(flag.title) + '">' + escapeHtml(flag.text) + '</span></span>'
-            : '';
+          // Entfall hat Vorrang; sonst sichere KA-Verknüpfung (nur Sek I).
+          let flagsHtml = '';
+          if (cancelled) {
+            flagsHtml = '<span class="today-schedule-flags"><span class="ts-flag ts-flag--cancelled">entfällt</span></span>';
+          } else if (!isPast) {
+            const flag = _classworkFlagForEvent(data, e, now);
+            if (flag) {
+              flagsHtml = '<span class="today-schedule-flags"><span class="ts-flag ts-flag--' + flag.tone + '" title="' + escapeHtml(flag.title) + '">' + escapeHtml(flag.text) + '</span></span>';
+            }
+          }
           return '<div class="today-schedule-row' + stateClass + '">'
             + '<span class="today-schedule-time">' + timeStr + '</span>'
             + '<span class="today-schedule-main">'

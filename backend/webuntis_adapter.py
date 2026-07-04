@@ -16,6 +16,9 @@ class WebUntisEvent:
     summary: str
     location: str
     description: str
+    # iCal STATUS: "CONFIRMED" (Regelfall) oder "CANCELLED" (Entfall).
+    # WebUntis markiert entfallene Stunden – sofern es sie exportiert – hiermit.
+    status: str = "CONFIRMED"
 
 
 @dataclass
@@ -189,6 +192,7 @@ def _build_event(payload: dict[str, str], now: datetime) -> WebUntisEvent | None
         summary=_decode_ical_text(payload.get("SUMMARY", "")),
         location=_decode_ical_text(payload.get("LOCATION", "")),
         description=_clean_description(_decode_ical_text(payload.get("DESCRIPTION", ""))),
+        status=(payload.get("STATUS", "") or "CONFIRMED").strip().upper() or "CONFIRMED",
     )
 
 
@@ -278,6 +282,7 @@ def _to_event_item(event: WebUntisEvent, now: datetime) -> dict[str, str]:
         "category": _event_category(event),
         "location": event.location,
         "description": event.description,
+        "cancelled": event.status == "CANCELLED",
     }
 
 

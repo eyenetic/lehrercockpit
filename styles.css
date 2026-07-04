@@ -4077,6 +4077,23 @@ details[open] > .orgaplan-upcoming-summary::before {
   content: "⚠";
   font-size: 0.72rem;
 }
+/* Entfall (nur wenn WebUntis STATUS:CANCELLED liefert) */
+.ts-flag--cancelled {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}
+.ts-flag--cancelled::before {
+  content: "✕";
+  font-size: 0.72rem;
+}
+.today-schedule-row.is-cancelled {
+  opacity: 0.7;
+}
+.today-schedule-row.is-cancelled .today-schedule-title {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent);
+  color: var(--muted);
+}
 
 /* ── Tageskontext-Banner: Oberstufe (nur Hinweis, keine Kurszuordnung) ───── */
 .today-oberstufe-banner {
