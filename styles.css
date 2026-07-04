@@ -213,17 +213,34 @@ a {
 
 .nav-link {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--muted);
   text-align: left;
-  padding: 9px 11px;
+  padding: 8px 11px;
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.nav-icon {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  opacity: 0.85;
+}
+
+.nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-link.has-status::after {
@@ -269,12 +286,17 @@ a {
   background: var(--panel);
   border-color: var(--line);
   color: var(--ink);
+  box-shadow: inset 2.5px 0 0 var(--tone-overview, var(--accent));
+}
+
+.nav-link.active .nav-icon {
+  opacity: 1;
+  color: var(--tone-overview, var(--accent));
 }
 
 /* ─── Sidebar day-badge ──────────────────────────────────────────────────── */
 
 .nav-day-badge {
-  display: inline-block;
   font-family: "Geist Mono", monospace;
   font-size: 0.65rem;
   font-weight: 600;
@@ -283,9 +305,12 @@ a {
   border-radius: 4px;
   background: color-mix(in srgb, var(--tone-overview) 12%, var(--panel-soft));
   color: var(--tone-overview);
-  margin-left: 6px;
+  margin-left: auto;
   vertical-align: middle;
   line-height: 1.4;
+}
+.nav-day-badge:empty {
+  display: none;
 }
 
 .sidebar-theme {
@@ -376,55 +401,35 @@ a {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding-bottom: 2px;
+}
+
+.masthead-school {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tone-overview, var(--accent));
+  margin-bottom: 5px;
 }
 
 .masthead-weekday {
   display: block;
-  font-size: 0.68rem;
+  margin: 0;
+  font-size: clamp(1.7rem, 3.2vw, 2.15rem);
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--tone-overview, var(--accent));
-  margin-bottom: 3px;
-}
-
-.masthead-date {
-  display: block;
-  font-family: "Geist Mono", monospace;
-  font-size: 1.6rem;
-  font-weight: 500;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.035em;
   color: var(--ink);
   line-height: 1;
 }
 
-.masthead-rule {
-  width: 1px;
-  height: 44px;
-  background: var(--line-strong);
-  flex-shrink: 0;
-  margin-bottom: 2px;
-}
-
-.masthead-copy {
-  min-width: 0;
-}
-
-.day-masthead h1 {
-  margin: 0 0 3px;
-  font-size: clamp(1.3rem, 2vw, 1.65rem);
-  line-height: 1.05;
-  letter-spacing: -0.04em;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.masthead-tagline {
-  margin: 0;
+.masthead-date {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 400;
   color: var(--muted);
-  font-size: 0.8rem;
-  letter-spacing: 0.02em;
+  line-height: 1;
+  margin-top: 6px;
 }
 
 /* Keep old hero-text alive for any rendered content */
@@ -593,10 +598,9 @@ a {
 .plan-digest-card,
 .compact-panel {
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   padding: 20px;
-  box-shadow: var(--shadow-soft);
 }
 
 .today-module-card[data-today-module="briefing"] {
@@ -2716,6 +2720,24 @@ details[open] > .orgaplan-upcoming-summary::before {
   /* Show all sidebar content in drawer */
   .brand-block, .sidebar-theme, .nav-day-badge { display: flex; }
   .runtime-banner { display: block; }
+
+  /* Drawer nav: full-width vertical list with icons (thumb-friendly) */
+  .sidebar-nav {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 8px 12px 0;
+  }
+  .nav-link {
+    padding: 12px 12px;
+    font-size: 0.9rem;
+  }
+  .nav-icon {
+    width: 19px;
+    height: 19px;
+  }
+  .brand-block {
+    padding: 14px 16px 10px;
+  }
 
   /* Hide mobile-specific stuff no longer needed */
   .nav-more-btn { display: none; }

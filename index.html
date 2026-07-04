@@ -35,7 +35,7 @@
       ];
     </script>
     <script>window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST; /* Lokal ohne Login, gehostet mit Multi-User */</script>
-    <link rel="stylesheet" href="./styles.css?v=68" />
+    <link rel="stylesheet" href="./styles.css?v=69" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -68,13 +68,34 @@
         <div class="runtime-banner" id="runtime-banner" hidden></div>
 
         <nav class="sidebar-nav" aria-label="Bereiche">
-          <button class="nav-link active" type="button" data-section-target="overview">Heute<span id="today-nav-badge" class="nav-day-badge"></span></button>
-          <button class="nav-link" type="button" data-section-target="schedule">Stundenplan</button>
-          <button class="nav-link" type="button" data-section-target="inbox">Posteingang</button>
-          <button class="nav-link" type="button" data-section-target="documents">Pläne</button>
-          <button class="nav-link" type="button" data-section-target="grades">Notenrechner</button>
-          <button class="nav-link" type="button" data-section-target="classlist">Klassen</button>
-          <button class="nav-link" type="button" data-section-target="collections">Einsammlungen</button>
+          <button class="nav-link active" type="button" data-section-target="overview">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <span class="nav-label">Heute</span><span id="today-nav-badge" class="nav-day-badge"></span>
+          </button>
+          <button class="nav-link" type="button" data-section-target="schedule">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01"/></svg>
+            <span class="nav-label">Stundenplan</span>
+          </button>
+          <button class="nav-link" type="button" data-section-target="inbox">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+            <span class="nav-label">Posteingang</span>
+          </button>
+          <button class="nav-link" type="button" data-section-target="documents">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+            <span class="nav-label">Pläne</span>
+          </button>
+          <button class="nav-link" type="button" data-section-target="grades">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h4M8 18h.01M12 18h.01"/></svg>
+            <span class="nav-label">Notenrechner</span>
+          </button>
+          <button class="nav-link" type="button" data-section-target="classlist">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span class="nav-label">Klassen</span>
+          </button>
+          <button class="nav-link" type="button" data-section-target="collections">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
+            <span class="nav-label">Einsammlungen</span>
+          </button>
         </nav>
 
         <div class="sidebar-theme">
@@ -104,12 +125,9 @@
         <header class="day-masthead" id="overview">
           <div class="masthead-left">
             <div class="masthead-date-block">
-              <span id="today-weekday" class="masthead-weekday">Heute</span>
+              <span class="masthead-school" id="workspace-title">Lehrer-Cockpit</span>
+              <h1 id="today-weekday" class="masthead-weekday">Heute</h1>
               <span id="today-date-display" class="masthead-date"></span>
-            </div>
-            <div class="masthead-rule" aria-hidden="true"></div>
-            <div class="masthead-copy">
-              <h1 id="workspace-title">Lehrer-Cockpit</h1>
             </div>
           </div>
           <div class="masthead-actions">
@@ -680,21 +698,21 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=68"></script>
-    <script src="./src/api-client.js?v=68"></script>
-    <script src="./src/modules/dashboard-manager.js?v=68"></script>
-    <script src="./src/features/grades.js?v=68"></script>
-    <script src="./src/features/webuntis.js?v=68"></script>
-    <script src="./src/features/itslearning.js?v=68"></script>
-    <script src="./src/features/nextcloud.js?v=68"></script>
-    <script src="./src/features/documents.js?v=68"></script>
-    <script src="./src/features/classwork.js?v=68"></script>
+    <script src="./data/mock-dashboard.js?v=69"></script>
+    <script src="./src/api-client.js?v=69"></script>
+    <script src="./src/modules/dashboard-manager.js?v=69"></script>
+    <script src="./src/features/grades.js?v=69"></script>
+    <script src="./src/features/webuntis.js?v=69"></script>
+    <script src="./src/features/itslearning.js?v=69"></script>
+    <script src="./src/features/nextcloud.js?v=69"></script>
+    <script src="./src/features/documents.js?v=69"></script>
+    <script src="./src/features/classwork.js?v=69"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="./src/features/classlist.js?v=68"></script>
-    <script src="./src/features/collections.js?v=68"></script>
-    <script src="./src/features/inbox.js?v=68"></script>
-    <script src="./src/features/zugaenge.js?v=68"></script>
-    <script src="./src/app.js?v=68"></script>
+    <script src="./src/features/classlist.js?v=69"></script>
+    <script src="./src/features/collections.js?v=69"></script>
+    <script src="./src/features/inbox.js?v=69"></script>
+    <script src="./src/features/zugaenge.js?v=69"></script>
+    <script src="./src/app.js?v=69"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,

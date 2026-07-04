@@ -2496,7 +2496,7 @@
   function initTodayDisplay() {
     const now = new Date();
     const weekday = now.toLocaleDateString("de-DE", { weekday: "long" });
-    const date = now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const date = now.toLocaleDateString("de-DE", { day: "numeric", month: "long", year: "numeric" });
     const weekdayEl = document.getElementById("today-weekday");
     const dateEl = document.getElementById("today-date-display");
     const badgeEl = document.getElementById("today-nav-badge");
