@@ -2843,29 +2843,15 @@ details[open] > .orgaplan-upcoming-summary::before {
   }
 
   .masthead-date-block {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 8px;
+    gap: 4px;
   }
 
   .masthead-weekday {
-    font-size: 0.62rem;
+    font-size: 1.55rem;
   }
 
   .masthead-date {
-    font-size: 1.15rem;
-  }
-
-  .masthead-rule {
-    display: none;
-  }
-
-  .day-masthead h1 {
-    font-size: 1rem;
-  }
-
-  .masthead-tagline {
-    display: none;
+    font-size: 0.85rem;
   }
 
   .masthead-actions {

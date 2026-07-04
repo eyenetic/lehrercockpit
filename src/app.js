@@ -2810,7 +2810,10 @@
     elements.navLinks.forEach((button) => {
       const target = button.dataset.sectionTarget || "";
       const statusKind = statuses[target] || "";
-      const baseLabel = button.dataset.baseLabel || (target === "overview" ? "Heute" : button.textContent.replace(/\s*·\s*\d+$/, "").trim());
+      // Label lives in .nav-label so the icon SVG + day badge stay intact.
+      const labelEl = button.querySelector(".nav-label");
+      const baseLabel = button.dataset.baseLabel
+        || (labelEl ? labelEl.textContent.replace(/\s*·\s*\d+$/, "").trim() : "");
       button.dataset.baseLabel = baseLabel;
       button.classList.toggle("has-status", Boolean(statusKind));
       if (statusKind) {
@@ -2819,10 +2822,10 @@
         delete button.dataset.statusKind;
       }
 
-      if (target === "inbox") {
-        button.textContent = unreadCount > 0 ? `${baseLabel} · ${unreadCount}` : baseLabel;
-      } else {
-        button.textContent = baseLabel;
+      if (labelEl) {
+        labelEl.textContent = (target === "inbox" && unreadCount > 0)
+          ? `${baseLabel} · ${unreadCount}`
+          : baseLabel;
       }
     });
   }
