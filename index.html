@@ -34,8 +34,20 @@
         LEHRERCOCKPIT_API_BASE,
       ];
     </script>
-    <script>window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST; /* Lokal ohne Login, gehostet mit Multi-User */</script>
-    <link rel="stylesheet" href="./styles.css?v=72" />
+    <script>
+      // Gehostet immer mit Login. Lokal ohne Login, außer ?multiuser=1 (bleibt gespeichert,
+      // ?multiuser=0 schaltet zurück): dann mit Login gegen das lokale Flask-Backend.
+      (function () {
+        var devMultiuser = false;
+        try {
+          var flag = new URLSearchParams(window.location.search).get("multiuser");
+          if (flag !== null) localStorage.setItem("lc.devMultiuser", flag === "1" ? "1" : "0");
+          devMultiuser = localStorage.getItem("lc.devMultiuser") === "1";
+        } catch (e) {}
+        window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
+      })();
+    </script>
+    <link rel="stylesheet" href="./styles.css?v=73" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -115,6 +127,7 @@
             <a href="./admin.html" id="sidebar-admin-link" style="display:none;">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Admin-Bereich
             </a>
+            <button id="sidebar-connections-btn" type="button" hidden>Verbindungen</button>
             <button id="sidebar-change-code-btn">🔑 Code ändern</button>
             <button id="sidebar-logout-btn">Abmelden</button>
           </div>
@@ -245,7 +258,7 @@
               <div class="webuntis-radar" hidden>
                 <div class="sidebar-head">
                   <div>
-                    <p class="card-kicker">Aenderungen</p>
+                    <p class="card-kicker">Änderungen</p>
                     <h2>Radar</h2>
                   </div>
                 </div>
@@ -263,12 +276,16 @@
                 <h2 id="inbox-title">Dienstmail und Updates</h2>
               </div>
               <div class="section-head-actions">
-                <a id="dienstmail-open-link" class="secondary-link" href="https://schulportal.berlin.de" target="_blank" rel="noreferrer">Dienstmail im Schulportal öffnen</a>
+                <a id="dienstmail-open-link" class="secondary-link" href="https://lehrkraeftemail.schule.berlin.de/?iam_sso=1" target="_blank" rel="noreferrer">Dienstmail öffnen</a>
                 <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen</a>
               </div>
             </div>
             <!-- itslearning Posteingang (Dienstmail entfernt) -->
             <div id="message-list-itslearning" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
+            <div id="itslearning-calendar-block" class="inbox-subsection" hidden>
+              <p class="card-kicker">Termine &amp; Abgaben aus itslearning</p>
+              <div id="itslearning-calendar-list" class="calendar-list"></div>
+            </div>
           </article>
         </section>
 
@@ -632,6 +649,10 @@
             <span class="more-sheet-row-icon">⚙</span>
             Admin-Bereich
           </a>
+          <button class="more-sheet-row" type="button" id="more-sheet-connections-btn" hidden>
+            <span class="more-sheet-row-icon">⇄</span>
+            Verbindungen
+          </button>
           <button class="more-sheet-row" type="button" id="more-sheet-change-code-btn">
             <span class="more-sheet-row-icon">🔑</span>
             Zugangscode ändern
@@ -641,6 +662,18 @@
             Abmelden
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Verbindungen -->
+    <div id="connections-modal" class="modal-overlay" hidden>
+      <div class="modal connections-modal" role="dialog" aria-modal="true" aria-labelledby="connections-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="connections-title">Verbindungen</h2>
+          <button class="modal-close" type="button" id="connections-close" aria-label="Schließen">✕</button>
+        </div>
+        <p class="connection-copy">Hier verbindest du deine Quellen. Links und Zugänge werden verschlüsselt gespeichert und nur für dein Cockpit genutzt.</p>
+        <div id="connections-body" class="connections-body"></div>
       </div>
     </div>
 
@@ -698,21 +731,22 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=72"></script>
-    <script src="./src/api-client.js?v=72"></script>
-    <script src="./src/modules/dashboard-manager.js?v=72"></script>
-    <script src="./src/features/grades.js?v=72"></script>
-    <script src="./src/features/webuntis.js?v=72"></script>
-    <script src="./src/features/itslearning.js?v=72"></script>
-    <script src="./src/features/nextcloud.js?v=72"></script>
-    <script src="./src/features/documents.js?v=72"></script>
-    <script src="./src/features/classwork.js?v=72"></script>
+    <script src="./data/mock-dashboard.js?v=73"></script>
+    <script src="./src/api-client.js?v=73"></script>
+    <script src="./src/modules/dashboard-manager.js?v=73"></script>
+    <script src="./src/features/grades.js?v=73"></script>
+    <script src="./src/features/webuntis.js?v=73"></script>
+    <script src="./src/features/itslearning.js?v=73"></script>
+    <script src="./src/features/nextcloud.js?v=73"></script>
+    <script src="./src/features/documents.js?v=73"></script>
+    <script src="./src/features/classwork.js?v=73"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="./src/features/classlist.js?v=72"></script>
-    <script src="./src/features/collections.js?v=72"></script>
-    <script src="./src/features/inbox.js?v=72"></script>
-    <script src="./src/features/zugaenge.js?v=72"></script>
-    <script src="./src/app.js?v=72"></script>
+    <script src="./src/features/classlist.js?v=73"></script>
+    <script src="./src/features/collections.js?v=73"></script>
+    <script src="./src/features/inbox.js?v=73"></script>
+    <script src="./src/features/zugaenge.js?v=73"></script>
+    <script src="./src/features/connections.js?v=73"></script>
+    <script src="./src/app.js?v=73"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,

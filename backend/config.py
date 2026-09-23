@@ -8,6 +8,10 @@ from pathlib import Path
 # These are read once at import time and used throughout the application.
 
 LEHRERCOCKPIT_ENV = os.environ.get("LEHRERCOCKPIT_ENV", "development")
+
+# Official direct link to the Berlin teacher mailbox (login via Schulportal SSO),
+# as recommended on schulportal.berlin.de. Mail clients are not permitted.
+DIENSTMAIL_DEFAULT_URL = "https://lehrkraeftemail.schule.berlin.de/?iam_sso=1"
 CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "http://localhost:3000")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 API_URL = os.environ.get("API_URL", "http://localhost:5000")
@@ -136,6 +140,7 @@ class AppSettings:
     orgaplan_pdf_url: str
     classwork_plan_url: str
     classwork_plan_local_path: str
+    dienstmail_url: str = ""
 
     @property
     def itslearning_base_url(self) -> str:
@@ -209,6 +214,7 @@ def load_settings() -> AppSettings:
         itslearning=itslearning_settings,
         nextcloud=nextcloud_settings,
         schoolportal_url=os.getenv("SCHOOLPORTAL_URL", "https://schulportal.berlin.de").strip(),
+        dienstmail_url=os.getenv("DIENSTMAIL_URL", DIENSTMAIL_DEFAULT_URL).strip() or DIENSTMAIL_DEFAULT_URL,
         webuntis_base_url=os.getenv("WEBUNTIS_BASE_URL", "").strip(),
         webuntis_ical_url=os.getenv("WEBUNTIS_ICAL_URL", "").strip(),
         orgaplan_pdf_url=os.getenv("ORGAPLAN_PDF_URL", "").strip(),

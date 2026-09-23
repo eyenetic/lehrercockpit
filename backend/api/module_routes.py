@@ -158,36 +158,14 @@ def itslearning_data():
     except Exception as exc:
         return error(f"Fehler beim Laden der Konfiguration: {type(exc).__name__}: {exc}", 500)
 
-    # Graceful: no credentials configured
-    username = config.get("username", "") if config else ""
-    password = config.get("password", "") if config else ""
-    if not username or not password:
-        return success({
-            "data": None,
-            "configured": False,
-            "error": "itslearning nicht konfiguriert",
-        })
-
     try:
-        from backend.config import ItslearningSettings
-        from backend.itslearning_adapter import fetch_itslearning_sync
+        from backend.itslearning_module import build_itslearning_payload
 
-        settings = ItslearningSettings(
-            base_url=config.get("base_url", "https://berlin.itslearning.com"),
-            username=username,
-            password=password,
-            max_updates=int(config.get("max_updates", 6)),
-        )
-        now = datetime.now(timezone.utc)
-        result = fetch_itslearning_sync(settings, now)
-        # Convert dataclass to dict so Flask's jsonify can serialize it
-        try:
-            data_dict = dataclasses.asdict(result)
-        except Exception as serial_exc:
-            return success({"data": None, "error": f"Serialisierungsfehler: {type(serial_exc).__name__}: {serial_exc}"})
-        return success({"data": data_dict, "configured": True})
+        result = build_itslearning_payload(config, datetime.now(timezone.utc))
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
+    result.pop("ok", None)
+    return success(result)
 
 
 @module_bp.route("/webuntis/data", methods=["GET"])

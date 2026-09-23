@@ -413,7 +413,7 @@
   }
 
   function eventStateLabel(event) {
-    if (isCancelledEvent(event)) return 'entfaellt';
+    if (isCancelledEvent(event)) return 'entfällt';
     var t = getEventTimingClass(event);
     if (t === 'is-past') return 'vorbei';
     if (t === 'is-current') return 'jetzt';
@@ -912,7 +912,7 @@
       _elements.webuntisPickerSearch.placeholder = finder.searchPlaceholder || 'Stundenplan suchen';
     }
     if (_elements.webuntisPickerEdit) {
-      _elements.webuntisPickerEdit.textContent = activePlan.id === 'personal' ? 'Fertig' : 'Zuruecksetzen';
+      _elements.webuntisPickerEdit.textContent = activePlan.id === 'personal' ? 'Fertig' : 'Zurücksetzen';
     }
 
     var favorites = getFavoriteEntities(center, query);
@@ -962,7 +962,7 @@
     if (showCategory) {
       var category = categories.find(function (c) { return c.id === _state.webuntisPickerCategory; });
       var categoryItems = getPickerEntities(center, _state.webuntisPickerCategory, query);
-      if (_elements.webuntisPickerCategoryKicker) _elements.webuntisPickerCategoryKicker.textContent = 'Stundenplaene';
+      if (_elements.webuntisPickerCategoryKicker) _elements.webuntisPickerCategoryKicker.textContent = 'Stundenpläne';
       if (_elements.webuntisPickerCategoryTitle) _elements.webuntisPickerCategoryTitle.textContent = (category && category.label) ? category.label : 'Auswahl';
       if (_elements.webuntisPickerCategoryNote) {
         _elements.webuntisPickerCategoryNote.textContent = _state.webuntisPickerCategory === 'teacher'

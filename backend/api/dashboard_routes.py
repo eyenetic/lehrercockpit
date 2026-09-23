@@ -18,8 +18,20 @@ from backend.modules.module_registry import (
 )
 from backend.admin.admin_service import get_all_system_settings, get_system_setting, set_system_setting
 from backend.api.helpers import require_auth, success, error, mask_config
+from backend.config import DIENSTMAIL_DEFAULT_URL
 
 dashboard_bp = Blueprint("dashboard", __name__)
+
+
+def _user_modules_or_defaults(conn, user_id: int) -> list:
+    """User modules; users created outside the admin flow (e.g. the bootstrap
+    admin) get the default module set on first use instead of an empty dashboard."""
+    user_modules = get_user_modules(conn, user_id)
+    if not user_modules:
+        from backend.modules.module_registry import initialize_user_modules
+        initialize_user_modules(conn, user_id)
+        user_modules = get_user_modules(conn, user_id)
+    return user_modules
 
 
 @dashboard_bp.route("", methods=["GET"])
@@ -31,7 +43,7 @@ def get_dashboard():
     """
     try:
         with db_connection() as conn:
-            user_modules = get_user_modules(conn, g.current_user.id)
+            user_modules = _user_modules_or_defaults(conn, g.current_user.id)
             user_modules.sort(key=lambda um: um.sort_order)
 
             modules_out = []
@@ -389,6 +401,7 @@ def _derive_webuntis_url(base_url: str = "", ical_url: str = "") -> str:
 
 def _build_base_quick_links(
     schoolportal_url: str = "",
+    dienstmail_url: str = "",
     orgaplan_pdf_url: str = "",
     itslearning_base_url: str = "",
     webuntis_url: str = "",
@@ -408,9 +421,9 @@ def _build_base_quick_links(
         {
             "id": "dienstmail",
             "title": "Dienstmail",
-            "url": schoolportal_url or "https://schulportal.berlin.de",
+            "url": dienstmail_url or DIENSTMAIL_DEFAULT_URL,
             "kind": "Mail",
-            "note": "Dienstmail über das Berliner Schulportal öffnen",
+            "note": "Postfach direkt öffnen (Anmeldung über das Schulportal)",
         },
     ]
     if webuntis_url:
@@ -483,6 +496,7 @@ def _fetch_base_data() -> dict:
                                "webuntis_url": str}}
     """
     schoolportal_url = ""
+    dienstmail_url = ""
     orgaplan_pdf_url = ""
     itslearning_base_url = ""
     school_name = ""
@@ -501,6 +515,7 @@ def _fetch_base_data() -> dict:
     try:
         with db_connection() as conn:
             schoolportal_url = _safe_str(get_system_setting(conn, "schoolportal_url", ""))
+            dienstmail_url = _safe_str(get_system_setting(conn, "dienstmail_url", ""))
             orgaplan_pdf_url = _safe_str(get_system_setting(conn, "orgaplan_pdf_url", ""))
             itslearning_base_url = _safe_str(get_system_setting(conn, "itslearning_base_url", ""))
             school_name = _safe_str(get_system_setting(conn, "school_name", ""))
@@ -551,6 +566,7 @@ def _fetch_base_data() -> dict:
     try:
         quick_links = _build_base_quick_links(
             schoolportal_url=schoolportal_url,
+            dienstmail_url=dienstmail_url,
             orgaplan_pdf_url=orgaplan_pdf_url,
             itslearning_base_url=itslearning_base_url,
             webuntis_url=webuntis_url,
@@ -607,6 +623,7 @@ def _fetch_base_data() -> dict:
             "documents": None,  # Deferred: requires document_monitor pipeline
             # URL fields for Zugaenge module card (Slice 2)
             "schoolportal_url": schoolportal_url,
+            "dienstmail_url": dienstmail_url or DIENSTMAIL_DEFAULT_URL,
             "itslearning_base_url": itslearning_base_url,
             "orgaplan_pdf_url": orgaplan_pdf_url,
             "fehlzeiten_11_url": fehlzeiten_11_url,
@@ -660,26 +677,12 @@ def _fetch_webuntis_data(user_id: int) -> dict:
 
 
 def _fetch_itslearning_data(user_id: int) -> dict:
-    """Fetch itslearning data for the given user. Returns module result dict."""
+    """Fetch itslearning data (calendar subscription and/or update feed). Returns module result dict."""
     try:
         with db_connection() as conn:
             config = get_user_module_config(conn, user_id, "itslearning")
-        username = config.get("username", "") if config else ""
-        password = config.get("password", "") if config else ""
-        if not username or not password:
-            return {"ok": True, "data": None, "configured": False, "error": "itslearning nicht konfiguriert"}
-        from backend.config import ItslearningSettings
-        from backend.itslearning_adapter import fetch_itslearning_sync
-        settings = ItslearningSettings(
-            base_url=config.get("base_url", "https://berlin.itslearning.com"),
-            username=username,
-            password=password,
-            max_updates=int(config.get("max_updates", 6)),
-        )
-        now = datetime.now(timezone.utc)
-        result = fetch_itslearning_sync(settings, now)
-        data_dict = dataclasses.asdict(result)
-        return {"ok": True, "data": data_dict, "configured": True}
+        from backend.itslearning_module import build_itslearning_payload
+        return build_itslearning_payload(config, datetime.now(timezone.utc))
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
@@ -870,7 +873,7 @@ def get_dashboard_data():
     # Determine which modules are active/visible for this user
     try:
         with db_connection() as conn:
-            user_module_list = get_user_modules(conn, user_id)
+            user_module_list = _user_modules_or_defaults(conn, user_id)
         active_module_ids = {
             um.module_id
             for um in user_module_list
@@ -963,6 +966,7 @@ def get_dashboard_data():
         "documents": base_data.get("documents", None),  # None = deferred
         # URL fields for Zugaenge module card
         "schoolportal_url": base_data.get("schoolportal_url", ""),
+        "dienstmail_url": base_data.get("dienstmail_url", DIENSTMAIL_DEFAULT_URL),
         "itslearning_base_url": base_data.get("itslearning_base_url", ""),
         "orgaplan_pdf_url": base_data.get("orgaplan_pdf_url", ""),
         "fehlzeiten_11_url": base_data.get("fehlzeiten_11_url", ""),

@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=72" />
-    <link rel="stylesheet" href="./styles.auth.css?v=72" />
+    <link rel="stylesheet" href="./styles.css?v=73" />
+    <link rel="stylesheet" href="./styles.auth.css?v=73" />
     <style>
       body.login-page {
         display: flex;
@@ -399,7 +399,12 @@
       </div>
     </div>
 
-    <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
+    <script>
+      // Lokal (localhost) spricht die Seite mit dem lokalen Backend, sonst mit der Produktion.
+      window.BACKEND_API_URL = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+        ? window.location.origin
+        : "https://api.lehrercockpit.com";
+    </script>
     <script>
       document.addEventListener('DOMContentLoaded', function () {
         const API = window.BACKEND_API_URL || '';

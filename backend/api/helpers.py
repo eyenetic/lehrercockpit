@@ -101,6 +101,7 @@ def error(message: str, status: int = 400):
 
 # Sensitive field name patterns — values are masked in GET responses
 _SENSITIVE_PATTERNS = {"password", "secret", "token", "credential"}
+_SENSITIVE_KEYS = {"calendar_url"}
 
 
 def mask_config(config: dict) -> dict:
@@ -112,7 +113,7 @@ def mask_config(config: dict) -> dict:
     masked = {}
     for key, value in config.items():
         key_lower = key.lower()
-        is_sensitive = any(pattern in key_lower for pattern in _SENSITIVE_PATTERNS)
+        is_sensitive = key_lower in _SENSITIVE_KEYS or any(pattern in key_lower for pattern in _SENSITIVE_PATTERNS)
         # Also mask encrypted values (enc: prefix) to avoid leaking ciphertext
         is_encrypted = isinstance(value, str) and value.startswith("enc:")
         masked[key] = "***" if ((is_sensitive or is_encrypted) and value) else value

@@ -20,6 +20,9 @@ _ENC_PREFIX = "enc:"
 
 # Sensitive field patterns — a key is sensitive if it contains any of these substrings (lowercase)
 _SENSITIVE_PATTERNS = ("password", "secret", "token", "credential")
+# Exact field names that are secret without matching a pattern (subscription
+# links carry an access key in the URL).
+_SENSITIVE_KEYS = frozenset({"calendar_url"})
 
 # One-time warning flag so we don't spam the log on every call
 _warn_once_done = False
@@ -80,7 +83,7 @@ def get_fernet() -> Optional["Fernet"]:
 def _is_sensitive(key: str) -> bool:
     """Return True if the field key matches a sensitive pattern."""
     key_lower = key.lower()
-    return any(pattern in key_lower for pattern in _SENSITIVE_PATTERNS)
+    return key_lower in _SENSITIVE_KEYS or any(pattern in key_lower for pattern in _SENSITIVE_PATTERNS)
 
 
 def encrypt_config(config: dict) -> dict:

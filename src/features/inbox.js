@@ -132,6 +132,64 @@ var LehrerInbox = (function () {
   function renderMessages() {
     // Dienstmail-Tab entfernt — delegiert an renderItslearningTab für Live-Updates
     renderItslearningTab();
+    renderItslearningCalendar();
+  }
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function _dayLabel(date, today) {
+    var dayMs = 86400000;
+    var startOf = function (d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+    var diff = Math.round((startOf(date) - startOf(today)) / dayMs);
+    if (diff === 0) return 'Heute';
+    if (diff === 1) return 'Morgen';
+    return date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  }
+
+  function _timeLabel(event, start) {
+    var time = start.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    if (event.kind === 'todo') return 'Abgabe bis ' + time;
+    if (event.allDay) return 'ganztägig';
+    return time;
+  }
+
+  /**
+   * Upcoming dates and deadlines from the itslearning calendar subscription.
+   * Hidden when no calendar is connected.
+   */
+  function renderItslearningCalendar() {
+    var block = document.getElementById('itslearning-calendar-block');
+    var list = document.getElementById('itslearning-calendar-list');
+    if (!block || !list || !_getData) return;
+    var calendar = _getData().itslearningCalendar;
+    if (!calendar) { block.hidden = true; return; }
+    block.hidden = false;
+    if (!calendar.ok) {
+      list.innerHTML = '<div class="empty-state">' + esc(calendar.error || 'Kalender konnte nicht geladen werden.') + '</div>';
+      return;
+    }
+    var events = (calendar.events || []).slice(0, 12);
+    if (!events.length) {
+      list.innerHTML = '<div class="empty-state">Keine Termine oder Abgaben in den nächsten drei Wochen.</div>';
+      return;
+    }
+    var today = new Date();
+    list.innerHTML = events.map(function (event) {
+      var start = new Date(event.start);
+      var title = event.url
+        ? '<a href="' + esc(event.url) + '" target="_blank" rel="noopener noreferrer">' + esc(event.title) + '</a>'
+        : esc(event.title);
+      return '<article class="calendar-item' + (event.kind === 'todo' ? ' is-deadline' : '') + '">'
+        + '<div class="calendar-item-when"><strong>' + esc(_dayLabel(start, today)) + '</strong>'
+        + '<span>' + esc(_timeLabel(event, start)) + '</span></div>'
+        + '<div class="calendar-item-body"><p class="calendar-item-title">' + title + '</p>'
+        + (event.location ? '<p class="message-snippet">' + esc(event.location) + '</p>' : '')
+        + '</div></article>';
+    }).join('');
   }
 
   function renderDocumentMonitor() {
@@ -195,19 +253,21 @@ var LehrerInbox = (function () {
           return '<article class="message-item">'
             + '<div class="message-top">'
             + '<div>'
-            + '<strong>' + message.title + '</strong>'
-            + '<p class="message-snippet">' + message.sender + ' - ' + message.timestamp + '</p>'
+            + '<strong>' + esc(message.title) + '</strong>'
+            + '<p class="message-snippet">' + esc(message.sender) + ' - ' + esc(message.timestamp) + '</p>'
             + '</div>'
             + '<span class="meta-tag ' + messagePriorityClass(message.priority) + '">' + (message.unread ? 'neu' : 'gesehen') + '</span>'
             + '</div>'
-            + '<p class="message-snippet">' + message.snippet + '</p>'
+            + '<p class="message-snippet">' + esc(message.snippet) + '</p>'
             + '<div class="meta-row">'
             + '<span class="meta-tag">itslearning</span>'
             + '<span class="meta-tag">' + priorityLabel(message.priority) + '</span>'
             + '</div>'
             + '</article>';
         }).join('')
-      : '<div class="empty-state">Keine neuen Nachrichten in itslearning.</div>';
+      : (_getData && _getData().itslearningMode === 'calendar'
+          ? '<p class="empty-state">Nachrichten aus itslearning kannst du optional unter „Verbindungen“ per Login dazuholen.</p>'
+          : '<div class="empty-state">Keine neuen Nachrichten in itslearning.</div>');
   }
 
   /**
@@ -279,6 +339,7 @@ var LehrerInbox = (function () {
     initInboxTabs: initInboxTabs,
     renderBadges: renderBadges,
     renderItslearningTab: renderItslearningTab,
+    renderItslearningCalendar: renderItslearningCalendar,
   };
 })();
 

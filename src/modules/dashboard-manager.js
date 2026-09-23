@@ -52,7 +52,7 @@
       },
       {
         id: 'access',
-        label: 'Zugaenge',
+        label: 'Zugänge',
         description: 'Direkte Arbeitswege für die wichtigsten Dienste des Tages.',
         mandatory: true
       },
@@ -70,7 +70,7 @@
       },
       {
         id: 'documents',
-        label: 'Plaene',
+        label: 'Pläne',
         description: 'Orgaplan und Klassenarbeitsplan in Kurzform.',
         mandatory: false
       },
@@ -180,9 +180,31 @@
     }
 
     function init() {
-      if (!window.MULTIUSER_ENABLED) return;
+      if (!window.MULTIUSER_ENABLED) {
+        // Local single-user mode has no module layout API: every module is visible,
+        // so the layout is ready immediately (otherwise the briefing never renders).
+        _layoutReady = true;
+        _emitLayoutChanged();
+        return;
+      }
       _todayLayout = _loadTodayLayout();
       _initAsync().catch(function() {});
+    }
+
+    var _LAYOUT_RETRY_MS = 30000;
+    var _LAYOUT_MAX_RETRIES = 5;
+    var _layoutRetries = 0;
+
+    // Layout API failed: render with all modules visible instead of blocking the
+    // briefing forever, and try again later to pick up the user's real layout.
+    function _fallbackToDefaultLayout() {
+      if (!_layoutReady) {
+        _layoutReady = true;
+        _emitLayoutChanged();
+      }
+      if (_layoutRetries >= _LAYOUT_MAX_RETRIES) return;
+      _layoutRetries += 1;
+      setTimeout(function() { _initAsync().catch(function() {}); }, _LAYOUT_RETRY_MS);
     }
 
     function _ensureMandatoryModulesFirst(moduleList) {
@@ -205,9 +227,9 @@
     function _initAsync() {
       return (window.LehrerAPI ? window.LehrerAPI.getDashboardV2() : _apiFetch('/api/v2/dashboard'))
         .then(function(resp) {
-          if (!resp.ok) return;
+          if (!resp.ok) { _fallbackToDefaultLayout(); return; }
           return resp.json().then(function(data) {
-            if (!data.ok) return;
+            if (!data.ok) { _fallbackToDefaultLayout(); return; }
             var sorted = (data.modules || []).slice().sort(function(a, b) {
               return (a.sort_order || 0) - (b.sort_order || 0);
             });
@@ -224,7 +246,7 @@
           });
         })
         .catch(function() {
-          // fail silently
+          _fallbackToDefaultLayout();
         });
     }
 
@@ -305,9 +327,7 @@
       }
       if (moduleId === 'itslearning') {
         return [
-          { key: 'server_url', label: 'Server-URL', type: 'url', placeholder: 'https://schule.itslearning.com' },
-          { key: 'username',   label: 'Benutzername', type: 'text', placeholder: 'vorname.nachname' },
-          { key: 'password',   label: 'Passwort', type: 'password', placeholder: '••••••••' },
+          { key: 'calendar_url', label: 'Kalender-Abo-Link (itslearning → Kalender → Zahnrad → Abonnieren)', type: 'url', placeholder: 'https://berlin.itslearning.com/…' },
         ];
       }
       if (moduleId === 'nextcloud') {

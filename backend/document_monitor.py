@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 from pathlib import Path
-import ssl
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from .http_utils import tls_context
 
 
 @dataclass
@@ -91,14 +92,7 @@ def _probe_document(url: str) -> dict[str, Any]:
 
 
 def _open_request(request: Request):
-    try:
-        return urlopen(request, timeout=12)
-    except URLError as error:
-        reason = getattr(error, "reason", None)
-        if isinstance(reason, ssl.SSLCertVerificationError):
-            insecure_context = ssl._create_unverified_context()
-            return urlopen(request, timeout=12, context=insecure_context)
-        raise
+    return urlopen(request, timeout=12, context=tls_context())
 
 
 def _has_changed(previous_entry: dict[str, Any], current_probe: dict[str, Any]) -> bool:

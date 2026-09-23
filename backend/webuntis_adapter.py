@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import ssl
 from typing import Any
-from urllib.error import URLError
 from urllib.request import Request, urlopen
+
+from .http_utils import tls_context
 
 
 @dataclass
@@ -128,15 +128,8 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
 def _download_ical(url: str) -> str:
     request = Request(url, headers={"User-Agent": "LehrerCockpit/1.0"})
 
-    try:
-        with urlopen(request, timeout=15) as response:
-            return response.read().decode("utf-8", errors="replace")
-    except URLError as exc:
-        if isinstance(getattr(exc, "reason", None), ssl.SSLCertVerificationError):
-            insecure_context = ssl._create_unverified_context()
-            with urlopen(request, timeout=15, context=insecure_context) as response:
-                return response.read().decode("utf-8", errors="replace")
-        raise
+    with urlopen(request, timeout=15, context=tls_context()) as response:
+        return response.read().decode("utf-8", errors="replace")
 
 
 def _parse_events(calendar_text: str, now: datetime) -> list[WebUntisEvent]:

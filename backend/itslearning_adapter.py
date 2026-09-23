@@ -15,6 +15,7 @@ from urllib.error import URLError
 from urllib.request import HTTPCookieProcessor, HTTPSHandler, Request, build_opener
 
 from .config import ItslearningSettings
+from .http_utils import tls_context
 
 
 @dataclass
@@ -131,17 +132,11 @@ def fetch_itslearning_sync(settings: ItslearningSettings, now: datetime) -> Itsl
 
 
 def _fetch_updates_with_retry(settings: ItslearningSettings, now: datetime) -> list[dict[str, Any]]:
-    try:
-        return _fetch_updates(settings, now, verify_ssl=True)
-    except URLError as exc:
-        reason = getattr(exc, "reason", None)
-        if isinstance(reason, ssl.SSLCertVerificationError):
-            return _fetch_updates(settings, now, verify_ssl=False)
-        raise
+    return _fetch_updates(settings, now)
 
 
-def _fetch_updates(settings: ItslearningSettings, now: datetime, *, verify_ssl: bool) -> list[dict[str, Any]]:
-    opener = _build_opener(verify_ssl=verify_ssl)
+def _fetch_updates(settings: ItslearningSettings, now: datetime) -> list[dict[str, Any]]:
+    opener = _build_opener()
     login_html = _read_text(opener, settings.base_url)
     form_state = _extract_login_form_state(login_html)
 
@@ -179,10 +174,9 @@ def _fetch_updates(settings: ItslearningSettings, now: datetime, *, verify_ssl: 
     return _extract_updates(updates_html, settings.base_url, settings.max_updates, now)
 
 
-def _build_opener(*, verify_ssl: bool):
+def _build_opener():
     cookie_jar = http.cookiejar.CookieJar()
-    context = ssl.create_default_context() if verify_ssl else ssl._create_unverified_context()
-    return build_opener(HTTPCookieProcessor(cookie_jar), HTTPSHandler(context=context))
+    return build_opener(HTTPCookieProcessor(cookie_jar), HTTPSHandler(context=tls_context()))
 
 
 def _read_text(opener: Any, url: str) -> str:
@@ -584,7 +578,7 @@ def _error_detail(exc: Exception) -> str:
         if isinstance(reason, socket.gaierror):
             return "itslearning konnte gerade nicht geladen werden, weil der lokale Server keinen DNS-/Internet-Zugriff hat."
         if isinstance(reason, ssl.SSLCertVerificationError):
-            return "itslearning konnte wegen eines lokalen Zertifikatsproblems nicht geladen werden."
+            return "itslearning konnte nicht geladen werden, weil das Server-Zertifikat nicht bestätigt werden konnte."
         if reason:
             return f"itslearning-Login fehlgeschlagen: {reason}."
     return f"itslearning-Login fehlgeschlagen: {type(exc).__name__}."
@@ -596,5 +590,5 @@ def _error_next_step(exc: Exception) -> str:
         if isinstance(reason, socket.gaierror):
             return "Den lokalen Server mit Internetzugriff starten oder direkt im Mac-Terminal ausführen."
         if isinstance(reason, ssl.SSLCertVerificationError):
-            return "Python-Zertifikate auf dem Mac prüfen oder den lokalen Zertifikats-Fallback im Cockpit nutzen."
+            return "Das Zertifikat des Servers ist ungültig. Bitte die Server-Adresse prüfen."
     return "Zugangsdaten prüfen oder Seite nach erfolgreichem Login einmal im Browser aufrufen"

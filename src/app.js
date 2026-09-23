@@ -26,6 +26,8 @@
   // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const DASHBOARD_CACHE_KEY = "lc.dashboardCache";
+  // Official direct mailbox link (Schulportal SSO); mail clients are not permitted in Berlin.
+  const DIENSTMAIL_DEFAULT_URL = "https://lehrkraeftemail.schule.berlin.de/?iam_sso=1";
   const DASHBOARD_CACHE_MAX_AGE_MS = 600000; // 10 minutes
   const AUTO_REFRESH_MS = 180000;
   const PANEL_COLLAPSE_LIMITS = {
@@ -489,8 +491,10 @@
   }
 
   function _applyItslearningV2Data(data, v2) {
-    // v2 = ItslearningSyncResult dict: {source, messages[], priorities[], mode, note}
+    // v2 = ItslearningSyncResult dict: {source, messages[], priorities[], mode, note, calendar?}
     if (!v2) return;
+    data.itslearningCalendar = v2.calendar || null;
+    data.itslearningMode = v2.mode || "";
     if (Array.isArray(v2.messages)) {
       // Replace itslearning-channel messages with fresh v2 data; preserve other channels
       var nonItslearning = (data.messages || []).filter(function(m) { return m.channel !== 'itslearning'; });
@@ -1363,7 +1367,7 @@
     if (!todayEvents.length) {
       return {
         title: "Heute sind keine iCal-Termine eingetragen",
-        copy: "Wenn Unterricht stattfindet, liegt die Luecke wahrscheinlich an der WebUntis-iCal-Quelle und nicht am Cockpit.",
+        copy: "Wenn Unterricht stattfindet, liegt die Lücke wahrscheinlich an der WebUntis-iCal-Quelle und nicht am Cockpit.",
       };
     }
 
@@ -1547,9 +1551,9 @@
   function renderInboxLinks() {
     const base = state.data?.base || {};
     const mailConnection = connectionHint("mail");
-    const schoolportalUrl = base.schoolportal_url || "https://schulportal.berlin.de";
+    const dienstmailUrl = base.dienstmail_url || DIENSTMAIL_DEFAULT_URL;
     if (elements.dienstmailOpenLink) {
-      bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal öffnen");
+      bindExternalLink(elements.dienstmailOpenLink, dienstmailUrl, "Dienstmail öffnen");
       elements.dienstmailOpenLink.target = "_blank";
       elements.dienstmailOpenLink.rel = "noreferrer";
       elements.dienstmailOpenLink.hidden = false;
@@ -2631,6 +2635,10 @@
       if (collectionsRoot) window.LehrerCollections.init(collectionsRoot);
     }
 
+    if (window.LehrerConnections) {
+      window.LehrerConnections.init({ onChanged: () => refreshDashboard(true) });
+    }
+
     initPlansTabs();
     refreshDashboard().then(() => {
       loadClassworkCache();
@@ -3396,7 +3404,7 @@
 
   function eventStateLabel(event) {
     if (isCancelledEvent(event)) {
-      return "entfaellt";
+      return "entfällt";
     }
     const timingClass = getEventTimingClass(event);
     if (timingClass === "is-past") {

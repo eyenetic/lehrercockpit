@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=72" />
-    <link rel="stylesheet" href="./styles.auth.css?v=72" />
+    <link rel="stylesheet" href="./styles.css?v=73" />
+    <link rel="stylesheet" href="./styles.auth.css?v=73" />
     <style>
       body.onboarding-page {
         display: flex;
@@ -357,32 +357,36 @@
       <!-- Schritt: itslearning -->
       <div class="onboarding-step" id="step-itslearning">
         <h2>itslearning verbinden</h2>
-        <p>Verbinde dein itslearning-Konto für Inbox und Aufgaben.</p>
+        <p>Termine und Abgabefristen kommen über das Kalender-Abo aus itslearning – ganz ohne Passwort.</p>
         <div class="form-field">
-          <label for="its-server">Server-URL</label>
-          <input
-            type="url"
-            id="its-server"
-            placeholder="https://schule.itslearning.com"
-            autocomplete="off"
-          />
-        </div>
-        <div class="form-field">
-          <label for="its-username">Benutzername</label>
-          <input type="text" id="its-username" placeholder="vorname.nachname" autocomplete="off" />
-        </div>
-        <div class="form-field">
-          <label for="its-password">Passwort</label>
-          <input type="password" id="its-password" placeholder="••••••••" autocomplete="new-password" />
+          <label for="its-calendar-url">Kalender-Abo-Link (empfohlen)</label>
+          <input type="url" id="its-calendar-url" placeholder="https://berlin.itslearning.com/…" autocomplete="off" />
+          <details class="step-hint">
+            <summary>ℹ️ Wo finde ich den Link?</summary>
+            <div class="step-hint-body">
+              <ol>
+                <li>In itslearning den <strong>Kalender</strong> öffnen</li>
+                <li>Oben rechts auf das Zahnrad → „Abonnieren“</li>
+                <li>Den angezeigten Link kopieren und hier einfügen</li>
+              </ol>
+            </div>
+          </details>
         </div>
         <details class="step-hint">
-          <summary>ℹ️ Hinweise zu itslearning</summary>
+          <summary>Nachrichten per Login (optional, experimentell)</summary>
           <div class="step-hint-body">
-            <ul>
-              <li>Benutzername: meist vorname.nachname (z.&nbsp;B. max.mustermann)</li>
-              <li>Passwort: dein normales itslearning-Passwort</li>
-              <li>Die Basis-URL findest du in deinem Browser, wenn du auf itslearning eingeloggt bist (z.&nbsp;B. https://schule.itslearning.com)</li>
-            </ul>
+            <div class="form-field">
+              <label for="its-server">Server-URL</label>
+              <input type="url" id="its-server" placeholder="https://berlin.itslearning.com" autocomplete="off" />
+            </div>
+            <div class="form-field">
+              <label for="its-username">Benutzername</label>
+              <input type="text" id="its-username" placeholder="vorname.nachname" autocomplete="off" />
+            </div>
+            <div class="form-field">
+              <label for="its-password">Passwort</label>
+              <input type="password" id="its-password" placeholder="••••••••" autocomplete="new-password" />
+            </div>
           </div>
         </details>
         <div id="itslearning-feedback"></div>
@@ -457,7 +461,12 @@
       </div>
     </div>
 
-    <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
+    <script>
+      // Lokal (localhost) spricht die Seite mit dem lokalen Backend, sonst mit der Produktion.
+      window.BACKEND_API_URL = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+        ? window.location.origin
+        : "https://api.lehrercockpit.com";
+    </script>
     <script src="./src/api-client.js"></script>
     <script>
       (function () {
@@ -613,15 +622,26 @@
             config = { ical_url: url };
           } else if (step.moduleId === 'itslearning') {
             feedbackId = 'itslearning-feedback';
+            let calendarUrl = document.getElementById('its-calendar-url').value.trim();
             const server = document.getElementById('its-server').value.trim();
             const user = document.getElementById('its-username').value.trim();
             const pass = document.getElementById('its-password').value;
-            if (!server && !user && !pass) return true; // alles leer → überspringen
-            if (!server || !user || !pass) {
-              showFeedback(feedbackId, 'Bitte alle Felder ausfüllen oder Schritt überspringen.', 'error');
+            if (!calendarUrl && !user && !pass) return true; // alles leer → überspringen
+            if ((user && !pass) || (!user && pass)) {
+              showFeedback(feedbackId, 'Für den Login bitte Benutzername und Passwort ausfüllen.', 'error');
               return false;
             }
-            config = { server_url: server, username: user, password: pass };
+            if (calendarUrl.toLowerCase().startsWith('webcal://')) calendarUrl = 'https://' + calendarUrl.slice(9);
+            if (calendarUrl && !calendarUrl.toLowerCase().startsWith('https://')) {
+              showFeedback(feedbackId, 'Bitte den vollständigen Kalender-Link (https://…) einfügen.', 'error');
+              return false;
+            }
+            if (calendarUrl) config.calendar_url = calendarUrl;
+            if (user) {
+              config.username = user;
+              config.password = pass;
+              if (server) config.base_url = server;
+            }
           } else if (step.moduleId === 'nextcloud') {
             feedbackId = 'nextcloud-feedback';
             const server = document.getElementById('nc-server').value.trim();

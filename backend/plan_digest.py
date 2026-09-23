@@ -5,10 +5,11 @@ from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 import re
-import ssl
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from .http_utils import tls_context
 
 from openpyxl import load_workbook
 from pypdf import PdfReader
@@ -421,14 +422,7 @@ def _download_document(url: str) -> DownloadResult:
 
 
 def _open_request(request: Request):
-    try:
-        return urlopen(request, timeout=18)
-    except URLError as error:
-        reason = getattr(error, "reason", None)
-        if isinstance(reason, ssl.SSLCertVerificationError):
-            insecure_context = ssl._create_unverified_context()
-            return urlopen(request, timeout=18, context=insecure_context)
-        raise
+    return urlopen(request, timeout=18, context=tls_context())
 
 
 def _blocked_detail(title: str, download: DownloadResult) -> str:

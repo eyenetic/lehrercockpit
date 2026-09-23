@@ -10,6 +10,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from .config import NextcloudSettings
+from .http_utils import tls_context
 
 
 @dataclass
@@ -50,7 +51,7 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
         )
 
     try:
-        probe = _probe_nextcloud_webdav(settings)
+        _probe_nextcloud_webdav(settings)
         return NextcloudSyncResult(
             source={
                 "id": "nextcloud",
@@ -62,12 +63,7 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "nextStep": "Als Nächstes können wir Metadaten oder später direkte Datei-Leselogik prüfen",
                 "detail": (
                     "Nextcloud-Arbeitsbereich lokal verbunden. "
-                    + (
-                        "Der Schulserver braucht lokal einen SSL-Fallback. "
-                        if probe.get("sslFallback")
-                        else ""
-                    )
-                    + "Die Fehlzeiten-Dateien können jetzt direkt aus dem Cockpit geöffnet werden."
+                    "Die Fehlzeiten-Dateien können jetzt direkt aus dem Cockpit geöffnet werden."
                 ),
             },
             note=f"Nextcloud-Fehlzeiten sind lokal verbunden. Letzter Abruf: {now.strftime('%H:%M')}.",
@@ -117,23 +113,11 @@ def _probe_nextcloud_webdav(settings: NextcloudSettings) -> dict[str, Any]:
             "User-Agent": "LehrerCockpit/1.0",
         },
     )
-    try:
-        with urlopen(request, timeout=12) as response:
-            status = getattr(response, "status", 200)
-            if status not in {200, 207}:
-                raise RuntimeError(f"Unerwarteter Nextcloud-Status {status}")
-            return {"sslFallback": False, "status": status}
-    except URLError as exc:
-        reason = getattr(exc, "reason", None)
-        if not isinstance(reason, ssl.SSLCertVerificationError):
-            raise
-
-    insecure_context = ssl._create_unverified_context()
-    with urlopen(request, timeout=12, context=insecure_context) as response:
+    with urlopen(request, timeout=12, context=tls_context()) as response:
         status = getattr(response, "status", 200)
         if status not in {200, 207}:
             raise RuntimeError(f"Unerwarteter Nextcloud-Status {status}")
-        return {"sslFallback": True, "status": status}
+        return {"status": status}
 
 
 def _nextcloud_error_detail(exc: Exception) -> str:
@@ -144,6 +128,6 @@ def _nextcloud_error_detail(exc: Exception) -> str:
     if isinstance(exc, URLError):
         reason = getattr(exc, "reason", None)
         if isinstance(reason, ssl.SSLCertVerificationError):
-            return "Nextcloud-Zertifikat konnte lokal nicht verifiziert werden."
+            return "Das Zertifikat des Nextcloud-Servers konnte nicht bestätigt werden."
         return "Nextcloud konnte lokal nicht erreicht werden."
     return f"Nextcloud-Test fehlgeschlagen: {type(exc).__name__}: {exc}"

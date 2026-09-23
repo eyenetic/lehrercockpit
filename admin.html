@@ -771,7 +771,12 @@
       </div>
     </div>
 
-    <script>window.BACKEND_API_URL = "https://api.lehrercockpit.com";</script>
+    <script>
+      // Lokal (localhost) spricht die Seite mit dem lokalen Backend, sonst mit der Produktion.
+      window.BACKEND_API_URL = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+        ? window.location.origin
+        : "https://api.lehrercockpit.com";
+    </script>
     <script src="./src/api-client.js"></script>
     <script>
       (function () {
