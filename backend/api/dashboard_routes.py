@@ -795,15 +795,21 @@ def _fetch_klassenarbeitsplan_data() -> dict:
 
         from pathlib import Path
         from backend.classwork_cache import load_cache
-        cache_path = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-cache.json"
-        cached = load_cache(cache_path)
+        from backend.classwork_sync import CACHE_PATH, maybe_sync_in_background, sync_info
+
+        now = datetime.now(timezone.utc)
+        try:
+            maybe_sync_in_background(url or "", now)
+            sync = sync_info(url or "", now)
+        except Exception:
+            sync = {"onedrive": False, "needs_browser": False}
+        cached = load_cache(CACHE_PATH)
         if cached.get("status") == "ok" and (
             cached.get("previewRows") or cached.get("structuredRows") or cached.get("entries")
         ):
-            return {"ok": True, "data": {"url": url, **cached}, "configured": True}
+            return {"ok": True, "data": {"url": url, **cached}, "configured": True, "sync": sync}
 
         # Fallback: plan_digest
-        now = datetime.now(timezone.utc)
         local_xlsx = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-plan-local.xlsx"
         local_path_str = str(local_xlsx) if local_xlsx.exists() else None
         from backend.plan_digest import build_plan_digest
@@ -820,7 +826,7 @@ def _fetch_klassenarbeitsplan_data() -> dict:
             "entries": classwork_digest.get("entries", []),
             "defaultClass": classwork_digest.get("defaultClass", ""),
             "sourceUrl": classwork_digest.get("sourceUrl", url or ""),
-        }, "configured": bool(url or local_path_str)}
+        }, "configured": bool(url or local_path_str), "sync": sync}
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 

@@ -405,18 +405,18 @@ def klassenarbeitsplan_data():
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
 
     now = datetime.now(timezone.utc)
+    sync = _classwork_sync_info(url, now)
 
-    # 1. Try classwork cache (populated by Playwright scraper or XLSX upload)
+    # 1. Try classwork cache (OneDrive sync or XLSX upload)
     try:
-        from pathlib import Path
         from backend.classwork_cache import load_cache
+        from backend.classwork_sync import CACHE_PATH
 
-        cache_path = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-cache.json"
-        cached = load_cache(cache_path)
+        cached = load_cache(CACHE_PATH)
         if cached.get("status") == "ok" and (
             cached.get("previewRows") or cached.get("structuredRows") or cached.get("entries")
         ):
-            return success({"data": {"url": url, **cached}, "configured": True})
+            return success({"data": {"url": url, **cached}, "configured": True, "sync": sync})
     except Exception:
         pass
 
@@ -444,15 +444,95 @@ def klassenarbeitsplan_data():
                 "sourceUrl": classwork_digest.get("sourceUrl", url or ""),
             },
             "configured": bool(url or local_path_str),
+            "sync": sync,
         })
     except Exception as exc:
         return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
 
 
+def _classwork_url() -> str:
+    with db_connection() as conn:
+        url = get_system_setting(conn, "klassenarbeitsplan_url", None) or \
+            get_system_setting(conn, "classwork_url", None) or ""
+    return url if isinstance(url, str) else ""
+
+
+def _classwork_sync_info(url, now) -> dict:
+    """Sync status for the frontend; starts a server-side OneDrive fetch when due."""
+    try:
+        from backend.classwork_sync import maybe_sync_in_background, sync_info
+
+        maybe_sync_in_background(url or "", now)
+        return sync_info(url or "", now)
+    except Exception:
+        return {"onedrive": False, "needs_browser": False}
+
+
+@module_bp.route("/klassenarbeitsplan/browser-sync", methods=["POST"])
+@require_auth
+def klassenarbeitsplan_browser_sync():
+    """A teacher's browser fetched the plan from OneDrive (the server may be blocked).
+
+    Body: the raw file (application/octet-stream).
+    Headers: X-Source-ETag, X-Source-Modified, X-Source-Name (from OneDrive metadata).
+    """
+    from urllib.parse import unquote
+
+    from backend.classwork_sync import record_browser_result, store_plan
+    from backend.onedrive_share import MAX_BYTES, is_onedrive_link
+
+    file_bytes = request.get_data(cache=False)
+    if not file_bytes:
+        return error("Keine Datei empfangen.", 400)
+    if len(file_bytes) > MAX_BYTES:
+        return error("Datei zu groß (max. 15 MB).", 413)
+    try:
+        url = _classwork_url()
+    except Exception as exc:
+        return error(f"Einstellungen konnten nicht geladen werden: {type(exc).__name__}", 500)
+    if not is_onedrive_link(url):
+        return error("Für den Klassenarbeitsplan ist kein OneDrive-Link hinterlegt.", 409)
+
+    meta = {
+        "etag": request.headers.get("X-Source-ETag", "")[:200],
+        "modified": request.headers.get("X-Source-Modified", "")[:64],
+        "name": unquote(request.headers.get("X-Source-Name", ""))[:200],  # sent URI-encoded
+    }
+    try:
+        result = store_plan(file_bytes, source="onedrive-browser",
+                            uploaded_by=g.current_user.full_name, meta=meta)
+    except ValueError as exc:
+        return error(f"Datei konnte nicht gelesen werden: {exc}", 422)
+    record_browser_result(url, meta, changed=True)
+    return success({"data": result})
+
+
+@module_bp.route("/klassenarbeitsplan/sync-confirm", methods=["POST"])
+@require_auth
+def klassenarbeitsplan_sync_confirm():
+    """A browser checked OneDrive and the plan is unchanged (same eTag)."""
+    from backend.classwork_sync import load_state, record_browser_result, sync_info
+
+    body = request.get_json(silent=True) or {}
+    etag = str(body.get("etag", ""))[:200]
+    try:
+        url = _classwork_url()
+    except Exception as exc:
+        return error(f"Einstellungen konnten nicht geladen werden: {type(exc).__name__}", 500)
+    state = load_state()
+    if not etag or state.get("source_url") != url or state.get("etag") != etag:
+        return error("Stand stimmt nicht überein – bitte die Datei übertragen.", 409)
+    record_browser_result(url, {"etag": etag, "modified": state.get("modified", ""),
+                                "name": state.get("name", "")}, changed=False)
+    return success({"sync": sync_info(url)})
+
+
 @module_bp.route("/klassenarbeitsplan/config", methods=["POST"])
 @require_auth
 def klassenarbeitsplan_save_config():
-    """Speichert die OneDrive-URL für den Klassenarbeitsplan."""
+    """Speichert die OneDrive-URL für den Klassenarbeitsplan (nur Admins, gilt schulweit)."""
+    if not g.current_user.is_admin:
+        return error("Nur Admins können den schulweiten Link ändern.", 403)
     body = request.get_json(silent=True) or {}
     url = str(body.get("url", "")).strip()
     try:
@@ -475,8 +555,10 @@ def klassenarbeitsplan_fetch():
     body = request.get_json(silent=True) or {}
     url = str(body.get("url", "")).strip()
 
-    # If URL provided in body, persist it
+    # If URL provided in body, persist it (school-wide setting: admins only)
     if url:
+        if not g.current_user.is_admin:
+            return error("Nur Admins können den schulweiten Link ändern.", 403)
         try:
             with db_connection() as conn:
                 set_system_setting(conn, "klassenarbeitsplan_url", url)
@@ -492,6 +574,20 @@ def klassenarbeitsplan_fetch():
 
     if not url:
         return error("Keine URL konfiguriert. Bitte zuerst einen OneDrive-Link eintragen.", 400)
+
+    from backend.onedrive_share import is_onedrive_link
+    if is_onedrive_link(url):
+        from backend.classwork_cache import load_cache
+        from backend.classwork_sync import CACHE_PATH, sync_from_server, sync_info
+
+        result_code = sync_from_server(url)
+        sync = sync_info(url)
+        if result_code in ("ok", "unchanged"):
+            return success({"data": load_cache(CACHE_PATH), "fetchedFrom": url,
+                            "result": result_code, "sync": sync})
+        # Microsoft refused the server: the browser has to fetch the file.
+        return success({"data": None, "result": result_code, "sync": {**sync, "needs_browser": True},
+                        "error": sync.get("last_error") or "Abruf durch den Server nicht möglich."})
 
     # Build candidate download URLs, trying the most reliable first
     import base64 as _b64

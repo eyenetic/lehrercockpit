@@ -289,6 +289,98 @@
     },
   });
 
+  // ── Klassenarbeitsplan (OneDrive) ─────────────────────────────────────────
+
+  var CLASSWORK_SOURCE_LABELS = {
+    onedrive: 'automatisch von OneDrive (Server)',
+    'onedrive-browser': 'automatisch von OneDrive (über einen Browser)',
+    upload: 'manuell hochgeladen',
+    auto: 'automatisch abgerufen',
+  };
+
+  function _refreshClasswork(el, cw) {
+    feedback(el, 'Aktualisiere …');
+    return api('/api/v2/modules/klassenarbeitsplan/fetch', { method: 'POST', body: {} })
+      .then(function (data) {
+        if (data.result === 'ok' || data.result === 'unchanged') {
+          return data.result === 'ok' ? 'Neuer Stand von OneDrive geladen.' : 'Der Plan ist aktuell.';
+        }
+        // Microsoft refused the server – fetch in this browser instead.
+        if (!window.LehrerOneDriveSync) throw new Error(data.error || 'Abruf nicht möglich.');
+        feedback(el, 'Server wird von Microsoft geblockt – lade über deinen Browser …');
+        return window.LehrerOneDriveSync.syncNow(cw.url, (data.sync || {}).etag || '')
+          .then(function (result) {
+            return result.state === 'ok' ? 'Neuer Stand über deinen Browser geladen.' : 'Der Plan ist aktuell.';
+          });
+      })
+      .then(function (message) {
+        _onChanged();
+        return load().then(function () {
+          feedback(_body && _body.querySelector('[data-section="klassenarbeitsplan"]'), message, 'success');
+        });
+      })
+      .catch(function (err) { feedback(el, err.message, 'error'); });
+  }
+
+  registerSection({
+    id: 'klassenarbeitsplan',
+    render: function (status) {
+      var cw = status.klassenarbeitsplan || {};
+      var sync = cw.sync || {};
+      var head = '<div class="connection-head"><h3>Klassenarbeitsplan</h3>' +
+        statusPill(cw.onedrive, 'automatisch', cw.url ? 'nur manuell' : 'kein Link') + '</div>';
+      var body = cw.onedrive
+        ? '<p class="connection-copy">Der Plan bleibt auf OneDrive. Das Cockpit holt ihn automatisch – zuerst über den Server, und falls Microsoft den Server blockt, über den Browser einer Lehrkraft.</p>'
+        : '<p class="connection-copy">' + (cw.url
+          ? 'Der hinterlegte Link ist kein OneDrive-Freigabelink. Der Plan kann nur manuell hochgeladen werden.'
+          : 'Noch kein OneDrive-Link hinterlegt. Bis dahin lässt sich der Plan unter „Pläne“ manuell hochladen.') + '</p>';
+      if (cw.uploaded_at) {
+        body += '<p class="connection-copy">Stand vom <strong>' + esc(cw.uploaded_at) + '</strong> – ' +
+          esc(CLASSWORK_SOURCE_LABELS[cw.upload_source] || 'hochgeladen') + '.</p>';
+      }
+      if (cw.onedrive && sync.last_result === 'blocked') {
+        body += '<p class="connection-copy">Der Server wird von Microsoft blockiert. Die Browser der Lehrkräfte übernehmen den Abruf.</p>';
+      } else if (cw.onedrive && sync.last_result === 'error' && sync.last_error) {
+        body += '<p class="connection-feedback is-error">' + esc(sync.last_error) + '</p>';
+      }
+      var actions = cw.onedrive
+        ? '<button class="btn btn-primary" type="button" data-action="refresh">Jetzt aktualisieren</button>' : '';
+      var edit = cw.can_edit
+        ? '<label class="connection-field">OneDrive-Freigabelink (gilt für die ganze Schule)' +
+          '<input class="form-input" type="url" data-field="classwork_url" value="' + esc(cw.url || '') + '" placeholder="https://1drv.ms/x/…" autocomplete="off" /></label>' +
+          '<details class="connection-help"><summary>Welchen Link brauche ich?</summary><ol>' +
+          '<li>In OneDrive die Excel-Datei des Klassenarbeitsplans auswählen → „Teilen“.</li>' +
+          '<li>„Jeder mit dem Link kann anzeigen“ einstellen und den Link kopieren.</li></ol></details>'
+        : '';
+      var editActions = cw.can_edit
+        ? '<button class="btn btn-secondary" type="button" data-action="save-link">Link speichern</button>' : '';
+      return head + body + edit +
+        ((actions || editActions) ? '<div class="connection-actions">' + actions + editActions + '</div>' : '') +
+        '<p class="connection-feedback" data-feedback></p>';
+    },
+    bind: function (el, status) {
+      var cw = status.klassenarbeitsplan || {};
+      var refresh = el.querySelector('[data-action="refresh"]');
+      if (refresh) refresh.addEventListener('click', function () { _refreshClasswork(el, cw); });
+      var save = el.querySelector('[data-action="save-link"]');
+      if (save) save.addEventListener('click', function () {
+        var url = el.querySelector('[data-field="classwork_url"]').value.trim();
+        if (url && !/^https:\/\//i.test(url)) { feedback(el, 'Bitte den vollständigen Link (https://…) einfügen.', 'error'); return; }
+        feedback(el, 'Speichere …');
+        api('/api/v2/modules/klassenarbeitsplan/config', { method: 'POST', body: { url: url } })
+          .then(function () {
+            return load().then(function () {
+              var fresh = _body && _body.querySelector('[data-section="klassenarbeitsplan"]');
+              feedback(fresh, 'Link gespeichert.', 'success');
+              var freshStatus = (_status || {}).klassenarbeitsplan || {};
+              if (freshStatus.onedrive) _refreshClasswork(fresh, freshStatus);
+            });
+          })
+          .catch(function (err) { feedback(el, err.message, 'error'); });
+      });
+    },
+  });
+
   // ── Dialog ────────────────────────────────────────────────────────────────
 
   function registerSection(section) {

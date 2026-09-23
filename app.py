@@ -144,7 +144,10 @@ def _cors(response: Response) -> Response:
         # Only set explicit origin (never wildcard when credentials are required)
         response.headers["Access-Control-Allow-Origin"] = allowed_origins[0]
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Cookie"
+    # X-Source-*: OneDrive metadata sent along with a browser-fetched Klassenarbeitsplan
+    response.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type, Cookie, X-Source-ETag, X-Source-Modified, X-Source-Name"
+    )
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Cache-Control"] = "no-store"
     return response
@@ -286,6 +289,15 @@ def api_classwork_upload() -> Response:
     if extract_multipart_file is None or parse_classwork_xlsx is None:
         return jsonify({"error": "file-utils-unavailable", "detail": str(_IMPORT_ERROR)}), 500
 
+    # With a database (hosted multi-user mode) the plan is shared school-wide:
+    # only signed-in teachers may replace it.
+    user = None
+    if os.environ.get("DATABASE_URL", "").strip():
+        from backend.api.helpers import get_current_user
+        user = get_current_user()
+        if user is None:
+            return jsonify({"error": "unauthorized", "detail": "Bitte anmelden, um den Klassenarbeitsplan hochzuladen."}), 401
+
     raw_body = request.get_data()
     content_type = request.content_type or ""
     file_bytes = extract_multipart_file(raw_body, content_type)
@@ -293,23 +305,10 @@ def api_classwork_upload() -> Response:
         file_bytes = raw_body
 
     try:
-        result = parse_classwork_xlsx(file_bytes)
+        from backend.classwork_sync import store_plan
+        result = store_plan(file_bytes, source="upload", uploaded_by=user.full_name if user else "")
     except Exception as exc:
         return jsonify({"error": "parse-failed", "detail": f"Datei konnte nicht gelesen werden: {type(exc).__name__}: {exc}"}), 422
-
-    # Attach uploader metadata
-    from datetime import datetime as _dt
-    result["uploadedAt"] = _dt.now().strftime("%d.%m.%Y %H:%M")
-    result["uploadSource"] = "upload"
-    try:
-        from backend.api.helpers import get_current_user
-        user = get_current_user()
-        result["uploadedBy"] = user.full_name if user else ""
-    except Exception:
-        result["uploadedBy"] = ""
-
-    if save_cache:
-        save_cache(CLASSWORK_CACHE_PATH, result)
 
     return jsonify(result)
 

@@ -87,10 +87,17 @@ var LehrerClasswork = (function () {
     var at = classwork.uploadedAt || classwork.updatedAt || '';
     var src = classwork.uploadSource || '';
     if (!at) { el.hidden = true; return; }
-    var srcLabel = src === 'auto' ? 'Automatisch abgerufen' : 'Hochgeladen';
-    var byPart = by ? ' von <strong>' + by + '</strong>' : '';
+    var esc = function (value) {
+      return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    var srcLabel = {
+      auto: 'Automatisch abgerufen',
+      onedrive: 'Automatisch von OneDrive geladen',
+      'onedrive-browser': 'Automatisch von OneDrive geladen',
+    }[src] || 'Hochgeladen';
+    var byPart = by ? (src === 'onedrive-browser' ? ' (über den Browser von <strong>' + esc(by) + '</strong>)' : ' von <strong>' + esc(by) + '</strong>') : '';
     el.innerHTML = '<span class="classwork-info-icon">✓</span>'
-      + srcLabel + byPart + ' am ' + at;
+      + srcLabel + byPart + ' am ' + esc(at);
     el.hidden = false;
   }
 

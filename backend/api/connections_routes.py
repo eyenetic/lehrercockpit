@@ -91,9 +91,49 @@ def _status_payload(configs: dict[str, dict], settings: dict | None = None) -> d
     }
 
 
-def _load_status(conn, user_id: int) -> dict:
+def _classwork_link(conn) -> str:
+    try:
+        url = get_system_setting(conn, "klassenarbeitsplan_url", "") or get_system_setting(conn, "classwork_url", "")
+    except Exception:
+        return ""
+    return url if isinstance(url, str) else ""
+
+
+def _classwork_status(url: str, is_admin: bool) -> dict:
+    """School-wide Klassenarbeitsplan: OneDrive link, last update, sync health.
+
+    Reads the plan cache and sync state through the persistence store (its own
+    connections), so call it outside of an open db_connection() transaction.
+    """
+    try:
+        from backend.classwork_cache import load_cache
+        from backend.classwork_sync import CACHE_PATH, sync_info
+        from backend.onedrive_share import is_onedrive_link
+
+        cached = load_cache(CACHE_PATH)
+        return {
+            "url": url,
+            "onedrive": is_onedrive_link(url),
+            "sync": sync_info(url),
+            "uploaded_at": cached.get("uploadedAt", ""),
+            "upload_source": cached.get("uploadSource", ""),
+            "uploaded_by": cached.get("uploadedBy", ""),
+            "can_edit": bool(is_admin),
+        }
+    except Exception:
+        return {"url": "", "onedrive": False, "sync": {}, "can_edit": bool(is_admin)}
+
+
+def _load_status(conn, user_id: int) -> tuple[dict, str]:
+    """Per-user connection status plus the school's Klassenarbeitsplan link."""
     configs = {mid: get_user_module_config(conn, user_id, mid) for mid in _STATUS_MODULES}
-    return _status_payload(configs, _school_settings(conn))
+    return _status_payload(configs, _school_settings(conn)), _classwork_link(conn)
+
+
+def _with_classwork(loaded: tuple[dict, str], is_admin: bool) -> dict:
+    status, classwork_url = loaded
+    status["klassenarbeitsplan"] = _classwork_status(classwork_url, is_admin)
+    return status
 
 
 def _store_config(conn, user_id: int, module_id: str, config: dict, *, configured: bool) -> None:
@@ -113,10 +153,10 @@ def get_connections():
     user_id = g.current_user.id
     try:
         with db_connection() as conn:
-            status = _load_status(conn, user_id)
+            loaded = _load_status(conn, user_id)
     except Exception as exc:
         return error(f"Verbindungen konnten nicht geladen werden: {type(exc).__name__}", 500)
-    return success({"connections": status})
+    return success({"connections": _with_classwork(loaded, g.current_user.is_admin)})
 
 
 @connections_bp.route("/<module_id>", methods=["PATCH"])
@@ -159,10 +199,10 @@ def patch_connection(module_id: str):
                 else:
                     config[field] = value
             _store_config(conn, user_id, module_id, config, configured=bool(config))
-            status = _load_status(conn, user_id)
+            loaded = _load_status(conn, user_id)
     except Exception as exc:
         return error(f"Speichern fehlgeschlagen: {type(exc).__name__}", 500)
-    return success({"connections": status})
+    return success({"connections": _with_classwork(loaded, g.current_user.is_admin)})
 
 
 # ── Nextcloud (Login Flow v2) ────────────────────────────────────────────────
@@ -247,14 +287,14 @@ def nextcloud_poll():
             _store_config(conn, user_id, "nextcloud", config, configured=True)
             log_audit_event(conn, "nextcloud_connected", user_id=user_id,
                             details={"server": config["base_url"]})
-            status = _load_status(conn, user_id)
+            loaded = _load_status(conn, user_id)
     except Exception as exc:
         return error(f"Verbindung konnte nicht gespeichert werden: {type(exc).__name__}", 500)
 
     if previous and previous[2] != credentials["app_password"]:
         revoke_app_password(*previous)  # replace the old app password, best effort
     nextcloud_module.forget_cached(config)
-    return success({"status": "connected", "connections": status})
+    return success({"status": "connected", "connections": _with_classwork(loaded, g.current_user.is_admin)})
 
 
 @connections_bp.route("/nextcloud", methods=["DELETE"])
@@ -277,7 +317,7 @@ def nextcloud_disconnect():
         with db_connection() as conn:
             _store_config(conn, user_id, "nextcloud", config, configured=False)
             log_audit_event(conn, "nextcloud_disconnected", user_id=user_id, details={"revoked": revoked})
-            status = _load_status(conn, user_id)
+            loaded = _load_status(conn, user_id)
     except Exception as exc:
         return error(f"Trennen fehlgeschlagen: {type(exc).__name__}", 500)
-    return success({"revoked": revoked, "connections": status})
+    return success({"revoked": revoked, "connections": _with_classwork(loaded, g.current_user.is_admin)})

@@ -600,6 +600,11 @@
         try { _applyClassworkV2Data(data, modules.klassenarbeitsplan.data || modules.klassenarbeitsplan); } catch (_e) {}
       }
 
+      // Klassenarbeitsplan OneDrive sync status (browser fetch when the server is blocked)
+      data.classworkSync = modules.klassenarbeitsplan && modules.klassenarbeitsplan.sync
+        ? modules.klassenarbeitsplan.sync
+        : null;
+
       // Nextcloud activity + notifications (Login Flow v2)
       data.nextcloudFeed = modules.nextcloud && modules.nextcloud.ok === true ? (modules.nextcloud.data || null) : null;
 
@@ -2078,6 +2083,14 @@
     return;
   }
 
+  // Background work that depends on fresh dashboard data.
+  function runBackgroundSyncs() {
+    if (window.LehrerOneDriveSync && state.data) {
+      const pending = window.LehrerOneDriveSync.maybeSync(state.data, () => refreshDashboard(true));
+      if (pending) pending.catch(() => {}); // status is shown under "Verbindungen"
+    }
+  }
+
   async function refreshDashboard(forceRefresh = false) {
     // Stale-while-revalidate: show cached data immediately, then update from network
     if (!forceRefresh) {
@@ -2095,6 +2108,7 @@
           renderAll();
           applyAppTitle();
           updateWebUntisExternalLink();
+          runBackgroundSyncs();
         } catch (_) {}
         return;
       }
@@ -2110,6 +2124,7 @@
       renderAll();
       applyAppTitle();
       updateWebUntisExternalLink();
+      runBackgroundSyncs();
     } catch (error) {
       if (window.LEHRER_COCKPIT_FALLBACK_DATA) {
         state.data = normalizeDashboard(window.LEHRER_COCKPIT_FALLBACK_DATA);
@@ -2191,6 +2206,7 @@
       const response = await fetch(`${apiBase}/api/classwork/upload`, {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       const payload = await response.json();
@@ -2857,7 +2873,7 @@
       const formData = new FormData();
       formData.append("file", file, file.name);
 
-      const response = await fetch(uploadUrl, { method: "POST", body: formData });
+      const response = await fetch(uploadUrl, { method: "POST", body: formData, credentials: "include" });
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {

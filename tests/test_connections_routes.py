@@ -48,6 +48,7 @@ def _call(client, store, method, path, **kwargs):
             patch.object(routes, "get_user_module_config", side_effect=store.get), \
             patch.object(routes, "save_user_module_config", side_effect=store.save), \
             patch.object(routes, "_school_settings", return_value={"nextcloud_url": "https://cloud.schule.de"}), \
+            patch.object(routes, "_classwork_status", return_value={"url": "", "onedrive": False}), \
             patch.object(routes, "log_audit_event"):
         return getattr(client, method)(path, **kwargs)
 
