@@ -600,6 +600,9 @@
         try { _applyClassworkV2Data(data, modules.klassenarbeitsplan.data || modules.klassenarbeitsplan); } catch (_e) {}
       }
 
+      // Nextcloud activity + notifications (Login Flow v2)
+      data.nextcloudFeed = modules.nextcloud && modules.nextcloud.ok === true ? (modules.nextcloud.data || null) : null;
+
       // grades + notes (noten module)
       if (modules.noten && modules.noten.ok === true && modules.noten.data) {
         try {

@@ -4862,3 +4862,24 @@ details[open] > .orgaplan-upcoming-summary::before {
   .calendar-item { grid-template-columns: 1fr; gap: 2px; }
   .calendar-item-when { flex-direction: row; gap: 8px; }
 }
+
+/* ── Neu in Nextcloud ─────────────────────────────────────────────────────── */
+.feed-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.feed-item:first-child { border-top: 0; }
+.feed-item-main { min-width: 0; }
+.feed-item-main .calendar-item-title { overflow-wrap: anywhere; }
+.feed-item-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}

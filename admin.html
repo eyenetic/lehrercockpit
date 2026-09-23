@@ -616,6 +616,13 @@
               </div>
               <div class="form-row single">
                 <div class="form-field">
+                  <label for="s-nextcloud-url">Nextcloud-Adresse der Schule</label>
+                  <input type="url" id="s-nextcloud-url" placeholder="https://cloud.schule.de" />
+                  <p class="field-hint">Wird Lehrkräften unter „Verbindungen“ vorgeschlagen, wenn sie Nextcloud verbinden.</p>
+                </div>
+              </div>
+              <div class="form-row single">
+                <div class="form-field">
                   <label for="s-wichtige-termine-ical">Wichtige Termine iCal URL</label>
                   <input type="url" id="s-wichtige-termine-ical" placeholder="https://…/?ical=1" />
                   <p class="field-hint">iCal-Feed-URL für den Schulkalender. Standard: HES-URL</p>
@@ -1299,6 +1306,7 @@
             if (s.fehlzeiten_11_url) document.getElementById('s-fehlzeiten-11').value = s.fehlzeiten_11_url;
             if (s.fehlzeiten_12_url) document.getElementById('s-fehlzeiten-12').value = s.fehlzeiten_12_url;
             if (s.wichtige_termine_ical_url) document.getElementById('s-wichtige-termine-ical').value = s.wichtige_termine_ical_url;
+            if (s.nextcloud_url) document.getElementById('s-nextcloud-url').value = s.nextcloud_url;
           } catch (e) { /* ignore */ }
         }
 
@@ -1320,6 +1328,7 @@
             fehlzeiten_11_url: document.getElementById('s-fehlzeiten-11').value.trim(),
             fehlzeiten_12_url: document.getElementById('s-fehlzeiten-12').value.trim(),
             wichtige_termine_ical_url: document.getElementById('s-wichtige-termine-ical').value.trim(),
+            nextcloud_url: document.getElementById('s-nextcloud-url').value.trim(),
           };
 
           try {

@@ -154,6 +154,141 @@
     },
   });
 
+
+  // ── Nextcloud (Login Flow v2) ─────────────────────────────────────────────
+
+  var NEXTCLOUD_POLL_MS = 2500;
+  var NEXTCLOUD_POLL_LIMIT_MS = 20 * 60 * 1000; // Nextcloud poll tokens live 20 minutes
+  var _nextcloudPoll = null;
+
+  function _stopNextcloudPolling() {
+    if (_nextcloudPoll) { clearTimeout(_nextcloudPoll.timer); _nextcloudPoll = null; }
+  }
+
+  function _pollNextcloud(sectionEl) {
+    if (!_nextcloudPoll) return;
+    if (Date.now() - _nextcloudPoll.started > NEXTCLOUD_POLL_LIMIT_MS) {
+      _stopNextcloudPolling();
+      feedback(sectionEl, 'Die Anmeldung ist abgelaufen. Bitte erneut verbinden.', 'error');
+      return;
+    }
+    api('/api/v2/connections/nextcloud/poll', { method: 'POST' })
+      .then(function (data) {
+        if (data.status === 'connected') {
+          _stopNextcloudPolling();
+          if (data.connections) _status = Object.assign({}, _status, data.connections);
+          else if (_status && _status.nextcloud) _status.nextcloud.connected = true;
+          render();
+          var fresh = _body && _body.querySelector('[data-section="nextcloud"]');
+          feedback(fresh, 'Nextcloud ist verbunden.', 'success');
+          _onChanged();
+          if (!data.connections) load();
+          return;
+        }
+        if (data.status === 'expired') {
+          _stopNextcloudPolling();
+          feedback(sectionEl, 'Die Anmeldung ist abgelaufen. Bitte erneut verbinden.', 'error');
+          return;
+        }
+        _nextcloudPoll.timer = setTimeout(function () { _pollNextcloud(sectionEl); }, NEXTCLOUD_POLL_MS);
+      })
+      .catch(function (err) {
+        // Transient errors: keep waiting, the teacher may still be signing in.
+        feedback(sectionEl, err.message + ' – ich versuche es weiter …', 'error');
+        if (_nextcloudPoll) {
+          _nextcloudPoll.timer = setTimeout(function () { _pollNextcloud(sectionEl); }, NEXTCLOUD_POLL_MS * 2);
+        }
+      });
+  }
+
+  function _startNextcloudPolling(sectionEl) {
+    _stopNextcloudPolling();
+    _nextcloudPoll = { started: Date.now(), timer: null };
+    _nextcloudPoll.timer = setTimeout(function () { _pollNextcloud(sectionEl); }, NEXTCLOUD_POLL_MS);
+  }
+
+  registerSection({
+    id: 'nextcloud',
+    render: function (status) {
+      var s = status.nextcloud || {};
+      var waiting = s.pending || !!_nextcloudPoll;
+      var head = '<div class="connection-head"><h3>Nextcloud</h3>' +
+        statusPill(s.connected, 'verbunden', waiting ? 'Anmeldung läuft' : 'nicht verbunden') + '</div>';
+      if (s.connected) {
+        return head +
+          '<p class="connection-copy">Verbunden als <strong>' + esc(s.account) + '</strong> auf ' + esc((s.server || '').replace(/^https:\/\//, '')) + '. ' +
+          'Neue Dateien, Änderungen und Freigaben anderer erscheinen im Posteingang.</p>' +
+          '<p class="connection-copy">Das Cockpit nutzt ein eigenes App-Passwort. Du kannst es jederzeit hier trennen oder in Nextcloud unter Einstellungen → Sicherheit widerrufen.</p>' +
+          '<div class="connection-actions"><button class="btn btn-secondary" type="button" data-action="disconnect">Trennen</button></div>' +
+          '<p class="connection-feedback" data-feedback></p>';
+      }
+      return head +
+        '<p class="connection-copy">Du meldest dich direkt auf der Nextcloud-Seite deiner Schule an. Das Cockpit bekommt dabei nur ein eigenes App-Passwort – dein Passwort sieht es nie.</p>' +
+        '<label class="connection-field">Adresse eurer Nextcloud' +
+        '<input class="form-input" type="url" data-field="base_url" value="' + esc(s.suggested_server || '') + '" placeholder="https://cloud.schule.de" autocomplete="off" /></label>' +
+        '<div class="connection-actions">' +
+        '<button class="btn btn-primary" type="button" data-action="connect">' + (waiting ? 'Erneut öffnen' : 'Mit Nextcloud verbinden') + '</button>' +
+        (waiting ? '<button class="btn btn-secondary" type="button" data-action="cancel">Abbrechen</button>' : '') +
+        '</div>' +
+        '<p class="connection-feedback" data-feedback>' + (waiting ? 'Warte auf die Anmeldung in Nextcloud …' : '') + '</p>' +
+        '<p class="connection-copy" data-login-link hidden></p>';
+    },
+    bind: function (el, status) {
+      var s = status.nextcloud || {};
+      var disconnect = el.querySelector('[data-action="disconnect"]');
+      if (disconnect) {
+        disconnect.addEventListener('click', function () {
+          feedback(el, 'Trenne …');
+          api('/api/v2/connections/nextcloud', { method: 'DELETE' })
+            .then(function (data) {
+              _status = Object.assign({}, _status, data.connections || {});
+              render();
+              var fresh = _body && _body.querySelector('[data-section="nextcloud"]');
+              feedback(fresh, data.revoked ? 'Nextcloud wurde getrennt.' : 'Getrennt. Das App-Passwort bitte zusätzlich in Nextcloud löschen.', 'success');
+              _onChanged();
+            })
+            .catch(function (err) { feedback(el, err.message, 'error'); });
+        });
+        return;
+      }
+
+      var cancel = el.querySelector('[data-action="cancel"]');
+      if (cancel) cancel.addEventListener('click', function () {
+        _stopNextcloudPolling();
+        if (_status && _status.nextcloud) _status.nextcloud.pending = false;
+        render();
+      });
+
+      el.querySelector('[data-action="connect"]').addEventListener('click', function () {
+        var baseUrl = el.querySelector('[data-field="base_url"]').value.trim();
+        if (!baseUrl) { feedback(el, 'Bitte die Adresse eurer Nextcloud eintragen.', 'error'); return; }
+        // Open the tab synchronously (popup blockers), navigate once the login URL is known.
+        var loginWindow = window.open('', '_blank');
+        if (loginWindow) loginWindow.opener = null;
+        feedback(el, 'Verbinde mit Nextcloud …');
+        api('/api/v2/connections/nextcloud/start', { method: 'POST', body: { base_url: baseUrl } })
+          .then(function (data) {
+            if (loginWindow && !loginWindow.closed) {
+              loginWindow.location.href = data.login_url;
+              feedback(el, 'Bitte im neuen Tab bei Nextcloud anmelden und „Zugriff gewähren“ bestätigen. Danach geht es hier automatisch weiter.');
+            } else {
+              var link = el.querySelector('[data-login-link]');
+              link.innerHTML = '<a href="' + esc(data.login_url) + '" target="_blank" rel="noopener noreferrer">Anmeldeseite von Nextcloud öffnen</a>';
+              link.hidden = false;
+              feedback(el, 'Bitte über den Link unten bei Nextcloud anmelden und „Zugriff gewähren“ bestätigen. Danach geht es hier automatisch weiter.');
+            }
+            _startNextcloudPolling(el);
+          })
+          .catch(function (err) {
+            if (loginWindow && !loginWindow.closed) loginWindow.close();
+            feedback(el, err.message, 'error');
+          });
+      });
+
+      if (s.pending && !_nextcloudPoll) _startNextcloudPolling(el);
+    },
+  });
+
   // ── Dialog ────────────────────────────────────────────────────────────────
 
   function registerSection(section) {
@@ -192,6 +327,7 @@
 
   function close() {
     if (_modal) _modal.hidden = true;
+    _stopNextcloudPolling();
   }
 
   function init(options) {

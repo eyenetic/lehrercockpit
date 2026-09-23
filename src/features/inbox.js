@@ -133,6 +133,61 @@ var LehrerInbox = (function () {
     // Dienstmail-Tab entfernt — delegiert an renderItslearningTab für Live-Updates
     renderItslearningTab();
     renderItslearningCalendar();
+    renderNextcloudFeed();
+  }
+
+  function _relativeTime(iso) {
+    var date = new Date(iso);
+    if (isNaN(date.getTime())) return '';
+    var minutes = Math.round((Date.now() - date.getTime()) / 60000);
+    if (minutes < 1) return 'gerade eben';
+    if (minutes < 60) return 'vor ' + minutes + ' Min.';
+    var hours = Math.round(minutes / 60);
+    if (hours < 24) return 'vor ' + hours + ' Std.';
+    var days = Math.round(hours / 24);
+    if (days === 1) return 'gestern';
+    if (days < 7) return 'vor ' + days + ' Tagen';
+    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  }
+
+  /**
+   * "Neu in Nextcloud": notifications plus recent activity of other people
+   * (changed and shared files, comments). Hidden when Nextcloud is not connected.
+   */
+  function renderNextcloudFeed() {
+    var block = document.getElementById('nextcloud-feed-block');
+    var list = document.getElementById('nextcloud-feed-list');
+    if (!block || !list || !_getData) return;
+    var feed = _getData().nextcloudFeed;
+    if (!feed) { block.hidden = true; return; }
+    block.hidden = false;
+    if (feed.error) {
+      list.innerHTML = '<div class="empty-state">' + esc(feed.error) + '</div>';
+      return;
+    }
+    var items = (feed.notifications || []).map(function (n) {
+      return { time: n.time, title: n.subject, detail: n.message, link: n.link, tag: 'Hinweis' };
+    }).concat((feed.activity || []).map(function (a) {
+      return { time: a.time, title: a.subject, detail: '', link: a.link, tag: a.label || 'Datei' };
+    }));
+    items.sort(function (left, right) { return String(right.time).localeCompare(String(left.time)); });
+    items = items.slice(0, 8);
+    if (!items.length) {
+      list.innerHTML = '<div class="empty-state">Nichts Neues in euren geteilten Ordnern.</div>';
+      return;
+    }
+    list.innerHTML = items.map(function (item) {
+      var title = item.link
+        ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener noreferrer">' + esc(item.title) + '</a>'
+        : esc(item.title);
+      return '<article class="feed-item">'
+        + '<div class="feed-item-main"><p class="calendar-item-title">' + title + '</p>'
+        + (item.detail ? '<p class="message-snippet">' + esc(item.detail) + '</p>' : '')
+        + '</div>'
+        + '<div class="feed-item-meta"><span class="meta-tag">' + esc(item.tag) + '</span>'
+        + '<span>' + esc(_relativeTime(item.time)) + '</span></div>'
+        + '</article>';
+    }).join('');
   }
 
   function esc(value) {
@@ -340,6 +395,7 @@ var LehrerInbox = (function () {
     renderBadges: renderBadges,
     renderItslearningTab: renderItslearningTab,
     renderItslearningCalendar: renderItslearningCalendar,
+    renderNextcloudFeed: renderNextcloudFeed,
   };
 })();
 

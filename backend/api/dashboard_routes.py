@@ -2,7 +2,7 @@
 Dashboard-Endpunkte für Lehrkräfte: Modules-Layout, Daten.
 """
 import dataclasses
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
 from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlparse
 from flask import Blueprint, request, g
@@ -376,7 +376,7 @@ def complete_onboarding():
 
 # ── Dashboard Composition Endpoint (Phase 11c / Phase 12) ────────────────────
 
-_MODULE_FETCH_TIMEOUT = 5  # seconds per module fetch
+_MODULE_FETCH_TIMEOUT = 5  # seconds, shared deadline for all module fetches
 
 from backend.wichtige_termine_adapter import fetch_wichtige_termine, WichtigeTermineResult
 
@@ -825,6 +825,17 @@ def _fetch_klassenarbeitsplan_data() -> dict:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
+def _fetch_nextcloud_data(user_id: int) -> dict:
+    """Recent Nextcloud activity/notifications via the teacher's app password."""
+    try:
+        with db_connection() as conn:
+            config = get_user_module_config(conn, user_id, "nextcloud")
+        from backend.nextcloud_module import build_nextcloud_payload
+        return build_nextcloud_payload(config, datetime.now(timezone.utc))
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
 def _fetch_noten_data(user_id: int) -> dict:
     """Fetch grades and notes for user. Returns module result dict."""
     try:
@@ -895,6 +906,8 @@ def get_dashboard_data():
         module_fetchers["klassenarbeitsplan"] = _fetch_klassenarbeitsplan_data
     if "noten" in active_module_ids:
         module_fetchers["noten"] = lambda: _fetch_noten_data(user_id)
+    if "nextcloud" in active_module_ids:
+        module_fetchers["nextcloud"] = lambda: _fetch_nextcloud_data(user_id)
     if "wichtige-termine" in active_module_ids:
         module_fetchers["wichtige-termine"] = lambda: _fetch_wichtige_termine_data(user_id)
 
@@ -905,30 +918,25 @@ def get_dashboard_data():
     all_fetchers: dict = dict(module_fetchers)
     all_fetchers["__base__"] = _fetch_base_data
 
-    # Execute fetchers in parallel with per-module timeout
-    with ThreadPoolExecutor(max_workers=len(all_fetchers) or 1) as executor:
-        future_map = {
-            executor.submit(fetcher): fetch_id
-            for fetch_id, fetcher in all_fetchers.items()
-        }
-        for future, fetch_id in future_map.items():
+    # Execute fetchers in parallel under one shared deadline. Stragglers are not
+    # waited for (shutdown(wait=False)); their modules report a timeout instead
+    # of delaying the whole response.
+    executor = ThreadPoolExecutor(max_workers=len(all_fetchers) or 1)
+    future_map = {executor.submit(fetcher): fetch_id for fetch_id, fetcher in all_fetchers.items()}
+    futures_wait(future_map, timeout=_MODULE_FETCH_TIMEOUT)
+    executor.shutdown(wait=False)
+    for future, fetch_id in future_map.items():
+        if future.done():
             try:
-                result = future.result(timeout=_MODULE_FETCH_TIMEOUT)
-                if fetch_id == "__base__":
-                    base_result = result
-                else:
-                    modules_result[fetch_id] = result
-            except FuturesTimeoutError:
-                if fetch_id == "__base__":
-                    base_result = {"ok": False, "error": "timeout"}
-                else:
-                    modules_result[fetch_id] = {"ok": False, "error": "timeout"}
+                result = future.result()
             except Exception as exc:
-                err_val = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-                if fetch_id == "__base__":
-                    base_result = err_val
-                else:
-                    modules_result[fetch_id] = err_val
+                result = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        else:
+            result = {"ok": False, "error": "timeout"}
+        if fetch_id == "__base__":
+            base_result = result
+        else:
+            modules_result[fetch_id] = result
 
     user_dict = g.current_user.to_dict()
     user_dict["display_name"] = user_dict.get("full_name", "")

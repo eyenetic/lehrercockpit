@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=73" />
-    <link rel="stylesheet" href="./styles.auth.css?v=73" />
+    <link rel="stylesheet" href="./styles.css?v=74" />
+    <link rel="stylesheet" href="./styles.auth.css?v=74" />
     <style>
       body.onboarding-page {
         display: flex;
@@ -395,32 +395,16 @@
       <!-- Schritt: Nextcloud -->
       <div class="onboarding-step" id="step-nextcloud">
         <h2>Nextcloud verbinden <span style="font-size:0.75rem;font-weight:400;color:var(--muted);">(optional)</span></h2>
-        <p>Verbinde dein Nextcloud-Konto für Dokumente und geteilte Ordner.</p>
+        <p>Neue Dateien, Änderungen und Freigaben aus euren geteilten Ordnern erscheinen dann in deinem Cockpit.</p>
         <div class="form-field">
-          <label for="nc-server">Server-URL</label>
+          <label for="nc-server">Adresse eurer Nextcloud</label>
           <input type="url" id="nc-server" placeholder="https://cloud.schule.de" autocomplete="off" />
         </div>
-        <div class="form-field">
-          <label for="nc-username">Benutzername</label>
-          <input type="text" id="nc-username" placeholder="vorname.nachname" autocomplete="off" />
-        </div>
-        <div class="form-field">
-          <label for="nc-password">Passwort / App-Passwort</label>
-          <input type="password" id="nc-password" placeholder="••••••••" autocomplete="new-password" />
-          <p class="field-hint">
-            Empfehlung: Nutze ein App-Passwort (Nextcloud → Einstellungen → Sicherheit → App-Passwörter).
-          </p>
-        </div>
-        <details class="step-hint">
-          <summary>ℹ️ Hinweise zu Nextcloud</summary>
-          <div class="step-hint-body">
-            <ul>
-              <li>Server-URL: die Adresse deiner Nextcloud-Instanz (z.&nbsp;B. https://cloud.schule.de)</li>
-              <li>Benutzername und Passwort: deine Nextcloud-Anmeldedaten</li>
-              <li>Tipp: Ein App-Passwort ist sicherer als dein Haupt-Passwort (Nextcloud → Einstellungen → Sicherheit)</li>
-            </ul>
-          </div>
-        </details>
+        <button type="button" id="nc-connect-btn" class="btn-next" style="align-self:flex-start">Mit Nextcloud verbinden</button>
+        <p class="field-hint">
+          Du meldest dich direkt auf der Nextcloud-Seite deiner Schule an. Das Cockpit bekommt nur ein eigenes
+          App-Passwort – dein Passwort sieht es nie. Du kannst es jederzeit in Nextcloud widerrufen.
+        </p>
         <div id="nextcloud-feedback"></div>
       </div>
 
@@ -467,7 +451,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js"></script>
+    <script src="./src/api-client.js?v=74"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -643,16 +627,7 @@
               if (server) config.base_url = server;
             }
           } else if (step.moduleId === 'nextcloud') {
-            feedbackId = 'nextcloud-feedback';
-            const server = document.getElementById('nc-server').value.trim();
-            const user = document.getElementById('nc-username').value.trim();
-            const pass = document.getElementById('nc-password').value;
-            if (!server && !user && !pass) return true; // optional
-            if (!server || !user || !pass) {
-              showFeedback(feedbackId, 'Bitte alle Felder ausfüllen oder Schritt überspringen.', 'error');
-              return false;
-            }
-            config = { server_url: server, username: user, password: pass };
+            return true; // gespeichert wird durch den Nextcloud-Login selbst (Login Flow v2)
           } else if (step.moduleId === 'school-links') {
             // Sammelt alle angehakten Checkboxen als Links-Array
             const checkboxes = document.querySelectorAll('#school-links-groups input[type="checkbox"]:checked');
@@ -805,6 +780,91 @@
             btn.textContent = 'Jetzt scannen';
           }
         });
+
+        // ── Nextcloud verbinden (Login Flow v2) ──────────────────────────────
+
+        let ncPollTimer = null;
+        const ncConnectBtn = document.getElementById('nc-connect-btn');
+
+        async function ncApi(path, method, body) {
+          const resp = await fetch(BACKEND + path, {
+            method: method || 'GET',
+            headers: body ? { 'Content-Type': 'application/json' } : {},
+            body: body ? JSON.stringify(body) : undefined,
+            credentials: 'include',
+          });
+          const data = await resp.json().catch(function () { return {}; });
+          if (!resp.ok || data.ok === false) throw new Error(data.error || 'Anfrage fehlgeschlagen.');
+          return data;
+        }
+
+        function ncShowConnected(account) {
+          showFeedback('nextcloud-feedback', 'Verbunden' + (account ? ' als ' + account : '') + '. ✓', 'success');
+          ncConnectBtn.hidden = true;
+        }
+
+        async function ncPrefill() {
+          try {
+            const data = await ncApi('/api/v2/connections');
+            const nc = (data.connections || {}).nextcloud || {};
+            if (nc.suggested_server) document.getElementById('nc-server').value = nc.suggested_server;
+            if (nc.connected) ncShowConnected(nc.account);
+          } catch (e) { /* optionaler Schritt – ohne Vorschlag weiter */ }
+        }
+
+        function ncPoll(startedAt) {
+          if (Date.now() - startedAt > 20 * 60 * 1000) {
+            showFeedback('nextcloud-feedback', 'Die Anmeldung ist abgelaufen. Bitte erneut verbinden.', 'error');
+            ncConnectBtn.disabled = false;
+            return;
+          }
+          ncApi('/api/v2/connections/nextcloud/poll', 'POST')
+            .then(function (data) {
+              if (data.status === 'connected') {
+                const nc = (data.connections || {}).nextcloud || {};
+                ncShowConnected(nc.account);
+                return;
+              }
+              if (data.status === 'expired') {
+                showFeedback('nextcloud-feedback', 'Die Anmeldung ist abgelaufen. Bitte erneut verbinden.', 'error');
+                ncConnectBtn.disabled = false;
+                return;
+              }
+              ncPollTimer = setTimeout(function () { ncPoll(startedAt); }, 2500);
+            })
+            .catch(function () {
+              ncPollTimer = setTimeout(function () { ncPoll(startedAt); }, 5000);
+            });
+        }
+
+        ncConnectBtn.addEventListener('click', async function () {
+          const server = document.getElementById('nc-server').value.trim();
+          if (!server) {
+            showFeedback('nextcloud-feedback', 'Bitte die Adresse eurer Nextcloud eintragen.', 'error');
+            return;
+          }
+          const loginWindow = window.open('', '_blank');
+          if (loginWindow) loginWindow.opener = null;
+          ncConnectBtn.disabled = true;
+          try {
+            const data = await ncApi('/api/v2/connections/nextcloud/start', 'POST', { base_url: server });
+            if (loginWindow && !loginWindow.closed) {
+              loginWindow.location.href = data.login_url;
+              showFeedback('nextcloud-feedback', 'Bitte im neuen Tab bei Nextcloud anmelden und „Zugriff gewähren“ bestätigen.', 'success');
+            } else {
+              const safeUrl = String(data.login_url).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+              showFeedback('nextcloud-feedback', '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">Anmeldeseite öffnen</a> und dort „Zugriff gewähren“ bestätigen.', 'success');
+            }
+            clearTimeout(ncPollTimer);
+            ncPoll(Date.now());
+          } catch (e) {
+            if (loginWindow && !loginWindow.closed) loginWindow.close();
+            showFeedback('nextcloud-feedback', e.message, 'error');
+            ncConnectBtn.disabled = false;
+          }
+        });
+
+        ncPrefill();
 
         // Event-Handler
         document.getElementById('btn-next').addEventListener('click', async function () {

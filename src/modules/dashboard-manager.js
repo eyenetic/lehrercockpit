@@ -330,13 +330,7 @@
           { key: 'calendar_url', label: 'Kalender-Abo-Link (itslearning → Kalender → Zahnrad → Abonnieren)', type: 'url', placeholder: 'https://berlin.itslearning.com/…' },
         ];
       }
-      if (moduleId === 'nextcloud') {
-        return [
-          { key: 'server_url', label: 'Server-URL', type: 'url', placeholder: 'https://cloud.schule.de' },
-          { key: 'username',   label: 'Benutzername', type: 'text', placeholder: 'vorname.nachname' },
-          { key: 'password',   label: 'Passwort', type: 'password', placeholder: '••••••••' },
-        ];
-      }
+      // Nextcloud is connected via Login Flow v2 under "Verbindungen", not with a form.
       return [];
     }
 

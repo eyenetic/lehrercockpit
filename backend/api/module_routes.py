@@ -223,6 +223,13 @@ def nextcloud_data():
     except Exception as exc:
         return error(f"Fehler beim Laden der Konfiguration: {type(exc).__name__}: {exc}", 500)
 
+    from backend.nextcloud_module import build_nextcloud_payload, is_connected
+
+    if is_connected(config):  # connected via Login Flow v2 (app password)
+        result = build_nextcloud_payload(config, datetime.now(timezone.utc))
+        result.pop("ok", None)
+        return success(result)
+
     # Graceful: no base_url configured at all
     base_url = config.get("base_url", "") if config else ""
     workspace_url = config.get("workspace_url", "") if config else ""

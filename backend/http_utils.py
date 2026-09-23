@@ -7,6 +7,7 @@ adapters; the certifi bundle fixes that case properly.
 from __future__ import annotations
 
 import ipaddress
+import os
 import socket
 import ssl
 from functools import lru_cache
@@ -45,8 +46,15 @@ def require_public_https_url(url: str) -> str:
         infos = socket.getaddrinfo(parsed.hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
     except socket.gaierror as exc:
         raise UnsafeUrlError("Der Server wurde nicht gefunden.") from exc
-    for info in infos:
-        address = ipaddress.ip_address(info[4][0])
-        if not address.is_global:
-            raise UnsafeUrlError("Die Adresse zeigt auf ein internes Netz.")
+    if not _private_targets_allowed():
+        for info in infos:
+            address = ipaddress.ip_address(info[4][0])
+            if not address.is_global:
+                raise UnsafeUrlError("Die Adresse zeigt auf ein internes Netz.")
     return candidate.rstrip("/")
+
+
+def _private_targets_allowed() -> bool:
+    """Development escape hatch for machines inside a school network, where
+    split DNS resolves school servers to private addresses. Never set in production."""
+    return os.environ.get("ALLOW_PRIVATE_OUTBOUND_URLS", "").strip() == "1"
