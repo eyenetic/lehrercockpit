@@ -43,8 +43,8 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "status": "ok",
                 "cadence": "im Browser",
                 "lastSync": "bereit",
-                "nextStep": "Arbeitslinks nutzen oder spaeter optional einen lokalen Verbindungscheck hinterlegen",
-                "detail": "Nextcloud ist als Arbeitsbereich hinterlegt. Die Dateien lassen sich direkt im Browser oeffnen.",
+                "nextStep": "Arbeitslinks nutzen oder später optional einen lokalen Verbindungscheck hinterlegen",
+                "detail": "Nextcloud ist als Arbeitsbereich hinterlegt. Die Dateien lassen sich direkt im Browser öffnen.",
             },
             note="",
         )
@@ -59,7 +59,7 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "status": "ok",
                 "cadence": "lokal bei Reload",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "Als Naechstes koennen wir Metadaten oder spaeter direkte Datei-Leselogik pruefen",
+                "nextStep": "Als Nächstes können wir Metadaten oder später direkte Datei-Leselogik prüfen",
                 "detail": (
                     "Nextcloud-Arbeitsbereich lokal verbunden. "
                     + (
@@ -67,7 +67,7 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                         if probe.get("sslFallback")
                         else ""
                     )
-                    + "Die Fehlzeiten-Dateien koennen jetzt direkt aus dem Cockpit geoeffnet werden."
+                    + "Die Fehlzeiten-Dateien können jetzt direkt aus dem Cockpit geöffnet werden."
                 ),
             },
             note=f"Nextcloud-Fehlzeiten sind lokal verbunden. Letzter Abruf: {now.strftime('%H:%M')}.",
@@ -82,13 +82,13 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                     "status": "ok",
                     "cadence": "im Browser",
                     "lastSync": now.strftime("%H:%M"),
-                    "nextStep": "Arbeitslinks weiter nutzen. Den technischen Direktcheck koennen wir spaeter noch verfeinern.",
+                    "nextStep": "Arbeitslinks weiter nutzen. Den technischen Direktcheck können wir später noch verfeinern.",
                     "detail": (
                         "Nextcloud ist als Arbeitsbereich nutzbar. "
                         f"Der technische Verbindungscheck war gerade nicht stabil ({_nextcloud_error_detail(exc)})."
                     ),
                 },
-                note="Nextcloud bleibt als Arbeitsbereich verfuegbar.",
+                note="Nextcloud bleibt als Arbeitsbereich verfügbar.",
             )
         return NextcloudSyncResult(
             source={
@@ -98,10 +98,10 @@ def fetch_nextcloud_sync(settings: NextcloudSettings, now: datetime) -> Nextclou
                 "status": "warning",
                 "cadence": "lokal bei Reload",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "Zugang pruefen oder spaeter mit der Schul-IT App-Passwoerter/WebDAV klaeren",
+                "nextStep": "Zugang prüfen oder später mit der Schul-IT App-Passwoerter/WebDAV klaeren",
                 "detail": _nextcloud_error_detail(exc),
             },
-            note="Nextcloud konnte gerade nicht technisch geprueft werden.",
+            note="Nextcloud konnte gerade nicht technisch geprüft werden.",
         )
 
 
@@ -139,7 +139,7 @@ def _probe_nextcloud_webdav(settings: NextcloudSettings) -> dict[str, Any]:
 def _nextcloud_error_detail(exc: Exception) -> str:
     if isinstance(exc, HTTPError):
         if exc.code in {401, 403}:
-            return "Nextcloud-Zugang abgelehnt. Bitte Benutzername/Passwort pruefen."
+            return "Nextcloud-Zugang abgelehnt. Bitte Benutzername/Passwort prüfen."
         return f"Nextcloud antwortet mit HTTP {exc.code}."
     if isinstance(exc, URLError):
         reason = getattr(exc, "reason", None)

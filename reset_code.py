@@ -1,6 +1,9 @@
 """
-Notfall-Reset: Setzt den Zugangscode eines Users auf einen bekannten Wert.
-Auf dem Server ausführen: python reset_code.py
+Notfall-Reset: Setzt den Zugangscode eines Users auf einen neuen Zufallscode.
+Auf dem Server ausführen: python reset_code.py [USER_ID]
+
+Der neue Code wird einmalig in der Konsole ausgegeben. Niemals einen festen
+Code in diese Datei schreiben – das Repository ist öffentlich.
 
 Voraussetzung: DATABASE_URL muss als Umgebungsvariable gesetzt sein.
 """
@@ -11,12 +14,8 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from backend.db import db_connection
-from backend.auth.access_code import hash_code, get_code_prefix
+from backend.auth.access_code import generate_code, hash_code, get_code_prefix
 
-# ── Konfiguration ──────────────────────────────────────────────────────────
-# Den gewünschten neuen Code hier eintragen (mind. 6 Zeichen):
-NEW_CODE = "Heg16042"
-# ──────────────────────────────────────────────────────────────────────────
 
 def list_users(conn):
     rows = conn.execute(
@@ -53,4 +52,4 @@ if __name__ == "__main__":
         else:
             user_id = int(input("\nUser-ID eingeben: "))
 
-        reset_code(conn, user_id, NEW_CODE)
+        reset_code(conn, user_id, generate_code())

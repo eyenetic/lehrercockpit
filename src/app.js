@@ -703,12 +703,12 @@
   function renderWorkspace() {
     const data = getData();
     const titleFromWorkspace = data.workspace?.title || "";
+    // Backend sends "Dein Tagesstart für <Schule>" (older payloads: "fuer")
+    const schoolFromTitle = titleFromWorkspace.match(/^Dein Tagesstart f(?:ü|ue)r (.+)$/)?.[1] || "";
     const schoolName =
       data.base?.school_name ||
       data.teacher?.school ||
-      (titleFromWorkspace.startsWith("Dein Tagesstart fuer ")
-        ? titleFromWorkspace.replace("Dein Tagesstart fuer ", "")
-        : "");
+      schoolFromTitle;
     if (elements.workspaceEyebrow) {
       elements.workspaceEyebrow.textContent = data.workspace.eyebrow || "Berlin Lehrer-Cockpit";
     }
@@ -920,7 +920,7 @@
       `
       : (!layoutReady
           ? `<div class="briefing-loading">Lade Briefing&hellip;</div>`
-          : `<div class="briefing-empty"><span>Heute keine Eintraege - guter Tag.</span></div>`);
+          : `<div class="briefing-empty"><span>Heute keine Einträge – guter Tag.</span></div>`);
 
     renderTodayBriefingFocus(data, {
       todaySummary,

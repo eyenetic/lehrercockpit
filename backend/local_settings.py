@@ -80,7 +80,7 @@ def save_nextcloud_settings(
 def save_classwork_file(target_path: Path, *, filename: str, content_base64: str) -> None:
     normalized_name = filename.strip().lower()
     if not normalized_name.endswith((".xlsx", ".xlsm")):
-        raise ValueError("Bitte eine XLSX- oder XLSM-Datei auswaehlen.")
+        raise ValueError("Bitte eine XLSX- oder XLSM-Datei auswählen.")
 
     try:
         file_bytes = base64.b64decode(content_base64, validate=True)
@@ -88,7 +88,7 @@ def save_classwork_file(target_path: Path, *, filename: str, content_base64: str
         raise ValueError("Dateiinhalt konnte nicht gelesen werden.") from exc
 
     if not file_bytes:
-        raise ValueError("Die ausgewaehlte Datei ist leer.")
+        raise ValueError("Die ausgewählte Datei ist leer.")
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
     target_path.write_bytes(file_bytes)

@@ -98,7 +98,7 @@ def _build_orgaplan_digest(url: str, now: datetime) -> dict[str, Any]:
             "title": "Orgaplan",
             "detail": (
                 f"Live gelesen. Stand Quelle: {download.last_modified or 'ohne Zeitstempel'}. "
-                f"{len(upcoming)} relevante Eintraege fuer {month_label}. "
+                f"{len(upcoming)} relevante Einträge für {month_label}. "
                 f"Allgemein {section_counts['general']}, Mittelstufe {section_counts['middle']}, Oberstufe {section_counts['upper']}."
             ),
             "monthLabel": month_label,
@@ -127,7 +127,7 @@ def _build_classwork_digest(url: str, local_path: str, now: datetime) -> dict[st
             return _read_classwork_workbook(
                 local_file.read_bytes(),
                 now,
-                detail="Lokale XLSX-Datei importiert und fuer das Cockpit vorbereitet.",
+                detail="Lokale XLSX-Datei importiert und für das Cockpit vorbereitet.",
                 source_url=url,
             )
         except Exception as exc:
@@ -147,7 +147,7 @@ def _build_classwork_digest(url: str, local_path: str, now: datetime) -> dict[st
         return {
             "status": "warning",
             "title": "Klassenarbeitsplan",
-            "detail": "Noch kein Link fuer den Klassenarbeitsplan hinterlegt.",
+            "detail": "Noch kein Link für den Klassenarbeitsplan hinterlegt.",
             "updatedAt": now.strftime("%H:%M"),
             "previewRows": [],
             "classes": [],
@@ -174,7 +174,7 @@ def _build_classwork_digest(url: str, local_path: str, now: datetime) -> dict[st
         return _read_classwork_workbook(
             download.data,
             now,
-            detail="Excel-Datei wurde live gelesen und fuer das Cockpit vorbereitet.",
+            detail="Excel-Datei wurde live gelesen und für das Cockpit vorbereitet.",
             source_url=url,
         )
     except Exception as exc:
@@ -213,10 +213,10 @@ def _read_classwork_workbook(data: bytes, now: datetime, *, detail: str, source_
     resolved_detail = detail
     if relevant_entries:
         resolved_detail = (
-            f"{detail} {len(relevant_entries)} relevante Eintraege fuer {len(classes)} Klassen erkannt."
+            f"{detail} {len(relevant_entries)} relevante Einträge für {len(classes)} Klassen erkannt."
         )
     else:
-        resolved_detail = f"{detail} Es wurden noch keine relevanten Klassenarbeits-Eintraege erkannt."
+        resolved_detail = f"{detail} Es wurden noch keine relevanten Klassenarbeits-Einträge erkannt."
 
     return {
         "status": "ok" if relevant_entries else "warning",
@@ -433,7 +433,7 @@ def _open_request(request: Request):
 
 def _blocked_detail(title: str, download: DownloadResult) -> str:
     if download.status_code:
-        return f"{title} wird bei jedem Refresh neu versucht, ist aber aktuell fuer den automatischen Abruf blockiert (HTTP {download.status_code})."
+        return f"{title} wird bei jedem Refresh neu versucht, ist aber aktuell für den automatischen Abruf blockiert (HTTP {download.status_code})."
     return f"{title} wird bei jedem Refresh neu versucht, war aber gerade nicht erreichbar."
 
 

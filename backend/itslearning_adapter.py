@@ -55,7 +55,7 @@ def fetch_itslearning_sync(settings: ItslearningSettings, now: datetime) -> Itsl
                 "cadence": "lokal bei Reload",
                 "lastSync": now.strftime("%H:%M"),
                 "nextStep": "ITSLEARNING_USERNAME und ITSLEARNING_PASSWORD lokal in .env.local hinterlegen",
-                "detail": "Der Updates-Feed ist vorbereitet. Fuer persoenliche itslearning-Updates fehlen noch lokale Zugangsdaten.",
+                "detail": "Der Updates-Feed ist vorbereitet. Für persönliche itslearning-Updates fehlen noch lokale Zugangsdaten.",
             },
             messages=[],
             priorities=[],
@@ -74,7 +74,7 @@ def fetch_itslearning_sync(settings: ItslearningSettings, now: datetime) -> Itsl
                     "status": "warning",
                     "cadence": "lokal bei Reload",
                     "lastSync": now.strftime("%H:%M"),
-                    "nextStep": "Nach dem naechsten Login die Updates-Seitenstruktur genauer zuordnen",
+                    "nextStep": "Nach dem nächsten Login die Updates-Seitenstruktur genauer zuordnen",
                     "detail": "Anmeldung gelang, aber die Updates konnten aus der aktuellen Seitenstruktur noch nicht eindeutig gelesen werden.",
                 },
                 messages=[],
@@ -103,7 +103,7 @@ def fetch_itslearning_sync(settings: ItslearningSettings, now: datetime) -> Itsl
                 "status": "ok",
                 "cadence": "lokal bei Reload",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "Updates weiter verfeinern oder spaeter Deep Links pro Kurs ergaenzen",
+                "nextStep": "Updates weiter verfeinern oder später Deep Links pro Kurs ergaenzen",
                 "detail": f"{len(messages)} itslearning-Updates geladen.",
             },
             messages=messages,
@@ -594,7 +594,7 @@ def _error_next_step(exc: Exception) -> str:
     if isinstance(exc, URLError):
         reason = getattr(exc, "reason", None)
         if isinstance(reason, socket.gaierror):
-            return "Den lokalen Server mit Internetzugriff starten oder direkt im Mac-Terminal ausfuehren."
+            return "Den lokalen Server mit Internetzugriff starten oder direkt im Mac-Terminal ausführen."
         if isinstance(reason, ssl.SSLCertVerificationError):
-            return "Python-Zertifikate auf dem Mac pruefen oder den lokalen Zertifikats-Fallback im Cockpit nutzen."
-    return "Zugangsdaten pruefen oder Seite nach erfolgreichem Login einmal im Browser aufrufen"
+            return "Python-Zertifikate auf dem Mac prüfen oder den lokalen Zertifikats-Fallback im Cockpit nutzen."
+    return "Zugangsdaten prüfen oder Seite nach erfolgreichem Login einmal im Browser aufrufen"

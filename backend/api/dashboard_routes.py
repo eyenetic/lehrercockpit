@@ -403,14 +403,14 @@ def _build_base_quick_links(
             "title": "Berliner Schulportal",
             "url": schoolportal_url or "https://portal.berlin.de",
             "kind": "Portal",
-            "note": "Zentraler Einstieg fuer Berliner Schuldienste",
+            "note": "Zentraler Einstieg für Berliner Schuldienste",
         },
         {
             "id": "dienstmail",
             "title": "Dienstmail",
             "url": schoolportal_url or "https://schulportal.berlin.de",
             "kind": "Mail",
-            "note": "Dienstmail ueber das Berliner Schulportal oeffnen",
+            "note": "Dienstmail über das Berliner Schulportal öffnen",
         },
     ]
     if webuntis_url:
@@ -435,7 +435,7 @@ def _build_base_quick_links(
             "title": "Orgaplan",
             "url": orgaplan_pdf_url,
             "kind": "PDF",
-            "note": "Aktueller Orgaplan fuer eure Schule",
+            "note": "Aktueller Orgaplan für eure Schule",
         })
     if nextcloud_workspace_url:
         links.append({
@@ -443,7 +443,7 @@ def _build_base_quick_links(
             "title": "Nextcloud",
             "url": nextcloud_workspace_url,
             "kind": "Dateien",
-            "note": "Dateien und Arbeitsbereiche direkt oeffnen",
+            "note": "Dateien und Arbeitsbereiche direkt öffnen",
         })
     if fehlzeiten_11_url:
         links.append({
@@ -451,7 +451,7 @@ def _build_base_quick_links(
             "title": "Fehlzeiten Q1/Q2",
             "url": fehlzeiten_11_url,
             "kind": "Dateien",
-            "note": "Fehlzeiten-Datei fuer die 11. Klasse",
+            "note": "Fehlzeiten-Datei für die 11. Klasse",
         })
     if fehlzeiten_12_url:
         links.append({
@@ -459,7 +459,7 @@ def _build_base_quick_links(
             "title": "Fehlzeiten Q3/Q4",
             "url": fehlzeiten_12_url,
             "kind": "Dateien",
-            "note": "Fehlzeiten-Datei fuer die 12. Klasse",
+            "note": "Fehlzeiten-Datei für die 12. Klasse",
         })
     return links
 
@@ -565,9 +565,9 @@ def _fetch_base_data() -> dict:
     try:
         workspace = {
             "eyebrow": "Berlin Lehrer-Cockpit",
-            "title": f"Dein Tagesstart fuer {school_name}",
+            "title": f"Dein Tagesstart für {school_name}",
             "description": (
-                "Ein persoenliches Dashboard fuer Berliner Schulportal-Dienste, WebUntis, "
+                "Ein persönliches Dashboard für Berliner Schulportal-Dienste, WebUntis, "
                 "itslearning und eure wichtigsten Schul-Dokumente."
             ),
             "app_title": app_title or "Lehrercockpit",
@@ -585,14 +585,14 @@ def _fetch_base_data() -> dict:
             {
                 "title": "Dokumente bringen den Mehrwert",
                 "detail": (
-                    "Der konkrete Orgaplan ist schon hinterlegt, sodass wir als Naechstes Aenderungen automatisch vergleichen koennen."
+                    "Der konkrete Orgaplan ist schon hinterlegt, sodass wir als Nächstes Änderungen automatisch vergleichen können."
                     if orgaplan_pdf_url else
                     "Orgaplan und Klassenarbeitsplan bleiben besonders wichtig, weil PDFs und Share-Links im Alltag schnell verstreut sind."
                 ),
             },
             {
                 "title": "Mail vorerst nur Portal-Logik",
-                "detail": "Die Berliner Dienstmail bleibt ohne klassischen IMAP-Weg zunaechst ein Portal-/Hinweis-Modul.",
+                "detail": "Die Berliner Dienstmail bleibt ohne klassischen IMAP-Weg zunächst ein Portal-/Hinweis-Modul.",
             },
         ]
     except Exception:

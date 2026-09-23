@@ -47,13 +47,13 @@
       {
         id: 'briefing',
         label: 'Tagesbriefing',
-        description: 'Stundenplan, Orgaplan und Klassenarbeiten fuer den aktuellen Tag.',
+        description: 'Stundenplan, Orgaplan und Klassenarbeiten für den aktuellen Tag.',
         mandatory: true
       },
       {
         id: 'access',
         label: 'Zugaenge',
-        description: 'Direkte Arbeitswege fuer die wichtigsten Dienste des Tages.',
+        description: 'Direkte Arbeitswege für die wichtigsten Dienste des Tages.',
         mandatory: true
       },
       {

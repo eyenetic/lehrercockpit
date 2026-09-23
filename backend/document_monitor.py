@@ -136,7 +136,7 @@ def _detail_for_probe(
 ) -> str:
     if current_probe["reachable"] and changed:
         return (
-            f"{document.note} Aenderung erkannt: "
+            f"{document.note} Änderung erkannt: "
             f"Last-Modified {current_probe['last_modified'] or 'unbekannt'}."
         )
 
@@ -158,7 +158,7 @@ def _detail_for_probe(
             f"(HTTP {current_probe['status_code']})."
         )
 
-    return f"{document.note} Quelle war beim letzten Pruefen nicht erreichbar."
+    return f"{document.note} Quelle war beim letzten Prüfen nicht erreichbar."
 
 
 def _load_state(state_path: Path) -> dict[str, Any]:

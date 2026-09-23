@@ -176,7 +176,7 @@ def _build_meta(settings: Any, mail_sync: Any, itslearning_sync: Any, nextcloud_
         notes.append(mail_sync.note)
         live_modes.add(mail_sync.mode)
     else:
-        notes.append("Dienstmail bleibt als Schulportal-Zugang verfuegbar und kann lokal zusaetzlich in einer Mail-App gespiegelt werden.")
+        notes.append("Dienstmail bleibt als Schulportal-Zugang verfügbar und kann lokal zusätzlich in einer Mail-App gespiegelt werden.")
 
     return {
         "mode": "live" if live_modes else "mixed",
@@ -211,23 +211,23 @@ def _apply_source_configuration(existing_sources: list[dict[str, Any]], settings
         if source["id"] == "webuntis" and settings.webuntis_base_url and not settings.webuntis_ical_url:
             updated["status"] = "ok"
             updated["lastSync"] = "konfiguriert"
-            updated["cadence"] = "naechster Schritt: persoenlichen iCal verbinden"
-            updated["nextStep"] = "Persoenlichen WebUntis-iCal hinterlegen oder spaeter Session-Cookie fuer Vertretungen pruefen"
+            updated["cadence"] = "nächster Schritt: persönlichen iCal verbinden"
+            updated["nextStep"] = "Persönlichen WebUntis-iCal hinterlegen oder später Session-Cookie für Vertretungen prüfen"
             updated["detail"] = f"WebUntis-Basis gesetzt: {settings.webuntis_base_url}"
 
         if source["id"] == "website" and settings.orgaplan_pdf_url:
             updated["status"] = "ok"
             updated["lastSync"] = "konfiguriert"
-            updated["cadence"] = "naechster Schritt: PDF-Aenderungen pruefen"
-            updated["nextStep"] = "Orgaplan regelmaessig abrufen und Aenderungen gegen die letzte Version vergleichen"
+            updated["cadence"] = "nächster Schritt: PDF-Änderungen prüfen"
+            updated["nextStep"] = "Orgaplan regelmaessig abrufen und Änderungen gegen die letzte Version vergleichen"
             updated["detail"] = f"Orgaplan hinterlegt: {settings.orgaplan_pdf_url}"
 
         if source["id"] == "pdf" and settings.orgaplan_pdf_url:
             updated["status"] = "ok"
             updated["lastSync"] = "konfiguriert"
-            updated["cadence"] = "naechster Schritt: PDF-Parsing"
+            updated["cadence"] = "nächster Schritt: PDF-Parsing"
             updated["nextStep"] = "Text aus dem Orgaplan extrahieren und Termine/Aufsichten taggen"
-            updated["detail"] = "Ein konkreter Orgaplan-PDF-Link ist fuer spaetere Verarbeitung hinterlegt."
+            updated["detail"] = "Ein konkreter Orgaplan-PDF-Link ist für spätere Verarbeitung hinterlegt."
 
         configured_sources.append(updated)
 
@@ -241,7 +241,7 @@ def _apply_document_configuration(existing_documents: list[dict[str, Any]], sett
 
         if document["id"] == "doc-1" and settings.orgaplan_pdf_url:
             updated["summary"] = (
-                "Konkreter Orgaplan-PDF-Link hinterlegt und bereit fuer spaetere Aenderungserkennung: "
+                "Konkreter Orgaplan-PDF-Link hinterlegt und bereit für spätere Änderungserkennung: "
                 f"{settings.orgaplan_pdf_url}"
             )
             updated["updatedAt"] = "konfiguriert"
@@ -262,8 +262,8 @@ def _apply_plan_digest_documents(existing_documents: list[dict[str, Any]], plan_
         if document["id"] == "doc-1":
             orga_count = len(orgaplan.get("upcoming", []))
             updated["summary"] = (
-                f"{orga_count} relevante Hinweise fuer {orgaplan['monthLabel']}. "
-                "Die naechsten Punkte stehen unten kompakt im Cockpit."
+                f"{orga_count} relevante Hinweise für {orgaplan['monthLabel']}. "
+                "Die nächsten Punkte stehen unten kompakt im Cockpit."
             )
             updated["updatedAt"] = orgaplan["updatedAt"]
             updated["tags"] = ["Orgaplan", orgaplan["monthLabel"], "Live"]
@@ -274,8 +274,8 @@ def _apply_plan_digest_documents(existing_documents: list[dict[str, Any]], plan_
             next_entry = classwork.get("entries", [{}])[0] if classwork.get("entries") else {}
             if next_entry:
                 updated["summary"] = (
-                    f"{entry_count} Eintraege fuer {class_count} Klassen. "
-                    f"Naechster Termin: {next_entry.get('classLabel', '')} am {next_entry.get('dateLabel', '')}."
+                    f"{entry_count} Einträge für {class_count} Klassen. "
+                    f"Nächster Termin: {next_entry.get('classLabel', '')} am {next_entry.get('dateLabel', '')}."
                 )
             else:
                 updated["summary"] = classwork["detail"]
@@ -322,9 +322,9 @@ def _build_plan_digest_priorities(plan_digest: dict[str, Any]) -> list[dict[str,
 def _build_workspace(settings: Any) -> dict[str, str]:
     return {
         "eyebrow": "Berlin Lehrer-Cockpit",
-        "title": f"Dein Tagesstart fuer {settings.school_name}",
+        "title": f"Dein Tagesstart für {settings.school_name}",
         "description": (
-            "Ein persoenliches Dashboard fuer Berliner Schulportal-Dienste, WebUntis, "
+            "Ein persönliches Dashboard für Berliner Schulportal-Dienste, WebUntis, "
             "itslearning und eure wichtigsten Schul-Dokumente."
         ),
     }
@@ -337,7 +337,7 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
             "title": "Berliner Schulportal",
             "url": settings.schoolportal_url,
             "kind": "Portal",
-            "note": "Zentraler Einstieg fuer Berliner Schuldienste",
+            "note": "Zentraler Einstieg für Berliner Schuldienste",
         }
     ]
 
@@ -348,17 +348,17 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
                 "title": "Dienstmail",
                 "url": settings.schoolportal_url,
                 "kind": "Mail",
-                "note": "Dienstmail ueber das Berliner Schulportal oeffnen",
+                "note": "Dienstmail über das Berliner Schulportal öffnen",
             }
         )
 
     optional_links = [
-        ("nextcloud-root", "Nextcloud", settings.nextcloud.workspace_url or settings.nextcloud.base_url, "Nextcloud", "Dateien und Teamordner direkt in Nextcloud oeffnen"),
+        ("nextcloud-root", "Nextcloud", settings.nextcloud.workspace_url or settings.nextcloud.base_url, "Nextcloud", "Dateien und Teamordner direkt in Nextcloud öffnen"),
         ("webuntis", "WebUntis", settings.webuntis_base_url, "Planung", "Stundenplan, Vertretung und Heute"),
         ("itslearning", "itslearning", settings.itslearning_base_url, "Lernen", "Updates und Kursmeldungen"),
-        ("nextcloud-q1q2", "Fehlzeiten Q1/Q2", settings.nextcloud.q1q2_url, "Nextcloud", "Fehlzeiten-Datei fuer die 11. Klasse direkt in Nextcloud"),
-        ("nextcloud-q3q4", "Fehlzeiten Q3/Q4", settings.nextcloud.q3q4_url, "Nextcloud", "Fehlzeiten-Datei fuer die 12. Klasse direkt in Nextcloud"),
-        ("orgaplan", "Orgaplan", settings.orgaplan_pdf_url, "PDF", "Aktueller Orgaplan fuer eure Schule"),
+        ("nextcloud-q1q2", "Fehlzeiten Q1/Q2", settings.nextcloud.q1q2_url, "Nextcloud", "Fehlzeiten-Datei für die 11. Klasse direkt in Nextcloud"),
+        ("nextcloud-q3q4", "Fehlzeiten Q3/Q4", settings.nextcloud.q3q4_url, "Nextcloud", "Fehlzeiten-Datei für die 12. Klasse direkt in Nextcloud"),
+        ("orgaplan", "Orgaplan", settings.orgaplan_pdf_url, "PDF", "Aktueller Orgaplan für eure Schule"),
     ]
 
     for index, item in enumerate(settings.nextcloud.workspace_links, start=1):
@@ -440,7 +440,7 @@ def _build_webuntis_center(settings: Any, webuntis_sync: Any, now: datetime) -> 
         ],
         "finder": _build_webuntis_finder(settings, webuntis_sync, start_url, today_url, now),
         "shortcutHint": (
-            "Dein persoenlicher Plan kommt live ueber iCal. Fuer Kolleg:innen-, Klassen- und Raumplaene bereiten wir die Suche lokal vor und haengen sie als Naechstes an deine WebUntis-Sitzung."
+            "Dein persönlicher Plan kommt live über iCal. Für Kolleg:innen-, Klassen- und Raumpläne bereiten wir die Suche lokal vor und hängen sie als Nächstes an deine WebUntis-Sitzung."
         ),
     }
 
@@ -499,21 +499,21 @@ def _build_webuntis_finder(
         add_entity(
             "teacher",
             settings.teacher_name if has_named_teacher else "Mein Plan",
-            "Dein persoenlicher WebUntis-Plan ist live verbunden.",
+            "Dein persönlicher WebUntis-Plan ist live verbunden.",
             url=start_url or today_url,
             live=True,
         )
 
     for room in _extract_rooms(webuntis_sync.events):
-        add_entity("room", room, "Aus deinem aktuellen Stundenplan erkannt. Fuer Live-Aenderungen ist die WebUntis-Sitzung noetig.")
+        add_entity("room", room, "Aus deinem aktuellen Stundenplan erkannt. Für Live-Änderungen ist die WebUntis-Sitzung nötig.")
 
     for school_class in _extract_classes(webuntis_sync.events):
-        add_entity("class", school_class, "Aus deinem aktuellen Stundenplan erkannt. Klassenplaene werden spaeter direkt ueber die lokale Suche geladen.")
+        add_entity("class", school_class, "Aus deinem aktuellen Stundenplan erkannt. Klassenpläne werden später direkt über die lokale Suche geladen.")
 
     finder_status = "warning"
     finder_note = "Aktuell suchbar: Klassen und Raeume aus deinem eigenen Plan. Kolleg:innen folgen erst mit lokaler WebUntis-Sitzung."
     if webuntis_sync.mode == "missing":
-        finder_note = "WebUntis ist noch nicht verbunden. Fuer Planfinder zuerst den persoenlichen Zugang aktivieren."
+        finder_note = "WebUntis ist noch nicht verbunden. Für Planfinder zuerst den persönlichen Zugang aktivieren."
     elif webuntis_sync.mode == "webuntis-error":
         finder_note = "WebUntis konnte gerade nicht geladen werden. Der Planfinder bleibt vorbereitet."
     elif len(entities) > 1:
@@ -553,7 +553,7 @@ def _build_webuntis_watchlist(webuntis_sync: Any) -> list[dict[str, str]]:
             {
                 "id": "watch-session",
                 "title": "Aenderungsradar vorbereitet",
-                "detail": "Sobald die lokale WebUntis-Suche gekoppelt ist, koennen wir Vertretungen, Raumwechsel und Ausfaelle fuer weitere Plaene verfolgen.",
+                "detail": "Sobald die lokale WebUntis-Suche gekoppelt ist, können wir Vertretungen, Raumwechsel und Ausfälle für weitere Pläne verfolgen.",
                 "status": "watch",
             }
         )
@@ -605,12 +605,12 @@ def _build_berlin_focus(settings: Any) -> list[dict[str, str]]:
         },
         {
             "title": "Mail vorerst nur Portal-Logik",
-            "detail": "Die Berliner Dienstmail bleibt ohne klassischen IMAP-Weg zunaechst ein Portal-/Hinweis-Modul.",
+            "detail": "Die Berliner Dienstmail bleibt ohne klassischen IMAP-Weg zunächst ein Portal-/Hinweis-Modul.",
         },
     ]
 
     if settings.orgaplan_pdf_url:
-        focus_items[1]["detail"] = "Der konkrete Orgaplan ist schon hinterlegt, sodass wir als Naechstes Aenderungen automatisch vergleichen koennen."
+        focus_items[1]["detail"] = "Der konkrete Orgaplan ist schon hinterlegt, sodass wir als Nächstes Änderungen automatisch vergleichen können."
 
     return focus_items
 
@@ -715,7 +715,7 @@ def _apply_webuntis_cache(webuntis_sync: Any, cache_path: Path, now: datetime) -
         "status": "warning",
         "cadence": "Fallback aus lokalem Cache",
         "lastSync": cached.get("updatedAt") or now.strftime("%H:%M"),
-        "nextStep": "iCal erneut pruefen; bis dahin bleibt der letzte erfolgreiche Stand sichtbar.",
+        "nextStep": "iCal erneut prüfen; bis dahin bleibt der letzte erfolgreiche Stand sichtbar.",
         "detail": f"{detail} Aktuell wird der zuletzt erfolgreiche Stand angezeigt.",
     }
     webuntis_sync.schedule = cached.get("schedule", [])
@@ -737,7 +737,7 @@ def _apply_monitor_priorities(
             monitor_priorities.append(
                 {
                     "id": f"monitor-{item['id']}",
-                    "title": f"{item['title']} hat sich geaendert",
+                    "title": f"{item['title']} hat sich geändert",
                     "detail": item["detail"],
                     "priority": "high",
                     "source": "Dokumentenmonitor",

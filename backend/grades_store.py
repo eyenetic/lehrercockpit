@@ -51,7 +51,7 @@ def load_gradebook(path: Path) -> dict[str, Any]:
     return {
         "status": "ok" if entries else "empty",
         "detail": (
-            f"{len(entries)} lokale Noten-Eintraege."
+            f"{len(entries)} lokale Noten-Einträge."
             if entries
             else "Noch keine lokalen Noten erfasst."
         ),

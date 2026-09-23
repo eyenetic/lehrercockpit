@@ -53,7 +53,7 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
                     "status": "warning",
                     "cadence": "manuell",
                     "lastSync": now.strftime("%H:%M"),
-                    "nextStep": "Persoenlichen iCal-Link in WEBUNTIS_ICAL_URL hinterlegen",
+                    "nextStep": "Persönlichen iCal-Link in WEBUNTIS_ICAL_URL hinterlegen",
                     "detail": "WebUntis ist als Schulzugang eingetragen, aber noch nicht live mit deinem Stundenplan verbunden.",
                 },
                 schedule=[],
@@ -71,7 +71,7 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
                 "status": "warning",
                 "cadence": "nicht verbunden",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "WEBUNTIS_BASE_URL und persoenlichen iCal-Link hinterlegen",
+                "nextStep": "WEBUNTIS_BASE_URL und persönlichen iCal-Link hinterlegen",
                 "detail": "Noch kein WebUntis-Zugang konfiguriert.",
             },
             schedule=[],
@@ -96,14 +96,14 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
                 "status": "ok",
                 "cadence": "bei jedem Reload",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "Als Naechstes koennen wir Vertretungen, Ausfaelle und Delta-Aenderungen hervorheben",
-                "detail": f"{len(events)} Termine aus deinem persoenlichen WebUntis-iCal geladen.",
+                "nextStep": "Als Nächstes können wir Vertretungen, Ausfälle und Delta-Änderungen hervorheben",
+                "detail": f"{len(events)} Termine aus deinem persönlichen WebUntis-iCal geladen.",
             },
             schedule=schedule,
             priorities=priorities,
             events=[_to_event_item(event, now) for event in visible_events],
             mode="live-webuntis",
-            note="WebUntis laeuft live ueber deinen persoenlichen iCal-Export.",
+            note="WebUntis läuft live über deinen persönlichen iCal-Export.",
         )
     except Exception as exc:
         return WebUntisSyncResult(
@@ -114,7 +114,7 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
                 "status": "error",
                 "cadence": "bei Reload",
                 "lastSync": now.strftime("%H:%M"),
-                "nextStep": "iCal-Link pruefen oder in WebUntis neu erzeugen",
+                "nextStep": "iCal-Link prüfen oder in WebUntis neu erzeugen",
                 "detail": f"WebUntis-iCal konnte nicht geladen werden: {type(exc).__name__}.",
             },
             schedule=[],
@@ -294,7 +294,7 @@ def _build_priorities(events: list[WebUntisEvent], now: datetime) -> list[dict[s
         priorities.append(
             {
                 "id": f"webuntis-next-{next_event.uid or next_event.start.isoformat()}",
-                "title": f"Naechster WebUntis-Termin: {_format_event_title(next_event)}",
+                "title": f"Nächster WebUntis-Termin: {_format_event_title(next_event)}",
                 "detail": (
                     f"{_date_label(next_event.start, now)} ab {next_event.start.strftime('%H:%M')}{location}. "
                     f"{_short_description(next_event)}"

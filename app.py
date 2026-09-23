@@ -326,7 +326,7 @@ def api_classwork_browser_fetch() -> Response:
         or "render" not in hostname.lower()
     )
     if not is_local:
-        return jsonify({"status": "error", "detail": "Browser-Abruf ist nur lokal verfuegbar, nicht auf dem Server."}), 400
+        return jsonify({"status": "error", "detail": "Browser-Abruf ist nur lokal verfügbar, nicht auf dem Server."}), 400
 
     body = request.get_json(silent=True) or {}
     onedrive_url = body.get("url", "") or os.environ.get("CLASSWORK_ONEDRIVE_URL", "")
@@ -462,7 +462,7 @@ def api_local_settings_classwork_upload() -> Response:
     content_base64 = str(payload.get("contentBase64", "")).strip()
 
     if not filename or not content_base64:
-        return jsonify({"error": "validation", "detail": "Bitte eine XLSX-Datei auswaehlen."}), 400
+        return jsonify({"error": "validation", "detail": "Bitte eine XLSX-Datei auswählen."}), 400
 
     try:
         save_classwork_file(CLASSWORK_LOCAL_PATH, filename=filename, content_base64=content_base64)
@@ -501,7 +501,7 @@ def api_local_settings_grades() -> Response:
 
     entry = create_grade_entry(payload)
     if not entry["classLabel"] or not entry["studentName"] or not entry["title"]:
-        return jsonify({"error": "validation", "detail": "Klasse, Schueler:in und Titel werden benoetigt."}), 400
+        return jsonify({"error": "validation", "detail": "Klasse, Schüler:in und Titel werden benoetigt."}), 400
     result = save_gradebook(GRADES_LOCAL_PATH, [entry] + current_entries)
     return jsonify({"status": "ok", "detail": "Note lokal gespeichert.", **result})
 

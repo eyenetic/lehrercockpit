@@ -57,7 +57,7 @@ def parse_classwork_xlsx(file_bytes: bytes) -> dict:
         digest = _read_classwork_workbook(
             file_bytes,
             now,
-            detail="Datei hochgeladen und fuer das Cockpit ausgewertet.",
+            detail="Datei hochgeladen und für das Cockpit ausgewertet.",
             source_url="",
         )
         digest["updatedAt"] = updated_at_label
@@ -90,7 +90,7 @@ def parse_classwork_xlsx(file_bytes: bytes) -> dict:
         return {
             "status": "ok",
             "title": "Klassenarbeitsplan",
-            "detail": f"CSV hochgeladen. {len(structured)} Eintraege gelesen.",
+            "detail": f"CSV hochgeladen. {len(structured)} Einträge gelesen.",
             "updatedAt": updated_at_label,
             "scrapedAt": now.isoformat(),
             "previewRows": preview,
@@ -143,7 +143,7 @@ def parse_classwork_xlsx(file_bytes: bytes) -> dict:
     return {
         "status": "ok",
         "title": "Klassenarbeitsplan",
-        "detail": f"Excel-Datei hochgeladen. {len(all_structured)} Eintraege aus {total_sheets} Tabellenblättern gelesen.",
+        "detail": f"Excel-Datei hochgeladen. {len(all_structured)} Einträge aus {total_sheets} Tabellenblättern gelesen.",
         "updatedAt": updated_at_label,
         "scrapedAt": now.isoformat(),
         "previewRows": preview_rows,

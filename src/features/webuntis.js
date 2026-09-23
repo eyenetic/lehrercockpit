@@ -385,7 +385,7 @@
   }
 
   function watchStatusLabel(status) {
-    return ({ changed: 'geaendert', watch: 'beobachten', synced: 'live' }[status] || status);
+    return ({ changed: 'geändert', watch: 'beobachten', synced: 'live' }[status] || status);
   }
 
   function watchStatusClass(status) {
@@ -622,7 +622,7 @@
     return '<div class="webuntis-agenda">'
       + '<div class="webuntis-agenda-head">'
       + '<strong>' + label + '</strong>'
-      + '<span>' + groups.reduce(function (sum, g) { return sum + g.events.length; }, 0) + ' Eintraege</span>'
+      + '<span>' + groups.reduce(function (sum, g) { return sum + g.events.length; }, 0) + ' Einträge</span>'
       + '</div>'
       + groups.map(renderAgendaGroup).join('')
       + '</div>';
@@ -632,7 +632,7 @@
     return '<section class="webuntis-day-group">'
       + '<div class="webuntis-day-label">'
       + '<span>' + group.label + '</span>'
-      + '<span>' + group.events.length + ' Eintraege</span>'
+      + '<span>' + group.events.length + ' Einträge</span>'
       + '</div>'
       + group.events.map(renderDayEvent).join('')
       + '</section>';
@@ -722,9 +722,9 @@
     var nextFutureEvent = findNextEventAfter((columns[columns.length - 1] || {}).isoDate || center.currentDate);
     var totalCount = columns.reduce(function (sum, c) { return sum + c.events.length; }, 0);
     var countLabel = hasAnyWeekEvents
-      ? totalCount + ' Eintraege'
+      ? totalCount + ' Einträge'
       : (nextFutureEvent
-        ? 'Naechster bekannter Termin: ' + _formatDate(new Date(nextFutureEvent.startsAt))
+        ? 'Nächster bekannter Termin: ' + _formatDate(new Date(nextFutureEvent.startsAt))
         : 'keine Einträge im iCal');
 
     // Calculate time range from actual events (min 07:30–16:30)
@@ -966,15 +966,15 @@
       if (_elements.webuntisPickerCategoryTitle) _elements.webuntisPickerCategoryTitle.textContent = (category && category.label) ? category.label : 'Auswahl';
       if (_elements.webuntisPickerCategoryNote) {
         _elements.webuntisPickerCategoryNote.textContent = _state.webuntisPickerCategory === 'teacher'
-          ? 'Kolleg:innen-Listen folgen erst mit echter WebUntis-Session. Aktuell bleibt dein persoenlicher Plan die stabile Basis.'
-          : 'Auswaehlen wechselt die Anzeige im Cockpit. Klassen und Raeume stammen derzeit aus deinem persoenlichen Plan.';
+          ? 'Kolleg:innen-Listen folgen erst mit echter WebUntis-Session. Aktuell bleibt dein persönlicher Plan die stabile Basis.'
+          : 'Auswählen wechselt die Anzeige im Cockpit. Klassen und Räume stammen derzeit aus deinem persönlichen Plan.';
       }
       if (_elements.webuntisPickerCategoryResults) {
         _elements.webuntisPickerCategoryResults.innerHTML = categoryItems.length
           ? categoryItems.map(function (e) {
               return renderPickerItem(e, { active: isEntityActive(center, e), showFavorite: e.id !== 'personal', action: 'select' });
             }).join('')
-          : '<div class="empty-state">In dieser Kategorie gibt es aktuell keine weiteren Live-Eintraege.</div>';
+          : '<div class="empty-state">In dieser Kategorie gibt es aktuell keine weiteren Live-Einträge.</div>';
       }
     }
 

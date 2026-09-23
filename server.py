@@ -210,7 +210,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 self._send_json(
                     {
                         "status": "error",
-                        "detail": "Browser-Abruf ist nur lokal verfuegbar, nicht auf dem Server.",
+                        "detail": "Browser-Abruf ist nur lokal verfügbar, nicht auf dem Server.",
                     },
                     status=HTTPStatus.BAD_REQUEST,
                 )
@@ -403,7 +403,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
 
             if not filename or not content_base64:
                 self._send_json(
-                    {"error": "validation", "detail": "Bitte eine XLSX-Datei auswaehlen."},
+                    {"error": "validation", "detail": "Bitte eine XLSX-Datei auswählen."},
                     status=HTTPStatus.BAD_REQUEST,
                 )
                 return
@@ -465,7 +465,7 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
             entry = create_grade_entry(payload)
             if not entry["classLabel"] or not entry["studentName"] or not entry["title"]:
                 self._send_json(
-                    {"error": "validation", "detail": "Klasse, Schueler:in und Titel werden benoetigt."},
+                    {"error": "validation", "detail": "Klasse, Schüler:in und Titel werden benoetigt."},
                     status=HTTPStatus.BAD_REQUEST,
                 )
                 return

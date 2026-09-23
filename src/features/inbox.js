@@ -80,7 +80,7 @@ var LehrerInbox = (function () {
   }
 
   function monitorStatusLabel(status) {
-    return ({ tracked: 'beobachtet', changed: 'geaendert', warning: 'blockiert', error: 'offline' }[status] || status);
+    return ({ tracked: 'beobachtet', changed: 'geändert', warning: 'blockiert', error: 'offline' }[status] || status);
   }
 
   function monitorStatusClass(status) {
@@ -123,7 +123,7 @@ var LehrerInbox = (function () {
             + '<span class="source-status ' + source.status + '">' + statusLabel(source.status) + '</span>'
             + '</div>'
             + '<p class="source-detail">' + source.detail + '</p>'
-            + '<p class="source-detail"><strong>Naechster Schritt:</strong> ' + source.nextStep + '</p>'
+            + '<p class="source-detail"><strong>Nächster Schritt:</strong> ' + source.nextStep + '</p>'
             + '</article>';
         }).join('')
       : '<div class="empty-state">Noch keine Quellen eingerichtet.</div>';

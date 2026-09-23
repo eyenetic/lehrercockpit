@@ -21,7 +21,7 @@ def fetch_classwork_from_browser(onedrive_url: str) -> dict[str, Any]:
     if not onedrive_url:
         return {
             "status": "error",
-            "detail": "Kein OneDrive-Link fuer den Browser-Abruf vorhanden.",
+            "detail": "Kein OneDrive-Link für den Browser-Abruf vorhanden.",
         }
 
     try:
@@ -30,7 +30,7 @@ def fetch_classwork_from_browser(onedrive_url: str) -> dict[str, Any]:
     except Exception as exc:
         return {
             "status": "error",
-            "detail": f"Playwright ist lokal nicht installiert oder nicht verfuegbar: {exc}",
+            "detail": f"Playwright ist lokal nicht installiert oder nicht verfügbar: {exc}",
         }
 
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
@@ -61,7 +61,7 @@ def fetch_classwork_from_browser(onedrive_url: str) -> dict[str, Any]:
                     return {
                         "status": "error",
                         "detail": (
-                            "Die Office-Webansicht konnte geoeffnet werden, aber der Download der Excel-Datei "
+                            "Die Office-Webansicht konnte geöffnet werden, aber der Download der Excel-Datei "
                             "liess sich nicht automatisch ausloesen."
                         ),
                     }
@@ -81,7 +81,7 @@ def fetch_classwork_from_browser(onedrive_url: str) -> dict[str, Any]:
     except PlaywrightTimeoutError:
         return {
             "status": "error",
-            "detail": "Zeitueberschreitung beim Oeffnen der Office-Webansicht.",
+            "detail": "Zeitueberschreitung beim Öffnen der Office-Webansicht.",
         }
     except Exception as exc:
         return {
