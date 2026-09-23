@@ -725,7 +725,7 @@
       ? totalCount + ' Eintraege'
       : (nextFutureEvent
         ? 'Naechster bekannter Termin: ' + _formatDate(new Date(nextFutureEvent.startsAt))
-        : 'keine Eintraege im iCal');
+        : 'keine Einträge im iCal');
 
     // Calculate time range from actual events (min 07:30–16:30)
     var gridStart = 7 * 60 + 30, gridEnd = 16 * 60 + 30;
@@ -830,7 +830,7 @@
 
     if (_elements.webuntisActivePlan) _elements.webuntisActivePlan.textContent = 'Mein Stundenplan';
     if (_elements.webuntisDetail) _elements.webuntisDetail.textContent =
-      'Persoenlicher Plan ueber WebUntis-iCal. Vergangene, laufende und kommende Stunden werden hier markiert. Ausfaelle erscheinen nur, wenn WebUntis sie im iCal mitsendet.';
+      'Persönlicher Plan über WebUntis-iCal. Vergangene, laufende und kommende Stunden werden hier markiert. Ausfälle erscheinen nur, wenn WebUntis sie im iCal mitsendet.';
     if (_elements.webuntisRangeLabel) _elements.webuntisRangeLabel.textContent = getWebUntisRangeLabel(center);
     if (_elements.webuntisPlanStrip) {
       _elements.webuntisPlanStrip.hidden = true;

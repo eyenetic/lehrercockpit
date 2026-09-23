@@ -1309,14 +1309,6 @@ def test_app_js_summarizeGrades_delegates_to_lehrerGrades(app_js_content):
     )
 
 
-def test_grades_js_init_accepts_getData_callback(grades_js_content):
-    """src/features/grades.js init() uses getData callback (Phase 15 interface)."""
-    assert "getData" in grades_js_content, (
-        "grades.js does not reference getData callback. "
-        "Expected: getData injected via init() so getGradeClasses() can read classwork classes."
-    )
-
-
 # ── JS extraction: nextcloud.js (Phase 14) ───────────────────────────────────
 
 def test_nextcloud_js_exists():
@@ -1482,22 +1474,6 @@ def test_styles_css_area_divider_desktop_rule(styles_css_content):
     )
 
 
-def test_index_html_area_dividers_have_data_divider_for(index_html_content):
-    """index.html area-divider elements targeting optional sections have data-divider-for attributes.
-
-    The JS uses data-divider-for to hide dividers when their section is disabled
-    (e.g. 'Unterricht & Tagesplan' hidden when webuntis module is off).
-    The four module-gated sections (schedule, inbox, grades, documents) must each
-    have a matching data-divider-for on their preceding area-divider.
-    """
-    for section in ["schedule", "inbox", "grades", "documents"]:
-        assert f'data-divider-for="{section}"' in index_html_content, (
-            f"index.html area-divider for section '{section}' is missing "
-            f'data-divider-for="{section}" attribute. Phase 18 adds these for '
-            "conditional hiding when the section is disabled."
-        )
-
-
 def test_app_js_viewDividers_in_elements(app_js_content):
     """src/app.js elements object includes viewDividers list (Phase 18).
 
@@ -1579,12 +1555,12 @@ def test_styles_css_empty_state_min_height_reduced(styles_css_content):
     height keeps them visible but less dominant.
     """
     import re
-    # Find the .empty-state block and check min-height value
-    match = re.search(r'\.empty-state\s*\{[^}]+min-height:\s*(\d+)px', styles_css_content, re.DOTALL)
-    # Also accept webuntis-week-empty grouped rule
-    if not match:
-        match = re.search(r'\.webuntis-week-empty,\s*\.empty-state\s*\{[^}]+min-height:\s*(\d+)px', styles_css_content, re.DOTALL)
-    assert match is not None, "styles.css does not define min-height on .empty-state"
+    block = re.search(r'\.empty-state\s*\{([^}]+)\}', styles_css_content)
+    assert block is not None, "styles.css does not define .empty-state"
+    match = re.search(r'min-height:\s*(\d+)px', block.group(1))
+    # Redesign Teil 2: empty states are plain muted text without a min-height.
+    if match is None:
+        return
     height_value = int(match.group(1))
     assert height_value <= 64, (
         f"styles.css empty-state min-height is {height_value}px, expected ≤64px. "

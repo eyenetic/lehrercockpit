@@ -368,14 +368,14 @@
         entities: [],
         watchlist: [],
       },
-      shortcutHint: "WebUntis-Links koennen hier als Schnellzugriff gespeichert werden.",
+      shortcutHint: "WebUntis-Links können hier als Schnellzugriff gespeichert werden.",
     };
 
     data.planDigest = data.planDigest || {
       orgaplan: {
         status: "warning",
         title: "Orgaplan",
-        detail: "Noch kein Orgaplan-Digest verfuegbar.",
+        detail: "Noch kein Orgaplan-Digest verfügbar.",
         monthLabel: "",
         updatedAt: formatTime(now),
         highlights: [],
@@ -385,7 +385,7 @@
       classwork: {
         status: "warning",
         title: "Klassenarbeitsplan",
-        detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
+        detail: "Noch kein Klassenarbeitsplan-Digest verfügbar.",
         updatedAt: formatTime(now),
         previewRows: [],
         classes: [],
@@ -664,13 +664,13 @@
             entities: [],
             watchlist: [],
           },
-          shortcutHint: "WebUntis-Links koennen hier als Schnellzugriff gespeichert werden.",
+          shortcutHint: "WebUntis-Links können hier als Schnellzugriff gespeichert werden.",
         },
         planDigest: {
           orgaplan: {
             status: "warning",
             title: "Orgaplan",
-            detail: "Noch kein Orgaplan-Digest verfuegbar.",
+            detail: "Noch kein Orgaplan-Digest verfügbar.",
             monthLabel: "",
             updatedAt: formatTime(new Date()),
             highlights: [],
@@ -680,7 +680,7 @@
           classwork: {
             status: "warning",
             title: "Klassenarbeitsplan",
-            detail: "Noch kein Klassenarbeitsplan-Digest verfuegbar.",
+            detail: "Noch kein Klassenarbeitsplan-Digest verfügbar.",
             updatedAt: formatTime(new Date()),
             previewRows: [],
             classes: [],
@@ -772,7 +772,7 @@
     if (window.location.protocol === "file:") {
       elements.runtimeBanner.hidden = false;
       elements.runtimeBanner.textContent =
-        "Direktdatei geoeffnet. Fuer Live-Daten bitte http://127.0.0.1:4173 nutzen.";
+        "Direktdatei geöffnet. Für Live-Daten bitte http://127.0.0.1:4173 nutzen.";
       return;
     }
 
@@ -811,7 +811,7 @@
   function buildBriefingLead({ nextEvent, todaySummary, orgaplanItem }) {
     if (nextEvent) {
       return {
-        kicker: isEventCurrent(nextEvent) ? "laeuft gerade" : "naechste Stunde",
+        kicker: isEventCurrent(nextEvent) ? "läuft gerade" : "nächste Stunde",
         title: nextEvent.title,
         copy: `${nextEvent.time}${nextEvent.location ? ` · ${nextEvent.location}` : ""}${nextEvent.description ? ` · ${nextEvent.description}` : ""}`,
         timingClass: getEventTimingClass(nextEvent),
@@ -948,7 +948,7 @@
     const showingAll = !selectedClasses.length || selectedClasses.length === allClasses.length;
     const classSelectionLabel = showingAll
       ? "Alle Klassen"
-      : (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewaehlt`);
+      : (selectedClasses.length <= 3 ? selectedClasses.join(", ") : `${selectedClasses.length} Klassen gewählt`);
 
     const cards = [
       {
@@ -960,7 +960,7 @@
           : '<div class="empty-state">Noch kein Tagesplan aus WebUntis verfügbar.</div>',
       },
       {
-        title: "Orgaplan fuer den aktuellen Tag",
+        title: "Orgaplan für den aktuellen Tag",
         tone: "orgaplan",
         section: "documents",
         copy: context.showOrgaplan && context.orgaplanItem
@@ -968,7 +968,7 @@
           : "Heute wurde noch kein gesonderter Orgaplan-Hinweis erkannt.",
       },
       {
-        title: "Klassenarbeiten fuer den aktuellen Tag",
+        title: "Klassenarbeiten für den aktuellen Tag",
         tone: "classwork",
         section: "documents",
         meta: classSelectionLabel,
@@ -979,7 +979,7 @@
                     .map((entry) => `${entry.classLabel}: ${entry.summary || entry.title}`)
                     .slice(0, 3)
                     .join(" · ")
-                : `Heute keine Klassenarbeiten fuer ${classSelectionLabel.toLowerCase()}.`
+                : `Heute keine Klassenarbeiten für ${classSelectionLabel.toLowerCase()}.`
             )
           : "Noch kein Klassenarbeitsplan verbunden.",
       },
@@ -1046,7 +1046,7 @@
       elements.todayGradesPreview.innerHTML = `
         <article class="today-mini-card">
           <strong>Gewichtungen und Teilnoten</strong>
-          <p>Schneller Einstieg in Notenberechnung fuer gewichtete Teilnoten und einfache Kombinationen.</p>
+          <p>Schneller Einstieg in Notenberechnung für gewichtete Teilnoten und einfache Kombinationen.</p>
         </article>
       `;
     }
@@ -1409,7 +1409,7 @@
                 <span class="meta-tag low">${link.kind}</span>
                 <strong>${link.title}</strong>
                 <p class="priority-copy">${link.note}</p>
-                <span class="quick-link-action">oeffnen</span>
+                <span class="quick-link-action">öffnen</span>
               </a>
             `
           )
@@ -1549,13 +1549,13 @@
     const mailConnection = connectionHint("mail");
     const schoolportalUrl = base.schoolportal_url || "https://schulportal.berlin.de";
     if (elements.dienstmailOpenLink) {
-      bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal oeffnen");
+      bindExternalLink(elements.dienstmailOpenLink, schoolportalUrl, "Dienstmail im Schulportal öffnen");
       elements.dienstmailOpenLink.target = "_blank";
       elements.dienstmailOpenLink.rel = "noreferrer";
       elements.dienstmailOpenLink.hidden = false;
     }
     if (elements.itslearningOpenLink) {
-      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning oeffnen");
+      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning öffnen");
       elements.itslearningOpenLink.hidden = !base.itslearning_base_url;
     }
     renderMailSetupEntry();
@@ -1793,7 +1793,7 @@
     if (normalizedQuestion.includes("mail")) {
       const mailMessages = data.messages.filter((message) => message.channel === "mail");
       if (!mailMessages.length) {
-        return "Aktuell ist keine lokale Dienstmail-Vorschau angebunden. Die Dienstmail bleibt aber ueber das Schulportal erreichbar.";
+        return "Aktuell ist keine lokale Dienstmail-Vorschau angebunden. Die Dienstmail bleibt aber über das Schulportal erreichbar.";
       }
       return mailMessages.slice(0, 2).map((message) => `${message.title}: ${message.snippet}`).join(" ");
     }
@@ -1845,7 +1845,9 @@
       button.addEventListener("click", () => {
         state.activeSection = button.dataset.sectionTarget || "overview";
         renderSectionFocus();
-        window.scrollTo({ top: 0, behavior: "auto" });
+        // "instant", not "auto": html has scroll-behavior: smooth, which would
+        // briefly show the new section scrolled halfway down.
+        window.scrollTo({ top: 0, behavior: "instant" });
       });
     });
 
@@ -2164,7 +2166,7 @@
 
   async function uploadClassworkFile(file) {
     if (!file.name.toLowerCase().match(/\.(xlsx|xlsm|xls|csv)$/)) {
-      state.classworkUploadFeedback = "Bitte eine XLSX-, XLSM-, XLS- oder CSV-Datei auswaehlen.";
+      state.classworkUploadFeedback = "Bitte eine XLSX-, XLSM-, XLS- oder CSV-Datei auswählen.";
       state.classworkUploadFeedbackKind = "warning";
       renderPlanDigest();
       return;
@@ -2271,10 +2273,10 @@
   function getHeuteLayoutItems() {
     var labels = {
       briefing: "Tagesbriefing",
-      access: "Zugaenge",
+      access: "Zugänge",
       schedule: "Stundenplan",
       inbox: "Posteingang",
-      documents: "Plaene",
+      documents: "Pläne",
       grades: "Notenberechnung",
     };
     if (!DashboardManager || typeof DashboardManager.getTodayLayout !== "function") {
@@ -3280,7 +3282,7 @@
   function watchStatusLabel(status) {
     return (
       {
-        changed: "geaendert",
+        changed: "geändert",
         watch: "beobachten",
         synced: "live",
       }[status] || status
@@ -3435,15 +3437,15 @@
 
   function renderEmptyWeekColumn(column, hasAnyWeekEvents) {
     if (hasAnyWeekEvents) {
-      return `<div class="webuntis-week-empty">Kein iCal-Eintrag fuer diesen Tag</div>`;
+      return `<div class="webuntis-week-empty">Kein iCal-Eintrag für diesen Tag</div>`;
     }
 
     const nextEvent = findNextEventAfter(column.isoDate);
     if (nextEvent) {
-      return `<div class="webuntis-week-empty">Im iCal keine Termine. Naechster Eintrag am ${formatDate(new Date(nextEvent.startsAt))}.</div>`;
+      return `<div class="webuntis-week-empty">Im iCal keine Termine. Nächster Eintrag am ${formatDate(new Date(nextEvent.startsAt))}.</div>`;
     }
 
-    return `<div class="webuntis-week-empty">Im iCal sind fuer diese Woche gerade keine Termine vorhanden.</div>`;
+    return `<div class="webuntis-week-empty">Im iCal sind für diese Woche gerade keine Termine vorhanden.</div>`;
   }
 
   function extractClassLabels(event) {

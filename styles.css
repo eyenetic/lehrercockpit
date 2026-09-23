@@ -196,12 +196,10 @@ a {
 }
 
 .runtime-banner {
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--warning) 18%, var(--line));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--warning) 8%, var(--panel));
-  color: var(--warning);
-  font-size: 0.78rem;
+  padding: 0 0 0 10px;
+  border-left: 2px solid color-mix(in srgb, var(--warning) 60%, var(--line));
+  color: var(--muted);
+  font-size: 0.72rem;
   line-height: 1.45;
 }
 
@@ -608,99 +606,55 @@ a {
   grid-row: 1 / span 2;
 }
 
-.tone-overview,
-.tone-schedule,
-.tone-inbox,
-.tone-grades,
-.tone-documents,
-.tone-orgaplan,
-.tone-classwork,
-.tone-access,
-.tone-itslearning,
-.tone-nextcloud,
-.tone-assistant {
-  position: relative;
-  overflow: hidden;
-}
-
-.tone-overview::before,
-.tone-schedule::before,
-.tone-inbox::before,
-.tone-grades::before,
-.tone-documents::before,
-.tone-orgaplan::before,
-.tone-classwork::before,
-.tone-access::before,
-.tone-itslearning::before,
-.tone-nextcloud::before,
-.tone-assistant::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  background: var(--section-tone, var(--accent));
-  opacity: 0.9;
-}
 
 .tone-overview {
   --section-tone: var(--tone-overview);
-  background: color-mix(in srgb, var(--panel) 93%, var(--tone-overview) 7%);
 }
 
 .tone-schedule {
   --section-tone: var(--tone-schedule);
-  background: color-mix(in srgb, var(--panel) 94%, var(--tone-schedule) 6%);
 }
 
 .tone-inbox {
   --section-tone: var(--tone-inbox);
-  background: color-mix(in srgb, var(--panel) 94%, var(--tone-inbox) 6%);
 }
 
 .tone-grades {
   --section-tone: var(--tone-grades);
-  background: color-mix(in srgb, var(--panel) 94%, var(--tone-grades) 6%);
 }
 
 .tone-documents {
   --section-tone: var(--tone-documents);
-  background: color-mix(in srgb, var(--panel) 94%, var(--tone-documents) 6%);
 }
 
 .tone-orgaplan {
   --section-tone: var(--tone-orgaplan);
-  background: color-mix(in srgb, var(--panel) 95%, var(--tone-orgaplan) 5%);
 }
 
 .tone-classwork {
   --section-tone: var(--tone-classwork);
-  background: color-mix(in srgb, var(--panel) 95%, var(--tone-classwork) 5%);
 }
 
 .tone-access {
   --section-tone: var(--tone-access);
-  background: color-mix(in srgb, var(--panel) 95%, var(--tone-access) 5%);
 }
 
 .tone-itslearning {
   --section-tone: var(--tone-itslearning);
-  background: color-mix(in srgb, var(--panel) 95%, var(--tone-itslearning) 5%);
 }
 
 .tone-nextcloud {
   --section-tone: var(--tone-nextcloud);
-  background: color-mix(in srgb, var(--panel) 95%, var(--tone-nextcloud) 5%);
 }
 
 .tone-assistant {
   --section-tone: var(--tone-assistant);
-  background: color-mix(in srgb, var(--panel) 95%, var(--tone-assistant) 5%);
 }
 
 .tone-grades-panel,
 .tone-notes-panel {
-  border: 1px solid color-mix(in srgb, var(--section-tone, var(--line)) 14%, var(--line));
-  background: color-mix(in srgb, var(--panel) 97%, var(--section-tone, var(--accent)) 3%);
+  border: 1px solid var(--line);
+  background: var(--panel);
   border-radius: var(--radius-md);
 }
 
@@ -745,7 +699,31 @@ a {
 .tone-assistant .card-kicker,
 .tone-grades-panel .card-kicker,
 .tone-notes-panel .card-kicker {
-  color: color-mix(in srgb, var(--section-tone, var(--accent)) 72%, var(--muted));
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+
+.tone-overview .card-kicker::before,
+.tone-schedule .card-kicker::before,
+.tone-inbox .card-kicker::before,
+.tone-grades .card-kicker::before,
+.tone-documents .card-kicker::before,
+.tone-orgaplan .card-kicker::before,
+.tone-classwork .card-kicker::before,
+.tone-access .card-kicker::before,
+.tone-itslearning .card-kicker::before,
+.tone-nextcloud .card-kicker::before,
+.tone-assistant .card-kicker::before,
+.tone-grades-panel .card-kicker::before,
+.tone-notes-panel .card-kicker::before {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--section-tone, var(--accent));
 }
 
 .section-head.section-head-wrap,
@@ -797,16 +775,16 @@ a {
   flex-direction: column;
   gap: 8px;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--section-tone, var(--line)) 14%, var(--line));
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--panel) 97%, var(--section-tone, var(--accent)) 3%);
+  background: transparent;
   cursor: pointer;
-  transition: border-color 120ms ease, transform 120ms ease;
+  transition: border-color 120ms ease, background-color 120ms ease;
 }
 
 .today-focus-card:hover {
-  border-color: color-mix(in srgb, var(--section-tone, var(--accent)) 28%, var(--line));
-  transform: translateY(-1px);
+  border-color: var(--line-strong);
+  background: var(--panel-soft);
 }
 
 .today-focus-card strong {
@@ -866,13 +844,12 @@ a {
   padding: 22px 20px 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--panel) 91%, var(--tone-overview) 9%);
-  border-top: 3px solid var(--tone-overview);
+  background: var(--panel-soft);
   position: relative;
 }
 
 .briefing-lead.is-current {
-  border-top-color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 35%, var(--line));
   background: color-mix(in srgb, var(--success) 5%, var(--panel));
 }
 
@@ -1478,8 +1455,14 @@ a {
   line-height: 1.45;
 }
 
-.webuntis-week-empty,
 .empty-state {
+  padding: 2px 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.webuntis-week-empty {
   display: grid;
   place-items: center;
   min-height: 56px; /* Was 84px — reduced to feel less imposing in sparse dashboards */
@@ -1686,8 +1669,7 @@ a {
 /* Stat tiles: prominent and scan-ready */
 .grades-stat-card {
   padding: 16px 18px;
-  border-top: 2px solid color-mix(in srgb, var(--tone-grades) 55%, var(--line));
-  background: color-mix(in srgb, var(--panel) 97%, var(--tone-grades) 3%);
+  background: var(--panel);
 }
 
 .grades-stat-label {
@@ -2277,16 +2259,11 @@ details[open] > .orgaplan-upcoming-summary::before {
 .tone-orgaplan .source-detail,
 .tone-documents #document-list > *,
 .tone-access #quick-link-grid > * {
-  border-color: color-mix(in srgb, var(--section-tone, var(--accent)) 12%, var(--line));
-}
-
-.tone-nextcloud .nextcloud-work-card {
-  background: color-mix(in srgb, var(--panel) 96%, var(--tone-nextcloud) 4%);
+  border-color: var(--line);
 }
 
 .tone-access #quick-link-grid > *,
 .tone-documents #document-list > * {
-  background: color-mix(in srgb, var(--panel) 97%, var(--section-tone, var(--accent)) 3%);
   border-radius: var(--radius-md);
 }
 
@@ -2295,8 +2272,7 @@ details[open] > .orgaplan-upcoming-summary::before {
 .tone-documents #classwork-preview-list > *,
 .tone-grades #grades-list > *,
 .tone-grades #class-notes-list > * {
-  border-color: color-mix(in srgb, var(--section-tone, var(--accent)) 12%, var(--line));
-  background: color-mix(in srgb, var(--panel) 97%, var(--section-tone, var(--accent)) 3%);
+  border-color: var(--line);
 }
 
 .nextcloud-link-grid {
@@ -2536,10 +2512,6 @@ details[open] > .orgaplan-upcoming-summary::before {
     margin-bottom: 16px;
   }
 
-  .masthead-rule {
-    display: none;
-  }
-
   .masthead-left {
     flex-direction: column;
     align-items: flex-start;
@@ -2548,10 +2520,6 @@ details[open] > .orgaplan-upcoming-summary::before {
 
   .masthead-date {
     font-size: 1.25rem;
-  }
-
-  .day-masthead h1 {
-    font-size: 1.1rem;
   }
 }
 
@@ -2847,7 +2815,7 @@ details[open] > .orgaplan-upcoming-summary::before {
   }
 
   .masthead-weekday {
-    font-size: 1.55rem;
+    font-size: 1.9rem;
   }
 
   .masthead-date {
@@ -2861,12 +2829,12 @@ details[open] > .orgaplan-upcoming-summary::before {
 
   .masthead-buttons {
     width: 100%;
-    flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
 
   .masthead-buttons > * {
-    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .hero-note {
@@ -3342,10 +3310,13 @@ details[open] > .orgaplan-upcoming-summary::before {
 }
 
 .today-mini-card {
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--panel-soft);
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.today-mini-card:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .today-mini-card strong {
@@ -3451,33 +3422,15 @@ details[open] > .orgaplan-upcoming-summary::before {
   gap: 12px;
 }
 
-.zugaenge-group {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--panel-soft);
-  padding: 10px 12px 12px;
-}
-
-.zugaenge-group--unterricht {
-  background: color-mix(in srgb, var(--accent-soft) 45%, var(--panel));
-}
-
-.zugaenge-group--kommunikation {
-  background: color-mix(in srgb, var(--success) 8%, var(--panel));
-}
-
-.zugaenge-group--verwaltung {
-  background: color-mix(in srgb, var(--warning) 10%, var(--panel));
-}
-
-.zugaenge-group--dateien {
-  background: color-mix(in srgb, #0891b2 10%, var(--panel));
+.zugaenge-group + .zugaenge-group {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
 .zugaenge-group__label {
   font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--muted);
   margin-bottom: 8px;
 }
@@ -3490,37 +3443,33 @@ details[open] > .orgaplan-upcoming-summary::before {
 
 .zugaenge-link {
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
-  min-width: 88px;
-  padding: 9px 10px;
-  border-radius: var(--radius-md);
+  gap: 7px;
+  padding: 6px 11px 6px 9px;
+  border-radius: 999px;
   background: var(--panel);
   text-decoration: none;
-  font-size: 0.75rem;
-  gap: 4px;
+  font-size: 0.8rem;
   cursor: pointer;
   color: var(--ink);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   transition: background 120ms ease, border-color 120ms ease;
 }
 
 .zugaenge-link:hover {
-  background: color-mix(in srgb, var(--panel-soft) 60%, var(--ink) 8%);
-  border-color: var(--line-strong);
+  background: var(--panel-soft);
+  border-color: color-mix(in srgb, var(--ink) 25%, var(--line));
 }
 
 .zugaenge-link__icon {
-  font-size: 1.1em;
+  font-size: 0.95em;
   line-height: 1;
 }
 
 .zugaenge-link__label {
-  font-size: 0.72em;
-  color: var(--muted);
-  text-align: center;
-  white-space: normal;
-  line-height: 1.25;
+  color: var(--ink);
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .zugaenge-link--unconfigured {
@@ -3720,9 +3669,14 @@ details[open] > .orgaplan-upcoming-summary::before {
 }
 
 .plans-block {
-  background: var(--panel-soft);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 16px 0 0;
+}
+
+/* Inside the Pläne tabs the digest is content, not another nested card */
+.plans-block .plan-digest-card {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .plans-block__header {
@@ -4718,9 +4672,11 @@ details[open] > .orgaplan-upcoming-summary::before {
 .tg-col.is-today .tg-col-date {
   background: var(--accent);
   color: #fff;
-  border-radius: 50%;
-  width: 28px;
+  border-radius: 999px;
+  width: fit-content;
   height: 28px;
+  margin: 0 auto;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: center;

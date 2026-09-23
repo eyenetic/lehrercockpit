@@ -158,7 +158,7 @@
     if (_elements.nextcloudConnectCopy) {
       _elements.nextcloudConnectCopy.textContent =
         (source && source.detail) ||
-        'Nextcloud ist als Arbeitsbereich vorbereitet. Von hier aus oeffnest du die Fehlzeiten-Dateien direkt im Browser.';
+        'Nextcloud ist als Arbeitsbereich vorbereitet. Von hier aus öffnest du die Fehlzeiten-Dateien direkt im Browser.';
     }
 
     if (_elements.nextcloudOpenRoot) {
