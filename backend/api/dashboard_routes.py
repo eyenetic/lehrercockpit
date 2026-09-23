@@ -842,6 +842,23 @@ def _fetch_nextcloud_data(user_id: int) -> dict:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
+def _signals_section(user_id: int, modules_result: dict) -> dict | None:
+    """Unified entries with per-teacher state ("Neu & geändert"). None on failure."""
+    try:
+        from backend.signal_store import build_payload, load_prefs, sync_signals
+        from backend.signals import build_signals
+
+        now = datetime.now(timezone.utc)
+        with db_connection() as conn:
+            prefs = load_prefs(conn, user_id)
+        signals, classes = build_signals(modules_result, now, prefs.get("classes") or [])
+        with db_connection() as conn:
+            items = sync_signals(conn, user_id, signals, now)
+        return build_payload(items, classes, now)
+    except Exception:
+        return None
+
+
 def _fetch_noten_data(user_id: int) -> dict:
     """Fetch grades and notes for user. Returns module result dict."""
     try:
@@ -994,6 +1011,7 @@ def get_dashboard_data():
     return success({
         "base": base_section,
         "modules": modules_result,
+        "signals": _signals_section(user_id, modules_result),
         "user": {
             "id": user_dict.get("id"),
             "display_name": user_dict.get("display_name", ""),

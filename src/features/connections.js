@@ -381,6 +381,86 @@
     },
   });
 
+  // ── Push-Nachrichten (dieses Gerät) ───────────────────────────────────────
+
+  function _pushBody(st) {
+    var prefs = st.prefs || { morning: true, weekly: true };
+    if (!st.supported) {
+      return '<p class="connection-copy">Dieser Browser unterstützt keine Push-Nachrichten.</p>';
+    }
+    if (st.iosNeedsInstall) {
+      return '<p class="connection-copy">Auf iPhone und iPad funktionieren Push-Nachrichten nur mit dem installierten Cockpit: ' +
+        'in Safari auf „Teilen“ → „Zum Home-Bildschirm“, das Cockpit von dort öffnen und hier aktivieren.</p>';
+    }
+    if (!st.serverEnabled) {
+      return '<p class="connection-copy">Push-Nachrichten sind auf dem Server noch nicht eingerichtet (VAPID-Schlüssel fehlen).</p>';
+    }
+    return '<p class="connection-copy">Das Cockpit meldet sich von selbst – du musst es nicht öffnen.</p>' +
+      '<label class="connection-check"><input type="checkbox" data-pref="morning"' + (prefs.morning ? ' checked' : '') + ' /> ' +
+      'Schultags morgens: dein Tag in drei Zeilen</label>' +
+      '<label class="connection-check"><input type="checkbox" data-pref="weekly"' + (prefs.weekly ? ' checked' : '') + ' /> ' +
+      'Sonntagabend: Vorschau auf die Woche</label>' +
+      '<div class="connection-actions">' +
+      (st.subscribed
+        ? '<button class="btn btn-secondary" type="button" data-action="push-test">Test senden</button>' +
+          '<button class="btn btn-secondary" type="button" data-action="push-off">Auf diesem Gerät ausschalten</button>'
+        : '<button class="btn btn-primary" type="button" data-action="push-on">Auf diesem Gerät aktivieren</button>') +
+      '</div>' +
+      (st.permission === 'denied'
+        ? '<p class="connection-feedback is-error">Benachrichtigungen sind in den Browser-Einstellungen blockiert.</p>' : '');
+  }
+
+  registerSection({
+    id: 'push',
+    render: function () {
+      return '<div class="connection-head"><h3>Push-Nachrichten</h3><span class="pill" data-push-pill>…</span></div>' +
+        '<div data-push-body><p class="connection-copy">Prüfe dieses Gerät …</p></div>' +
+        '<p class="connection-feedback" data-feedback></p>';
+    },
+    bind: function (el) {
+      if (!window.LehrerPush) { el.hidden = true; return; }
+      var body = el.querySelector('[data-push-body]');
+      var pill = el.querySelector('[data-push-pill]');
+
+      function refresh(message, kind) {
+        return window.LehrerPush.status().then(function (st) {
+          var active = st.subscribed && st.serverEnabled;
+          pill.className = 'pill ' + (active ? 'pill-live' : 'pill-attention');
+          pill.textContent = active ? 'aktiv' : 'aus';
+          body.innerHTML = _pushBody(st);
+          if (message) feedback(el, message, kind);
+        });
+      }
+
+      function currentPrefs() {
+        var prefs = {};
+        el.querySelectorAll('[data-pref]').forEach(function (box) { prefs[box.getAttribute('data-pref')] = box.checked; });
+        return prefs;
+      }
+
+      function run(promise, okMessage) {
+        feedback(el, 'Einen Moment …');
+        return promise
+          .then(function () { return refresh(okMessage, 'success'); })
+          .catch(function (err) { feedback(el, err.message, 'error'); });
+      }
+
+      body.addEventListener('click', function (event) {
+        var button = event.target.closest('[data-action]');
+        if (!button) return;
+        var action = button.getAttribute('data-action');
+        if (action === 'push-on') run(window.LehrerPush.enable(currentPrefs()), 'Push ist auf diesem Gerät aktiv.');
+        if (action === 'push-off') run(window.LehrerPush.disable(), 'Push ist auf diesem Gerät ausgeschaltet.');
+        if (action === 'push-test') run(window.LehrerPush.test(), 'Testnachricht verschickt.');
+      });
+      body.addEventListener('change', function (event) {
+        if (!event.target.matches('[data-pref]')) return;
+        run(window.LehrerPush.updatePrefs(currentPrefs()), 'Gespeichert.');
+      });
+      refresh();
+    },
+  });
+
   // ── Dialog ────────────────────────────────────────────────────────────────
 
   function registerSection(section) {

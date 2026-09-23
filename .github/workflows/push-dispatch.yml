@@ -1,0 +1,30 @@
+name: Push-Nachrichten
+
+# Stößt den Versand der Push-Zusammenfassungen an. Der Server entscheidet anhand
+# der Berliner Uhrzeit, was fällig ist (schultags morgens, sonntagabends), und
+# verschickt pro Lehrkraft und Tag höchstens einmal – häufiges Anstoßen ist also harmlos.
+#
+# Benötigte Repository-Secrets (Settings → Secrets and variables → Actions):
+#   PUSH_DISPATCH_URL  z. B. https://api.lehrercockpit.com/api/v2/push/dispatch
+#   PUSH_CRON_SECRET   derselbe Wert wie die Umgebungsvariable PUSH_CRON_SECRET beim Backend
+
+on:
+  schedule:
+    - cron: "*/20 4-8 * * 1-5"   # Mo–Fr, deckt 06:30–09:30 Berliner Zeit (Sommer- und Winterzeit) ab
+    - cron: "*/30 15-19 * * 0"   # So, deckt 17:00–21:00 Berliner Zeit ab
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Versand anstoßen
+        env:
+          URL: ${{ secrets.PUSH_DISPATCH_URL }}
+          SECRET: ${{ secrets.PUSH_CRON_SECRET }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$SECRET" ]; then
+            echo "PUSH_DISPATCH_URL/PUSH_CRON_SECRET nicht gesetzt – übersprungen."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 180 -X POST -H "X-Cron-Secret: $SECRET" "$URL"

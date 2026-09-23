@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=75" />
+    <link rel="stylesheet" href="./styles.css?v=76" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -163,6 +163,14 @@
             </div>
             <div id="briefing-output" class="briefing-output"></div>
             <div id="today-briefing-focus" class="today-briefing-focus"></div>
+            <div id="signals-panel" class="signals-panel" hidden>
+              <div class="signals-head">
+                <p class="card-kicker">Neu &amp; geändert</p>
+                <button id="signals-mark-all" class="secondary-link" type="button" hidden>Alles gelesen</button>
+              </div>
+              <div id="signals-list" class="signals-list"></div>
+              <p id="signals-hint" class="signals-hint" hidden></p>
+            </div>
           </section>
 
           <section class="card tone-access today-module-card" data-today-module="access" aria-labelledby="today-zugaenge-title">
@@ -735,23 +743,25 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=75"></script>
-    <script src="./src/api-client.js?v=75"></script>
-    <script src="./src/modules/dashboard-manager.js?v=75"></script>
-    <script src="./src/features/grades.js?v=75"></script>
-    <script src="./src/features/webuntis.js?v=75"></script>
-    <script src="./src/features/itslearning.js?v=75"></script>
-    <script src="./src/features/nextcloud.js?v=75"></script>
-    <script src="./src/features/documents.js?v=75"></script>
-    <script src="./src/features/classwork.js?v=75"></script>
+    <script src="./data/mock-dashboard.js?v=76"></script>
+    <script src="./src/api-client.js?v=76"></script>
+    <script src="./src/modules/dashboard-manager.js?v=76"></script>
+    <script src="./src/features/grades.js?v=76"></script>
+    <script src="./src/features/webuntis.js?v=76"></script>
+    <script src="./src/features/itslearning.js?v=76"></script>
+    <script src="./src/features/nextcloud.js?v=76"></script>
+    <script src="./src/features/documents.js?v=76"></script>
+    <script src="./src/features/classwork.js?v=76"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="./src/features/classlist.js?v=75"></script>
-    <script src="./src/features/collections.js?v=75"></script>
-    <script src="./src/features/inbox.js?v=75"></script>
-    <script src="./src/features/zugaenge.js?v=75"></script>
-    <script src="./src/features/onedrive-sync.js?v=75"></script>
-    <script src="./src/features/connections.js?v=75"></script>
-    <script src="./src/app.js?v=75"></script>
+    <script src="./src/features/classlist.js?v=76"></script>
+    <script src="./src/features/collections.js?v=76"></script>
+    <script src="./src/features/inbox.js?v=76"></script>
+    <script src="./src/features/zugaenge.js?v=76"></script>
+    <script src="./src/features/onedrive-sync.js?v=76"></script>
+    <script src="./src/features/signals.js?v=76"></script>
+    <script src="./src/features/push.js?v=76"></script>
+    <script src="./src/features/connections.js?v=76"></script>
+    <script src="./src/app.js?v=76"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,

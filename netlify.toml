@@ -51,3 +51,9 @@
   for = "/manifest.json"
   [headers.values]
     Cache-Control = "no-store"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"

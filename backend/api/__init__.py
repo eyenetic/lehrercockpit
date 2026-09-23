@@ -9,6 +9,8 @@ from .module_routes import module_bp
 from .reset_routes import reset_bp
 from .register_routes import register_bp
 from .connections_routes import connections_bp
+from .signals_routes import signals_bp
+from .push_routes import push_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -20,3 +22,5 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(reset_bp, url_prefix="/api/v2/auth")
     app.register_blueprint(register_bp, url_prefix="/api/v2")
     app.register_blueprint(connections_bp, url_prefix="/api/v2/connections")
+    app.register_blueprint(signals_bp, url_prefix="/api/v2/signals")
+    app.register_blueprint(push_bp, url_prefix="/api/v2/push")

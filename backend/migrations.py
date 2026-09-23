@@ -311,12 +311,68 @@ def _migrate_seed_today_modules(conn) -> None:
     print("[migrations] Phase 14: Heute-Module und app_title geseedet.", flush=True)
 
 
+def _migrate_signals_and_push(conn) -> None:
+    """Neu-Liste (Zustand je Eintrag und Lehrkraft) und Web-Push.
+
+    Each statement runs in its own savepoint so a failure cannot abort the
+    surrounding migration transaction.
+    """
+    statements = [
+        """
+        CREATE TABLE IF NOT EXISTS user_signal_state (
+            user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            signal_id      TEXT NOT NULL,
+            fingerprint    TEXT NOT NULL,
+            first_seen_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            changed_at     TIMESTAMPTZ,
+            seen_at        TIMESTAMPTZ,
+            status         TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'hidden')),
+            snoozed_until  TIMESTAMPTZ,
+            updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (user_id, signal_id)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id               SERIAL PRIMARY KEY,
+            user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            endpoint         TEXT NOT NULL UNIQUE,
+            p256dh           TEXT NOT NULL,
+            auth             TEXT NOT NULL,
+            user_agent       TEXT NOT NULL DEFAULT '',
+            prefs            JSONB NOT NULL DEFAULT '{}',
+            created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            last_success_at  TIMESTAMPTZ,
+            failure_count    INTEGER NOT NULL DEFAULT 0
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id)",
+        """
+        CREATE TABLE IF NOT EXISTS push_log (
+            user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            kind     TEXT NOT NULL,
+            day      DATE NOT NULL,
+            sent_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            PRIMARY KEY (user_id, kind, day)
+        )
+        """,
+    ]
+    for statement in statements:
+        try:
+            with conn.transaction():
+                conn.execute(statement)
+        except Exception as exc:
+            print(f"[migrations] signals/push statement skipped: {exc}", flush=True)
+    print("[migrations] Neu-Liste und Push-Tabellen bereit.", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
     with db_connection() as conn:
         run_migrations(conn)
         _migrate_seed_today_modules(conn)
+        _migrate_signals_and_push(conn)
 
 
 def log_audit_event(

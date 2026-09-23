@@ -600,6 +600,9 @@
         try { _applyClassworkV2Data(data, modules.klassenarbeitsplan.data || modules.klassenarbeitsplan); } catch (_e) {}
       }
 
+      // "Neu & geändert": unified entries with per-teacher state
+      data.signals = v2.signals || null;
+
       // Klassenarbeitsplan OneDrive sync status (browser fetch when the server is blocked)
       data.classworkSync = modules.klassenarbeitsplan && modules.klassenarbeitsplan.sync
         ? modules.klassenarbeitsplan.sync
@@ -2063,6 +2066,7 @@
     renderDocuments();
     renderExpandableSections();
     renderNavSignals();
+    if (window.LehrerSignals) window.LehrerSignals.render();
   }
 
   // ── Slice 4: App title display ────────────────────────────────────────────
@@ -2085,6 +2089,9 @@
 
   // Background work that depends on fresh dashboard data.
   function runBackgroundSyncs() {
+    if (window.LehrerSignals) {
+      window.LehrerSignals.syncPreferredClasses(state.classworkSelectedClasses || []);
+    }
     if (window.LehrerOneDriveSync && state.data) {
       const pending = window.LehrerOneDriveSync.maybeSync(state.data, () => refreshDashboard(true));
       if (pending) pending.catch(() => {}); // status is shown under "Verbindungen"
@@ -2657,6 +2664,9 @@
     if (window.LehrerConnections) {
       window.LehrerConnections.init({ onChanged: () => refreshDashboard(true) });
     }
+    if (window.LehrerSignals) {
+      window.LehrerSignals.init({ getData: getData });
+    }
 
     initPlansTabs();
     refreshDashboard().then(() => {
@@ -2743,6 +2753,9 @@
       );
     } catch (_error) {
       // ignore local storage errors
+    }
+    if (window.LehrerSignals) {
+      window.LehrerSignals.syncPreferredClasses(state.classworkSelectedClasses || []);
     }
   }
 

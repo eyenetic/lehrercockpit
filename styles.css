@@ -4883,3 +4883,105 @@ details[open] > .orgaplan-upcoming-summary::before {
   font-size: 0.75rem;
   color: var(--muted);
 }
+
+/* ── Neu & geändert (Briefing) ────────────────────────────────────────────── */
+.signals-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.signals-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.signals-head .card-kicker { margin: 0; }
+.signals-list {
+  display: flex;
+  flex-direction: column;
+}
+.signal-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.signal-item:first-child { border-top: 0; padding-top: 4px; }
+.signal-main { min-width: 0; }
+.signal-tags {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+.signal-kind,
+.signal-changed {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.signal-changed { color: var(--warning); }
+.signal-entfall .signal-kind,
+.signal-klassenarbeit .signal-kind { color: var(--tone-classwork); }
+.signal-frist .signal-kind { color: var(--tone-itslearning); }
+.signal-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.signal-title a { color: inherit; }
+.signal-meta {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.signal-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.signal-actions button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.signal-actions button:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.signals-empty,
+.signals-hint {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+.signals-more {
+  align-self: flex-start;
+  margin-top: 6px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.connection-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+}
