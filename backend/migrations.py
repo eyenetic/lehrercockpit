@@ -366,6 +366,38 @@ def _migrate_signals_and_push(conn) -> None:
     print("[migrations] Neu-Liste und Push-Tabellen bereit.", flush=True)
 
 
+def _migrate_ai_tables(conn) -> None:
+    """KI-Assistent: Tageszähler (Kostenbremse) und das zuletzt erzeugte Briefing."""
+    statements = [
+        """
+        CREATE TABLE IF NOT EXISTS ai_usage (
+            user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            day            DATE NOT NULL,
+            briefings      INTEGER NOT NULL DEFAULT 0,
+            questions      INTEGER NOT NULL DEFAULT 0,
+            input_tokens   INTEGER NOT NULL DEFAULT 0,
+            output_tokens  INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, day)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS ai_briefings (
+            user_id       INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            day           DATE NOT NULL,
+            context_hash  TEXT NOT NULL,
+            lines         JSONB NOT NULL DEFAULT '[]',
+            created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+    ]
+    for statement in statements:
+        try:
+            with conn.transaction():
+                conn.execute(statement)
+        except Exception as exc:
+            print(f"[migrations] ai statement skipped: {exc}", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -373,6 +405,7 @@ def run_all_migrations() -> None:
         run_migrations(conn)
         _migrate_seed_today_modules(conn)
         _migrate_signals_and_push(conn)
+        _migrate_ai_tables(conn)
 
 
 def log_audit_event(

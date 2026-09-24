@@ -2,6 +2,8 @@
 Dashboard-Endpunkte für Lehrkräfte: Modules-Layout, Daten.
 """
 import dataclasses
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
 from datetime import datetime, timezone
 from urllib.parse import parse_qs, urlparse
@@ -21,6 +23,25 @@ from backend.api.helpers import require_auth, success, error, mask_config
 from backend.config import DIENSTMAIL_DEFAULT_URL
 
 dashboard_bp = Blueprint("dashboard", __name__)
+
+
+_RECENT_MODULES_SECONDS = 600
+_recent_modules_lock = threading.Lock()
+_recent_modules: dict[int, tuple[float, dict]] = {}
+
+
+def remember_modules(user_id: int, modules: dict) -> None:
+    with _recent_modules_lock:
+        _recent_modules[user_id] = (time.monotonic(), modules)
+
+
+def recent_modules(user_id: int) -> dict | None:
+    """Module results of the teacher's last dashboard load (≤ 10 minutes old)."""
+    with _recent_modules_lock:
+        hit = _recent_modules.get(user_id)
+    if hit and time.monotonic() - hit[0] < _RECENT_MODULES_SECONDS:
+        return hit[1]
+    return None
 
 
 def _user_modules_or_defaults(conn, user_id: int) -> list:
@@ -1008,6 +1029,7 @@ def get_dashboard_data():
         "app_title": base_data.get("app_title", "Lehrercockpit"),
     }
 
+    remember_modules(user_id, modules_result)
     return success({
         "base": base_section,
         "modules": modules_result,

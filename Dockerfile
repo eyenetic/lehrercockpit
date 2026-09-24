@@ -15,4 +15,6 @@ RUN mkdir -p data
 
 EXPOSE 8080
 
-CMD ["python3", "server.py"]
+# Same start command as the Procfile (Render). server.py is the local-only
+# stdlib server without the multi-user /api/v2 endpoints.
+CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 120"]

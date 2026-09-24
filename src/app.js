@@ -2667,6 +2667,9 @@
     if (window.LehrerSignals) {
       window.LehrerSignals.init({ getData: getData });
     }
+    if (window.LehrerAI) {
+      window.LehrerAI.init();
+    }
 
     initPlansTabs();
     refreshDashboard().then(() => {

@@ -254,6 +254,50 @@ Or use Render dashboard: Database → Backups → Create Backup.
 | `PORT` | No | `5000` | Flask port (Render sets this automatically) |
 | `MULTIUSER_ENABLED` | Frontend | `true` | Injected in `index.html` |
 | `BACKEND_API_URL` | Frontend | — | Injected in `index.html` and `admin.html` |
+| `DIENSTMAIL_URL` | No | Senats-Direktlink | Direct link to the teacher mailbox (also admin setting `dienstmail_url`) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | For push | — | Web-Push key pair, create with `python3 scripts/generate_vapid_keys.py` |
+| `VAPID_SUBJECT` | For push | `mailto:admin@lehrercockpit.com` | Contact for the push services (`mailto:` or `https:`) |
+| `PUSH_CRON_SECRET` | For push | — | Shared secret for `POST /api/v2/push/dispatch` (GitHub Action) |
+| `ANTHROPIC_API_KEY` | For KI | — | Claude API key; without it the KI-Assistent stays hidden |
+| `AI_MODEL` | No | `claude-opus-5` | Claude model for Tageszusammenfassung and questions |
+
+---
+
+## Feature Setup (Verbindungen, Push, KI)
+
+### Push-Nachrichten
+
+1. `python3 scripts/generate_vapid_keys.py` locally → set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` on Render.
+   Never commit the private key. Changing the key pair invalidates all device subscriptions.
+2. Choose a random `PUSH_CRON_SECRET` (e.g. `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`) and set it on Render.
+3. GitHub → Settings → Secrets and variables → Actions:
+   - `PUSH_DISPATCH_URL` = `https://api.lehrercockpit.com/api/v2/push/dispatch`
+   - `PUSH_CRON_SECRET` = the same value as on Render
+4. The workflow `.github/workflows/push-dispatch.yml` triggers every 20 min on school-day mornings and on
+   Sunday evenings; the server sends at most one digest per teacher, kind and day (`push_log`).
+   Test manually: GitHub → Actions → Push-Nachrichten → Run workflow (outside the time windows the
+   response is `"Kein Versandfenster"`).
+5. Teachers enable push per device under „Verbindungen“. iPhone/iPad: only in the installed web app
+   (Safari → Teilen → „Zum Home-Bildschirm“), iOS 16.4+.
+
+### KI-Assistent
+
+Set `ANTHROPIC_API_KEY` on Render. Teachers opt in individually under „Verbindungen“.
+Only planning data is sent (lesson titles, dates, deadlines, class tests of the teacher's own classes,
+school dates) — no grades, notes or message contents. Daily limits per teacher: 8 summaries, 30 questions
+(`ai_usage` table records token counts for cost checks). Requests use `claude-opus-5` with low effort and
+the server-side refusal fallback (`fallbacks: "default"`).
+
+### Klassenarbeitsplan (OneDrive)
+
+Admin enters the OneDrive sharing link („Jeder mit dem Link kann anzeigen“) under „Verbindungen“ →
+Klassenarbeitsplan. The server tries to fetch it hourly; if Microsoft blocks the server, the browser of the
+next teacher who opens the cockpit fetches it (`needs_browser` in the sync status). Manual upload remains.
+
+### Nextcloud
+
+Admin sets `nextcloud_url` (Admin-Bereich → Einstellungen). Teachers connect via Login Flow v2 under
+„Verbindungen“; the cockpit stores only an app password (encrypted, revocable in Nextcloud).
 
 ---
 

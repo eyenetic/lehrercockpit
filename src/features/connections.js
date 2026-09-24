@@ -461,6 +461,63 @@
     },
   });
 
+  // ── KI-Assistent ──────────────────────────────────────────────────────────
+
+  registerSection({
+    id: 'ai',
+    render: function () {
+      return '<div class="connection-head"><h3>KI-Assistent</h3><span class="pill" data-ai-pill>…</span></div>' +
+        '<div data-ai-body><p class="connection-copy">Prüfe …</p></div>' +
+        '<p class="connection-feedback" data-feedback></p>';
+    },
+    bind: function (el) {
+      var body = el.querySelector('[data-ai-body]');
+      var pill = el.querySelector('[data-ai-pill]');
+
+      function draw(status) {
+        pill.className = 'pill ' + (status.available && status.enabled ? 'pill-live' : 'pill-attention');
+        pill.textContent = !status.available ? 'nicht eingerichtet' : (status.enabled ? 'an' : 'aus');
+        if (!status.available) {
+          body.innerHTML = '<p class="connection-copy">Der KI-Assistent ist auf diesem Server noch nicht eingerichtet (API-Schlüssel fehlt).</p>';
+          return;
+        }
+        var usage = status.usage || {};
+        var limits = status.limits || {};
+        body.innerHTML =
+          '<p class="connection-copy">Fasst deinen Tag zusammen und beantwortet Fragen wie „Wann schreibt die 10b die nächste Arbeit?“.</p>' +
+          '<details class="connection-help"><summary>Welche Daten gehen an die KI?</summary>' +
+          '<p>Nur Plan- und Termindaten: Stunden (Fach, Klasse, Raum), Termine, Fristen und Klassenarbeiten deiner Klassen. ' +
+          'Keine Noten, keine Notizen, keine Inhalte aus Nextcloud oder itslearning-Nachrichten – davon nur die Anzahl. ' +
+          'Verarbeitet wird über die Claude API von Anthropic.</p></details>' +
+          '<label class="connection-check"><input type="checkbox" data-ai-toggle' + (status.enabled ? ' checked' : '') + ' /> Für mich einschalten</label>' +
+          (status.enabled
+            ? '<p class="connection-copy">Heute: ' + (usage.briefings || 0) + ' von ' + limits.briefings + ' Zusammenfassungen, ' +
+              (usage.questions || 0) + ' von ' + limits.questions + ' Fragen.</p>'
+            : '');
+      }
+
+      function load(message, kind) {
+        return api('/api/v2/ai/status').then(function (status) {
+          draw(status);
+          if (message) feedback(el, message, kind);
+        }).catch(function (err) { feedback(el, err.message, 'error'); });
+      }
+
+      body.addEventListener('change', function (event) {
+        if (!event.target.matches('[data-ai-toggle]')) return;
+        var enabled = event.target.checked;
+        feedback(el, 'Speichere …');
+        api('/api/v2/ai/settings', { method: 'PUT', body: { enabled: enabled } })
+          .then(function () {
+            if (window.LehrerAI) window.LehrerAI.reload();
+            return load(enabled ? 'Der KI-Assistent ist an. Die Zusammenfassung erscheint im Tagesbriefing.' : 'Der KI-Assistent ist aus.', 'success');
+          })
+          .catch(function (err) { feedback(el, err.message, 'error'); });
+      });
+      load();
+    },
+  });
+
   // ── Dialog ────────────────────────────────────────────────────────────────
 
   function registerSection(section) {
