@@ -33,13 +33,6 @@ GERMAN_MONTHS = {
 
 GERMAN_MONTH_LOOKUP = {label.lower(): number for number, label in GERMAN_MONTHS.items()}
 
-CLASSWORK_KEYWORDS = (
-    "LEK",
-    "KA",
-    "KLA",
-    "VERA",
-)
-
 
 @dataclass
 class DownloadResult:
@@ -210,13 +203,16 @@ def _read_classwork_workbook(data: bytes, now: datetime, *, detail: str, source_
     """All entries of the plan. Filtering by date happens when the plan is shown,
     so a stored plan never keeps last week's view (see classwork_sync.plan_view)."""
     workbook = load_workbook(BytesIO(data), read_only=True, data_only=True)
+    school_year = now.year if now.month >= 8 else now.year - 1
     all_entries: list[dict[str, Any]] = []
 
     for sheet_name in workbook.sheetnames:
         sheet = workbook[sheet_name]
-        all_entries.extend(_extract_classwork_entries(sheet, sheet_name))
+        all_entries.extend(_extract_classwork_entries(sheet, sheet_name, school_year))
 
-    all_entries.sort(key=lambda entry: (entry["date"], _class_sort_key(entry["classLabel"]), entry["title"]))
+    unique = {(e["classLabel"], e["date"], e["title"]): e for e in all_entries}
+    all_entries = sorted(unique.values(),
+                         key=lambda entry: (entry["date"], _class_sort_key(entry["classLabel"]), entry["title"]))
     upcoming_entries = [entry for entry in all_entries if entry["date"] >= now.date()]
 
     classes = sorted({entry["classLabel"] for entry in all_entries}, key=_class_sort_key)
@@ -229,7 +225,12 @@ def _read_classwork_workbook(data: bytes, now: datetime, *, detail: str, source_
     if all_entries:
         resolved_detail = f"{detail} {len(all_entries)} Einträge für {len(classes)} Klassen erkannt."
     else:
-        resolved_detail = f"{detail} Es wurden noch keine Klassenarbeits-Einträge erkannt."
+        sheets = ", ".join(f"„{name}“" for name in workbook.sheetnames[:8])
+        resolved_detail = (
+            f"{detail} In der Datei wurden keine Klassenarbeiten erkannt (Tabellenblätter: {sheets}). "
+            "Erwartet wird je Klasse eine Zeile oder Spalte mit Datumsangaben und Einträgen wie „KA“, "
+            "„LEK“ oder „Klausur“."
+        )
 
     return {
         "status": "ok" if all_entries else "warning",
@@ -241,75 +242,171 @@ def _read_classwork_workbook(data: bytes, now: datetime, *, detail: str, source_
         "entries": [_serialize_classwork_entry(entry) for entry in all_entries[:MAX_CLASSWORK_ENTRIES]],
         "firstDate": all_entries[0]["date"].isoformat() if all_entries else "",
         "lastDate": all_entries[-1]["date"].isoformat() if all_entries else "",
+        "sheetNames": list(workbook.sheetnames[:20]),
         "defaultClass": default_class,
         "sourceUrl": source_url,
     }
 
 
-def _extract_classwork_entries(sheet: Any, sheet_name: str) -> list[dict[str, Any]]:
-    month_year = _sheet_month_year(sheet_name)
-    if not month_year:
+MAX_SHEET_ROWS = 400
+MAX_SHEET_COLUMNS = 400
+
+
+def _extract_classwork_entries(sheet: Any, sheet_name: str, school_year: int | None = None) -> list[dict[str, Any]]:
+    """Entries of one sheet. Two layouts are understood:
+
+    - dates across: a header row with dates, one row per class (first column)
+    - dates down:   a header row with classes, one row per date (first columns)
+
+    The year comes from the date cell, else from the sheet name ("November 2025"),
+    else from the school year (August–December → its first calendar year).
+    """
+    rows = [list(row[:MAX_SHEET_COLUMNS])
+            for _, row in zip(range(MAX_SHEET_ROWS), sheet.iter_rows(values_only=True))]
+    if not rows:
         return []
+    context = _sheet_month_year(sheet_name)
+    return _entries_dates_across(rows, context, school_year) or _entries_dates_down(rows, context, school_year)
 
-    month, year = month_year
-    header_dates: dict[int, date] = {}
-    for column in range(2, sheet.max_column + 1):
-        raw_header = _normalize_cell(sheet.cell(row=1, column=column).value)
-        parsed_date = _header_date(raw_header, month, year)
-        if parsed_date:
-            header_dates[column] = parsed_date
 
-    entries: list[dict[str, Any]] = []
-    for row in range(2, sheet.max_row + 1):
-        class_label = _normalize_class_label(sheet.cell(row=row, column=1).value)
+def _make_entry(class_label: str, entry_date: date, raw_value: str) -> dict[str, Any]:
+    return {
+        "classLabel": class_label,
+        "date": entry_date,
+        "dateLabel": entry_date.strftime("%d.%m."),
+        "title": raw_value,
+        "kind": _classwork_kind(raw_value),
+    }
+
+
+def _entries_dates_across(rows: list[list[Any]], context, school_year) -> list[dict[str, Any]]:
+    header_index, header_dates = _best_row(rows, lambda value: _cell_date(value, context, school_year))
+    if header_index is None or len(header_dates) < 2:
+        return []
+    entries = []
+    for row in rows[header_index + 1:]:
+        class_label = next((label for label in (_normalize_class_label(v) for v in row[:2]) if label), "")
         if not class_label:
             continue
-
         for column, entry_date in header_dates.items():
-            raw_value = _normalize_cell(sheet.cell(row=row, column=column).value)
-            if not raw_value or not _is_relevant_classwork_cell(raw_value):
-                continue
-
-            entries.append(
-                {
-                    "classLabel": class_label,
-                    "date": entry_date,
-                    "dateLabel": entry_date.strftime("%d.%m."),
-                    "title": raw_value,
-                    "kind": _classwork_kind(raw_value),
-                }
-            )
-
+            raw_value = _normalize_cell(row[column] if column < len(row) else None)
+            if raw_value and _is_relevant_classwork_cell(raw_value):
+                entries.append(_make_entry(class_label, entry_date, raw_value))
     return entries
 
 
-def _sheet_month_year(sheet_name: str) -> tuple[int, int] | None:
-    match = re.match(r"^\s*([A-Za-zÄÖÜäöü]+)\s+(\d{4})\s*$", str(sheet_name))
+def _entries_dates_down(rows: list[list[Any]], context, school_year) -> list[dict[str, Any]]:
+    header_index, header_classes = _best_row(rows, _normalize_class_label)
+    if header_index is None or len(header_classes) < 2:
+        return []
+    body = rows[header_index + 1:]
+    date_column, best = None, 0
+    for column in range(min(3, max((len(r) for r in body), default=0))):
+        hits = sum(1 for r in body if column < len(r) and _cell_date(r[column], context, school_year))
+        if hits > best:
+            date_column, best = column, hits
+    if date_column is None:
+        return []
+    entries = []
+    for row in body:
+        entry_date = _cell_date(row[date_column] if date_column < len(row) else None, context, school_year)
+        if not entry_date:
+            continue
+        for column, class_label in header_classes.items():
+            raw_value = _normalize_cell(row[column] if column < len(row) else None)
+            if raw_value and _is_relevant_classwork_cell(raw_value):
+                entries.append(_make_entry(class_label, entry_date, raw_value))
+    return entries
+
+
+def _best_row(rows: list[list[Any]], parse) -> tuple[int | None, dict[int, Any]]:
+    """Among the first rows, the one with the most cells that `parse` understands."""
+    best_index, best = None, {}
+    for index, row in enumerate(rows[:6]):
+        found = {}
+        for column, value in enumerate(row):
+            parsed = parse(value)
+            if parsed:
+                found[column] = parsed
+        if len(found) > len(best):
+            best_index, best = index, found
+    return best_index, best
+
+
+_MONTH_ABBREVIATIONS = {
+    "jan": 1, "feb": 2, "mar": 3, "maer": 3, "mrz": 3, "apr": 4, "mai": 5, "jun": 6, "jul": 7,
+    "aug": 8, "sep": 9, "sept": 9, "okt": 10, "oct": 10, "nov": 11, "dez": 12, "dec": 12,
+}
+
+
+def _month_from_name(name: str) -> int | None:
+    token = _ascii_month(name).lower().rstrip(".")
+    return GERMAN_MONTH_LOOKUP.get(token) or _MONTH_ABBREVIATIONS.get(token) or _MONTH_ABBREVIATIONS.get(token[:3])
+
+
+def _sheet_month_year(sheet_name: str) -> tuple[int, int | None] | None:
+    """"November 2025", "Nov. 25", "September", "09.2026", "2026-09" → (month, year or None)."""
+    name = str(sheet_name).strip()
+    match = re.match(r"^([A-Za-zÄÖÜäöü]+)\.?\s*(\d{4}|\d{2})?$", name)
+    if match:
+        month = _month_from_name(match.group(1))
+        if not month:
+            return None
+        year = match.group(2)
+        if not year:
+            return month, None
+        return month, int(year) if len(year) == 4 else 2000 + int(year)
+    match = re.match(r"^(\d{1,2})[./-](\d{4})$", name)
+    if match and 1 <= int(match.group(1)) <= 12:
+        return int(match.group(1)), int(match.group(2))
+    match = re.match(r"^(\d{4})[./-](\d{1,2})$", name)
+    if match and 1 <= int(match.group(2)) <= 12:
+        return int(match.group(2)), int(match.group(1))
+    return None
+
+
+def _cell_date(value: Any, context: tuple[int, int | None] | None = None,
+               school_year: int | None = None) -> date | None:
+    """A date in a header cell: real Excel dates, "Mo 01.09.", "1.9.", "01.09.2026", "2026-09-01"."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = _normalize_cell(value)
+    if not text or len(text) > 30:
+        return None
+    match = re.search(r"(\d{4})-(\d{2})-(\d{2})", text)
+    if match:
+        try:
+            return date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+        except ValueError:
+            return None
+    match = re.search(r"(?<!\d)(\d{1,2})\.(\d{1,2})\.?(\d{4}|\d{2}(?!\d))?", text)
     if not match:
         return None
-
-    month_name = _ascii_month(match.group(1)).lower()
-    month = GERMAN_MONTH_LOOKUP.get(month_name)
-    if not month:
+    day, month = int(match.group(1)), int(match.group(2))
+    year_text = match.group(3)
+    if year_text:
+        year = int(year_text) if len(year_text) == 4 else 2000 + int(year_text)
+    elif context and context[1]:
+        year = context[1]
+        if context[0] == 12 and month == 1:
+            year += 1  # a January date on the December sheet
+        elif context[0] == 1 and month == 12:
+            year -= 1
+    elif school_year:
+        year = school_year if month >= 8 else school_year + 1
+    else:
         return None
-
-    return month, int(match.group(2))
-
-
-def _header_date(raw_header: str, month: int, year: int) -> date | None:
-    match = re.search(r"(\d{2})\.(\d{2})", raw_header)
-    if not match:
-        return None
-
-    day = int(match.group(1))
-    header_month = int(match.group(2))
-    if header_month != month:
-        month = header_month
-
     try:
         return date(year, month, day)
     except ValueError:
         return None
+
+
+def _header_date(raw_header: str, month: int, year: int) -> date | None:
+    """The date in a header cell of a month sheet (kept for older callers)."""
+    return _cell_date(raw_header, (month, year), None)
 
 
 def _normalize_cell(value: Any) -> str:
@@ -318,33 +415,48 @@ def _normalize_cell(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value).replace("\n", " ")).strip()
 
 
+_CLASS_LABEL = re.compile(r"^(?:kl(?:asse)?\.?\s*)?0?(\d{1,2})\s*([a-z])(?![a-z])", re.IGNORECASE)
+_PHASE_LABEL = re.compile(r"^(Q\s*[1-4])(?:\s*/\s*Q?\s*([1-4]))?(?![\d])", re.IGNORECASE)
+
+
 def _normalize_class_label(value: Any) -> str:
-    label = _normalize_cell(value)
-    if not label:
+    """"7a", "07A", "Kl. 7a", "7 a (Mü)" → "7A"; "Q1", "Q1/Q2", "Q3/4" → "Q1", "Q1/2", "Q3/4"."""
+    if isinstance(value, (datetime, date)):
         return ""
-    if re.match(r"^\d{1,2}[a-zA-Z]$", label):
-        return label.upper()
-    if re.match(r"^Q\d(?:/\d)?$", label, re.IGNORECASE):
-        return label.upper()
+    label = _normalize_cell(value)
+    if not label or len(label) > 24:
+        return ""
+    match = _CLASS_LABEL.match(label)
+    if match and 5 <= int(match.group(1)) <= 13:
+        return f"{int(match.group(1))}{match.group(2).upper()}"
+    match = _PHASE_LABEL.match(label)
+    if match:
+        first = match.group(1).replace(" ", "").upper()
+        return f"{first}/{match.group(2)}" if match.group(2) else first
     return ""
 
 
-def _is_relevant_classwork_cell(value: str) -> bool:
-    upper = value.upper()
-    return any(keyword in upper for keyword in CLASSWORK_KEYWORDS)
+# Whole words only: "KA" must not match "Vokabeltest" or "Karfreitag".
+_CLASSWORK_KINDS = (
+    ("VERA", re.compile(r"\bVERA\b")),
+    ("LEK", re.compile(r"\bLEK\b")),
+    ("Klausur", re.compile(r"\bKLA\b|KLAUSUR")),
+    ("Klassenarbeit", re.compile(r"\bKA\b|ARBEIT")),
+    ("Test", re.compile(r"TEST")),
+    ("Prüfung", re.compile(r"\bMSA\b|PRÜF")),
+)
 
 
 def _classwork_kind(value: str) -> str:
     upper = value.upper()
-    if "VERA" in upper:
-        return "VERA"
-    if "LEK" in upper:
-        return "LEK"
-    if "KLA" in upper:
-        return "Klausur"
-    if "KA" in upper:
-        return "Klassenarbeit"
+    for kind, pattern in _CLASSWORK_KINDS:
+        if pattern.search(upper):
+            return kind
     return "Eintrag"
+
+
+def _is_relevant_classwork_cell(value: str) -> bool:
+    return _classwork_kind(value) != "Eintrag"
 
 
 def _serialize_classwork_entry(entry: dict[str, Any]) -> dict[str, str]:

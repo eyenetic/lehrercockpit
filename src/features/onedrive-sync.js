@@ -64,19 +64,60 @@
     });
   }
 
-  function resolveShare(url, token) {
-    var endpoint = API_BASE + '/shares/' + shareId(url) +
-      '/driveitem?$select=name,size,eTag,lastModifiedDateTime,@content.downloadUrl';
+  function _getJson(endpoint, token) {
     return fetch(endpoint, {
       headers: { Authorization: 'Badger ' + token, Prefer: 'autoredeem', Accept: 'application/json' },
     }).then(function (resp) {
-      if (resp.status === 404) throw _fail('Der OneDrive-Link wurde nicht gefunden oder ist nicht mehr freigegeben.');
+      if (resp.status === 404 || resp.status === 400) {
+        throw _fail('OneDrive findet zu diesem Link keine freigegebene Datei. Bitte in OneDrive „Teilen“ → „Jeder mit dem Link kann anzeigen“ → „Link kopieren“ verwenden.');
+      }
       if (resp.status === 401) {
         try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ }
       }
       if (!resp.ok) throw _fail('OneDrive antwortet mit HTTP ' + resp.status + '.');
       return resp.json();
     });
+  }
+
+  function _downloadUrl(item) {
+    return item['@content.downloadUrl'] || item['@microsoft.graph.downloadUrl'] || '';
+  }
+
+  // Same choice as backend/onedrive_share.py: a spreadsheet, "Klassenarbeit" in the
+  // name first, then the newest school year in the name, then the last change.
+  function _pickPlanFile(children) {
+    var files = (children || []).filter(function (c) { return /\.(xlsx|xlsm|xls|csv)$/i.test(c.name || ''); });
+    function rank(item) {
+      var name = String(item.name || '');
+      var year = name.match(/(20\d{2})\s*[_\/-]\s*(20\d{2}|\d{2})/);
+      return [name.toLowerCase().indexOf('klassenarbeit') !== -1 ? 1 : 0, year ? Number(year[1]) : 0, String(item.lastModifiedDateTime || '')];
+    }
+    files.sort(function (a, b) {
+      var ra = rank(a), rb = rank(b);
+      for (var i = 0; i < ra.length; i++) {
+        if (ra[i] !== rb[i]) return ra[i] > rb[i] ? -1 : 1;
+      }
+      return 0;
+    });
+    return files[0] || null;
+  }
+
+  /** The shared file – or, for a shared folder, the newest plan file inside. */
+  function resolveShare(url, token) {
+    var base = API_BASE + '/shares/' + shareId(url) + '/driveitem';
+    return _getJson(base + '?$select=name,size,eTag,lastModifiedDateTime,@content.downloadUrl', token)
+      .then(function (item) {
+        if (_downloadUrl(item)) return item;
+        return _getJson(base + '?$expand=children', token)
+          .then(function (folder) { return folder.children || []; })
+          .catch(function () { return _getJson(base + '/children?$top=200', token).then(function (list) { return list.value || []; }); })
+          .then(function (children) {
+            var chosen = _pickPlanFile(children);
+            if (!chosen) throw _fail('Im freigegebenen Ordner liegt keine Excel-Datei.');
+            if (!_downloadUrl(chosen)) throw _fail('OneDrive liefert für die Datei im Ordner keine Download-Adresse.');
+            return chosen;
+          });
+      });
   }
 
   function _api(path, init) {
@@ -109,8 +150,8 @@
           }).then(function () { return { state: 'unchanged', name: item.name }; });
         }
         if ((item.size || 0) > MAX_BYTES) throw _fail('Die Datei ist zu groß (max. 15 MB).');
-        var downloadUrl = item['@content.downloadUrl'];
-        if (!downloadUrl) throw _fail('OneDrive liefert keine Download-Adresse (ist es ein Ordner-Link?).');
+        var downloadUrl = _downloadUrl(item);
+        if (!downloadUrl) throw _fail('OneDrive liefert keine Download-Adresse.');
         return fetch(downloadUrl)
           .then(function (resp) {
             if (!resp.ok) throw _fail('Download von OneDrive fehlgeschlagen (HTTP ' + resp.status + ').');

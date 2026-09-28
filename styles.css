@@ -5240,3 +5240,47 @@ details[open] > .orgaplan-upcoming-summary::before {
   .connection-facts dd { margin-bottom: 6px; }
 }
 .orgaplan-entry-head .pill { align-self: flex-start; flex: 0 0 auto; }
+
+/* ── Orgaplan-Agenda: eine Zeile pro Tag ──────────────────────────────────── */
+.og-agenda { display: flex; flex-direction: column; gap: 4px; }
+.og-week { display: flex; flex-direction: column; }
+.og-week .plan-week-heading { margin: 12px 0 2px; }
+.og-week:first-child .plan-week-heading { margin-top: 0; }
+.og-day {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.og-day.is-today {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: var(--radius-sm);
+  padding-left: 8px;
+  margin-left: -8px;
+}
+.og-date { font-size: 0.82rem; color: var(--muted); line-height: 1.4; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.og-date strong { color: var(--ink); font-weight: 600; }
+.og-today { font-size: 0.68rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+.og-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.og-items li { display: flex; align-items: baseline; gap: 8px; font-size: 0.86rem; color: var(--ink); line-height: 1.4; }
+.og-level {
+  flex: 0 0 38px;
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 0;
+  border-radius: 5px;
+  color: var(--ink);
+  background: var(--panel-soft);
+}
+.og-level--general { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
+.og-level--middle { background: color-mix(in srgb, var(--warning) 16%, var(--panel)); color: color-mix(in srgb, var(--warning) 80%, var(--ink)); }
+.og-level--upper { background: color-mix(in srgb, var(--success) 14%, var(--panel)); color: color-mix(in srgb, var(--success) 80%, var(--ink)); }
+.og-text { min-width: 0; overflow-wrap: anywhere; }
+.og-until { margin-left: 6px; font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
+.og-more { margin-top: 8px; }
+@media (max-width: 560px) {
+  .og-day { grid-template-columns: 1fr; gap: 4px; }
+}

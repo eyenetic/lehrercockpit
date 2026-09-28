@@ -51,6 +51,12 @@ def load_state() -> dict[str, Any]:
     return state if isinstance(state, dict) else {}
 
 
+def _state_for(url: str) -> dict[str, Any]:
+    """Sync state of this link; a new link starts without the old link's history."""
+    state = load_state()
+    return state if state.get("source_url") == url else {}
+
+
 def save_state(state: dict[str, Any]) -> None:
     store.write(STATE_PATH, state)
 
@@ -196,7 +202,7 @@ def _record(state: dict[str, Any], *, url: str, now: datetime, result: str,
 def sync_from_server(url: str, now: datetime | None = None) -> str:
     """Fetch the plan server-side. Returns the result code; never raises."""
     now = now or _now()
-    state = load_state()
+    state = _state_for(url)
     try:
         meta = resolve(url)
         cached = load_cache(CACHE_PATH)
@@ -250,7 +256,7 @@ def maybe_sync_in_background(url: str, now: datetime | None = None) -> bool:
 
 def record_browser_result(url: str, meta: dict[str, Any], *, changed: bool, now: datetime | None = None) -> None:
     """A teacher's browser fetched (changed) or confirmed (unchanged) the plan."""
-    _record(load_state(), url=url, now=now or _now(), result="ok" if changed else "unchanged",
+    _record(_state_for(url), url=url, now=now or _now(), result="ok" if changed else "unchanged",
             via="browser", meta=meta)
 
 

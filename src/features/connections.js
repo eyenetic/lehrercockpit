@@ -465,6 +465,7 @@
     var cw = status.klassenarbeitsplan || {};
     var plan = cw.plan || {};
     var sync = cw.sync || {};
+    if (cw.plan_from_previous_link) return 'warn';
     if (plan.state === 'outdated') return 'warn';
     if (cw.onedrive && (sync.last_result === 'error' || sync.last_result === 'blocked') && sync.needs_browser) return 'warn';
     if (cw.url || plan.state === 'ok') return 'ok';
@@ -524,7 +525,8 @@
       var plan = cw.plan || {};
       var sync = cw.sync || {};
       var state = _classworkState(status);
-      var label = plan.state === 'outdated' ? 'veraltet'
+      var label = cw.plan_from_previous_link ? (sync.last_error ? 'neuer Link: Fehler' : 'neuer Link')
+        : plan.state === 'outdated' ? 'veraltet'
         : state === 'warn' ? 'Abruf gestört'
         : cw.onedrive ? 'automatisch' : cw.url ? 'verlinkt' : (plan.state === 'ok' ? 'hochgeladen' : 'kein Link');
       var html = '<div class="connection-head"><h3>Klassenarbeitsplan</h3>' + pill(state, label) + '</div>' +
@@ -541,12 +543,18 @@
           ['Geprüft', sync.last_success ? esc(relTime(sync.last_success)) : ''],
           ['Einträge', plan.state ? esc(plan.upcomingCount || 0) + ' ab heute' + (plan.lastDate ? ' · letzter Eintrag ' + esc(_deDate(plan.lastDate)) : '') : ''],
         ]);
-      if (plan.state === 'outdated') {
+      if (cw.plan_from_previous_link) {
+        html += alertBox(sync.last_error ? 'error' : 'info', sync.last_error
+          ? 'Der eingetragene Link konnte noch nicht geladen werden: ' + esc(sync.last_error) + ' Angezeigt wird noch der Plan vom vorherigen Link.'
+          : 'Der eingetragene Link wurde noch nicht geladen – „Jetzt prüfen“ lädt ihn sofort. Angezeigt wird noch der Plan vom vorherigen Link.');
+      } else if (plan.state === 'outdated') {
         html += alertBox('warning', esc(plan.message) + ' ' + (cw.can_edit
           ? 'Trag unten den Link zum aktuellen Plan ein – am besten den Link zum <strong>OneDrive-Ordner</strong>, dann findet das Cockpit neue Dateien künftig selbst.'
           : 'Bitte gib der Person Bescheid, die das Cockpit an eurer Schule verwaltet.'));
       }
-      if (cw.onedrive && sync.last_result === 'error' && sync.last_error) {
+      if (cw.plan_from_previous_link) {
+        // explained above
+      } else if (cw.onedrive && sync.last_result === 'error' && sync.last_error) {
         html += alertBox('error', 'Letzter Abruf fehlgeschlagen: ' + esc(sync.last_error));
       } else if (cw.onedrive && sync.last_result === 'blocked') {
         html += alertBox('info', 'Microsoft blockiert gerade den Server. Die Browser der Lehrkräfte übernehmen den Abruf.');

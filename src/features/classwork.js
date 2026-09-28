@@ -121,8 +121,8 @@ var LehrerClasswork = (function () {
   function weekHeading(monday) {
     var sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    var today = new Date();
-    var thisMonday = weekKey(today.toISOString().slice(0, 10));
+    var now = new Date();
+    var thisMonday = weekKey(now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'));
     var diff = Math.round((monday - thisMonday) / (7 * 86400000));
     var label = diff === 0 ? 'Diese Woche' : diff === 1 ? 'Nächste Woche' : 'KW ' + isoWeek(monday);
     var range = monday.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + '–' +
@@ -222,35 +222,125 @@ var LehrerClasswork = (function () {
     });
   }
 
+  // ── Orgaplan as a compact agenda ────────────────────────────────────────────
+  // One row per day, small level tags, and items that run over several school
+  // days (class trips …) shown once with "bis …".
+
+  var LEVEL_TAGS = {
+    general: { label: 'Allg.', title: 'Allgemein – für alle' },
+    middle: { label: 'MS', title: 'Mittelstufe' },
+    upper: { label: 'OS', title: 'Oberstufe' },
+  };
+  var WEEKDAYS_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  var OPEN_WEEKS = 2;
+  var _showAllWeeks = false;
+
+  function isoLocal(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
+
+  function _dayItems(entry, level) {
+    var parts = [];
+    if (entry.general) parts.push(['general', entry.general]);
+    var middle = joinOrgaplanSection(entry.middle, entry.middleNotes);
+    var upper = joinOrgaplanSection(entry.upper, entry.upperNotes);
+    if (middle && level !== 'upper') parts.push(['middle', middle]);
+    if (upper && level !== 'middle') parts.push(['upper', upper]);
+    var items = [];
+    parts.forEach(function (part) {
+      part[1].split(' · ').forEach(function (text) {
+        text = text.trim();
+        if (text) items.push({ level: part[0], text: text });
+      });
+    });
+    return items;
+  }
+
+  // Next school day: the following day, or Monday after a Friday.
+  function _continues(previousIso, iso) {
+    var previous = new Date(previousIso + 'T00:00:00');
+    var next = new Date(iso + 'T00:00:00');
+    var gap = Math.round((next - previous) / 86400000);
+    return gap === 1 || (gap === 3 && previous.getDay() === 5);
+  }
+
+  function orgaplanAgenda(entries, level) {
+    var days = [];
+    var running = {};
+    entries.forEach(function (entry) {
+      var fresh = [];
+      _dayItems(entry, level).forEach(function (item) {
+        var key = item.level + '|' + item.text.toLowerCase();
+        var open = running[key];
+        if (open && _continues(open.lastIso, entry.isoDate)) {
+          open.until = entry.isoDate;
+          open.lastIso = entry.isoDate;
+          return;
+        }
+        running[key] = { level: item.level, text: item.text, until: '', lastIso: entry.isoDate };
+        fresh.push(running[key]);
+      });
+      if (fresh.length) days.push({ iso: entry.isoDate, items: fresh });
+    });
+    return days;
+  }
+
+  function _agendaDay(day, today) {
+    var date = new Date(day.iso + 'T00:00:00');
+    return '<div class="og-day' + (day.iso === today ? ' is-today' : '') + '">' +
+      '<div class="og-date"><strong>' + WEEKDAYS_SHORT[date.getDay()] + '</strong> ' +
+      String(date.getDate()).padStart(2, '0') + '.' + String(date.getMonth() + 1).padStart(2, '0') + '.' +
+      (day.iso === today ? '<span class="og-today">heute</span>' : '') + '</div>' +
+      '<ul class="og-items">' + day.items.map(function (item) {
+        var tag = LEVEL_TAGS[item.level];
+        var until = '';
+        if (item.until) {
+          var end = new Date(item.until + 'T00:00:00');
+          until = '<span class="og-until">bis ' + WEEKDAYS_SHORT[end.getDay()] + ' ' +
+            String(end.getDate()).padStart(2, '0') + '.' + String(end.getMonth() + 1).padStart(2, '0') + '.</span>';
+        }
+        return '<li><span class="og-level og-level--' + item.level + '" title="' + esc(tag.title) + '">' + esc(tag.label) + '</span>' +
+          '<span class="og-text">' + esc(item.text) + until + '</span></li>';
+      }).join('') + '</ul></div>';
+  }
+
   function renderOrgaplanList(orgaplan) {
     var list = _elements.orgaplanUpcomingList;
     if (!list) return;
     var level = _orgaplanLevel();
-    var entries = (orgaplan.upcoming || []).filter(function (item) { return _sectionsFor(item, level).length; });
+    var days = orgaplanAgenda(orgaplan.upcoming || [], level);
     if (_elements.orgaplanDigestDetail) {
-      _elements.orgaplanDigestDetail.textContent = entries.length
-        ? entries.length + ' Einträge in den nächsten sechs Wochen' + (level === 'all' ? '.' : ' (' + (level === 'middle' ? 'Mittelstufe' : 'Oberstufe') + ' und Allgemein).')
+      var count = days.reduce(function (sum, day) { return sum + day.items.length; }, 0);
+      _elements.orgaplanDigestDetail.textContent = days.length
+        ? count + ' Termine in den nächsten sechs Wochen' + (level === 'all' ? '' : ' · ' + (level === 'middle' ? 'Mittelstufe' : 'Oberstufe') + ' und Allgemein')
         : '';
     }
-    if (!entries.length) {
+    if (!days.length) {
       var empty = orgaplan.status === 'pending' ? 'Der Orgaplan wird geladen …'
-        : orgaplan.status === 'ok' ? 'In den nächsten sechs Wochen stehen keine Einträge im Orgaplan.'
-        : 'Keine aktuellen Orgaplan-Einträge.';
+        : orgaplan.status === 'ok' ? 'In den nächsten sechs Wochen stehen keine Termine im Orgaplan.'
+        : 'Keine aktuellen Orgaplan-Termine.';
       list.innerHTML = '<div class="empty-state">' + esc(empty) + '</div>';
       return;
     }
-    var html = '';
-    var currentWeek = '';
-    entries.forEach(function (item) {
-      var monday = weekKey(item.isoDate);
-      var key = monday.toISOString().slice(0, 10);
-      if (key !== currentWeek) {
-        currentWeek = key;
-        html += weekHeading(monday);
-      }
-      html += renderOrgaplanItem(item, level);
+    var today = isoLocal(new Date());
+    var weeks = [];
+    days.forEach(function (day) {
+      var monday = weekKey(day.iso);
+      var key = isoLocal(monday);
+      if (!weeks.length || weeks[weeks.length - 1].key !== key) weeks.push({ key: key, monday: monday, days: [] });
+      weeks[weeks.length - 1].days.push(day);
     });
-    list.innerHTML = html;
+    var visible = _showAllWeeks ? weeks : weeks.slice(0, OPEN_WEEKS);
+    list.innerHTML = '<div class="og-agenda">' + visible.map(function (week) {
+      return '<section class="og-week">' + weekHeading(week.monday) +
+        week.days.map(function (day) { return _agendaDay(day, today); }).join('') + '</section>';
+    }).join('') + '</div>' +
+      (weeks.length > OPEN_WEEKS
+        ? '<button class="section-toggle og-more" type="button" data-orgaplan-weeks>' +
+          (_showAllWeeks ? 'Weniger anzeigen' : 'Weitere ' + (weeks.length - OPEN_WEEKS) + ' Wochen anzeigen') + '</button>'
+        : '');
+    var more = list.querySelector('[data-orgaplan-weeks]');
+    if (more) more.addEventListener('click', function () { _showAllWeeks = !_showAllWeeks; renderOrgaplanList(orgaplan); });
   }
 
   function checkOrgaplanNow(button) {
@@ -275,10 +365,13 @@ var LehrerClasswork = (function () {
     if (!el) return;
     var plan = classwork.planStatus || {};
     sync = sync || {};
+    // A new link that never loaded: the stored plan still belongs to the previous link.
+    var previousLink = sync.onedrive && !sync.last_success && /^onedrive/.test(plan.source || '');
     var outdated = plan.state === 'outdated';
     var syncProblem = sync.onedrive && (sync.last_result === 'error' || sync.last_result === 'blocked') && sync.needs_browser;
-    var kind = outdated ? 'warn' : syncProblem ? 'warn' : (plan.state === 'ok' ? 'ok' : '');
-    var label = outdated ? 'veraltet' : syncProblem ? 'Abruf gestört' : (plan.state === 'ok' ? 'aktuell' : (url ? 'wird geladen' : 'kein Plan'));
+    var kind = previousLink || outdated || syncProblem ? 'warn' : (plan.state === 'ok' ? 'ok' : '');
+    var label = previousLink ? 'neuer Link' : outdated ? 'veraltet' : syncProblem ? 'Abruf gestört'
+      : (plan.state === 'ok' ? 'aktuell' : (url ? 'wird geladen' : 'kein Plan'));
     var parts = [
       plan.fileName ? '<strong>' + esc(plan.fileName) + '</strong>' : '<strong>Klassenarbeitsplan</strong>',
       plan.fileModified ? 'geändert am ' + esc(deDate(plan.fileModified)) : '',
@@ -290,7 +383,11 @@ var LehrerClasswork = (function () {
       (url ? '<a class="secondary-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Auf OneDrive öffnen ↗</a>' : '') +
       (window.MULTIUSER_ENABLED ? '<button class="secondary-link" type="button" data-open-connections="klassenarbeitsplan">' + (isAdmin() ? 'Link ändern' : 'Details') + '</button>' : '');
     var note = '';
-    if (outdated) {
+    if (previousLink) {
+      note = (sync.last_error
+        ? 'Der eingetragene Link konnte noch nicht geladen werden: ' + esc(sync.last_error)
+        : 'Der eingetragene Link wird gerade geladen.') + ' Angezeigt wird noch der Plan vom vorherigen Link.';
+    } else if (outdated) {
       note = esc(plan.message) + ' ' + (isAdmin()
         ? 'Trag unter „Verbindungen“ den Link zum aktuellen Plan ein – am besten den Link zum OneDrive-Ordner, dann findet das Cockpit neue Dateien selbst.'
         : 'Bitte gib der Person Bescheid, die das Cockpit an eurer Schule verwaltet.');

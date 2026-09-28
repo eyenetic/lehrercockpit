@@ -398,6 +398,7 @@ def complete_onboarding():
 # ── Dashboard Composition Endpoint (Phase 11c / Phase 12) ────────────────────
 
 _MODULE_FETCH_TIMEOUT = 5  # seconds, shared deadline for all module fetches
+SCHOOL_SOURCE_MODULES = ("orgaplan", "klassenarbeitsplan", "wichtige-termine")
 
 
 
@@ -848,14 +849,14 @@ def get_dashboard_data():
     try:
         with db_connection() as conn:
             user_module_list = _user_modules_or_defaults(conn, user_id)
-        active_module_ids = {
-            um.module_id
-            for um in user_module_list
-            if um.is_visible
-        }
+        active_module_ids = {um.module_id for um in user_module_list if um.is_visible}
+        hidden = {um.module_id for um in user_module_list if not um.is_visible}
+        # School-wide sources are on for everyone unless the teacher hid them:
+        # accounts older than a source have no user_modules row for it.
+        active_module_ids |= set(SCHOOL_SOURCE_MODULES) - hidden
     except Exception:
         # Fallback: fetch all known data modules
-        active_module_ids = {"webuntis", "itslearning", "orgaplan", "klassenarbeitsplan", "noten"}
+        active_module_ids = {"webuntis", "itslearning", "noten", *SCHOOL_SOURCE_MODULES}
 
     # Define which fetchers to run (only for active modules)
     module_fetchers = {}

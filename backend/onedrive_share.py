@@ -52,9 +52,32 @@ class OneDriveBlocked(OneDriveError):
     """Microsoft refused this caller (typically a datacenter IP)."""
 
 
+SHARING_HINT = ("In OneDrive die Datei oder den Ordner auswählen → „Teilen“ → „Jeder mit dem Link kann anzeigen“ "
+                "→ „Link kopieren“. Der Link beginnt meist mit https://1drv.ms/.")
+
+
 def is_onedrive_link(url: str) -> bool:
     parsed = urlparse((url or "").strip())
     return parsed.scheme == "https" and (parsed.hostname or "").lower() in ONEDRIVE_HOSTS
+
+
+def link_problem(url: str) -> str | None:
+    """Why a OneDrive address cannot work, or None.
+
+    Addresses copied from the browser's address bar (…/edit?…, …/?id=…, _layouts)
+    are not sharing links; the anonymous API only accepts real sharing links.
+    """
+    if not is_onedrive_link(url):
+        return None
+    parsed = urlparse(url.strip())
+    host = (parsed.hostname or "").lower()
+    query = parsed.query.lower()
+    if host == "onedrive.live.com" and (
+        parsed.path.startswith("/edit") or "_layouts" in parsed.path
+        or (("id=" in query or "cid=" in query) and "authkey=" not in query and "redeem=" not in query)
+    ):
+        return "Das ist die Adresse aus der Browserzeile, kein Freigabelink. " + SHARING_HINT
+    return None
 
 
 def share_id(url: str) -> str:
@@ -70,8 +93,8 @@ def _request_json(request: Request) -> dict[str, Any]:
     except HTTPError as exc:
         if exc.code in (401, 403, 429):
             raise OneDriveBlocked(f"Microsoft verweigert den Abruf (HTTP {exc.code}).") from exc
-        if exc.code == 404:
-            raise OneDriveError("Der OneDrive-Link wurde nicht gefunden oder ist nicht mehr freigegeben.") from exc
+        if exc.code in (400, 404):
+            raise OneDriveError("OneDrive findet zu diesem Link keine freigegebene Datei. " + SHARING_HINT) from exc
         raise OneDriveError(f"OneDrive antwortet mit HTTP {exc.code}.") from exc
     except OSError as exc:
         raise OneDriveError("OneDrive ist nicht erreichbar.") from exc
@@ -142,11 +165,25 @@ def pick_plan_file(children: list[dict[str, Any]]) -> dict[str, Any] | None:
     return max(files, key=plan_file_rank) if files else None
 
 
-def _resolve_folder(url: str, folder: dict[str, Any]) -> dict[str, Any]:
-    """A shared folder: take the newest plan inside, so next school year's file is found automatically."""
+def _folder_children(url: str) -> list[dict[str, Any]]:
+    """Items of a shared folder: …/driveitem?$expand=children, else …/driveitem/children."""
+    try:
+        item = _request_json(Request(f"{API_BASE}/shares/{share_id(url)}/driveitem?$expand=children",
+                                     headers=_headers()))
+        if isinstance(item.get("children"), list):
+            return item["children"]
+    except OneDriveBlocked:
+        raise
+    except OneDriveError:
+        pass
     listing = _request_json(Request(f"{API_BASE}/shares/{share_id(url)}/driveitem/children?$top=200",
                                     headers=_headers()))
-    chosen = pick_plan_file(listing.get("value") or [])
+    return listing.get("value") or []
+
+
+def _resolve_folder(url: str, folder: dict[str, Any]) -> dict[str, Any]:
+    """A shared folder: take the newest plan inside, so next school year's file is found automatically."""
+    chosen = pick_plan_file(_folder_children(url))
     if chosen is None:
         raise OneDriveError("Im freigegebenen Ordner liegt keine Excel-Datei.")
     download_url = _download_url(chosen)
@@ -171,6 +208,9 @@ def resolve(url: str) -> dict[str, Any]:
     """
     if not is_onedrive_link(url):
         raise OneDriveError("Das ist kein OneDrive-Freigabelink.")
+    problem = link_problem(url)
+    if problem:
+        raise OneDriveError(problem)
     item = _request_json(Request(
         f"{API_BASE}/shares/{share_id(url)}/driveitem"
         "?$select=name,size,eTag,lastModifiedDateTime,@content.downloadUrl",

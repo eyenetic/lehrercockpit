@@ -105,36 +105,64 @@ def test_refusals_raise_blocked(code):
             od.resolve(SHARE)
 
 
-def test_missing_link_is_reported():
+def test_missing_link_is_reported_with_sharing_hint():
     fake, _ = _responses(_Response({"token": "tok"}), _http_error(404))
     with patch.object(od, "urlopen", side_effect=fake):
-        with pytest.raises(od.OneDriveError, match="nicht gefunden"):
+        with pytest.raises(od.OneDriveError, match="Jeder mit dem Link"):
             od.resolve(SHARE)
+
+
+@pytest.mark.parametrize("url,problem", [
+    ("https://onedrive.live.com/edit?id=ABC!123&resid=ABC!123&cid=abc", True),
+    ("https://onedrive.live.com/?cid=abc&id=ABC!12", True),
+    ("https://onedrive.live.com/personal/abc/_layouts/15/Doc.aspx?sourcedoc=x", True),
+    ("https://onedrive.live.com/redir?resid=1231244193912!12&authKey=1201919!12921!1", False),
+    ("https://1drv.ms/x/c/abc123/EXAMPLE?e=xyz", False),
+])
+def test_address_bar_urls_are_explained(url, problem):
+    assert (od.link_problem(url) is not None) is problem
+    if problem:
+        with patch.object(od, "urlopen") as opened:
+            with pytest.raises(od.OneDriveError, match="Browserzeile"):
+                od.resolve(url)
+        opened.assert_not_called()
+
+
+FOLDER_CHILDREN = [
+    {"name": "Klassenarbeitsplan_2025_2026_final.xlsx", "eTag": "old", "lastModifiedDateTime": "2026-06-15T19:25:21Z",
+     "@content.downloadUrl": "https://dl.example/old"},
+    {"name": "Klassenarbeitsplan_2026_2027.xlsx", "eTag": "new", "size": 9, "lastModifiedDateTime": "2026-09-01T08:00:00Z",
+     "@content.downloadUrl": "https://dl.example/new"},
+    {"name": "Hinweise.docx", "lastModifiedDateTime": "2026-09-27T08:00:00Z", "@content.downloadUrl": "https://dl.example/doc"},
+]
 
 
 def test_folder_link_uses_the_newest_plan_inside():
     folder = {"name": "Klassenarbeitspläne", "size": 0}
-    children = {"value": [
-        {"name": "Klassenarbeitsplan_2025_2026_final.xlsx", "eTag": "old", "lastModifiedDateTime": "2026-06-15T19:25:21Z",
-         "@content.downloadUrl": "https://dl.example/old"},
-        {"name": "Klassenarbeitsplan_2026_2027.xlsx", "eTag": "new", "size": 9, "lastModifiedDateTime": "2026-09-01T08:00:00Z",
-         "@content.downloadUrl": "https://dl.example/new"},
-        {"name": "Hinweise.docx", "lastModifiedDateTime": "2026-09-27T08:00:00Z", "@content.downloadUrl": "https://dl.example/doc"},
-    ]}
-    fake, calls = _responses(_Response({"token": "tok"}), _Response(folder), _Response(children), _Response(b"plan"))
+    expanded = {"name": "Klassenarbeitspläne", "children": FOLDER_CHILDREN}
+    fake, calls = _responses(_Response({"token": "tok"}), _Response(folder), _Response(expanded), _Response(b"plan"))
     with patch.object(od, "urlopen", side_effect=fake):
         data, meta = od.download(SHARE)
     assert data == b"plan"
     assert meta["name"] == "Klassenarbeitsplan_2026_2027.xlsx" and meta["etag"] == "new"
     assert meta["folder"] == "Klassenarbeitspläne"
-    assert f"/shares/{od.share_id(SHARE)}/driveitem/children" in calls[2].full_url
+    assert calls[2].full_url.endswith("/driveitem?$expand=children")
     assert calls[2].get_header("Authorization") == "Badger tok"
     assert calls[3].full_url == "https://dl.example/new"
 
 
+def test_folder_listing_falls_back_to_children_endpoint():
+    fake, calls = _responses(_Response({"token": "tok"}), _Response({"name": "Ordner"}), _http_error(400),
+                             _Response({"value": FOLDER_CHILDREN}))
+    with patch.object(od, "urlopen", side_effect=fake):
+        meta = od.resolve(SHARE)
+    assert meta["name"] == "Klassenarbeitsplan_2026_2027.xlsx"
+    assert f"/shares/{od.share_id(SHARE)}/driveitem/children" in calls[3].full_url
+
+
 def test_folder_without_spreadsheet_is_reported():
     fake, _ = _responses(_Response({"token": "tok"}), _Response({"name": "Ordner"}),
-                         _Response({"value": [{"name": "Notizen.docx"}]}))
+                         _Response({"name": "Ordner", "children": [{"name": "Notizen.docx"}]}))
     with patch.object(od, "urlopen", side_effect=fake):
         with pytest.raises(od.OneDriveError, match="keine Excel-Datei"):
             od.resolve(SHARE)

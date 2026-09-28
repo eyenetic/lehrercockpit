@@ -420,7 +420,20 @@ def _migrate_school_sources(conn) -> None:
             "ON CONFLICT (key) DO NOTHING"
         )
 
-    for step in (school_settings, calendar_visible):
+    def backfill_user_modules() -> None:
+        # Accounts created before a module existed have no row for it (e.g. the
+        # school calendar): add the missing rows with the module defaults.
+        conn.execute(
+            """
+            INSERT INTO user_modules (user_id, module_id, is_visible, sort_order)
+            SELECT u.id, m.id, m.default_visible, m.default_order
+            FROM users u CROSS JOIN modules m
+            WHERE m.is_enabled = TRUE
+            ON CONFLICT (user_id, module_id) DO NOTHING
+            """
+        )
+
+    for step in (school_settings, calendar_visible, backfill_user_modules):
         try:
             with conn.transaction():
                 step()

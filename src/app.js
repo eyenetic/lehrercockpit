@@ -1158,7 +1158,12 @@
     const plan = (data.planDigest.classwork || {}).planStatus || {};
     const sync = data.classworkSync || {};
     if (isModuleVisible("klassenarbeitsplan")) {
-      if (plan.state === "outdated") {
+      const previousLink = sync.onedrive && !sync.last_success && /^onedrive/.test(plan.source || "");
+      if (previousLink && sync.last_error) {
+        items.push({ section: "klassenarbeitsplan", title: "Klassenarbeitsplan", text: `Der eingetragene Link konnte nicht geladen werden: ${sync.last_error}` });
+      } else if (previousLink) {
+        // a new link is being loaded – nothing to do yet
+      } else if (plan.state === "outdated") {
         items.push({ section: "klassenarbeitsplan", title: "Klassenarbeitsplan veraltet", text: plan.message });
       } else if (sync.onedrive && sync.needs_browser && sync.last_result === "error") {
         items.push({ section: "klassenarbeitsplan", title: "Klassenarbeitsplan", text: `Abruf von OneDrive gestört: ${sync.last_error || "unbekannter Fehler"}` });

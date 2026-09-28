@@ -396,6 +396,10 @@ def klassenarbeitsplan_save_config():
         return error("Bitte den vollständigen Link (https://…) einfügen.", 422)
     if len(url) > 2000:
         return error("Der Link ist zu lang.", 422)
+    from backend.onedrive_share import link_problem
+    problem = link_problem(url)
+    if problem:
+        return error(problem, 422)
     try:
         with db_connection() as conn:
             set_system_setting(conn, CLASSWORK_KEY, url)

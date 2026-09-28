@@ -153,3 +153,15 @@ def test_school_year_from_name(name, year):
 def test_current_school_year_starts_in_august():
     assert cs.current_school_year(datetime(2026, 7, 31).date()) == 2025
     assert cs.current_school_year(datetime(2026, 8, 1).date()) == 2026
+
+
+def test_new_link_does_not_inherit_the_old_links_history(mem):
+    old = "https://1drv.ms/x/c/abc/ALT?e=1"
+    mem.data["classwork-cache"] = {"status": "ok", "uploadSource": "onedrive", "entries": [{"isoDate": "2026-04-30"}]}
+    mem.data["classwork-sync"] = {"source_url": old, "etag": "e0", "last_success": NOW.isoformat(), "last_result": "ok"}
+    with patch.object(cs, "resolve", side_effect=OneDriveError("OneDrive findet zu diesem Link keine freigegebene Datei.")):
+        assert cs.sync_from_server(URL, NOW) == "error"
+    info = cs.sync_info(URL, NOW)
+    assert info["last_success"] is None  # the old link's success does not count
+    assert info["last_error"].startswith("OneDrive findet")
+    assert mem.data["classwork-sync"]["source_url"] == URL

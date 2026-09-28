@@ -18,7 +18,7 @@ SEPTEMBER = [
     ["", "3", "", "Zentraler Elternabend 19 h Sek I", "", "Q1/Q3: 18 h Aula, Elternabend", "", ""],
     ["", "5", "", "", "", "", "", ""],
     ["", "11", "", "", "", "Q3: 5.PK - Deadline Genehmigung Thema\ndurch Lehrkraft", "", ""],
-    ["", "17", "Juniorwahl\nDB Fachleitungen, 15.30 h, R 201\n1. Schulkonferenz 18.30 h", "", "", "", "", ""],
+    ["", "17", "Juniorwahl\n1. Schulkonferenz 18.30 h", "", "", "", "", ""],
     ["40.", "28", "Klassenfahrt Bilbao", "", "Klassenfahrt 10a + 10c", "", "", ""],
     ["", "31", "gibt es nicht", "", "", "", "", ""],
 ]
@@ -43,7 +43,7 @@ def test_entries_follow_the_table_rows():
     assert by_day["2026-09-02"]["upper"] == ""
     # Wrapped line joins with a space, separate items with " · "
     assert by_day["2026-09-11"]["upper"] == "Q3: 5.PK - Deadline Genehmigung Thema durch Lehrkraft"
-    assert by_day["2026-09-17"]["general"] == "Juniorwahl · DB Fachleitungen, 15.30 h, R 201 · 1. Schulkonferenz 18.30 h"
+    assert by_day["2026-09-17"]["general"] == "Juniorwahl · 1. Schulkonferenz 18.30 h"
     assert by_day["2026-09-17"]["title"] == "Juniorwahl"
     assert by_day["2026-09-28"]["middle"] == "Klassenfahrt 10a + 10c"
     assert by_day["2026-09-28"]["weekday"] == "Mo"
@@ -73,8 +73,8 @@ def test_cell_continuation_rules():
     assert og.join_cell("Klausuren LK-Schiene 1 (außer\nPh, Cs Q3)") == "Klausuren LK-Schiene 1 (außer Ph, Cs Q3)"
     assert og.join_cell("Abgabe dezentrale\nAufgabenvorschläge") == "Abgabe dezentrale Aufgabenvorschläge"
     assert og.join_cell("Q3: Klausur alle LK, ab\n8. Stde, R402") == "Q3: Klausur alle LK, ab 8. Stde, R402"
-    assert og.join_cell("Integrationsfahrt 7a + 7b + 7c\nPersonalversammlung 12-14 h") == \
-        "Integrationsfahrt 7a + 7b + 7c · Personalversammlung 12-14 h"
+    assert og.join_cell("Integrationsfahrt 7a + 7b + 7c\nPersonalversammlung 12-14 h FU\nHenry-Ford-Bau") == \
+        "Integrationsfahrt 7a + 7b + 7c · Personalversammlung 12-14 h FU Henry-Ford-Bau"
     assert og.join_cell(None) == ""
 
 
@@ -201,8 +201,9 @@ def test_digest_says_when_the_plan_is_outdated_or_missing():
 
 
 def test_refresh_due():
-    fresh = {"source_key": og.source_key(AUTO), "checked_at": "2026-09-28T05:00:00+00:00"}
+    fresh = {"source_key": og.source_key(AUTO), "checked_at": "2026-09-28T05:00:00+00:00", "parser": og.PARSER_VERSION}
     assert not og.refresh_due(fresh, AUTO, NOW)
+    assert og.refresh_due({**fresh, "parser": og.PARSER_VERSION - 1}, AUTO, NOW)  # read again after parser changes
     assert og.refresh_due({**fresh, "checked_at": "2026-09-27T20:00:00+00:00"}, AUTO, NOW)
     assert og.refresh_due({**fresh, "error": "x", "checked_at": "2026-09-28T05:20:00+00:00"}, AUTO, NOW)
     assert og.refresh_due(fresh, {"mode": "fixed", "pdf_url": "https://x/y.pdf"}, NOW)
@@ -230,3 +231,20 @@ def test_refresh_reads_the_new_pdf_and_keeps_entries_on_errors():
         state = og.refresh(AUTO, NOW)
     assert state["error"] == "Webseite nicht erreichbar."
     assert len(state["entries"]) == 4  # the last good plan stays
+
+
+def test_layout_decides_between_wrapped_line_and_new_item():
+    # "fits": the next line's first word would have fitted → a deliberate break → new item
+    assert og.join_lines(["Bibliothek 7c 10.00 h", "Chemieprojekttag 8. Klassen"], [None, True]) == \
+        "Bibliothek 7c 10.00 h · Chemieprojekttag 8. Klassen"
+    # continuation markers win even over a deliberate break
+    assert og.join_lines(["Einschulungsfeier neue 7. Klassen;", "11 h; Aula"], [None, True]) == \
+        "Einschulungsfeier neue 7. Klassen; 11 h; Aula"
+    # did not fit: wrapped, unless the text clearly starts a new item
+    assert og.join_lines(["Teilnahme einzelner SuS am Berliner", "Schulchorpreis im FEZ"], [None, False]) == \
+        "Teilnahme einzelner SuS am Berliner Schulchorpreis im FEZ"
+    assert og.join_lines(["Zensurenkonf. Sek I, online, 14 h", "Korrekturschluss Noten LUSD"], [None, False]) == \
+        "Zensurenkonf. Sek I, online, 14 h · Korrekturschluss Noten LUSD"
+    assert og.join_lines(["Einführung in die 5.PK; 6. Stde", "Unterricht nach Plan"], [None, False]) == \
+        "Einführung in die 5.PK; 6. Stde Unterricht nach Plan"
+    assert og.join_lines(["Klausur Q1: GK 1 + Q3", "GK 2"], [None, False]) == "Klausur Q1: GK 1 + Q3 GK 2"

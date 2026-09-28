@@ -42,6 +42,7 @@ DEFAULT_QUERY = "Orgaplan"
 REFRESH_EVERY = timedelta(hours=6)
 RETRY_AFTER_ERROR = timedelta(minutes=30)
 REPARSE_EVERY = timedelta(hours=24)  # catches a PDF replaced under the same address
+PARSER_VERSION = 2  # bump when parse_pdf() output changes: stored plans are read again
 UPCOMING_DAYS = 42
 MAX_PDF_BYTES = 15 * 1024 * 1024
 TIMEOUT = 15
@@ -249,23 +250,99 @@ def _clean_line(line: str) -> str:
     return re.sub(r"\b[a-zäöüß](?: [a-zäöüß]){2,}\b", lambda m: m.group(0).replace(" ", ""), line)
 
 
-def join_cell(value: str | None) -> str:
+_ITEM_START = re.compile(r"^(?:\d{1,2}\.\s+\S|Q\d(?:\s*[/+]\s*\w+)*\s*:)")  # "1. GK …", "Q1/3: …"
+_UNIT_WORDS = {"stunde", "stunden", "std", "stde", "uhr", "h"}
+
+
+def starts_new_item(previous: str, line: str, fits: bool | None = None) -> bool:
+    """Is `line` a new item of the cell, or the wrapped rest of `previous`?
+
+    fits: whether the line's first word would have fitted on the previous line
+    (from the PDF layout). Then the break was made on purpose → a new item.
+    Otherwise (or without layout) the text decides, leaning towards "wrapped".
+    """
+    words = previous.split()
+    last = words[-1] if words else ""
+    first = line.split()[0] if line.split() else ""
+    if (_CONTINUES.search(previous) or previous.rstrip().endswith((";", "/"))
+            or previous.count("(") > previous.count(")") or previous.count('"') % 2 == 1
+            or line[:1].islower() or line[:1] in "()"):
+        return False
+    if fits:
+        return True
+    if _ITEM_START.match(line) or previous.endswith(("!", "?")):
+        return True
+    bare_first = re.sub(r"[^\wäöüßÄÖÜ]", "", first)
+    if not bare_first[:1].isupper():
+        return False
+    bare_last = re.sub(r"[^\wäöüßÄÖÜ]", "", last)
+    if re.fullmatch(r"\d{1,2}[a-z]", bare_last):
+        return True  # "… 7a + 7c" / "Personalversammlung"
+    if ";" in previous:
+        return False  # a list of clauses: "3.-5. Stde nach Sonderplan; 6. Stde" / "Unterricht nach Plan"
+    ends_with_unit = bool(re.search(r"\d$", last.rstrip("."))) or bare_last.lower() in _UNIT_WORDS
+    return ends_with_unit and len(bare_first) >= 5 and bare_first.lower() not in _UNIT_WORDS
+
+
+def join_lines(lines: list[str], fits: list[bool | None] | None = None) -> str:
     """Join the lines of one cell: wrapped lines with a space, separate items with " · "."""
-    lines = [_clean_line(part) for part in str(value or "").splitlines()]
-    lines = [line for line in lines if line]
-    if not lines:
+    lines = [_clean_line(line) for line in lines]
+    pairs = [(line, (fits or [None] * len(lines))[i]) for i, line in enumerate(lines) if line]
+    if not pairs:
         return ""
-    text = lines[0]
-    for line in lines[1:]:
-        last_word = re.sub(r"[^\wäöüß]", "", text.split(" ")[-1]) if text else ""
-        continues = (
-            _CONTINUES.search(text) is not None
-            or text.count("(") > text.count(")")
-            or line[:1].islower() or line[:1] in "()"
-            or (len(last_word) >= 2 and last_word.isalpha() and last_word.islower())
-        )
-        text = f"{text} {line}" if continues else f"{text} · {line}"
+    text = pairs[0][0]
+    current = text
+    for line, fit in pairs[1:]:
+        if starts_new_item(current, line, fit):
+            text, current = f"{text} · {line}", line
+        else:
+            text, current = f"{text} {line}", f"{current} {line}"
     return text
+
+
+def join_cell(value: str | None) -> str:
+    """A cell's text without layout information (lines separated by newlines)."""
+    return join_lines(str(value or "").splitlines())
+
+
+def cell_texts(page: Any, table: Any) -> list[list[str | None]]:
+    """Table rows as text, using word positions: a line break where the next word
+    would still have fitted was made on purpose and separates two items."""
+    words = page.extract_words(x_tolerance=1.5, y_tolerance=2, keep_blank_chars=False)
+    rows: list[list[str | None]] = []
+    for row in table.rows:
+        out: list[str | None] = []
+        for bbox in row.cells:
+            if not bbox:
+                out.append(None)
+                continue
+            x0, top, x1, bottom = bbox
+            inside = [w for w in words
+                      if x0 <= (w["x0"] + w["x1"]) / 2 <= x1 and top <= (w["top"] + w["bottom"]) / 2 <= bottom]
+            out.append(_layout_text(inside, x1))
+        rows.append(out)
+    return rows
+
+
+def _layout_text(words: list[dict], right_edge: float) -> str:
+    lines: list[list[dict]] = []
+    for word in sorted(words, key=lambda w: (w["top"], w["x0"])):
+        if lines and abs(lines[-1][0]["top"] - word["top"]) <= 2.5:
+            lines[-1].append(word)
+        else:
+            lines.append([word])
+    texts, fits = [], []
+    for index, line in enumerate(lines):
+        line.sort(key=lambda w: w["x0"])
+        texts.append(" ".join(w["text"] for w in line))
+        if index == 0:
+            fits.append(None)
+            continue
+        previous_right = max(w["x1"] for w in lines[index - 1])
+        first = line[0]
+        space = 0.3 * (first["bottom"] - first["top"])
+        fits.append(previous_right + space + (first["x1"] - first["x0"]) <= right_edge - 1.5)
+    return join_lines(texts, fits)
 
 
 def _header_columns(header: list[str | None]) -> dict[str, int]:
@@ -454,7 +531,7 @@ def parse_pdf(data: bytes) -> dict[str, Any]:
                 if not tables:
                     continue
                 table = max(tables, key=lambda t: (t.bbox[2] - t.bbox[0]) * (t.bbox[3] - t.bbox[1]))
-                entries.extend(entries_from_table(table.extract(), year, month))
+                entries.extend(entries_from_table(cell_texts(page, table), year, month))
                 stands.append(stand)
     except OrgaplanError:
         raise
@@ -537,7 +614,7 @@ def _parse_time(value: Any) -> datetime | None:
 
 
 def refresh_due(state: dict[str, Any], source: dict[str, str], now: datetime) -> bool:
-    if state.get("source_key") != source_key(source):
+    if state.get("source_key") != source_key(source) or state.get("parser") != PARSER_VERSION:
         return True
     checked = _parse_time(state.get("checked_at"))
     if checked is None:
@@ -559,7 +636,8 @@ def refresh(source: dict[str, str], now: datetime | None = None) -> dict[str, An
             target = discover_latest_pdf(source["site"], source.get("query") or DEFAULT_QUERY)
         parsed_at = _parse_time(state.get("parsed_at"))
         fresh = (target["url"] == state.get("pdf_url") and parsed_at is not None
-                 and now - parsed_at < REPARSE_EVERY and state.get("entries"))
+                 and now - parsed_at < REPARSE_EVERY and state.get("entries")
+                 and state.get("parser") == PARSER_VERSION)
         if not fresh:
             data, headers = _get(target["url"], accept="application/pdf", max_bytes=MAX_PDF_BYTES)
             parsed = parse_pdf(data)
@@ -570,6 +648,7 @@ def refresh(source: dict[str, str], now: datetime | None = None) -> dict[str, An
                 "via": target.get("via", ""),
                 "last_modified": headers.get("last-modified", ""),
                 "parsed_at": now.isoformat(),
+                "parser": PARSER_VERSION,
                 **parsed,
             })
         state.update({"error": None, "error_at": None})

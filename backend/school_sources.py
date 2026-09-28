@@ -116,6 +116,11 @@ def classwork_status(url: str, candidate: str, is_admin: bool, now: datetime | N
         "upload_source": cached.get("uploadSource", ""),
         "uploaded_by": cached.get("uploadedBy", ""),
         "plan": view.get("planStatus") or {},
+        # The stored plan came from OneDrive, but this link never loaded: it is the previous link's plan.
+        "plan_from_previous_link": bool(
+            is_onedrive_link(url) and str(cached.get("uploadSource", "")).startswith("onedrive")
+            and not (sync or {}).get("last_success")
+        ),
         "candidate_url": candidate if is_admin else "",
         "can_edit": bool(is_admin),
     }
