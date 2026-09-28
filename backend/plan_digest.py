@@ -85,6 +85,17 @@ def _build_orgaplan_digest(url: str, now: datetime) -> dict[str, Any]:
             "sourceUrl": url,
         }
 
+    try:  # table reader for the whole school year (backend/orgaplan.py)
+        from .orgaplan import build_digest, parse_pdf
+
+        parsed = parse_pdf(download.data)
+        digest = build_digest({**parsed, "pdf_url": url, "checked_at": now.isoformat()},
+                              {"mode": "fixed", "pdf_url": url}, now)
+        digest["updatedAt"] = now.strftime("%H:%M")
+        return digest
+    except Exception:
+        pass  # older position-based reader below
+
     try:
         month_entries, month_label = _extract_orgaplan_entries(download.data, now)
         today = _berlin_today(now)
@@ -192,7 +203,12 @@ def _build_classwork_digest(url: str, local_path: str, now: datetime) -> dict[st
         }
 
 
+MAX_CLASSWORK_ENTRIES = 1500
+
+
 def _read_classwork_workbook(data: bytes, now: datetime, *, detail: str, source_url: str) -> dict[str, Any]:
+    """All entries of the plan. Filtering by date happens when the plan is shown,
+    so a stored plan never keeps last week's view (see classwork_sync.plan_view)."""
     workbook = load_workbook(BytesIO(data), read_only=True, data_only=True)
     all_entries: list[dict[str, Any]] = []
 
@@ -202,31 +218,29 @@ def _read_classwork_workbook(data: bytes, now: datetime, *, detail: str, source_
 
     all_entries.sort(key=lambda entry: (entry["date"], _class_sort_key(entry["classLabel"]), entry["title"]))
     upcoming_entries = [entry for entry in all_entries if entry["date"] >= now.date()]
-    relevant_entries = upcoming_entries or all_entries
 
-    classes = sorted({entry["classLabel"] for entry in relevant_entries}, key=_class_sort_key)
+    classes = sorted({entry["classLabel"] for entry in all_entries}, key=_class_sort_key)
     default_class = classes[0] if classes else ""
     preview_rows = [
         f"{entry['classLabel']} | {entry['dateLabel']} | {entry['title']}"
-        for entry in relevant_entries[:8]
+        for entry in upcoming_entries[:8]
     ]
 
-    resolved_detail = detail
-    if relevant_entries:
-        resolved_detail = (
-            f"{detail} {len(relevant_entries)} relevante Einträge für {len(classes)} Klassen erkannt."
-        )
+    if all_entries:
+        resolved_detail = f"{detail} {len(all_entries)} Einträge für {len(classes)} Klassen erkannt."
     else:
-        resolved_detail = f"{detail} Es wurden noch keine relevanten Klassenarbeits-Einträge erkannt."
+        resolved_detail = f"{detail} Es wurden noch keine Klassenarbeits-Einträge erkannt."
 
     return {
-        "status": "ok" if relevant_entries else "warning",
+        "status": "ok" if all_entries else "warning",
         "title": "Klassenarbeitsplan",
         "detail": resolved_detail,
         "updatedAt": now.strftime("%H:%M"),
         "previewRows": preview_rows,
         "classes": classes,
-        "entries": [_serialize_classwork_entry(entry) for entry in relevant_entries[:160]],
+        "entries": [_serialize_classwork_entry(entry) for entry in all_entries[:MAX_CLASSWORK_ENTRIES]],
+        "firstDate": all_entries[0]["date"].isoformat() if all_entries else "",
+        "lastDate": all_entries[-1]["date"].isoformat() if all_entries else "",
         "defaultClass": default_class,
         "sourceUrl": source_url,
     }
@@ -449,14 +463,19 @@ def _extract_orgaplan_entries(data: bytes, now: datetime) -> tuple[list[dict[str
     page, page_text = page_info
     month_number = now.month
     year = now.year
-    match = re.match(r"^([A-Za-zÄÖÜäöü]+)\s+Stand\s+(\d{2})\.(\d{2})\.(\d{4})", page_text)
+    match = re.match(r"^([A-Za-zÄÖÜäöü]+)\s*Stand\s*(\d{2})\.(\d{2})\.(\d{4})", page_text)
     if match:
         month_name = _ascii_month(match.group(1))
         month_number = next(
             (number for number, label in GERMAN_MONTHS.items() if label.lower() == month_name.lower()),
             now.month,
         )
-        year = int(match.group(4))
+        # "Stand" is when the page was edited, not its month: January pages are
+        # edited in December. The school year in the header decides.
+        from .orgaplan import page_month, school_year_of
+
+        located = page_month(page_text, school_year_of(page_text))
+        year = located[0] if located else int(match.group(4))
         month_label = GERMAN_MONTHS[month_number]
 
     structured_entries = _extract_positioned_orgaplan_entries(page, year, month_number)
@@ -623,9 +642,8 @@ def _is_orgaplan_header_row(text: str) -> bool:
         "bemerkungen",
         "organisationsplan",
         "stand ",
-        "orgaplan 2025/2026",
     )
-    return any(marker in lowered for marker in markers)
+    return any(marker in lowered for marker in markers) or bool(re.search(r"orgaplan \d{4}/\d{2,4}", lowered))
 
 
 def _extract_day_from_cell(value: str) -> int | None:

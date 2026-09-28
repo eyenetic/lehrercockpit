@@ -1,6 +1,4 @@
 """Tests für Module-API-Endpunkte (backend/api/module_routes.py) – Flask Test-Client + Mocks."""
-import sys
-import types
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -706,72 +704,30 @@ def test_orgaplan_data_without_auth_returns_401(client):
     assert response.status_code == 401
 
 
-def test_orgaplan_data_no_url_returns_200_configured_false(client):
-    """GET /api/v2/modules/orgaplan/data mit Auth, kein URL → 200, configured=false."""
+def test_orgaplan_data_returns_the_digest(client):
+    """GET /api/v2/modules/orgaplan/data → Digest aus backend/orgaplan.py (über den Dashboard-Fetcher)."""
     teacher = _make_teacher_user()
-    mock_ctx, mock_conn = _make_db_context_mock()
-
-    # No orgaplan_url or orgaplan_pdf_url configured
-    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
-        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
-            with patch.object(
-                backend.api.module_routes, "get_system_setting", return_value=None
-            ):
-                response = client.get("/api/v2/modules/orgaplan/data")
-
-    assert response.status_code == 200
-    data = response.get_json()
-    assert data.get("ok") is True
-    assert data.get("configured") is False, (
-        f"Expected configured=false when no URL set, got: {data}"
-    )
+    digest = {"status": "ok", "upcoming": [{"isoDate": "2026-09-28", "title": "Konferenz"}],
+              "highlights": [], "today_entries": [], "week_entries": []}
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher), \
+            patch("backend.api.dashboard_routes._fetch_orgaplan_data",
+                  return_value={"ok": True, "data": digest, "configured": True}):
+        response = client.get("/api/v2/modules/orgaplan/data")
+    body = response.get_json()
+    assert response.status_code == 200 and body["ok"] is True
+    assert body["configured"] is True
+    assert body["data"]["upcoming"][0]["title"] == "Konferenz"
 
 
-def test_orgaplan_data_with_url_and_mocked_digest_returns_200(client):
-    """GET /api/v2/modules/orgaplan/data mit URL + gemocktem build_plan_digest → 200 mit data."""
+def test_orgaplan_data_reports_errors_without_500(client):
     teacher = _make_teacher_user()
-    mock_ctx, mock_conn = _make_db_context_mock()
-
-    mock_digest_full = {
-        "orgaplan": {
-            "status": "ok",
-            "highlights": ["Test highlight"],
-            "upcoming": [{"date": "2026-04-01", "text": "Konferenz"}],
-            "monthLabel": "April 2026",
-            "detail": "",
-        }
-    }
-
-    def _mock_get_system_setting(conn, key, default=None):
-        if key == "orgaplan_pdf_url":
-            return "https://example.com/orgaplan.pdf"
-        if key == "orgaplan_url":
-            return "https://example.com/orgaplan"
-        # Cache keys → no cache (force fresh parse)
-        return None
-
-    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
-        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
-            with patch.object(
-                backend.api.module_routes,
-                "get_system_setting",
-                side_effect=_mock_get_system_setting,
-            ):
-                fake_plan_digest = types.SimpleNamespace(
-                    build_plan_digest=MagicMock(return_value=mock_digest_full)
-                )
-                with patch.dict(sys.modules, {"backend.plan_digest": fake_plan_digest}):
-                    response = client.get("/api/v2/modules/orgaplan/data")
-
-    assert response.status_code == 200
-    data = response.get_json()
-    assert data.get("ok") is True
-    assert data.get("configured") is True
-    assert "data" in data
-    result_data = data["data"]
-    assert isinstance(result_data, dict), f"Expected dict, got: {type(result_data)}"
-    assert result_data.get("status") == "ok"
-    assert "highlights" in result_data
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher), \
+            patch("backend.api.dashboard_routes._fetch_orgaplan_data",
+                  return_value={"ok": False, "error": "RuntimeError: kaputt"}):
+        response = client.get("/api/v2/modules/orgaplan/data")
+    body = response.get_json()
+    assert response.status_code == 200 and body["data"] is None
+    assert "kaputt" in body["error"]
 
 
 # ── Phase 11f: klassenarbeitsplan v2 endpoint tests ──────────────────────────
@@ -783,44 +739,15 @@ def test_klassenarbeitsplan_data_without_auth_returns_401(client):
     assert response.status_code == 401
 
 
-def test_klassenarbeitsplan_data_empty_cache_returns_200(client):
-    """GET /api/v2/modules/klassenarbeitsplan/data mit Teacher-Auth + leerer Cache → 200, kein Crash."""
+def test_klassenarbeitsplan_data_returns_the_view_and_sync(client):
+    """GET /api/v2/modules/klassenarbeitsplan/data → Plan ab heute + Sync-Status."""
     teacher = _make_teacher_user()
-    mock_ctx, mock_conn = _make_db_context_mock()
-
-    # Cache returns empty/warning status → triggers fallback
-    mock_cache = {"status": "warning", "previewRows": [], "entries": []}
-    # plan_digest fallback also returns empty classwork
-    mock_digest_full = {
-        "classwork": {
-            "status": "warning",
-            "title": "Klassenarbeitsplan",
-            "detail": "Keine Daten",
-            "updatedAt": "--:--",
-            "previewRows": [],
-            "classes": [],
-            "entries": [],
-            "defaultClass": "",
-            "sourceUrl": "",
-        }
-    }
-
-    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher):
-        with patch.object(backend.api.module_routes, "db_connection", return_value=mock_ctx):
-            with patch.object(
-                backend.api.module_routes, "get_system_setting", return_value=None
-            ):
-                with patch(
-                    "backend.classwork_cache.load_cache",
-                    return_value=mock_cache,
-                ):
-                    fake_plan_digest = types.SimpleNamespace(
-                        build_plan_digest=MagicMock(return_value=mock_digest_full)
-                    )
-                    with patch.dict(sys.modules, {"backend.plan_digest": fake_plan_digest}):
-                        response = client.get("/api/v2/modules/klassenarbeitsplan/data")
-
-    assert response.status_code == 200
-    data = response.get_json()
-    assert data.get("ok") is True
-    assert "data" in data
+    result = {"ok": True, "data": {"entries": [], "planStatus": {"state": "outdated"}},
+              "configured": True, "sync": {"onedrive": True}}
+    with patch.object(backend.api.helpers, "get_current_user", return_value=teacher), \
+            patch("backend.api.dashboard_routes._fetch_klassenarbeitsplan_data", return_value=result):
+        response = client.get("/api/v2/modules/klassenarbeitsplan/data")
+    body = response.get_json()
+    assert response.status_code == 200 and body["ok"] is True
+    assert body["data"]["planStatus"]["state"] == "outdated"
+    assert body["sync"] == {"onedrive": True}

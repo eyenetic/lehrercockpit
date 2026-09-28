@@ -99,3 +99,57 @@ def test_changed_link_resets_state(mem):
                                   "last_success": NOW.isoformat(), "last_result": "ok"}
     info = cs.sync_info(URL, NOW)
     assert info["etag"] == "" and info["last_success"] is None
+
+
+# ── Plan view: what is shown today ───────────────────────────────────────────
+
+_TODAY = datetime(2026, 9, 28, 8, 0, tzinfo=timezone.utc)
+
+
+def _entry(label, iso, title="KA"):
+    return {"classLabel": label, "isoDate": iso, "dateLabel": iso[8:10] + "." + iso[5:7] + ".", "title": title}
+
+
+def test_plan_view_shows_only_upcoming_entries():
+    cache = {"status": "ok", "sourceName": "Klassenarbeitsplan_2026_2027.xlsx",
+             "entries": [_entry("7A", "2026-09-10"), _entry("10B", "2026-09-28"), _entry("8C", "2026-10-05")]}
+    view = cs.plan_view(cache, _TODAY)
+    assert [e["isoDate"] for e in view["entries"]] == ["2026-09-28", "2026-10-05"]
+    assert view["classes"] == ["8C", "10B"]
+    assert view["planStatus"]["state"] == "ok"
+    assert view["planStatus"]["schoolYear"] == "2026/27"
+    assert view["status"] == "ok"
+
+
+def test_last_school_years_file_is_reported_as_outdated():
+    # The situation found in production: the link still pointed to the 2025/26 file.
+    cache = {"status": "ok", "sourceName": "GPT Klassenarbeitsplan_2025_2026_final.xlsx",
+             "sourceModified": "2026-06-15T19:25:21Z", "uploadedAt": "24.09.2026 19:00",
+             "entries": [_entry("7A", "2025-11-03"), _entry("10B", "2026-04-30")]}
+    view = cs.plan_view(cache, _TODAY)
+    status = view["planStatus"]
+    assert view["status"] == "outdated" and view["entries"] == [] and view["classes"] == []
+    assert status["state"] == "outdated"
+    assert "2025/26" in status["message"] and "30.04.2026" in status["message"]
+    assert status["lastDate"] == "2026-04-30" and status["fileModified"] == "2026-06-15T19:25:21Z"
+
+
+def test_plan_without_future_entries_but_without_year_in_name():
+    view = cs.plan_view({"status": "ok", "sourceName": "Plan.xlsx", "entries": [_entry("7A", "2026-09-01")]}, _TODAY)
+    assert view["planStatus"]["state"] == "outdated"
+    assert "neue Datei" in view["planStatus"]["message"]
+
+
+@pytest.mark.parametrize("name,year", [
+    ("GPT Klassenarbeitsplan_2025_2026_final.xlsx", 2025),
+    ("Klassenarbeiten 2026-27.xlsx", 2026),
+    ("KA-Plan 2026/2027 Stand 01.09.xlsx", 2026),
+    ("Plan 2026.xlsx", None),
+])
+def test_school_year_from_name(name, year):
+    assert cs.school_year_from_name(name) == year
+
+
+def test_current_school_year_starts_in_august():
+    assert cs.current_school_year(datetime(2026, 7, 31).date()) == 2025
+    assert cs.current_school_year(datetime(2026, 8, 1).date()) == 2026

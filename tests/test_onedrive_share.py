@@ -77,7 +77,7 @@ def test_download_uses_badger_token_and_download_url():
         data, meta = od.download(SHARE)
     assert data == b"bytes"
     assert meta == {"name": "Klassenarbeiten.xlsx", "size": 5, "etag": "\"{A},7\"",
-                    "modified": "2026-09-20T10:00:00Z"}
+                    "modified": "2026-09-20T10:00:00Z", "folder": ""}
     token_request, item_request, file_request = calls
     assert token_request.full_url == od.TOKEN_URL
     assert json.loads(token_request.data) == {"appId": od.BADGER_APP_ID}
@@ -112,12 +112,43 @@ def test_missing_link_is_reported():
             od.resolve(SHARE)
 
 
-def test_folder_links_and_huge_files_are_rejected():
-    fake, _ = _responses(_Response({"token": "tok"}), _Response({"name": "Ordner", "size": 0}))
+def test_folder_link_uses_the_newest_plan_inside():
+    folder = {"name": "Klassenarbeitspläne", "size": 0}
+    children = {"value": [
+        {"name": "Klassenarbeitsplan_2025_2026_final.xlsx", "eTag": "old", "lastModifiedDateTime": "2026-06-15T19:25:21Z",
+         "@content.downloadUrl": "https://dl.example/old"},
+        {"name": "Klassenarbeitsplan_2026_2027.xlsx", "eTag": "new", "size": 9, "lastModifiedDateTime": "2026-09-01T08:00:00Z",
+         "@content.downloadUrl": "https://dl.example/new"},
+        {"name": "Hinweise.docx", "lastModifiedDateTime": "2026-09-27T08:00:00Z", "@content.downloadUrl": "https://dl.example/doc"},
+    ]}
+    fake, calls = _responses(_Response({"token": "tok"}), _Response(folder), _Response(children), _Response(b"plan"))
     with patch.object(od, "urlopen", side_effect=fake):
-        with pytest.raises(od.OneDriveError, match="Download-Adresse"):
+        data, meta = od.download(SHARE)
+    assert data == b"plan"
+    assert meta["name"] == "Klassenarbeitsplan_2026_2027.xlsx" and meta["etag"] == "new"
+    assert meta["folder"] == "Klassenarbeitspläne"
+    assert f"/shares/{od.share_id(SHARE)}/driveitem/children" in calls[2].full_url
+    assert calls[2].get_header("Authorization") == "Badger tok"
+    assert calls[3].full_url == "https://dl.example/new"
+
+
+def test_folder_without_spreadsheet_is_reported():
+    fake, _ = _responses(_Response({"token": "tok"}), _Response({"name": "Ordner"}),
+                         _Response({"value": [{"name": "Notizen.docx"}]}))
+    with patch.object(od, "urlopen", side_effect=fake):
+        with pytest.raises(od.OneDriveError, match="keine Excel-Datei"):
             od.resolve(SHARE)
-    od._token_cache.clear()
+
+
+def test_plan_file_ranking_prefers_school_year_then_change():
+    older_year = {"name": "Klassenarbeitsplan 2025-26.xlsx", "lastModifiedDateTime": "2026-09-27T10:00:00Z"}
+    newer_year = {"name": "Klassenarbeitsplan 2026-27.xlsx", "lastModifiedDateTime": "2026-09-01T10:00:00Z"}
+    other = {"name": "Vertretung 2027.xlsx", "lastModifiedDateTime": "2026-09-28T10:00:00Z"}
+    assert od.pick_plan_file([older_year, newer_year, other]) is newer_year
+    assert od.pick_plan_file([{"name": "a.pdf"}]) is None
+
+
+def test_huge_files_are_rejected():
     big = {"size": od.MAX_BYTES + 1, "@content.downloadUrl": "https://dl.example/f"}
     fake, _ = _responses(_Response({"token": "tok"}), _Response(big))
     with patch.object(od, "urlopen", side_effect=fake):

@@ -273,199 +273,54 @@ def nextcloud_data():
 @module_bp.route("/orgaplan/data", methods=["GET"])
 @require_auth
 def orgaplan_data():
-    """Orgaplan-Daten aus System-Settings abrufen (mit geparstem Digest und Caching).
+    """Orgaplan für die nächsten Wochen (neueste PDF der Schulwebseite oder feste PDF).
 
-    Cacht das Ergebnis von build_plan_digest() in system_settings für 60 Minuten.
-    Response: {"ok": true, "data": {"url": ..., "highlights": [...], ...}, "configured": bool}
+    Response: {"ok": true, "data": {"upcoming": [...], "today_entries": [...], ...}, "configured": true}
     """
+    from backend.api.dashboard_routes import _fetch_orgaplan_data
+
+    result = _fetch_orgaplan_data()
+    if not result.get("ok"):
+        return success({"data": None, "configured": True, "error": result.get("error", "Fehler beim Laden")})
+    return success({"data": result["data"], "configured": True})
+
+
+@module_bp.route("/orgaplan/refresh", methods=["POST"])
+@require_auth
+def orgaplan_refresh():
+    """Orgaplan sofort neu suchen und einlesen (z. B. nach einer neuen PDF auf der Webseite)."""
+    from backend import orgaplan
+
     try:
         with db_connection() as conn:
-            orgaplan_url = get_system_setting(conn, "orgaplan_url", None)
-            pdf_url = get_system_setting(conn, "orgaplan_pdf_url", None)
+            source = orgaplan.load_source(conn)
     except Exception as exc:
-        return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
-
-    # No URL configured
-    effective_url = pdf_url or orgaplan_url
-    if not effective_url:
-        return success({"data": None, "configured": False})
-
-    # Check cache
-    import json as _json
-    now = datetime.now(timezone.utc)
-    try:
-        with db_connection() as conn:
-            cached_raw = get_system_setting(conn, "orgaplan_cache", None)
-            cached_ts_raw = get_system_setting(conn, "orgaplan_cache_ts", None)
-            cached_url = get_system_setting(conn, "orgaplan_cache_url", None)
-    except Exception:
-        cached_raw = None
-        cached_ts_raw = None
-        cached_url = None
-
-    # Determine if cache is still valid (< 60 minutes old and URL unchanged)
-    cache_valid = False
-    if cached_raw and cached_ts_raw:
-        try:
-            from datetime import timezone as _tz
-            ts = datetime.fromisoformat(cached_ts_raw) if isinstance(cached_ts_raw, str) else None
-            if ts:
-                age_minutes = (now - ts.replace(tzinfo=_tz.utc) if ts.tzinfo is None else now - ts).total_seconds() / 60
-                if age_minutes < 60 and cached_url == effective_url:
-                    cache_valid = True
-        except Exception:
-            cache_valid = False
-
-    if cache_valid and cached_raw:
-        digest = cached_raw if isinstance(cached_raw, dict) else {}
-        return success({
-            "data": {
-                "url": orgaplan_url,
-                "pdf_url": pdf_url,
-                "highlights": digest.get("highlights", []),
-                "upcoming": digest.get("upcoming", []),
-                "entries": digest.get("upcoming", []),  # alias for frontend compat
-                "classes": [],
-                "status": digest.get("status", "ok"),
-                "detail": digest.get("detail", ""),
-                "monthLabel": digest.get("monthLabel", ""),
-                "cached_at": cached_ts_raw,
-            },
-            "configured": True,
-        })
-
-    # Parse fresh
-    try:
-        from backend.plan_digest import build_plan_digest
-        full_digest = build_plan_digest(effective_url, None, None, now)
-        orgaplan_digest = full_digest.get("orgaplan", {})
-
-        # Persist cache
-        ts_str = now.isoformat()
-        try:
-            with db_connection() as conn:
-                set_system_setting(conn, "orgaplan_cache", orgaplan_digest)
-                set_system_setting(conn, "orgaplan_cache_ts", ts_str)
-                set_system_setting(conn, "orgaplan_cache_url", effective_url)
-        except Exception:
-            pass  # Cache write failure is non-fatal
-
-        return success({
-            "data": {
-                "url": orgaplan_url,
-                "pdf_url": pdf_url,
-                "highlights": orgaplan_digest.get("highlights", []),
-                "upcoming": orgaplan_digest.get("upcoming", []),
-                "entries": orgaplan_digest.get("upcoming", []),
-                "classes": [],
-                "status": orgaplan_digest.get("status", "ok"),
-                "detail": orgaplan_digest.get("detail", ""),
-                "monthLabel": orgaplan_digest.get("monthLabel", ""),
-                "cached_at": ts_str,
-            },
-            "configured": True,
-        })
-    except Exception as exc:
-        # Return cached data if available despite parse error
-        if cached_raw and isinstance(cached_raw, dict):
-            digest = cached_raw
-            return success({
-                "data": {
-                    "url": orgaplan_url,
-                    "pdf_url": pdf_url,
-                    "highlights": digest.get("highlights", []),
-                    "upcoming": digest.get("upcoming", []),
-                    "entries": digest.get("upcoming", []),
-                    "classes": [],
-                    "status": "warning",
-                    "detail": f"Cached data (parse error: {type(exc).__name__})",
-                    "monthLabel": digest.get("monthLabel", ""),
-                    "cached_at": cached_ts_raw,
-                },
-                "configured": True,
-            })
-        return success({"data": None, "configured": True, "error": "Fehler beim Laden"})
+        return error(f"Einstellungen konnten nicht geladen werden: {type(exc).__name__}", 500)
+    digest = orgaplan.current(source, datetime.now(timezone.utc), wait=25.0, force=True)
+    return success({"data": digest})
 
 
 @module_bp.route("/klassenarbeitsplan/data", methods=["GET"])
 @require_auth
 def klassenarbeitsplan_data():
-    """Klassenarbeitsplan-Daten abrufen (classwork cache + plan_digest fallback).
+    """Klassenarbeitsplan ab heute plus Sync-Status (OneDrive).
 
-    Bevorzugt den Playwright-/Upload-Cache aus classwork_cache.
-    Fällt zurück auf build_plan_digest() mit dem konfigurierten URL oder lokaler XLSX.
-    Response: {"ok": true, "data": {"url": ..., "entries": [...], "classes": [...], ...}}
+    Response: {"ok": true, "data": {"entries": [...], "planStatus": {...}, ...}, "configured": bool, "sync": {...}}
     """
-    try:
-        with db_connection() as conn:
-            url = get_system_setting(conn, "klassenarbeitsplan_url", None)
-            if not url:
-                url = get_system_setting(conn, "classwork_url", None)
-    except Exception as exc:
-        return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
+    from backend.api.dashboard_routes import _fetch_klassenarbeitsplan_data
 
-    now = datetime.now(timezone.utc)
-    sync = _classwork_sync_info(url, now)
-
-    # 1. Try classwork cache (OneDrive sync or XLSX upload)
-    try:
-        from backend.classwork_cache import load_cache
-        from backend.classwork_sync import CACHE_PATH
-
-        cached = load_cache(CACHE_PATH)
-        if cached.get("status") == "ok" and (
-            cached.get("previewRows") or cached.get("structuredRows") or cached.get("entries")
-        ):
-            return success({"data": {"url": url, **cached}, "configured": True, "sync": sync})
-    except Exception:
-        pass
-
-    # 2. Fallback: build_plan_digest with local XLSX or remote URL
-    try:
-        from backend.plan_digest import build_plan_digest
-        from pathlib import Path
-
-        local_xlsx = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-plan-local.xlsx"
-        local_path_str = str(local_xlsx) if local_xlsx.exists() else None
-        full_digest = build_plan_digest(None, url, local_path_str, now.replace(tzinfo=None) if now.tzinfo else now)
-        classwork_digest = full_digest.get("classwork", {})
-
-        return success({
-            "data": {
-                "url": url,
-                "status": classwork_digest.get("status", "warning"),
-                "title": classwork_digest.get("title", "Klassenarbeitsplan"),
-                "detail": classwork_digest.get("detail", ""),
-                "updatedAt": classwork_digest.get("updatedAt", "--:--"),
-                "previewRows": classwork_digest.get("previewRows", []),
-                "classes": classwork_digest.get("classes", []),
-                "entries": classwork_digest.get("entries", []),
-                "defaultClass": classwork_digest.get("defaultClass", ""),
-                "sourceUrl": classwork_digest.get("sourceUrl", url or ""),
-            },
-            "configured": bool(url or local_path_str),
-            "sync": sync,
-        })
-    except Exception as exc:
-        return success({"data": None, "error": f"{type(exc).__name__}: {exc}"})
+    result = _fetch_klassenarbeitsplan_data()
+    if not result.get("ok"):
+        return success({"data": None, "error": result.get("error", "Fehler beim Laden")})
+    return success({"data": result["data"], "configured": result.get("configured", False),
+                    "sync": result.get("sync", {})})
 
 
 def _classwork_url() -> str:
+    from backend.school_sources import classwork_url
+
     with db_connection() as conn:
-        url = get_system_setting(conn, "klassenarbeitsplan_url", None) or \
-            get_system_setting(conn, "classwork_url", None) or ""
-    return url if isinstance(url, str) else ""
-
-
-def _classwork_sync_info(url, now) -> dict:
-    """Sync status for the frontend; starts a server-side OneDrive fetch when due."""
-    try:
-        from backend.classwork_sync import maybe_sync_in_background, sync_info
-
-        maybe_sync_in_background(url or "", now)
-        return sync_info(url or "", now)
-    except Exception:
-        return {"onedrive": False, "needs_browser": False}
+        return classwork_url(conn)
 
 
 @module_bp.route("/klassenarbeitsplan/browser-sync", methods=["POST"])
@@ -530,125 +385,85 @@ def klassenarbeitsplan_sync_confirm():
 @module_bp.route("/klassenarbeitsplan/config", methods=["POST"])
 @require_auth
 def klassenarbeitsplan_save_config():
-    """Speichert die OneDrive-URL für den Klassenarbeitsplan (nur Admins, gilt schulweit)."""
+    """Speichert den OneDrive-Link (Datei oder Ordner) für den Klassenarbeitsplan (nur Admins, schulweit)."""
+    from backend.school_sources import CLASSWORK_CANDIDATE_KEY, CLASSWORK_KEY
+
     if not g.current_user.is_admin:
         return error("Nur Admins können den schulweiten Link ändern.", 403)
     body = request.get_json(silent=True) or {}
     url = str(body.get("url", "")).strip()
+    if url and not url.lower().startswith("https://"):
+        return error("Bitte den vollständigen Link (https://…) einfügen.", 422)
+    if len(url) > 2000:
+        return error("Der Link ist zu lang.", 422)
     try:
         with db_connection() as conn:
-            set_system_setting(conn, "klassenarbeitsplan_url", url)
+            set_system_setting(conn, CLASSWORK_KEY, url)
+            conn.execute("DELETE FROM system_settings WHERE key = %s", (CLASSWORK_CANDIDATE_KEY,))
         return success({"saved": True, "url": url})
     except Exception as exc:
-        return error(f"Speichern fehlgeschlagen: {exc}", 500)
+        return error(f"Speichern fehlgeschlagen: {type(exc).__name__}", 500)
+
+
+def _download_direct(url: str) -> bytes:
+    """A plan file under a normal https address (not OneDrive). Raises ValueError."""
+    from urllib.error import URLError
+    from urllib.request import Request as UrlRequest, urlopen
+
+    from backend.http_utils import UnsafeUrlError, require_public_https_url, tls_context
+
+    try:
+        safe = require_public_https_url(url)
+    except UnsafeUrlError as exc:
+        raise ValueError(str(exc)) from exc
+    request_ = UrlRequest(safe, headers={"User-Agent": "Mozilla/5.0 (compatible; Lehrercockpit/1.0)"})
+    try:
+        with urlopen(request_, timeout=25, context=tls_context()) as resp:
+            if "text/html" in resp.headers.get("Content-Type", "").lower():
+                raise ValueError("Der Link führt zu einer Webseite statt zu einer Datei (evtl. Anmeldung nötig).")
+            data = resp.read(20 * 1024 * 1024 + 1)
+    except URLError as exc:
+        raise ValueError(f"Datei konnte nicht geladen werden ({exc.reason}).") from exc
+    if len(data) > 20 * 1024 * 1024:
+        raise ValueError("Datei zu groß (max. 20 MB).")
+    return data
 
 
 @module_bp.route("/klassenarbeitsplan/fetch", methods=["POST"])
 @require_auth
 def klassenarbeitsplan_fetch():
-    """Lädt die Klassenarbeitsplan-XLSX direkt von einer konfigurierten URL (z. B. OneDrive)."""
-    from urllib.request import urlopen, Request as UrlRequest
-    from urllib.error import URLError
-    from datetime import datetime as _dt
-    from pathlib import Path
+    """Klassenarbeitsplan jetzt vom hinterlegten Link holen.
+
+    OneDrive: erst über den Server; blockt Microsoft ihn, lädt der Browser (sync.needs_browser).
+    """
+    from backend.classwork_cache import load_cache
+    from backend.classwork_sync import CACHE_PATH, plan_view, store_plan, sync_from_server, sync_info
+    from backend.onedrive_share import is_onedrive_link
 
     body = request.get_json(silent=True) or {}
-    url = str(body.get("url", "")).strip()
-
-    # If URL provided in body, persist it (school-wide setting: admins only)
-    if url:
-        if not g.current_user.is_admin:
-            return error("Nur Admins können den schulweiten Link ändern.", 403)
-        try:
-            with db_connection() as conn:
-                set_system_setting(conn, "klassenarbeitsplan_url", url)
-        except Exception:
-            pass
-    else:
-        try:
-            with db_connection() as conn:
-                url = get_system_setting(conn, "klassenarbeitsplan_url", None) or \
-                      get_system_setting(conn, "classwork_url", None) or ""
-        except Exception:
-            pass
-
+    if str(body.get("url", "")).strip():
+        return error("Den Link bitte unter „Verbindungen“ speichern.", 422)
+    try:
+        url = _classwork_url()
+    except Exception as exc:
+        return error(f"Einstellungen konnten nicht geladen werden: {type(exc).__name__}", 500)
     if not url:
-        return error("Keine URL konfiguriert. Bitte zuerst einen OneDrive-Link eintragen.", 400)
+        return error("Für den Klassenarbeitsplan ist noch kein Link hinterlegt.", 400)
 
-    from backend.onedrive_share import is_onedrive_link
     if is_onedrive_link(url):
-        from backend.classwork_cache import load_cache
-        from backend.classwork_sync import CACHE_PATH, sync_from_server, sync_info
-
         result_code = sync_from_server(url)
         sync = sync_info(url)
         if result_code in ("ok", "unchanged"):
-            return success({"data": load_cache(CACHE_PATH), "fetchedFrom": url,
-                            "result": result_code, "sync": sync})
+            return success({"data": plan_view(load_cache(CACHE_PATH)), "result": result_code, "sync": sync})
         # Microsoft refused the server: the browser has to fetch the file.
         return success({"data": None, "result": result_code, "sync": {**sync, "needs_browser": True},
                         "error": sync.get("last_error") or "Abruf durch den Server nicht möglich."})
 
-    # Build candidate download URLs, trying the most reliable first
-    import base64 as _b64
-
-    def _onedrive_api_url(share_url):
-        """Convert any OneDrive share link to the Graph-API download redirect URL."""
-        b64 = _b64.urlsafe_b64encode(share_url.encode()).decode().rstrip("=")
-        return f"https://api.onedrive.com/v1.0/shares/u!{b64}/root/content"
-
-    candidate_urls = [
-        _onedrive_api_url(url),                                          # Graph API (most reliable)
-        url + ("&" if "?" in url else "?") + "download=1",              # ?download=1 trick
-        url,                                                              # plain URL
-    ]
-
-    # Download the file via urllib (works for public OneDrive share links)
-    headers = {"User-Agent": "Mozilla/5.0 (compatible; LehrerCockpit/1.0)"}
-    file_bytes = None
-    last_err = ""
-    for attempt_url in candidate_urls:
-        try:
-            req = UrlRequest(attempt_url, headers=headers)
-            with urlopen(req, timeout=25) as resp:
-                content_type = resp.headers.get("Content-Type", "").lower()
-                # Accept xlsx/xls/csv/zip; reject obvious HTML pages
-                if "text/html" not in content_type:
-                    file_bytes = resp.read()
-                    break
-                last_err = "Antwort war HTML statt Datei (evtl. Login erforderlich)"
-        except URLError as exc:
-            last_err = str(exc)
-            continue
-
-    if not file_bytes:
-        return error(f"Datei konnte nicht heruntergeladen werden. Bitte Link prüfen. ({last_err})", 422)
-
-    # Parse the XLSX
     try:
-        from backend.file_utils import parse_classwork_xlsx
-    except ImportError as exc:
-        return error(f"parse_classwork_xlsx nicht verfügbar: {exc}", 500)
-
-    try:
-        result = parse_classwork_xlsx(file_bytes)
-    except Exception as exc:
-        return error(f"Datei konnte nicht gelesen werden: {type(exc).__name__}: {exc}", 422)
-
-    # Attach metadata
-    result["uploadedAt"] = _dt.now().strftime("%d.%m.%Y %H:%M")
-    result["uploadSource"] = "auto"
-    result["uploadedBy"] = g.current_user.full_name if hasattr(g, "current_user") else ""
-
-    # Save to cache
-    try:
-        from backend.classwork_cache import save_cache as _save_cache
-        cache_path = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-cache.json"
-        _save_cache(cache_path, result)
-    except Exception:
-        pass
-
-    return success({"data": result, "fetchedFrom": url})
+        result = store_plan(_download_direct(url), source="auto", uploaded_by=g.current_user.full_name)
+    except ValueError as exc:
+        return error(str(exc), 422)
+    return success({"data": plan_view(result), "result": "ok"})
 
 
 # ── Noten / Grades v2 (Phase 9b) ─────────────────────────────────────────────

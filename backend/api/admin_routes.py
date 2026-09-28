@@ -829,7 +829,13 @@ def _send_approval_mail(to: str, name: str, code: str) -> None:
     """Sendet die Freischaltungs-Mail mit dem Zugangscode."""
     from backend.mailer import send_mail
 
-    subject = "Dein Lehrer-Cockpit Zugangscode"
+    import os
+
+    subject = "Dein Lehrercockpit-Zugangscode"
+    login_url = os.environ.get("FRONTEND_URL", "").strip().rstrip("/") or "https://app.lehrercockpit.com"
+    if not login_url.startswith("https://"):
+        login_url = "https://app.lehrercockpit.com"
+    login_url += "/login.html"
 
     body_html = f"""<!DOCTYPE html>
 <html lang="de">
@@ -845,7 +851,7 @@ def _send_approval_mail(to: str, name: str, code: str) -> None:
     ⚠️ Speichere diesen Code sicher – er wird nur einmal per E-Mail versendet.
   </p>
   <p style="text-align:center;margin:24px 0;">
-    <a href="https://lehrercockpit.vercel.app/login.html"
+    <a href="{login_url}"
        style="background:#4f46e5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:1rem;">
       Jetzt einloggen
     </a>
@@ -860,7 +866,7 @@ def _send_approval_mail(to: str, name: str, code: str) -> None:
         "du wurdest freigeschaltet! Dein Code:\n\n"
         f"  {code}\n\n"
         "Bitte speichere diesen Code sicher – er wird nur einmal per E-Mail versendet.\n\n"
-        "Login unter: https://lehrercockpit.vercel.app/login.html\n\n"
+        f"Login unter: {login_url}\n\n"
         "Dein Lehrer-Cockpit Team"
     )
 

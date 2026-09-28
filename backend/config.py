@@ -12,6 +12,8 @@ LEHRERCOCKPIT_ENV = os.environ.get("LEHRERCOCKPIT_ENV", "development")
 # Official direct link to the Berlin teacher mailbox (login via Schulportal SSO),
 # as recommended on schulportal.berlin.de. Mail clients are not permitted.
 DIENSTMAIL_DEFAULT_URL = "https://lehrkraeftemail.schule.berlin.de/?iam_sso=1"
+# School website: where the Orgaplan PDFs and the school calendar are published.
+SCHOOL_WEBSITE_DEFAULT = os.environ.get("SCHOOL_WEBSITE_URL", "https://hermann-ehlers-schule.de").strip()
 CORS_ORIGIN = os.environ.get("CORS_ORIGIN", "http://localhost:3000")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 API_URL = os.environ.get("API_URL", "http://localhost:5000")
@@ -209,7 +211,7 @@ def load_settings() -> AppSettings:
 
     return AppSettings(
         teacher_name=os.getenv("TEACHER_NAME", "").strip(),
-        school_name=os.getenv("SCHOOL_NAME", "Stadtteilschule Nord").strip() or "Stadtteilschule Nord",
+        school_name=os.getenv("SCHOOL_NAME", "").strip(),
         mail=mail_settings,
         itslearning=itslearning_settings,
         nextcloud=nextcloud_settings,

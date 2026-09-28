@@ -11,8 +11,9 @@ Sync state lives in the persistence store under "classwork-sync":
 """
 from __future__ import annotations
 
+import re
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -76,11 +77,108 @@ def store_plan(file_bytes: bytes, *, source: str, uploaded_by: str = "",
     if meta:
         result.update({
             "sourceName": meta.get("name", ""),
+            "sourceFolder": meta.get("folder", ""),
             "sourceETag": meta.get("etag", ""),
             "sourceModified": meta.get("modified", ""),
         })
     save_cache(CACHE_PATH, result)
     return result
+
+
+# ── How the stored plan is shown today ───────────────────────────────────────
+
+_SCHOOL_YEAR_IN_NAME = re.compile(r"(20\d{2})\s*[_/-]\s*(20\d{2}|\d{2})")
+
+
+def current_school_year(today: date) -> int:
+    """Start year of the school year containing `today` (a school year starts on 1 August)."""
+    return today.year if today.month >= 8 else today.year - 1
+
+
+def school_year_from_name(name: str) -> int | None:
+    """"Klassenarbeitsplan_2025_2026.xlsx" → 2025."""
+    for match in _SCHOOL_YEAR_IN_NAME.finditer(name or ""):
+        start, end = int(match.group(1)), match.group(2)
+        end_year = int(end) if len(end) == 4 else 2000 + int(end)
+        if end_year == start + 1:
+            return start
+    return None
+
+
+def _school_year_label(start: int) -> str:
+    return f"{start}/{(start + 1) % 100:02d}"
+
+
+def _de_date(iso: str) -> str:
+    try:
+        return date.fromisoformat(iso[:10]).strftime("%d.%m.%Y")
+    except ValueError:
+        return iso
+
+
+def plan_view(cache: dict[str, Any], now: datetime | None = None) -> dict[str, Any]:
+    """The stored plan as it should be shown today.
+
+    Only entries from today on; "planStatus" says whether the plan is outdated
+    (typically: the link still points to last school year's file).
+    """
+    now = now or _now()
+    today = now.astimezone(BERLIN).date()
+    today_iso = today.isoformat()
+    entries = [e for e in cache.get("entries") or [] if isinstance(e, dict) and e.get("isoDate")]
+    upcoming = [e for e in entries if e["isoDate"] >= today_iso]
+    last_date = max((e["isoDate"] for e in entries), default="")
+    first_date = min((e["isoDate"] for e in entries), default="")
+    name = str(cache.get("sourceName") or "")
+    name_year = school_year_from_name(name)
+    if name_year is None and first_date:
+        name_year = current_school_year(date.fromisoformat(first_date))
+
+    if not entries:
+        state, message = "empty", "Im Plan wurden keine Klassenarbeiten erkannt."
+    elif not upcoming:
+        state = "outdated"
+        if name_year is not None and name_year < current_school_year(today):
+            message = (f"Der hinterlegte Plan{f' „{name}“' if name else ''} ist vom Schuljahr "
+                       f"{_school_year_label(name_year)} und enthält keine kommenden Termine "
+                       f"(letzter Eintrag: {_de_date(last_date)}).")
+        else:
+            message = (f"Der Plan enthält keine kommenden Termine (letzter Eintrag: {_de_date(last_date)}). "
+                       "Vermutlich gibt es inzwischen eine neue Datei.")
+    else:
+        state, message = "ok", ""
+
+    classes = sorted({e.get("classLabel", "") for e in upcoming} - {""}, key=_class_key)
+    view = dict(cache)
+    view.update({
+        "entries": upcoming,
+        "classes": classes,
+        "previewRows": [f"{e.get('classLabel')} | {e.get('dateLabel')} | {e.get('title')}" for e in upcoming[:8]],
+        "planStatus": {
+            "state": state,
+            "message": message,
+            "upcomingCount": len(upcoming),
+            "firstDate": first_date,
+            "lastDate": last_date,
+            "schoolYear": _school_year_label(name_year) if name_year is not None else "",
+            "fileName": name,
+            "folder": str(cache.get("sourceFolder") or ""),
+            "fileModified": str(cache.get("sourceModified") or ""),
+            "storedAt": str(cache.get("uploadedAt") or ""),
+            "source": str(cache.get("uploadSource") or ""),
+        },
+    })
+    if state == "outdated":
+        view["status"] = "outdated"
+        view["detail"] = message
+    return view
+
+
+def _class_key(label: str) -> tuple[int, str]:
+    match = re.match(r"^(\d{1,2})([A-Z])$", label.upper())
+    if match:
+        return int(match.group(1)), match.group(2)
+    return 100, label.upper()
 
 
 def _record(state: dict[str, Any], *, url: str, now: datetime, result: str,
@@ -170,6 +268,9 @@ def sync_info(url: str, now: datetime | None = None) -> dict[str, Any]:
     return {
         "onedrive": True,
         "etag": state.get("etag", ""),
+        "name": state.get("name", ""),
+        "modified": state.get("modified", ""),
+        "last_attempt": state.get("last_attempt"),
         "last_success": state.get("last_success"),
         "last_result": state.get("last_result"),
         "last_error": state.get("last_error"),

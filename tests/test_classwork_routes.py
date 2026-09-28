@@ -86,18 +86,44 @@ def test_sync_confirm_requires_matching_etag(client):
 def test_only_admins_change_the_school_link(client):
     with _as(_user(is_admin=False)):
         assert client.post("/api/v2/modules/klassenarbeitsplan/config", json={"url": URL}).status_code == 403
-        assert client.post("/api/v2/modules/klassenarbeitsplan/fetch", json={"url": URL}).status_code == 403
+    # The fetch endpoint never takes a link: links are saved under "Verbindungen".
+    with _as(_user(is_admin=True)), patch.object(routes, "_classwork_url", return_value=URL):
+        assert client.post("/api/v2/modules/klassenarbeitsplan/fetch", json={"url": URL}).status_code == 422
+
+
+def test_admin_saves_link_and_drops_the_old_candidate(client):
+    conn = MagicMock()
+    ctx = MagicMock()
+    ctx.__enter__ = MagicMock(return_value=conn)
+    ctx.__exit__ = MagicMock(return_value=False)
+    with _as(_user(is_admin=True)), patch.object(routes, "db_connection", return_value=ctx), \
+            patch.object(routes, "set_system_setting") as save:
+        ok = client.post("/api/v2/modules/klassenarbeitsplan/config", json={"url": URL})
+        bad = client.post("/api/v2/modules/klassenarbeitsplan/config", json={"url": "http://1drv.ms/x"})
+    assert ok.status_code == 200 and bad.status_code == 422
+    save.assert_called_once_with(conn, "klassenarbeitsplan_url", URL)
+    assert "klassenarbeitsplan_url_candidate" in conn.execute.call_args.args[1]
 
 
 def test_fetch_reports_when_browser_must_step_in(client):
-    ctx = MagicMock()
-    ctx.__enter__ = MagicMock(return_value=MagicMock())
-    ctx.__exit__ = MagicMock(return_value=False)
-    with _as(_user()), patch.object(routes, "db_connection", return_value=ctx), \
-            patch.object(routes, "get_system_setting", side_effect=lambda conn, key, default=None: URL if key == "klassenarbeitsplan_url" else default), \
+    with _as(_user()), patch.object(routes, "_classwork_url", return_value=URL), \
             patch("backend.classwork_sync.sync_from_server", return_value="blocked"), \
             patch("backend.classwork_sync.sync_info", return_value={"onedrive": True, "etag": "e1", "last_error": "HTTP 403"}):
         body = client.post("/api/v2/modules/klassenarbeitsplan/fetch", json={}).get_json()
     assert body["result"] == "blocked"
     assert body["sync"]["needs_browser"] is True
     assert body["error"] == "HTTP 403"
+
+
+def test_fetch_returns_the_plan_as_shown_today(client):
+    cache = {"status": "ok", "sourceName": "Klassenarbeitsplan_2026_2027.xlsx",
+             "entries": [{"classLabel": "10B", "isoDate": "2020-01-01", "title": "alt"},
+                         {"classLabel": "10B", "isoDate": "2099-01-01", "title": "KA"}]}
+    with _as(_user()), patch.object(routes, "_classwork_url", return_value=URL), \
+            patch("backend.classwork_sync.sync_from_server", return_value="unchanged"), \
+            patch("backend.classwork_sync.sync_info", return_value={"onedrive": True}), \
+            patch("backend.classwork_cache.load_cache", return_value=cache):
+        body = client.post("/api/v2/modules/klassenarbeitsplan/fetch", json={}).get_json()
+    assert body["result"] == "unchanged"
+    assert [e["title"] for e in body["data"]["entries"]] == ["KA"]
+    assert body["data"]["planStatus"]["state"] == "ok"

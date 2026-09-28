@@ -288,11 +288,37 @@ school dates) — no grades, notes or message contents. Daily limits per teacher
 (`ai_usage` table records token counts for cost checks). Requests use `claude-opus-5` with low effort and
 the server-side refusal fallback (`fallbacks: "default"`).
 
-### Klassenarbeitsplan (OneDrive)
+### Schulweite Quellen (Orgaplan, Klassenarbeitsplan, Schultermine)
 
-Admin enters the OneDrive sharing link („Jeder mit dem Link kann anzeigen“) under „Verbindungen“ →
-Klassenarbeitsplan. The server tries to fetch it hourly; if Microsoft blocks the server, the browser of the
-next teacher who opens the cockpit fetches it (`needs_browser` in the sync status). Manual upload remains.
+All three are managed in the cockpit under „Verbindungen → Schulweite Quellen" (admins edit, everyone sees
+the status incl. file, Stand and last check). The admin area only links there.
+
+- **Orgaplan** (`system_settings.orgaplan_source`): by default the cockpit looks up the newest PDF with
+  „Orgaplan" in its name on the school website (WordPress media search, otherwise PDF links on the given
+  page) every 6 hours — the school uploads a new file with a new address for every update, so a fixed link
+  would go stale. The whole school year is read with pdfplumber (table cells, school year from
+  „Organisationsplan 2026/27"). A fixed PDF can be pinned instead. State: persistence key `orgaplan-state`.
+- **Klassenarbeitsplan** (`system_settings.klassenarbeitsplan_url`, the only key; the old `classwork_url`
+  is migrated at startup — a differing value is offered as `klassenarbeitsplan_url_candidate`): OneDrive
+  link to the file **or to the folder**. With a folder link the newest spreadsheet inside is used, so next
+  school year's plan needs no new link. The server checks hourly; if Microsoft blocks the server, the
+  browser of the next teacher fetches it. A plan without upcoming entries (typically last school year's
+  file) is reported as „veraltet" in the briefing and under „Pläne". Manual upload remains.
+- **Schultermine** (`system_settings.wichtige_termine_ical_url`, empty = the school website's
+  `/events/liste/?ical=1`).
+- `SCHOOL_WEBSITE_URL` (env, default `https://hermann-ehlers-schule.de`) is the fallback school website;
+  the admin setting `school_website_url` is shown under „Zugänge".
+
+### Frontend deploy (Netlify)
+
+`netlify.toml` builds with `scripts/build_frontend.sh`, which copies only the frontend files into
+`public/` (published directory). Backend code, tests and docs are not served. New top-level frontend
+files must be added there and to `FRONTEND_FILES` in `app.py`.
+
+### Legacy v1 endpoints
+
+With `DATABASE_URL` set, `/api/*` outside `/api/v2/` answers 404 except `/api/health` and
+`/api/classwork/upload` (login required). They exposed data without login.
 
 ### Nextcloud
 

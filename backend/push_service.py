@@ -182,6 +182,7 @@ def _collect_modules(user_id: int) -> dict:
         "orgaplan": dr._fetch_orgaplan_data,
         "klassenarbeitsplan": dr._fetch_klassenarbeitsplan_data,
         "nextcloud": lambda: dr._fetch_nextcloud_data(user_id),
+        "wichtige-termine": lambda: dr._fetch_wichtige_termine_data(user_id),
     }
     modules = {}
     for module_id, fetch in fetchers.items():

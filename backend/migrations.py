@@ -398,6 +398,36 @@ def _migrate_ai_tables(conn) -> None:
             print(f"[migrations] ai statement skipped: {exc}", flush=True)
 
 
+def _migrate_school_sources(conn) -> None:
+    """One setting per school-wide source; the school calendar is shown by default.
+
+    Each step runs in its own savepoint so a failure cannot abort the others.
+    """
+    def school_settings() -> None:
+        from backend.school_sources import migrate_legacy_settings
+        migrate_legacy_settings(conn)
+
+    def calendar_visible() -> None:
+        done = conn.execute(
+            "SELECT 1 FROM system_settings WHERE key = 'migration_school_calendar_visible'"
+        ).fetchone()
+        if done:
+            return
+        conn.execute("UPDATE modules SET default_visible = TRUE, display_name = 'Schultermine' WHERE id = 'wichtige-termine'")
+        conn.execute("UPDATE user_modules SET is_visible = TRUE WHERE module_id = 'wichtige-termine'")
+        conn.execute(
+            "INSERT INTO system_settings (key, value) VALUES ('migration_school_calendar_visible', 'true') "
+            "ON CONFLICT (key) DO NOTHING"
+        )
+
+    for step in (school_settings, calendar_visible):
+        try:
+            with conn.transaction():
+                step()
+        except Exception as exc:
+            print(f"[migrations] school sources step skipped: {exc}", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -406,6 +436,7 @@ def run_all_migrations() -> None:
         _migrate_seed_today_modules(conn)
         _migrate_signals_and_push(conn)
         _migrate_ai_tables(conn)
+        _migrate_school_sources(conn)
 
 
 def log_audit_event(

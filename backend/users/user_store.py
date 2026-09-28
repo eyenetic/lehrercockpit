@@ -245,6 +245,11 @@ def delete_user(conn, user_id: int) -> bool:
     conn.execute("DELETE FROM user_modules WHERE user_id = %s", (user_id,))
     conn.execute("DELETE FROM grades WHERE user_id = %s", (user_id,))
     conn.execute("DELETE FROM class_notes WHERE user_id = %s", (user_id,))
+    # Per-teacher entries in system_settings (onboarding flag, "Neu & geändert" preferences)
+    conn.execute(
+        "DELETE FROM system_settings WHERE key IN (%s, %s)",
+        (f"onboarding_done_{user_id}", f"signal_prefs_{user_id}"),
+    )
     result = conn.execute(
         "DELETE FROM users WHERE id = %s",
         (user_id,),

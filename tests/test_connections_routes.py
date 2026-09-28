@@ -17,11 +17,11 @@ def client():
     return app.test_client()
 
 
-def _teacher():
+def _teacher(is_admin=False):
     user = MagicMock()
     user.id = 7
     user.is_active = True
-    user.is_admin = False
+    user.is_admin = is_admin
     return user
 
 
@@ -39,16 +39,21 @@ class _Store:
         self.configs[module_id] = dict(config)
 
 
-def _call(client, store, method, path, **kwargs):
+SCHOOL = {"klassenarbeitsplan": {"url": "", "onedrive": False}, "orgaplan": {"status": "ok"},
+          "termine": {"ok": True}, "dienstmail": {"url": "https://lehrkraeftemail.schule.berlin.de/?iam_sso=1"}}
+
+
+def _call(client, store, method, path, *, admin=False, **kwargs):
     ctx = MagicMock()
     ctx.__enter__ = MagicMock(return_value=store.conn)
     ctx.__exit__ = MagicMock(return_value=False)
-    with patch.object(backend.api.helpers, "get_current_user", return_value=_teacher()), \
+    with patch.object(backend.api.helpers, "get_current_user", return_value=_teacher(admin)), \
             patch.object(routes, "db_connection", return_value=ctx), \
             patch.object(routes, "get_user_module_config", side_effect=store.get), \
             patch.object(routes, "save_user_module_config", side_effect=store.save), \
             patch.object(routes, "_school_settings", return_value={"nextcloud_url": "https://cloud.schule.de"}), \
-            patch.object(routes, "_classwork_status", return_value={"url": "", "onedrive": False}), \
+            patch.object(routes, "_load_school_settings", return_value={}), \
+            patch.object(routes, "_school_status", return_value=dict(SCHOOL)), \
             patch.object(routes, "log_audit_event"):
         return getattr(client, method)(path, **kwargs)
 
@@ -175,3 +180,46 @@ def test_nextcloud_disconnect_revokes_and_removes_credentials(client):
     revoke.assert_called_once_with("https://cloud.schule.de", "anna", "app-pw")
     assert body["revoked"] is True
     assert store.configs["nextcloud"] == {"base_url": "https://cloud.schule.de"}
+
+
+# ── Schulweite Quellen ───────────────────────────────────────────────────────
+
+def test_status_includes_school_sources(client):
+    body = _call(client, _Store(), "get", "/api/v2/connections").get_json()["connections"]
+    assert {"orgaplan", "klassenarbeitsplan", "termine", "dienstmail"} <= set(body)
+
+
+def test_only_admins_change_school_sources(client):
+    for path, payload in (("/api/v2/connections/school/orgaplan", {"mode": "auto"}),
+                          ("/api/v2/connections/school/termine", {"url": ""})):
+        assert _call(client, _Store(), "put", path, json=payload).status_code == 403
+
+
+def test_admin_sets_orgaplan_source_and_refreshes(client):
+    with patch("backend.orgaplan.current") as current, \
+            patch("backend.admin.admin_service.set_system_setting") as save:
+        ok = _call(client, _Store(), "put", "/api/v2/connections/school/orgaplan", admin=True,
+                   json={"mode": "fixed", "pdf_url": "https://schule.de/orgaplan.pdf"})
+        bad = _call(client, _Store(), "put", "/api/v2/connections/school/orgaplan", admin=True,
+                    json={"mode": "fixed", "pdf_url": "ftp://x"})
+    assert ok.status_code == 200 and bad.status_code == 422
+    assert save.call_args.args[1:] == ("orgaplan_source", {"mode": "fixed", "pdf_url": "https://schule.de/orgaplan.pdf"})
+    assert current.call_args.kwargs["force"] is True
+
+
+def test_admin_sets_school_calendar_feed(client):
+    with patch("backend.admin.admin_service.set_system_setting") as save:
+        ok = _call(client, _Store(), "put", "/api/v2/connections/school/termine", admin=True,
+                   json={"url": "webcal://schule.de/events/?ical=1"})
+        bad = _call(client, _Store(), "put", "/api/v2/connections/school/termine", admin=True,
+                    json={"url": "http://schule.de/feed"})
+    assert ok.status_code == 200 and bad.status_code == 422
+    assert save.call_args.args[1:] == ("wichtige_termine_ical_url", "https://schule.de/events/?ical=1")
+
+
+def test_any_teacher_can_trigger_an_orgaplan_check(client):
+    with patch("backend.orgaplan.current") as current, \
+            patch("backend.orgaplan.load_source", return_value={"mode": "auto", "site": "https://schule.de", "query": "Orgaplan"}):
+        response = _call(client, _Store(), "post", "/api/v2/connections/school/orgaplan/refresh")
+    assert response.status_code == 200
+    assert current.call_args.kwargs["force"] is True

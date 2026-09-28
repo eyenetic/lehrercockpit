@@ -7,6 +7,12 @@ PATCH  /api/v2/connections/<module_id>       → einzelne Felder zusammenführen
 POST   /api/v2/connections/nextcloud/start   → Nextcloud Login Flow v2 starten
 POST   /api/v2/connections/nextcloud/poll    → prüfen, ob die Anmeldung abgeschlossen ist
 DELETE /api/v2/connections/nextcloud         → App-Passwort widerrufen und trennen
+
+Schulweite Quellen (Status für alle, Ändern nur für Admins):
+PUT    /api/v2/connections/school/orgaplan         {"mode": "auto", "site", "query"} | {"mode": "fixed", "pdf_url"}
+POST   /api/v2/connections/school/orgaplan/refresh → neueste PDF sofort suchen und einlesen
+PUT    /api/v2/connections/school/termine          {"url": "https://…ical"} ("" = Schulwebseite)
+Der Klassenarbeitsplan-Link: POST /api/v2/modules/klassenarbeitsplan/config
 """
 from __future__ import annotations
 
@@ -91,48 +97,53 @@ def _status_payload(configs: dict[str, dict], settings: dict | None = None) -> d
     }
 
 
-def _classwork_link(conn) -> str:
+def _load_school_settings(conn) -> dict:
+    from backend.school_sources import load_settings
+
     try:
-        url = get_system_setting(conn, "klassenarbeitsplan_url", "") or get_system_setting(conn, "classwork_url", "")
+        settings = load_settings(conn)
+        settings["dienstmail_url"] = get_system_setting(conn, "dienstmail_url", "") or ""
+        return settings
     except Exception:
-        return ""
-    return url if isinstance(url, str) else ""
+        return {}
 
 
-def _classwork_status(url: str, is_admin: bool) -> dict:
-    """School-wide Klassenarbeitsplan: OneDrive link, last update, sync health.
+def _school_status(settings: dict, is_admin: bool) -> dict:
+    """Orgaplan, Klassenarbeitsplan, Schultermine and Dienstmail for "Verbindungen".
 
-    Reads the plan cache and sync state through the persistence store (its own
-    connections), so call it outside of an open db_connection() transaction.
+    Reads the persistence store with its own connections: call it outside of an
+    open db_connection() transaction.
     """
-    try:
-        from backend.classwork_cache import load_cache
-        from backend.classwork_sync import CACHE_PATH, sync_info
-        from backend.onedrive_share import is_onedrive_link
+    from backend import school_sources
+    from backend.config import DIENSTMAIL_DEFAULT_URL
 
-        cached = load_cache(CACHE_PATH)
-        return {
-            "url": url,
-            "onedrive": is_onedrive_link(url),
-            "sync": sync_info(url),
-            "uploaded_at": cached.get("uploadedAt", ""),
-            "upload_source": cached.get("uploadSource", ""),
-            "uploaded_by": cached.get("uploadedBy", ""),
-            "can_edit": bool(is_admin),
-        }
-    except Exception:
-        return {"url": "", "onedrive": False, "sync": {}, "can_edit": bool(is_admin)}
+    now = _now()
+    status: dict = {}
+    builders = {
+        "orgaplan": lambda: school_sources.orgaplan_status(settings["orgaplan_source"], is_admin, now),
+        "klassenarbeitsplan": lambda: school_sources.classwork_status(
+            settings.get("classwork_url", ""), settings.get("classwork_candidate", ""), is_admin, now),
+        "termine": lambda: school_sources.calendar_status(settings["calendar_url"], is_admin, now),
+    }
+    for key, build in builders.items():
+        try:
+            status[key] = build()
+        except Exception:
+            status[key] = {"status": "error", "error": "Status konnte nicht geladen werden.", "can_edit": bool(is_admin)}
+    dienstmail = settings.get("dienstmail_url")
+    status["dienstmail"] = {"url": dienstmail if isinstance(dienstmail, str) and dienstmail else DIENSTMAIL_DEFAULT_URL}
+    return status
 
 
-def _load_status(conn, user_id: int) -> tuple[dict, str]:
-    """Per-user connection status plus the school's Klassenarbeitsplan link."""
+def _load_status(conn, user_id: int) -> tuple[dict, dict]:
+    """Per-user connection status plus the school-wide settings."""
     configs = {mid: get_user_module_config(conn, user_id, mid) for mid in _STATUS_MODULES}
-    return _status_payload(configs, _school_settings(conn)), _classwork_link(conn)
+    return _status_payload(configs, _school_settings(conn)), _load_school_settings(conn)
 
 
-def _with_classwork(loaded: tuple[dict, str], is_admin: bool) -> dict:
-    status, classwork_url = loaded
-    status["klassenarbeitsplan"] = _classwork_status(classwork_url, is_admin)
+def _with_school(loaded: tuple[dict, dict], is_admin: bool) -> dict:
+    status, settings = loaded
+    status.update(_school_status(settings, is_admin))
     return status
 
 
@@ -156,7 +167,7 @@ def get_connections():
             loaded = _load_status(conn, user_id)
     except Exception as exc:
         return error(f"Verbindungen konnten nicht geladen werden: {type(exc).__name__}", 500)
-    return success({"connections": _with_classwork(loaded, g.current_user.is_admin)})
+    return success({"connections": _with_school(loaded, g.current_user.is_admin)})
 
 
 @connections_bp.route("/<module_id>", methods=["PATCH"])
@@ -202,7 +213,7 @@ def patch_connection(module_id: str):
             loaded = _load_status(conn, user_id)
     except Exception as exc:
         return error(f"Speichern fehlgeschlagen: {type(exc).__name__}", 500)
-    return success({"connections": _with_classwork(loaded, g.current_user.is_admin)})
+    return success({"connections": _with_school(loaded, g.current_user.is_admin)})
 
 
 # ── Nextcloud (Login Flow v2) ────────────────────────────────────────────────
@@ -294,7 +305,7 @@ def nextcloud_poll():
     if previous and previous[2] != credentials["app_password"]:
         revoke_app_password(*previous)  # replace the old app password, best effort
     nextcloud_module.forget_cached(config)
-    return success({"status": "connected", "connections": _with_classwork(loaded, g.current_user.is_admin)})
+    return success({"status": "connected", "connections": _with_school(loaded, g.current_user.is_admin)})
 
 
 @connections_bp.route("/nextcloud", methods=["DELETE"])
@@ -320,4 +331,84 @@ def nextcloud_disconnect():
             loaded = _load_status(conn, user_id)
     except Exception as exc:
         return error(f"Trennen fehlgeschlagen: {type(exc).__name__}", 500)
-    return success({"revoked": revoked, "connections": _with_classwork(loaded, g.current_user.is_admin)})
+    return success({"revoked": revoked, "connections": _with_school(loaded, g.current_user.is_admin)})
+
+
+# ── Schulweite Quellen ───────────────────────────────────────────────────────
+
+def _require_admin_json():
+    if not g.current_user.is_admin:
+        return None, error("Nur Admins können schulweite Quellen ändern.", 403)
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return None, error("Keine Änderungen übermittelt.", 422)
+    return body, None
+
+
+def _connections_response(message: str = "") -> tuple:
+    user_id = g.current_user.id
+    try:
+        with db_connection() as conn:
+            loaded = _load_status(conn, user_id)
+    except Exception as exc:
+        return error(f"Verbindungen konnten nicht geladen werden: {type(exc).__name__}", 500)
+    return success({"connections": _with_school(loaded, g.current_user.is_admin), "message": message})
+
+
+@connections_bp.route("/school/orgaplan", methods=["PUT"])
+@require_auth
+def put_orgaplan_source():
+    from backend import orgaplan
+    from backend.admin.admin_service import set_system_setting
+
+    body, problem = _require_admin_json()
+    if problem:
+        return problem
+    try:
+        source = orgaplan.validate_source(body)
+    except orgaplan.OrgaplanError as exc:
+        return error(str(exc), 422)
+    try:
+        with db_connection() as conn:
+            set_system_setting(conn, orgaplan.SETTING_KEY, source)
+            log_audit_event(conn, "orgaplan_source_changed", user_id=g.current_user.id, details=source)
+    except Exception as exc:
+        return error(f"Speichern fehlgeschlagen: {type(exc).__name__}", 500)
+    orgaplan.current(source, _now(), wait=25.0, force=True)
+    return _connections_response("Gespeichert.")
+
+
+@connections_bp.route("/school/orgaplan/refresh", methods=["POST"])
+@require_auth
+def refresh_orgaplan():
+    from backend import orgaplan
+
+    try:
+        with db_connection() as conn:
+            source = orgaplan.load_source(conn)
+    except Exception as exc:
+        return error(f"Einstellungen konnten nicht geladen werden: {type(exc).__name__}", 500)
+    orgaplan.current(source, _now(), wait=25.0, force=True)
+    return _connections_response()
+
+
+@connections_bp.route("/school/termine", methods=["PUT"])
+@require_auth
+def put_school_calendar():
+    from backend.admin.admin_service import set_system_setting
+    from backend.school_calendar import SETTING_KEY
+
+    body, problem = _require_admin_json()
+    if problem:
+        return problem
+    url = _normalize_feed_url(str(body.get("url") or ""))
+    if url:
+        problem_text = _validate_field("calendar_url", url)
+        if problem_text:
+            return error(problem_text, 422)
+    try:
+        with db_connection() as conn:
+            set_system_setting(conn, SETTING_KEY, url)
+    except Exception as exc:
+        return error(f"Speichern fehlgeschlagen: {type(exc).__name__}", 500)
+    return _connections_response("Gespeichert.")

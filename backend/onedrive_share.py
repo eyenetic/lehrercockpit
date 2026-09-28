@@ -10,6 +10,10 @@ stopped working for anonymous callers. This module uses the anonymous
           → name, size, eTag, lastModifiedDateTime, @content.downloadUrl
   3. GET  @content.downloadUrl (pre-authenticated, no headers) → file bytes
 
+A shared *folder* has no download address; then …/driveitem/children lists it
+and the newest plan file inside is used, so a new school year's file is picked
+up without a new link.
+
 This is not a documented Microsoft API. Callers must keep the manual upload
 as a fallback, and Microsoft may refuse datacenter IPs (see OneDriveBlocked).
 The browser variant lives in src/features/onedrive-sync.js.
@@ -18,6 +22,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import threading
 import time as _time
 from typing import Any
@@ -92,30 +97,89 @@ def get_token() -> str:
     return str(token)
 
 
-def resolve(url: str) -> dict[str, Any]:
-    """Metadata of a shared file: name, size, eTag, modified, download_url."""
-    if not is_onedrive_link(url):
-        raise OneDriveError("Das ist kein OneDrive-Freigabelink.")
-    item = _request_json(Request(
-        f"{API_BASE}/shares/{share_id(url)}/driveitem"
-        "?$select=name,size,eTag,lastModifiedDateTime,@content.downloadUrl",
-        headers={
-            "Authorization": "Badger " + get_token(),
-            "Prefer": "autoredeem",
-            "Accept": "application/json",
-            "User-Agent": USER_AGENT,
-        },
-    ))
-    download_url = str(item.get("@content.downloadUrl") or "")
-    if not download_url:
-        raise OneDriveError("OneDrive liefert keine Download-Adresse (ist es ein Ordner-Link?).")
+PLAN_EXTENSIONS = (".xlsx", ".xlsm", ".xls", ".csv")
+_SCHOOL_YEAR_IN_NAME = re.compile(r"(20\d{2})\s*[_/-]\s*(20\d{2}|\d{2})")
+
+
+def _headers() -> dict[str, str]:
+    return {
+        "Authorization": "Badger " + get_token(),
+        "Prefer": "autoredeem",
+        "Accept": "application/json",
+        "User-Agent": USER_AGENT,
+    }
+
+
+def _download_url(item: dict[str, Any]) -> str:
+    return str(item.get("@content.downloadUrl") or item.get("@microsoft.graph.downloadUrl") or "")
+
+
+def _meta(item: dict[str, Any], download_url: str, folder: str = "") -> dict[str, Any]:
     return {
         "name": str(item.get("name") or ""),
         "size": int(item.get("size") or 0),
         "etag": str(item.get("eTag") or ""),
         "modified": str(item.get("lastModifiedDateTime") or ""),
         "download_url": download_url,
+        "folder": folder,
     }
+
+
+def plan_file_rank(item: dict[str, Any]) -> tuple:
+    """Newest plan first: school year in the name, then last change."""
+    name = str(item.get("name") or "")
+    year = _SCHOOL_YEAR_IN_NAME.search(name)
+    return (
+        "klassenarbeit" in name.lower(),
+        int(year.group(1)) if year else 0,
+        str(item.get("lastModifiedDateTime") or ""),
+    )
+
+
+def pick_plan_file(children: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The current plan in a shared folder: a spreadsheet, newest school year first."""
+    files = [c for c in children if isinstance(c, dict) and str(c.get("name") or "").lower().endswith(PLAN_EXTENSIONS)]
+    return max(files, key=plan_file_rank) if files else None
+
+
+def _resolve_folder(url: str, folder: dict[str, Any]) -> dict[str, Any]:
+    """A shared folder: take the newest plan inside, so next school year's file is found automatically."""
+    listing = _request_json(Request(f"{API_BASE}/shares/{share_id(url)}/driveitem/children?$top=200",
+                                    headers=_headers()))
+    chosen = pick_plan_file(listing.get("value") or [])
+    if chosen is None:
+        raise OneDriveError("Im freigegebenen Ordner liegt keine Excel-Datei.")
+    download_url = _download_url(chosen)
+    if not download_url and chosen.get("id"):
+        drive = (chosen.get("parentReference") or {}).get("driveId") or (folder.get("parentReference") or {}).get("driveId")
+        if drive:
+            detail = _request_json(Request(
+                f"{API_BASE}/drives/{drive}/items/{chosen['id']}"
+                "?$select=name,size,eTag,lastModifiedDateTime,@content.downloadUrl",
+                headers=_headers(),
+            ))
+            download_url = _download_url(detail)
+    if not download_url:
+        raise OneDriveError("OneDrive liefert für die Datei im Ordner keine Download-Adresse.")
+    return _meta(chosen, download_url, folder=str(folder.get("name") or ""))
+
+
+def resolve(url: str) -> dict[str, Any]:
+    """Metadata of a shared file: name, size, eTag, modified, download_url.
+
+    For a shared folder the newest plan file inside is used (meta["folder"] is set).
+    """
+    if not is_onedrive_link(url):
+        raise OneDriveError("Das ist kein OneDrive-Freigabelink.")
+    item = _request_json(Request(
+        f"{API_BASE}/shares/{share_id(url)}/driveitem"
+        "?$select=name,size,eTag,lastModifiedDateTime,@content.downloadUrl",
+        headers=_headers(),
+    ))
+    download_url = _download_url(item)
+    if download_url:
+        return _meta(item, download_url)
+    return _resolve_folder(url, item)  # no download address: a folder link
 
 
 def download(url: str) -> tuple[bytes, dict[str, Any]]:

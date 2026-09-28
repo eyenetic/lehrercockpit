@@ -399,7 +399,6 @@ def complete_onboarding():
 
 _MODULE_FETCH_TIMEOUT = 5  # seconds, shared deadline for all module fetches
 
-from backend.wichtige_termine_adapter import fetch_wichtige_termine, WichtigeTermineResult
 
 
 def _derive_webuntis_url(base_url: str = "", ical_url: str = "") -> str:
@@ -429,6 +428,7 @@ def _build_base_quick_links(
     nextcloud_workspace_url: str = "",
     fehlzeiten_11_url: str = "",
     fehlzeiten_12_url: str = "",
+    school_website_url: str = "",
 ) -> list:
     """Build quick_links list for the v2 base dashboard section."""
     links: list = [
@@ -495,6 +495,14 @@ def _build_base_quick_links(
             "kind": "Dateien",
             "note": "Fehlzeiten-Datei für die 12. Klasse",
         })
+    if school_website_url:
+        links.append({
+            "id": "schulwebseite",
+            "title": "Schulwebseite",
+            "url": school_website_url,
+            "kind": "Schule",
+            "note": "Termine, Downloads und Aktuelles der Schule",
+        })
     return links
 
 
@@ -533,25 +541,37 @@ def _fetch_base_data() -> dict:
         """Return val as str only if it is a real str; otherwise empty string."""
         return val if isinstance(val, str) else ""
 
+    school_website_url = ""
     try:
+        from backend.school_sources import classwork_url as _classwork_url
+
         with db_connection() as conn:
             schoolportal_url = _safe_str(get_system_setting(conn, "schoolportal_url", ""))
             dienstmail_url = _safe_str(get_system_setting(conn, "dienstmail_url", ""))
-            orgaplan_pdf_url = _safe_str(get_system_setting(conn, "orgaplan_pdf_url", ""))
             itslearning_base_url = _safe_str(get_system_setting(conn, "itslearning_base_url", ""))
             school_name = _safe_str(get_system_setting(conn, "school_name", ""))
             if not school_name:
                 school_name = _safe_str(get_system_setting(conn, "schulname", ""))
+            school_website_url = _safe_str(get_system_setting(conn, "school_website_url", ""))
             fehlzeiten_11_url = _safe_str(get_system_setting(conn, "fehlzeiten_11_url", ""))
             fehlzeiten_12_url = _safe_str(get_system_setting(conn, "fehlzeiten_12_url", ""))
-            klassenarbeitsplan_url = _safe_str(get_system_setting(conn, "klassenarbeitsplan_url", ""))
-            if not klassenarbeitsplan_url:
-                klassenarbeitsplan_url = _safe_str(get_system_setting(conn, "classwork_url", ""))
+            klassenarbeitsplan_url = _classwork_url(conn)
             webuntis_url = _safe_str(get_system_setting(conn, "webuntis_url", ""))
             nextcloud_workspace_url = _safe_str(get_system_setting(conn, "nextcloud_workspace_url", ""))
             app_title = _safe_str(get_system_setting(conn, "app_title", ""))
     except Exception:
         pass  # Fall back to local settings below
+
+    # The Orgaplan link follows the newest PDF found on the school website.
+    try:
+        from backend.orgaplan import load_state as _orgaplan_state
+
+        orgaplan_pdf_url = _safe_str(_orgaplan_state().get("pdf_url", ""))
+    except Exception:
+        orgaplan_pdf_url = ""
+    if not school_website_url:
+        from backend.config import SCHOOL_WEBSITE_DEFAULT
+        school_website_url = SCHOOL_WEBSITE_DEFAULT
 
     # 2. Supplement with local settings (load_settings reads .env.local)
     try:
@@ -579,8 +599,6 @@ def _fetch_base_data() -> dict:
     except Exception:
         pass
 
-    if not school_name:
-        school_name = "Ihre Schule"
 
     # 3. Build each sub-section independently
     quick_links: list = []
@@ -594,6 +612,7 @@ def _fetch_base_data() -> dict:
             nextcloud_workspace_url=nextcloud_workspace_url,
             fehlzeiten_11_url=fehlzeiten_11_url,
             fehlzeiten_12_url=fehlzeiten_12_url,
+            school_website_url=school_website_url,
         )
     except Exception:
         quick_links = []
@@ -602,7 +621,7 @@ def _fetch_base_data() -> dict:
     try:
         workspace = {
             "eyebrow": "Berlin Lehrer-Cockpit",
-            "title": f"Dein Tagesstart für {school_name}",
+            "title": f"Dein Tagesstart für {school_name}" if school_name else "Dein Tagesstart",
             "description": (
                 "Ein persönliches Dashboard für Berliner Schulportal-Dienste, WebUntis, "
                 "itslearning und eure wichtigsten Schul-Dokumente."
@@ -653,6 +672,7 @@ def _fetch_base_data() -> dict:
             "webuntis_url": webuntis_url,
             "nextcloud_workspace_url": nextcloud_workspace_url,
             "school_name": school_name,
+            "school_website_url": school_website_url,
             # Slice 4: configurable app title
             "app_title": app_title or "Lehrercockpit",
         },
@@ -660,23 +680,15 @@ def _fetch_base_data() -> dict:
 
 
 def _fetch_wichtige_termine_data(user_id: int) -> dict:
-    """Fetch school calendar events from iCal feed (system-wide, not per-user).
+    """School calendar (iCal feed of the school website), system-wide."""
+    from backend.school_calendar import build_calendar, default_feed, feed_url
 
-    Reads wichtige_termine_ical_url from system_settings; falls back to the
-    default HES URL. Returns the parsed result as a dict.
-    """
-    from datetime import datetime
     try:
         with db_connection() as conn:
-            ical_url = get_system_setting(conn, 'wichtige_termine_ical_url', None)
-        if not ical_url or not isinstance(ical_url, str) or not ical_url.strip():
-            ical_url = 'https://hermann-ehlers-schule.de/events/liste/?ical=1'
-
-        result = fetch_wichtige_termine(ical_url, datetime.now())
-        import dataclasses
-        return {'ok': result.ok, 'data': dataclasses.asdict(result)}
-    except Exception as e:
-        return {'ok': False, 'data': {'mode': 'error', 'error': str(e), 'today_events': [], 'upcoming_events': []}}
+            url = feed_url(conn)
+    except Exception:
+        url = default_feed()
+    return build_calendar(url, datetime.now(timezone.utc))
 
 
 def _fetch_webuntis_data(user_id: int) -> dict:
@@ -708,146 +720,53 @@ def _fetch_itslearning_data(user_id: int) -> dict:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
-_HES_ORGAPLAN_PDF_URL = "https://hermann-ehlers-schule.de/wp-content/uploads/2026/03/Orgaplan-2025_26-ab-April.pdf"
-
-
 def _fetch_orgaplan_data() -> dict:
-    """Fetch orgaplan data from cache or parse fresh. Returns module result dict."""
+    """Orgaplan: newest PDF from the school website (or a fixed PDF), whole school year.
+
+    Served from the stored state; a refresh runs in the background when due
+    (backend/orgaplan.py). Only waits when nothing is known yet.
+    """
+    from backend import orgaplan
+
     try:
         with db_connection() as conn:
-            orgaplan_url = get_system_setting(conn, "orgaplan_url", None)
-            pdf_url = get_system_setting(conn, "orgaplan_pdf_url", None)
-            cached_raw = get_system_setting(conn, "orgaplan_cache", None)
-            cached_ts_raw = get_system_setting(conn, "orgaplan_cache_ts", None)
-            cached_url = get_system_setting(conn, "orgaplan_cache_url", None)
-
-        effective_url = pdf_url or orgaplan_url or _HES_ORGAPLAN_PDF_URL
-        if not effective_url:
-            return {"ok": True, "data": None, "configured": False}
-
-        # Check cache validity
-        now = datetime.now(timezone.utc)
-        cache_valid = False
-        if cached_raw and cached_ts_raw:
-            try:
-                ts = datetime.fromisoformat(cached_ts_raw) if isinstance(cached_ts_raw, str) else None
-                if ts:
-                    ts_aware = ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else ts
-                    age_minutes = (now - ts_aware).total_seconds() / 60
-                    if age_minutes < 60 and cached_url == effective_url:
-                        cache_valid = True
-            except Exception:
-                cache_valid = False
-
-        from backend.plan_digest import _berlin_today as _get_berlin_today
-        from datetime import timedelta as _td, date as _date
-
-        def _slice_by_date(all_upcoming: list) -> tuple:
-            """Compute today/week entries fresh from Berlin local date — never from cache."""
-            today_local = _get_berlin_today(now)
-            week_end = today_local + _td(days=6)
-            t_entries, w_entries = [], []
-            for entry in sorted(all_upcoming, key=lambda e: e.get("isoDate", "")):
-                try:
-                    d = _date.fromisoformat(entry.get("isoDate", ""))
-                except (ValueError, TypeError):
-                    continue
-                if d == today_local:
-                    t_entries.append(entry)
-                if today_local <= d <= week_end:
-                    w_entries.append(entry)
-            return t_entries, w_entries
-
-        if cache_valid and isinstance(cached_raw, dict):
-            digest = cached_raw
-            upcoming = digest.get("upcoming", [])
-            today_entries, week_entries = _slice_by_date(upcoming)
-            return {"ok": True, "data": {
-                "url": orgaplan_url, "pdf_url": pdf_url,
-                "highlights": digest.get("highlights", []),
-                "upcoming": upcoming,
-                "entries": upcoming,
-                "today_entries": today_entries,
-                "week_entries": week_entries,
-                "classes": [],
-                "status": digest.get("status", "ok"),
-                "detail": digest.get("detail", ""),
-                "monthLabel": digest.get("monthLabel", ""),
-                "cached_at": cached_ts_raw,
-            }, "configured": True}
-
-        from backend.plan_digest import build_plan_digest
-        full_digest = build_plan_digest(effective_url, None, None, now)
-        orgaplan_digest = full_digest.get("orgaplan", {})
-        ts_str = now.isoformat()
-        try:
-            with db_connection() as conn:
-                set_system_setting(conn, "orgaplan_cache", orgaplan_digest)
-                set_system_setting(conn, "orgaplan_cache_ts", ts_str)
-                set_system_setting(conn, "orgaplan_cache_url", effective_url)
-        except Exception:
-            pass
-        upcoming = orgaplan_digest.get("upcoming", [])
-        today_entries, week_entries = _slice_by_date(upcoming)
-        return {"ok": True, "data": {
-            "url": orgaplan_url, "pdf_url": pdf_url,
-            "highlights": orgaplan_digest.get("highlights", []),
-            "upcoming": upcoming,
-            "entries": upcoming,
-            "today_entries": today_entries,
-            "week_entries": week_entries,
-            "classes": [],
-            "status": orgaplan_digest.get("status", "ok"),
-            "detail": orgaplan_digest.get("detail", ""),
-            "monthLabel": orgaplan_digest.get("monthLabel", ""),
-            "cached_at": ts_str,
-        }, "configured": True}
+            source = orgaplan.load_source(conn)
+        digest = orgaplan.current(source, datetime.now(timezone.utc), wait=4.0)
+        return {"ok": True, "data": digest, "configured": True}
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
 def _fetch_klassenarbeitsplan_data() -> dict:
-    """Fetch klassenarbeitsplan from classwork cache or plan_digest. Returns module result dict."""
+    """Klassenarbeitsplan: the stored plan as it is shown today, plus the OneDrive sync status."""
     try:
-        with db_connection() as conn:
-            url = get_system_setting(conn, "klassenarbeitsplan_url", None)
-            if not url:
-                url = get_system_setting(conn, "classwork_url", None)
-
-        from pathlib import Path
         from backend.classwork_cache import load_cache
-        from backend.classwork_sync import CACHE_PATH, maybe_sync_in_background, sync_info
+        from backend.classwork_sync import CACHE_PATH, maybe_sync_in_background, plan_view, sync_info
+        from backend.school_sources import classwork_url
+
+        with db_connection() as conn:
+            url = classwork_url(conn)
 
         now = datetime.now(timezone.utc)
         try:
-            maybe_sync_in_background(url or "", now)
-            sync = sync_info(url or "", now)
+            maybe_sync_in_background(url, now)
+            sync = sync_info(url, now)
         except Exception:
             sync = {"onedrive": False, "needs_browser": False}
         cached = load_cache(CACHE_PATH)
-        if cached.get("status") == "ok" and (
-            cached.get("previewRows") or cached.get("structuredRows") or cached.get("entries")
-        ):
-            return {"ok": True, "data": {"url": url, **cached}, "configured": True, "sync": sync}
-
-        # Fallback: plan_digest
-        local_xlsx = Path(__file__).resolve().parent.parent.parent / "data" / "classwork-plan-local.xlsx"
-        local_path_str = str(local_xlsx) if local_xlsx.exists() else None
-        from backend.plan_digest import build_plan_digest
-        full_digest = build_plan_digest(None, url, local_path_str, now)
-        classwork_digest = full_digest.get("classwork", {})
+        if cached.get("entries") or cached.get("previewRows") or cached.get("structuredRows"):
+            return {"ok": True, "data": {"url": url, **plan_view(cached, now)}, "configured": bool(url), "sync": sync}
         return {"ok": True, "data": {
             "url": url,
-            "status": classwork_digest.get("status", "warning"),
-            "title": classwork_digest.get("title", "Klassenarbeitsplan"),
-            "detail": classwork_digest.get("detail", ""),
-            "updatedAt": classwork_digest.get("updatedAt", "--:--"),
-            "previewRows": classwork_digest.get("previewRows", []),
-            "classes": classwork_digest.get("classes", []),
-            "entries": classwork_digest.get("entries", []),
-            "defaultClass": classwork_digest.get("defaultClass", ""),
-            "sourceUrl": classwork_digest.get("sourceUrl", url or ""),
-        }, "configured": bool(url or local_path_str), "sync": sync}
+            "status": "warning",
+            "title": "Klassenarbeitsplan",
+            "detail": ("Der Plan wird gerade von OneDrive geladen …" if url
+                       else "Noch kein Klassenarbeitsplan hinterlegt."),
+            "entries": [],
+            "classes": [],
+            "previewRows": [],
+            "sourceUrl": url,
+        }, "configured": bool(url), "sync": sync}
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
@@ -1025,6 +944,9 @@ def get_dashboard_data():
         "fehlzeiten_12_url": base_data.get("fehlzeiten_12_url", ""),
         "klassenarbeitsplan_url": base_data.get("klassenarbeitsplan_url", ""),
         "webuntis_url": base_data.get("webuntis_url", ""),
+        "nextcloud_workspace_url": base_data.get("nextcloud_workspace_url", ""),
+        "school_name": base_data.get("school_name", ""),
+        "school_website_url": base_data.get("school_website_url", ""),
         # Slice 4: configurable app title
         "app_title": base_data.get("app_title", "Lehrercockpit"),
     }

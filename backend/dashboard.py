@@ -322,7 +322,7 @@ def _build_plan_digest_priorities(plan_digest: dict[str, Any]) -> list[dict[str,
 def _build_workspace(settings: Any) -> dict[str, str]:
     return {
         "eyebrow": "Berlin Lehrer-Cockpit",
-        "title": f"Dein Tagesstart für {settings.school_name}",
+        "title": f"Dein Tagesstart für {settings.school_name or 'deine Schule'}",
         "description": (
             "Ein persönliches Dashboard für Berliner Schulportal-Dienste, WebUntis, "
             "itslearning und eure wichtigsten Schul-Dokumente."
