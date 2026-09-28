@@ -1,5 +1,7 @@
 [build]
-  publish = "."
+  # Only the frontend is published (see scripts/build_frontend.sh).
+  command = "bash scripts/build_frontend.sh"
+  publish = "public"
 
 [[headers]]
   for = "/*"

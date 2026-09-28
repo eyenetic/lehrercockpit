@@ -12,6 +12,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 dist/
 build/
+public/
 *.egg-info/
 
 # Environment variables and secrets

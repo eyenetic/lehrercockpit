@@ -164,29 +164,55 @@ def after_request(response: Response) -> Response:
     return response
 
 
+# Hosted (DATABASE_URL set): the legacy v1 endpoints below would expose the
+# school-wide plan and placeholder data without login. The frontend uses /api/v2
+# there; only the upload (login required) and the health check stay.
+_HOSTED = bool(os.environ.get("DATABASE_URL", "").strip())
+_LEGACY_ALLOWED_WHEN_HOSTED = {"/api/health", "/api/classwork/upload"}
+
+
+def _legacy_disabled(path: str) -> bool:
+    return (
+        _HOSTED
+        and path.startswith("/api/")
+        and not path.startswith("/api/v2/")
+        and path.rstrip("/") not in _LEGACY_ALLOWED_WHEN_HOSTED
+    )
+
+
 @app.before_request
 def handle_options():
     """Handle CORS preflight OPTIONS requests before routing."""
     if request.method == "OPTIONS":
         response = app.make_default_options_response()
         return _cors(response)
+    if _legacy_disabled(request.path):
+        return jsonify({"error": "not_found"}), 404
+
+
+# Only the frontend itself is served (same list as scripts/build_frontend.sh);
+# source code, docs, tests and data files never are.
+FRONTEND_FILES = {
+    "index.html", "login.html", "onboarding.html", "admin.html",
+    "manifest.json", "sw.js", "styles.css", "styles.auth.css", "styles.admin.css",
+    "data/mock-dashboard.js",
+}
+FRONTEND_DIRS = ("src/", "icons/")
+
+
+def is_frontend_asset(path: str) -> bool:
+    if ".." in Path(path).parts:
+        return False
+    return path in FRONTEND_FILES or (path.startswith(FRONTEND_DIRS) and not path.endswith("/"))
 
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def static_files(path: str) -> Response:
-    """Serve all static files from PROJECT_ROOT."""
-    if not path:
-        path = "index.html"
-    # Security: never serve Python source or hidden files via this route
-    blocked_exts = {".py", ".pyc", ".env"}
-    blocked_names = {".env.local", ".gitignore"}
-    if Path(path).suffix in blocked_exts or Path(path).name in blocked_names:
-        return jsonify({"error": "forbidden"}), 403
-    file_path = PROJECT_ROOT / path
-    if file_path.is_dir():
-        file_path = file_path / "index.html"
-        path = str(file_path.relative_to(PROJECT_ROOT))
+    """Serve the frontend files (local development and the API host)."""
+    path = path or "index.html"
+    if not is_frontend_asset(path) or not (PROJECT_ROOT / path).is_file():
+        return jsonify({"error": "not_found"}), 404
     return send_from_directory(str(PROJECT_ROOT), path)
 
 
