@@ -250,122 +250,39 @@
         });
     }
 
+    // Unconfigured personal sources get a short banner in their section; the
+    // button opens "Verbindungen" at that source (one place to set things up).
+    var BANNER_COPY = {
+      webuntis: 'Verbinde deinen WebUntis-Stundenplan, dann erscheinen hier deine Stunden, Vertretungen und Entfälle.',
+      itslearning: 'Verbinde das itslearning-Kalender-Abo, dann erscheinen hier Termine und Abgabefristen deiner Kurse.',
+    };
+
     function _injectConfigBanners() {
+      if (!window.MULTIUSER_ENABLED) return;
       _modules.forEach(function(m) {
         if (!m.requires_config || m.is_configured || m.module_type !== 'individual') return;
         var sectionId = MODULE_SECTION_MAP[m.module_id];
-        if (!sectionId) return;
+        if (!sectionId || !BANNER_COPY[m.module_id]) return;
         var sectionEl = document.querySelector('[data-view-section="' + sectionId + '"]');
-        if (!sectionEl) return;
-        // Avoid duplicate banners
-        if (sectionEl.querySelector('[data-module-config-banner="' + m.module_id + '"]')) return;
+        if (!sectionEl || sectionEl.querySelector('[data-module-config-banner="' + m.module_id + '"]')) return;
 
         var banner = document.createElement('div');
         banner.className = 'module-config-banner';
         banner.setAttribute('data-module-config-banner', m.module_id);
         banner.innerHTML =
-          '<span style="font-size:0.85rem;color:var(--muted);">' +
-          '<strong>' + _esc(m.display_name) + '</strong> ist noch nicht konfiguriert.</span> ' +
-          '<button class="btn-configure-module" type="button" data-module-id="' + _esc(m.module_id) + '" ' +
-          'style="margin-left:0.75rem;padding:0.25rem 0.75rem;border:1px solid var(--accent);' +
-          'border-radius:var(--radius-sm);background:transparent;color:var(--accent);font-size:0.82rem;cursor:pointer;">' +
-          'Konfigurieren</button>';
+          '<span>' + _esc(BANNER_COPY[m.module_id]) + '</span>' +
+          '<button class="btn btn-primary btn-sm" type="button" data-open-connections="' + _esc(m.module_id) + '">Jetzt verbinden</button>';
         sectionEl.prepend(banner);
       });
-
-      // Wire configure buttons
-      document.querySelectorAll('.btn-configure-module').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var moduleId = btn.dataset.moduleId;
-          _openConfigForm(moduleId, btn);
-        });
-      });
     }
 
-    function _openConfigForm(moduleId, triggerEl) {
-      var existing = document.getElementById('inline-config-form-' + moduleId);
-      if (existing) { existing.remove(); return; }
-
-      var form = document.createElement('form');
-      form.id = 'inline-config-form-' + moduleId;
-      form.className = 'module-config-inline-form';
-      form.style.cssText = 'margin-top:0.75rem;display:flex;flex-direction:column;gap:0.6rem;padding:1rem;' +
-        'background:var(--panel-soft);border:1px solid var(--line-strong);border-radius:var(--radius-md);';
-
-      var fields = _getConfigFields(moduleId);
-      var fieldsHtml = fields.map(function(f) {
-        return '<label style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.82rem;font-weight:500;color:var(--ink);">' +
-          _esc(f.label) +
-          '<input type="' + _esc(f.type) + '" name="' + _esc(f.key) + '" placeholder="' + _esc(f.placeholder || '') + '" ' +
-          'style="padding:0.5rem 0.75rem;border:1px solid var(--line-strong);border-radius:var(--radius-sm);' +
-          'background:var(--panel);color:var(--ink);font-size:0.85rem;" autocomplete="off" /></label>';
-      }).join('');
-      form.innerHTML = fieldsHtml +
-        '<div id="config-form-feedback-' + _esc(moduleId) + '" style="min-height:1.2rem;font-size:0.8rem;"></div>' +
-        '<div style="display:flex;gap:0.5rem;">' +
-        '<button type="submit" style="padding:0.4rem 1rem;border:none;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;">Speichern</button>' +
-        '<button type="button" class="btn-cancel-config" style="padding:0.4rem 0.75rem;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:transparent;color:var(--muted);font-size:0.82rem;cursor:pointer;">Abbrechen</button>' +
-        '</div>';
-
-      form.querySelector('.btn-cancel-config').addEventListener('click', function() { form.remove(); });
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        _submitConfigForm(moduleId, form);
+    // Called after a source was connected under "Verbindungen".
+    function markConfigured(moduleId) {
+      _modules = _modules.map(function(m) {
+        return m.module_id === moduleId ? Object.assign({}, m, { is_configured: true }) : m;
       });
-
-      var banner = triggerEl.closest('[data-module-config-banner]');
-      if (banner) {
-        banner.after(form);
-      } else {
-        triggerEl.after(form);
-      }
-    }
-
-    function _getConfigFields(moduleId) {
-      if (moduleId === 'webuntis') {
-        return [{ key: 'ical_url', label: 'WebUntis iCal-URL', type: 'url', placeholder: 'https://mese.webuntis.com/WebUntis/ical?…' }];
-      }
-      if (moduleId === 'itslearning') {
-        return [
-          { key: 'calendar_url', label: 'Kalender-Abo-Link (itslearning → Kalender → Zahnrad → Abonnieren)', type: 'url', placeholder: 'https://berlin.itslearning.com/…' },
-        ];
-      }
-      // Nextcloud is connected via Login Flow v2 under "Verbindungen", not with a form.
-      return [];
-    }
-
-    function _submitConfigForm(moduleId, form) {
-      var feedbackEl = document.getElementById('config-form-feedback-' + moduleId);
-      var config = {};
-      Array.from(form.elements).forEach(function(el) {
-        if (el.name && el.value.trim()) config[el.name] = el.value.trim();
-      });
-
-      if (feedbackEl) feedbackEl.textContent = 'Speichere…';
-
-      _apiFetch('/api/v2/dashboard/module-config/' + moduleId, {
-        method: 'PUT',
-        body: config,
-      }).then(function(resp) {
-        if (!resp.ok) {
-          return resp.json().catch(function() { return {}; }).then(function(err) {
-            if (feedbackEl) feedbackEl.textContent = err.error || 'Fehler beim Speichern.';
-          });
-        }
-        if (feedbackEl) feedbackEl.textContent = '✓ Gespeichert!';
-        // Remove banner and form
-        setTimeout(function() {
-          var banner = document.querySelector('[data-module-config-banner="' + moduleId + '"]');
-          if (banner) banner.remove();
-          form.remove();
-          // Update local state
-          _modules = _modules.map(function(m) {
-            return m.module_id === moduleId ? Object.assign({}, m, { is_configured: true }) : m;
-          });
-        }, 800);
-      }).catch(function() {
-        if (feedbackEl) feedbackEl.textContent = 'Verbindungsfehler.';
-      });
+      var banner = document.querySelector('[data-module-config-banner="' + moduleId + '"]');
+      if (banner) banner.remove();
     }
 
     function _esc(str) {
@@ -432,7 +349,8 @@
       isLayoutReady: isLayoutReady,
       getTodayLayout: getTodayLayout,
       isMandatoryModule: isMandatoryModule,
-      saveHeuteLayout: saveHeuteLayout
+      saveHeuteLayout: saveHeuteLayout,
+      markConfigured: markConfigured
     };
   })();
 

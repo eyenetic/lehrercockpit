@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=77" />
+    <link rel="stylesheet" href="./styles.css?v=78" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -113,7 +113,7 @@
         <div class="sidebar-theme">
           <p class="card-kicker">Darstellung</p>
           <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">
-            <span id="theme-label" class="theme-toggle-label">Dark Mode</span>
+            <span id="theme-label" class="theme-toggle-label">Helles Design</span>
             <span class="toggle-track" aria-hidden="true">
               <span class="toggle-thumb"></span>
             </span>
@@ -127,9 +127,13 @@
             <a href="./admin.html" id="sidebar-admin-link" style="display:none;">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Admin-Bereich
             </a>
-            <button id="sidebar-connections-btn" type="button" hidden>Verbindungen</button>
-            <button id="sidebar-change-code-btn">🔑 Code ändern</button>
-            <button id="sidebar-logout-btn">Abmelden</button>
+            <button id="sidebar-connections-btn" class="sidebar-connections-btn" type="button" hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <span>Verbindungen</span>
+              <span class="sidebar-attention-dot" id="connections-attention-dot" hidden aria-label="Eine Quelle braucht Aufmerksamkeit"></span>
+            </button>
+            <button id="sidebar-change-code-btn" type="button">Zugangscode ändern</button>
+            <button id="sidebar-logout-btn" type="button">Abmelden</button>
           </div>
         </div>
       </aside>
@@ -159,8 +163,8 @@
                 <p class="card-kicker">Tagesbriefing</p>
                 <h2 id="briefing-title">Was heute wichtig ist</h2>
               </div>
-              <span class="pill pill-live">Live</span>
             </div>
+            <div id="source-attention" class="source-attention" hidden></div>
             <div id="briefing-output" class="briefing-output"></div>
             <div id="today-briefing-focus" class="today-briefing-focus"></div>
             <div id="signals-panel" class="signals-panel" hidden>
@@ -239,17 +243,6 @@
 
         </section>
         <section class="content-grid primary-grid" data-view-section="schedule">
-          <article class="card" aria-labelledby="priorities-title" hidden>
-            <div class="section-head">
-              <div>
-                <p class="card-kicker">Heute</p>
-                <h2 id="priorities-title">Prioritaeten</h2>
-              </div>
-              <span class="pill pill-attention">wichtig</span>
-            </div>
-            <div id="priority-list" class="stack-list"></div>
-          </article>
-
           <article class="card schedule-card tone-schedule" id="schedule-section" aria-labelledby="schedule-title">
             <div class="section-head">
               <div>
@@ -391,87 +384,67 @@
         </section>
         <section class="content-grid single-grid" data-view-section="documents">
           <article class="card tone-documents" id="documents-section" aria-labelledby="docs-title">
-            <!-- Section header -->
             <div class="plans-section-header">
               <h2 class="plans-section-title" id="docs-title">Pläne</h2>
-              <label class="search-box" id="document-search-wrap">
-                <span class="sr-only">Dokumente filtern</span>
-                <input
-                  id="document-search"
-                  type="search"
-                  placeholder="Weitere Dokumente durchsuchen"
-                  autocomplete="off"
-                />
-              </label>
             </div>
 
-            <!-- Pläne Tabs -->
             <div class="plans-tabs">
               <div class="plans-tab-bar" role="tablist">
                 <button class="plans-tab-btn is-active" role="tab" aria-selected="true"
                   aria-controls="plans-block-orgaplan" data-plans-tab="orgaplan">Orgaplan</button>
                 <button class="plans-tab-btn" role="tab" aria-selected="false"
                   aria-controls="plans-block-klassenarbeitsplan" data-plans-tab="klassenarbeitsplan">Klassenarbeitsplan</button>
+                <button class="plans-tab-btn" role="tab" aria-selected="false"
+                  aria-controls="plans-block-termine" data-plans-tab="termine">Schultermine</button>
               </div>
 
-              <!-- Orgaplan panel -->
+              <!-- Orgaplan -->
               <div class="plans-block" id="plans-block-orgaplan" role="tabpanel">
-                <div class="plans-block__header">
-                  <a id="orgaplan-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>PDF öffnen</a>
-                </div>
-                <div class="plans-block__body">
-                  <section class="plan-digest-card tone-orgaplan" aria-labelledby="orgaplan-digest-title">
-                    <h2 id="orgaplan-digest-title" class="sr-only">Orgaplan Hinweise und Termine</h2>
+                <div id="orgaplan-source-bar" class="plan-source-bar"></div>
+                <section class="plan-digest-card tone-orgaplan" aria-labelledby="orgaplan-digest-title">
+                  <h2 id="orgaplan-digest-title" class="sr-only">Orgaplan: Termine der nächsten Wochen</h2>
+                  <div class="plan-toolbar">
+                    <div id="orgaplan-level-filter" class="segmented-control" aria-label="Orgaplan nach Stufe filtern"></div>
                     <p id="orgaplan-digest-detail" class="source-detail"></p>
-                    <div id="orgaplan-upcoming-list" class="stack-list compact-list"></div>
-                  </section>
-                </div>
+                  </div>
+                  <div id="orgaplan-upcoming-list" class="stack-list compact-list"></div>
+                </section>
               </div>
 
-              <!-- Klassenarbeitsplan panel -->
+              <!-- Klassenarbeitsplan -->
               <div class="plans-block" id="plans-block-klassenarbeitsplan" role="tabpanel" hidden>
-                <div class="plans-block__header">
-                  <div class="classwork-actions">
-                    <a id="classwork-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>Originalplan öffnen</a>
+                <div id="classwork-source-bar" class="plan-source-bar"></div>
+                <section class="plan-digest-card tone-classwork" aria-labelledby="classwork-digest-title">
+                  <h2 id="classwork-digest-title" class="sr-only">Klassenarbeitsplan: kommende Arbeiten</h2>
+                  <p id="classwork-upload-feedback" class="connect-feedback"></p>
+
+                  <!-- Klassen-Auswahl als Pills -->
+                  <div class="classwork-pill-section" id="classwork-pill-section" hidden>
+                    <span class="classwork-pill-label">Meine Klassen</span>
+                    <div id="classwork-class-pills" class="classwork-pill-row"></div>
+                    <select id="classwork-class-filter" multiple hidden></select>
+                    <input id="classwork-class-search" type="search" hidden />
                   </div>
-                </div>
-                <div class="plans-block__body">
-                  <section class="plan-digest-card tone-classwork" aria-labelledby="classwork-digest-title">
-                    <h2 id="classwork-digest-title" class="sr-only">Klassenarbeitsplan Klassenansicht</h2>
 
-                    <!-- Upload-Info: wer hat wann hochgeladen -->
-                    <div id="classwork-upload-info" class="classwork-upload-info" hidden></div>
-
-                    <!-- Link zum Originalplan + Upload -->
-                    <div class="classwork-toolbar" id="classwork-toolbar-top">
-                      <a id="classwork-open-source" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>↗ Plan öffnen &amp; herunterladen</a>
-                      <input id="classwork-source-url" type="url" hidden />
+                  <div class="classwork-toolbar">
+                    <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
+                    <div class="classwork-upload-action">
+                      <button id="classwork-upload-button" class="secondary-link" type="button">Excel-Datei hochladen</button>
+                      <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
                     </div>
-                    <p id="classwork-upload-feedback" class="connect-feedback"></p>
+                  </div>
 
-                    <!-- Klassen-Auswahl als Pills -->
-                    <div class="classwork-pill-section" id="classwork-pill-section" hidden>
-                      <span class="classwork-pill-label">Meine Klassen</span>
-                      <div id="classwork-class-pills" class="classwork-pill-row"></div>
-                      <!-- Hidden select kept for compat with existing JS logic -->
-                      <select id="classwork-class-filter" multiple hidden></select>
-                      <input id="classwork-class-search" type="search" hidden />
-                    </div>
+                  <p id="classwork-digest-detail" class="source-detail"></p>
+                  <p id="classwork-upload-status" class="scrape-status-text" hidden></p>
+                  <div id="classwork-preview-list" class="stack-list compact-list expandable-scroll" data-expand-panel="classwork"></div>
+                  <button class="section-toggle" type="button" data-expand-toggle="classwork" data-expand-target="classwork-preview-list">Mehr anzeigen</button>
+                </section>
+              </div>
 
-                    <div class="classwork-toolbar">
-                      <div class="classwork-view-switch" id="classwork-view-switch" aria-label="Klassenarbeitsplan-Ansicht"></div>
-                      <div class="classwork-upload-action">
-                        <button id="classwork-upload-button" class="secondary-link" type="button">↑ Excel hochladen</button>
-                        <input id="classwork-upload-input" type="file" accept=".xlsx,.xlsm,.xls,.csv" hidden />
-                      </div>
-                    </div>
-
-                    <p id="classwork-digest-detail" class="source-detail"></p>
-                    <p id="classwork-upload-status" class="scrape-status-text"></p>
-                    <div id="classwork-preview-list" class="stack-list compact-list expandable-scroll" data-expand-panel="classwork"></div>
-                    <button class="section-toggle" type="button" data-expand-toggle="classwork" data-expand-target="classwork-preview-list">Mehr anzeigen</button>
-                  </section>
-                </div>
+              <!-- Schultermine -->
+              <div class="plans-block" id="plans-block-termine" role="tabpanel" hidden>
+                <div id="termine-source-bar" class="plan-source-bar"></div>
+                <div id="school-calendar-list" class="calendar-list"></div>
               </div>
             </div>
 
@@ -481,150 +454,14 @@
                   <p class="card-kicker">Weitere Dokumente</p>
                   <h2>Zusatzmaterial</h2>
                 </div>
+                <label class="search-box" id="document-search-wrap">
+                  <span class="sr-only">Dokumente filtern</span>
+                  <input id="document-search" type="search" placeholder="Dokumente durchsuchen" autocomplete="off" />
+                </label>
               </div>
               <div id="document-list" class="document-list expandable-scroll" data-expand-panel="documents"></div>
               <button class="section-toggle" type="button" data-expand-toggle="documents" data-expand-target="document-list">Mehr anzeigen</button>
             </div>
-          </article>
-        </section>
-
-        <section class="content-grid compact-grid" id="access-section" data-view-section="access">
-          <article class="card compact-panel tone-access" aria-labelledby="quicklinks-title">
-            <div class="section-head section-head-compact">
-              <div>
-                <p class="card-kicker">Zugänge</p>
-                <h2 id="quicklinks-title">Wichtige Zugänge</h2>
-              </div>
-            </div>
-            <div id="quick-link-grid" class="link-grid compact-link-grid expandable-scroll" data-expand-panel="access"></div>
-            <button class="section-toggle" type="button" data-expand-toggle="access" data-expand-target="quick-link-grid">Mehr anzeigen</button>
-          </article>
-
-          <article class="card compact-panel tone-itslearning" id="itslearning-connect-card" aria-labelledby="itslearning-connect-title">
-            <div class="section-head section-head-compact">
-              <div>
-                <p class="card-kicker">itslearning</p>
-                <h2 id="itslearning-connect-title">Lokaler Zugang</h2>
-              </div>
-              <span id="itslearning-connect-status" class="pill pill-positive">lokal</span>
-            </div>
-            <p id="itslearning-connect-copy" class="source-detail">
-              Der Zugang wird lokal gespeichert. Die Updates erscheinen oben im Kommunikationsbereich.
-            </p>
-            <details class="connector-details">
-              <summary>Verbindung anpassen</summary>
-              <form id="itslearning-connect-form" class="connect-form">
-                <div class="connect-grid">
-                  <label class="connect-field">
-                    <span>Benutzername</span>
-                    <input id="itslearning-username" type="text" autocomplete="username" placeholder="itslearning-Benutzername" />
-                  </label>
-                  <label class="connect-field">
-                    <span>Passwort</span>
-                    <input id="itslearning-password" type="password" autocomplete="current-password" placeholder="itslearning-Passwort" />
-                  </label>
-                </div>
-                <div class="assistant-actions">
-                  <button class="primary-button" type="submit">Lokal speichern</button>
-                </div>
-              </form>
-            </details>
-            <div id="itslearning-connect-feedback" class="connect-feedback"></div>
-          </article>
-
-          <article class="card compact-panel tone-nextcloud" id="nextcloud-connect-card" aria-labelledby="nextcloud-connect-title">
-            <div class="section-head section-head-compact">
-              <div>
-                <p class="card-kicker">Nextcloud</p>
-                <h2 id="nextcloud-connect-title">Fehlzeiten verbinden</h2>
-              </div>
-              <span id="nextcloud-connect-status" class="pill pill-positive">lokal</span>
-            </div>
-            <p id="nextcloud-connect-copy" class="source-detail">
-              Die Bearbeitung bleibt in Nextcloud. Das Cockpit dient hier als schneller Einstieg in eure Fehlzeiten-Dateien.
-            </p>
-            <div class="nextcloud-workspaces">
-              <a id="nextcloud-open-root" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/" target="_blank" rel="noreferrer" data-nextcloud-link="root">
-                <span class="meta-tag low">Arbeitsbereich</span>
-                <strong>Nextcloud</strong>
-                <p>Dateien, Freigaben und Teamordner direkt öffnen</p>
-                <span class="quick-link-action">öffnen</span>
-              </a>
-              <a id="nextcloud-open-q1q2" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901" target="_blank" rel="noreferrer" data-nextcloud-link="q1q2">
-                <span class="meta-tag low">Fehlzeiten</span>
-                <strong>Q1 / Q2</strong>
-                <p>11. Klasse direkt in Nextcloud öffnen</p>
-                <span class="quick-link-action">öffnen</span>
-              </a>
-              <a id="nextcloud-open-q3q4" class="nextcloud-work-card" href="https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900" target="_blank" rel="noreferrer" data-nextcloud-link="q3q4">
-                <span class="meta-tag low">Fehlzeiten</span>
-                <strong>Q3 / Q4</strong>
-                <p>12. Klasse direkt in Nextcloud öffnen</p>
-                <span class="quick-link-action">öffnen</span>
-              </a>
-            </div>
-            <div id="nextcloud-custom-links" class="nextcloud-workspaces" hidden></div>
-            <div class="nextcloud-meta-strip">
-              <div class="meta-snippet">
-                <span class="card-kicker">Zuletzt geöffnet</span>
-                <strong id="nextcloud-last-opened">Noch kein Zugriff gespeichert</strong>
-              </div>
-            </div>
-            <details class="connector-details">
-              <summary>Verbindung anpassen</summary>
-              <form id="nextcloud-connect-form" class="connect-form">
-                <div class="connect-grid">
-                  <label class="connect-field">
-                    <span>Arbeitsbereich</span>
-                    <input id="nextcloud-workspace-url" type="url" placeholder="Nextcloud-Start oder Ordnerlink" />
-                  </label>
-                  <label class="connect-field">
-                    <span>Benutzername</span>
-                    <input id="nextcloud-username" type="text" autocomplete="username" placeholder="Nextcloud-Benutzername" />
-                  </label>
-                  <label class="connect-field">
-                    <span>Passwort</span>
-                    <input id="nextcloud-password" type="password" autocomplete="current-password" placeholder="Nextcloud-Passwort" />
-                  </label>
-                  <label class="connect-field">
-                    <span>Fehlzeiten Q1 / Q2</span>
-                    <input id="nextcloud-q1q2-url" type="url" placeholder="Link zur Datei" />
-                  </label>
-                  <label class="connect-field">
-                    <span>Fehlzeiten Q3 / Q4</span>
-                    <input id="nextcloud-q3q4-url" type="url" placeholder="Link zur Datei" />
-                  </label>
-                  <label class="connect-field">
-                    <span>Arbeitslink 1</span>
-                    <input id="nextcloud-link1-label" type="text" placeholder="z. B. Fachbereich" />
-                  </label>
-                  <label class="connect-field">
-                    <span>URL 1</span>
-                    <input id="nextcloud-link1-url" type="url" placeholder="Link zu Ordner oder Datei" />
-                  </label>
-                  <label class="connect-field">
-                    <span>Arbeitslink 2</span>
-                    <input id="nextcloud-link2-label" type="text" placeholder="z. B. Teamordner" />
-                  </label>
-                  <label class="connect-field">
-                    <span>URL 2</span>
-                    <input id="nextcloud-link2-url" type="url" placeholder="Link zu Ordner oder Datei" />
-                  </label>
-                  <label class="connect-field">
-                    <span>Arbeitslink 3</span>
-                    <input id="nextcloud-link3-label" type="text" placeholder="z. B. Protokolle" />
-                  </label>
-                  <label class="connect-field">
-                    <span>URL 3</span>
-                    <input id="nextcloud-link3-url" type="url" placeholder="Link zu Ordner oder Datei" />
-                  </label>
-                </div>
-                <div class="assistant-actions">
-                  <button class="primary-button" type="submit">Arbeitsbereich speichern</button>
-                </div>
-              </form>
-            </details>
-            <div id="nextcloud-connect-feedback" class="connect-feedback"></div>
           </article>
         </section>
 
@@ -669,7 +506,7 @@
         <div class="more-sheet-actions">
           <button class="more-sheet-row" type="button" id="more-sheet-theme-toggle">
             <span class="more-sheet-row-icon">☀</span>
-            <span id="more-sheet-theme-label">Dark Mode</span>
+            <span id="more-sheet-theme-label">Dunkles Design</span>
           </button>
           <a class="more-sheet-row" href="./admin.html" id="more-sheet-admin-link" hidden>
             <span class="more-sheet-row-icon">⚙</span>
@@ -698,7 +535,7 @@
           <h2 class="modal-title" id="connections-title">Verbindungen</h2>
           <button class="modal-close" type="button" id="connections-close" aria-label="Schließen">✕</button>
         </div>
-        <p class="connection-copy">Hier verbindest du deine Quellen. Links und Zugänge werden verschlüsselt gespeichert und nur für dein Cockpit genutzt.</p>
+        <p class="connection-copy">Alle Informationsquellen deines Cockpits an einem Ort – mit Stand und Zustand jeder Quelle.</p>
         <div id="connections-body" class="connections-body"></div>
       </div>
     </div>
@@ -757,26 +594,26 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=77"></script>
-    <script src="./src/api-client.js?v=77"></script>
-    <script src="./src/modules/dashboard-manager.js?v=77"></script>
-    <script src="./src/features/grades.js?v=77"></script>
-    <script src="./src/features/webuntis.js?v=77"></script>
-    <script src="./src/features/itslearning.js?v=77"></script>
-    <script src="./src/features/nextcloud.js?v=77"></script>
-    <script src="./src/features/documents.js?v=77"></script>
-    <script src="./src/features/classwork.js?v=77"></script>
+    <script src="./data/mock-dashboard.js?v=78"></script>
+    <script src="./src/api-client.js?v=78"></script>
+    <script src="./src/modules/dashboard-manager.js?v=78"></script>
+    <script src="./src/features/grades.js?v=78"></script>
+    <script src="./src/features/webuntis.js?v=78"></script>
+    <script src="./src/features/itslearning.js?v=78"></script>
+    <script src="./src/features/nextcloud.js?v=78"></script>
+    <script src="./src/features/documents.js?v=78"></script>
+    <script src="./src/features/classwork.js?v=78"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="./src/features/classlist.js?v=77"></script>
-    <script src="./src/features/collections.js?v=77"></script>
-    <script src="./src/features/inbox.js?v=77"></script>
-    <script src="./src/features/zugaenge.js?v=77"></script>
-    <script src="./src/features/onedrive-sync.js?v=77"></script>
-    <script src="./src/features/signals.js?v=77"></script>
-    <script src="./src/features/push.js?v=77"></script>
-    <script src="./src/features/ai.js?v=77"></script>
-    <script src="./src/features/connections.js?v=77"></script>
-    <script src="./src/app.js?v=77"></script>
+    <script src="./src/features/classlist.js?v=78"></script>
+    <script src="./src/features/collections.js?v=78"></script>
+    <script src="./src/features/inbox.js?v=78"></script>
+    <script src="./src/features/zugaenge.js?v=78"></script>
+    <script src="./src/features/onedrive-sync.js?v=78"></script>
+    <script src="./src/features/signals.js?v=78"></script>
+    <script src="./src/features/push.js?v=78"></script>
+    <script src="./src/features/ai.js?v=78"></script>
+    <script src="./src/features/connections.js?v=78"></script>
+    <script src="./src/app.js?v=78"></script>
     <script>
 // Multi-User: User-Info anzeigen + Logout
 // NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
@@ -830,7 +667,7 @@ function initUserInfo() {
     // Sync theme label in sheet
     function syncMoreThemeLabel() {
       const isDark = document.documentElement.dataset.theme === 'dark';
-      if (moreThemeLabel) moreThemeLabel.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+      if (moreThemeLabel) moreThemeLabel.textContent = isDark ? 'Helles Design' : 'Dunkles Design';
       if (moreThemeBtn) {
         const icon = moreThemeBtn.querySelector('.more-sheet-row-icon');
         if (icon) icon.textContent = isDark ? '☀' : '☽';

@@ -3650,7 +3650,7 @@ details[open] > .orgaplan-upcoming-summary::before {
   border: none;
   border-radius: calc(var(--radius-md) - 2px);
   background: transparent;
-  color: var(--ink-soft);
+  color: var(--muted);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -4107,8 +4107,9 @@ details[open] > .orgaplan-upcoming-summary::before {
   content: " · ";
 }
 
-/* ── Heute-Module-Grid: non-briefing cards always in column 2 (desktop) ── */
-@media (min-width: 769px) {
+/* ── Heute-Module-Grid: non-briefing cards in column 2 – only where the grid
+   has two columns (above 1100px); below that everything stacks. ── */
+@media (min-width: 1101px) {
   .today-module-card:not([data-today-module="briefing"]) {
     grid-column: 2;
   }
@@ -4116,7 +4117,8 @@ details[open] > .orgaplan-upcoming-summary::before {
 /* Mobile: single column, all cards full width */
 @media (max-width: 768px) {
   #today-overview-grid {
-    grid-template-columns: 1fr !important;
+    /* minmax(0, …): a wide child must wrap instead of widening the column */
+    grid-template-columns: minmax(0, 1fr) !important;
   }
   .today-module-card[data-today-module="briefing"] {
     grid-column: 1;
@@ -4328,11 +4330,12 @@ details[open] > .orgaplan-upcoming-summary::before {
 }
 
 /* Buttons */
-.btn { display: inline-flex; align-items: center; gap: 4px; border: none; cursor: pointer; font-size: 0.85rem; border-radius: var(--radius-sm); padding: 6px 14px; font-weight: 500; transition: background 120ms; }
+.btn { display: inline-flex; align-items: center; gap: 4px; border: none; cursor: pointer; font-size: 0.85rem; border-radius: var(--radius-sm); padding: 6px 14px; font-weight: 500; transition: background 120ms; text-decoration: none; font-family: inherit; }
+.btn:disabled { opacity: 0.6; cursor: default; }
 .btn-sm { font-size: 0.78rem; padding: 4px 10px; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: color-mix(in srgb, var(--accent) 85%, #000); }
-.btn-secondary { background: var(--surface-hover); color: var(--ink); border: 1px solid var(--line); }
+.btn-secondary { background: var(--panel-soft); color: var(--ink); border: 1px solid var(--line-strong); }
 .btn-secondary:hover { background: var(--line); }
 .btn-danger { background: #fee2e2; color: #dc2626; }
 .btn-danger:hover { background: #fecaca; }
@@ -4772,6 +4775,7 @@ details[open] > .orgaplan-upcoming-summary::before {
 .connection-head h3 {
   margin: 0;
   font-size: 0.98rem;
+  color: var(--ink);
 }
 .connection-copy {
   margin: 0;
@@ -5033,3 +5037,206 @@ details[open] > .orgaplan-upcoming-summary::before {
   gap: 8px;
 }
 .ai-chat-form .form-input { flex: 1; min-width: 0; }
+
+
+/* ── Status pills ─────────────────────────────────────────────────────────── */
+.pill-danger {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+  border-color: color-mix(in srgb, var(--danger) 22%, var(--line));
+}
+
+/* ── Verbindungen: Übersicht, Gruppen, Fakten, Hinweise ───────────────────── */
+.connections-modal { max-width: 640px; }
+.connections-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-soft);
+}
+.conn-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.conn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.conn-chip:hover { border-color: var(--accent); }
+.conn-chip-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.conn-chip.is-ok .conn-chip-dot { background: var(--success); }
+.conn-chip.is-warn .conn-chip-dot { background: var(--warning); }
+.conn-chip.is-error .conn-chip-dot { background: var(--danger); }
+.connections-group { padding: 18px 0 2px; }
+.connections-group-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.connections-group-hint { margin: 4px 0 0; font-size: 0.78rem; color: var(--muted); }
+.connection-section { scroll-margin-top: 12px; border-radius: var(--radius-md); }
+.connection-section.is-highlighted { animation: connection-highlight 1.6s ease-out; }
+@keyframes connection-highlight {
+  0% { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  100% { background: transparent; }
+}
+.connection-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.8rem;
+}
+.connection-facts div { display: contents; }
+.connection-facts dt { color: var(--muted); }
+.connection-facts dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.connection-facts a { color: var(--accent); }
+.connection-muted { color: var(--muted); }
+.connection-alert {
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.connection-alert.is-warning {
+  background: color-mix(in srgb, var(--warning) 9%, var(--panel));
+  border-color: color-mix(in srgb, var(--warning) 30%, var(--line));
+}
+.connection-alert.is-error {
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+  border-color: color-mix(in srgb, var(--danger) 26%, var(--line));
+}
+.connection-alert.is-info {
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
+}
+.connection-alert a { color: var(--accent); }
+.btn-inline { margin-left: 6px; padding: 2px 10px; font-size: 0.76rem; }
+.connection-optional .connection-check { font-size: 0.82rem; color: var(--ink); }
+
+/* ── Sidebar: Verbindungen ────────────────────────────────────────────────── */
+.sidebar-user-actions .sidebar-connections-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  font-weight: 500;
+}
+.sidebar-attention-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+/* ── Tagesbriefing: Quellen mit Handlungsbedarf ───────────────────────────── */
+.source-attention { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.source-attention-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warning) 8%, var(--panel));
+}
+.source-attention-item p { margin: 0; flex: 1; font-size: 0.8rem; color: var(--ink); line-height: 1.45; }
+.source-attention-item .secondary-link { padding: 5px 10px; font-size: 0.76rem; flex-shrink: 0; }
+.source-attention-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--warning);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* ── Pläne: Statuszeile je Quelle ─────────────────────────────────────────── */
+.plan-source-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.plan-source-bar:empty { display: none; }
+.plan-source-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 320px; }
+.plan-source-text { font-size: 0.8rem; color: var(--muted); line-height: 1.45; }
+.plan-source-text strong { color: var(--ink); font-weight: 600; }
+.plan-source-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.plan-source-actions .secondary-link { padding: 6px 10px; font-size: 0.78rem; }
+.plan-source-note {
+  flex-basis: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--panel-soft);
+}
+.plan-source-note.is-warn { background: color-mix(in srgb, var(--warning) 9%, var(--panel)); border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--line)); }
+.plan-source-note.is-error { background: color-mix(in srgb, var(--danger) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--danger) 24%, var(--line)); }
+.plan-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.plan-toolbar .source-detail { margin: 0; }
+.plan-week-heading {
+  margin: 14px 0 4px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.plan-week-heading:first-child { margin-top: 0; }
+.plan-week-heading span { font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 4px; }
+.orgaplan-entry.is-today { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.calendar-item.is-today .calendar-item-when strong { color: var(--accent); }
+.cw-days { display: flex; flex-direction: column; gap: 10px; }
+.cw-day h4 { margin: 0 0 4px; font-size: 0.8rem; color: var(--ink); }
+.cw-day p { margin: 0 0 4px; font-size: 0.82rem; color: var(--ink); display: flex; gap: 6px; align-items: baseline; }
+
+/* ── Heute: Pläne-Vorschau und Schultermine ───────────────────────────────── */
+.today-plan-block { cursor: pointer; }
+.today-plan-list, .today-school-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.today-plan-list li { font-size: 0.8rem; color: var(--ink); line-height: 1.4; }
+.today-plan-list li span { color: var(--muted); display: inline-block; min-width: 76px; }
+.today-school-list li { font-size: 0.82rem; color: var(--ink); line-height: 1.45; display: flex; gap: 6px; align-items: baseline; }
+.today-school-list .meta-tag { flex-shrink: 0; padding: 2px 7px; }
+
+/* ── Schmale Bildschirme: Pläne-Tabs und Hinweise ─────────────────────────── */
+@media (max-width: 560px) {
+  .plans-tab-bar { overflow-x: auto; scrollbar-width: none; }
+  .plans-tab-bar::-webkit-scrollbar { display: none; }
+  .plans-tab-btn { flex: 1 0 auto; padding: 7px 10px; font-size: 0.82rem; white-space: nowrap; }
+  .source-attention-item { flex-wrap: wrap; }
+  .source-attention-item p { flex-basis: calc(100% - 30px); }
+  .source-attention-item .secondary-link { margin-left: 30px; }
+  .plan-source-main { flex-basis: 100%; align-items: flex-start; }
+  .connection-facts { grid-template-columns: 1fr; gap: 0; }
+  .connection-facts dd { margin-bottom: 6px; }
+}
+.orgaplan-entry-head .pill { align-self: flex-start; flex: 0 0 auto; }

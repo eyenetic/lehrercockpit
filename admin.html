@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin – Lehrer-Cockpit</title>
+    <title>Verwaltung – Lehrercockpit</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./styles.admin.css" />
+    <link rel="stylesheet" href="./styles.css?v=78" />
+    <link rel="stylesheet" href="./styles.admin.css?v=78" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -464,6 +464,15 @@
       .badge-approved { background: rgba(22,163,74,0.12); color: var(--success); }
       .badge-rejected { background: var(--panel-soft); color: var(--muted); }
 
+      /* ── Schulweite Quellen ───────────────────────────────────── */
+      .source-status-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.84rem; color: var(--ink); }
+      .source-status-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+      .source-status-list span { color: var(--muted); }
+      .source-status-list a { color: var(--accent); margin-left: auto; }
+      .source-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--line-strong); }
+      .source-dot.is-ok { background: var(--success); }
+      .source-dot.is-warn { background: var(--warning); }
+
       /* ── Toast notification ──────────────────────────────────── */
       .admin-toast {
         position: fixed;
@@ -513,12 +522,12 @@
       <header class="admin-topbar">
         <div class="admin-topbar-brand">
           <div class="brand-mark-sm">L</div>
-          <span>Lehrer-Cockpit Admin</span>
+          <span>Lehrercockpit · Verwaltung</span>
         </div>
 
         <nav class="admin-tabs" role="tablist" aria-label="Admin-Bereiche">
           <button class="admin-tab active" type="button" data-tab="users" role="tab" aria-selected="true">Lehrkräfte</button>
-          <button class="admin-tab" type="button" data-tab="requests" role="tab" aria-selected="false">Zugansanfragen</button>
+          <button class="admin-tab" type="button" data-tab="requests" role="tab" aria-selected="false">Zugangsanfragen</button>
           <button class="admin-tab" type="button" data-tab="settings" role="tab" aria-selected="false">Einstellungen</button>
           <button class="admin-tab" type="button" data-tab="audit" role="tab" aria-selected="false">Protokoll</button>
         </nav>
@@ -546,11 +555,11 @@
           </div>
         </section>
 
-        <!-- Tab: Zugansanfragen -->
+        <!-- Tab: Zugangsanfragen -->
         <section class="admin-section" id="tab-requests" role="tabpanel">
           <div class="admin-card">
             <div class="admin-card-header">
-              <h2 class="admin-section-title">Zugansanfragen</h2>
+              <h2 class="admin-section-title">Zugangsanfragen</h2>
               <button class="btn btn-sm" id="btn-requests-refresh" type="button">Aktualisieren</button>
             </div>
             <div id="requests-feedback"></div>
@@ -563,69 +572,66 @@
         <!-- Tab: System-Einstellungen -->
         <section class="admin-section" id="tab-settings" role="tabpanel">
           <div class="admin-card">
-            <h2 class="admin-section-title" style="margin-bottom:1rem;">System-Einstellungen</h2>
+            <div class="admin-card-header">
+              <h2 class="admin-section-title">Schulweite Quellen</h2>
+              <a class="btn btn-primary" href="./index.html#verbindungen/orgaplan">Im Cockpit verwalten</a>
+            </div>
+            <p style="margin:0 0 0.75rem;font-size:0.84rem;color:var(--muted);line-height:1.5;">Orgaplan, Klassenarbeitsplan und Schultermine richtest du im Cockpit unter „Verbindungen“ ein – dort siehst du auch, wie aktuell jede Quelle ist.</p>
+            <ul class="source-status-list" id="school-source-status"><li>Lade Stand …</li></ul>
+          </div>
+
+          <div class="admin-card">
+            <h2 class="admin-section-title" style="margin-bottom:1rem;">Schule und Links</h2>
             <div id="settings-feedback"></div>
             <form class="admin-form" id="settings-form">
-              <!-- Slice 4 Part A: App title (at the top) -->
-              <div class="form-row single">
+              <div class="form-row">
                 <div class="form-field">
-                  <label for="s-app-title">Anwendungstitel</label>
+                  <label for="s-schulname">Name der Schule</label>
+                  <input type="text" id="s-schulname" placeholder="z. B. Hermann-Ehlers-Oberschule" />
+                  <p class="field-hint">Steht oben im Cockpit.</p>
+                </div>
+                <div class="form-field">
+                  <label for="s-app-title">Name des Cockpits</label>
                   <input type="text" id="s-app-title" placeholder="Lehrercockpit" maxlength="60" autocomplete="off" />
-                  <p class="field-hint">Wird in der Navigationsleiste und im Browser-Tab angezeigt. Leer lassen für den Standard "Lehrercockpit".</p>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-field">
-                  <label for="s-schulname">Schulname</label>
-                  <input type="text" id="s-schulname" placeholder="z. B. Gymnasium Musterstadt" />
-                </div>
-                <div class="form-field">
-                  <label for="s-orgaplan-url">Orgaplan URL</label>
-                  <input type="url" id="s-orgaplan-url" placeholder="https://…" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-field">
-                  <label for="s-orgaplan-pdf">Orgaplan PDF URL</label>
-                  <input type="url" id="s-orgaplan-pdf" placeholder="https://…" />
-                </div>
-                <div class="form-field">
-                  <label for="s-classwork-url">Klassenarbeitsplan URL</label>
-                  <input type="url" id="s-classwork-url" placeholder="https://…" />
-                </div>
-              </div>
-              <!-- Slice 4 Part B: New URL settings added in Slice 2 -->
-              <div class="form-row single">
-                <div class="form-field">
-                  <label for="s-webuntis-url">WebUntis URL</label>
-                  <input type="url" id="s-webuntis-url" placeholder="https://nettetal.webuntis.com" />
-                  <p class="field-hint">Direkte URL zur WebUntis-Instanz (z. B. https://nettetal.webuntis.com)</p>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-field">
-                  <label for="s-fehlzeiten-11">Fehlzeiten 11. Klasse URL</label>
-                  <input type="url" id="s-fehlzeiten-11" placeholder="https://…" />
-                  <p class="field-hint">Link zur Fehlzeitentabelle der 11. Klasse</p>
-                </div>
-                <div class="form-field">
-                  <label for="s-fehlzeiten-12">Fehlzeiten 12. Klasse URL</label>
-                  <input type="url" id="s-fehlzeiten-12" placeholder="https://…" />
-                  <p class="field-hint">Link zur Fehlzeitentabelle der 12. Klasse</p>
+                  <p class="field-hint">Leer lassen für „Lehrercockpit“.</p>
                 </div>
               </div>
               <div class="form-row single">
                 <div class="form-field">
-                  <label for="s-nextcloud-url">Nextcloud-Adresse der Schule</label>
+                  <label for="s-school-website">Schulwebseite</label>
+                  <input type="url" id="s-school-website" placeholder="https://meine-schule.de" />
+                  <p class="field-hint">Erscheint unter „Zugänge“. Orgaplan und Schultermine werden standardmäßig von hier gelesen.</p>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="s-webuntis-url">WebUntis-Adresse</label>
+                  <input type="url" id="s-webuntis-url" placeholder="https://…webuntis.com" />
+                </div>
+                <div class="form-field">
+                  <label for="s-nextcloud-url">Nextcloud der Schule</label>
                   <input type="url" id="s-nextcloud-url" placeholder="https://cloud.schule.de" />
-                  <p class="field-hint">Wird Lehrkräften unter „Verbindungen“ vorgeschlagen, wenn sie Nextcloud verbinden.</p>
+                  <p class="field-hint">Wird Lehrkräften beim Verbinden vorgeschlagen.</p>
                 </div>
               </div>
-              <div class="form-row single">
+              <div class="form-row">
                 <div class="form-field">
-                  <label for="s-wichtige-termine-ical">Wichtige Termine iCal URL</label>
-                  <input type="url" id="s-wichtige-termine-ical" placeholder="https://…/?ical=1" />
-                  <p class="field-hint">iCal-Feed-URL für den Schulkalender. Standard: HES-URL</p>
+                  <label for="s-fehlzeiten-11">Fehlzeiten Q1/Q2 (Link)</label>
+                  <input type="url" id="s-fehlzeiten-11" placeholder="https://…" />
+                </div>
+                <div class="form-field">
+                  <label for="s-fehlzeiten-12">Fehlzeiten Q3/Q4 (Link)</label>
+                  <input type="url" id="s-fehlzeiten-12" placeholder="https://…" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="s-schoolportal-url">Schulportal</label>
+                  <input type="url" id="s-schoolportal-url" placeholder="https://portal.berlin.de" />
+                </div>
+                <div class="form-field">
+                  <label for="s-dienstmail-url">Dienstmail</label>
+                  <input type="url" id="s-dienstmail-url" placeholder="https://lehrkraeftemail.schule.berlin.de/?iam_sso=1" />
                 </div>
               </div>
               <div style="display:flex;justify-content:flex-end;">
@@ -650,16 +656,19 @@
                 <div class="form-field" style="margin:0;">
                   <select id="audit-event-filter" style="padding:0.35rem 0.6rem;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:var(--panel-soft);color:var(--ink);font-size:0.82rem;min-width:160px;">
                     <option value="">Alle Ereignisse</option>
-                    <option value="login_success">✅ Anmeldung erfolgreich</option>
-                    <option value="login_failure">❌ Anmeldung fehlgeschlagen</option>
-                    <option value="teacher_created">👤 Lehrkraft erstellt</option>
-                    <option value="teacher_deactivated">🚫 Lehrkraft deaktiviert</option>
-                    <option value="code_rotated">🔑 Zugangscode erneuert</option>
-                    <option value="bootstrap_created">⚙️ Bootstrap-Admin erstellt</option>
+                    <option value="login_success">Anmeldung erfolgreich</option>
+                    <option value="login_failure">Anmeldung fehlgeschlagen</option>
+                    <option value="teacher_created">Lehrkraft angelegt</option>
+                    <option value="teacher_deactivated">Lehrkraft deaktiviert</option>
+                    <option value="teacher_deleted">Lehrkraft gelöscht</option>
+                    <option value="code_rotated">Zugangscode erneuert</option>
+                    <option value="access_request_approved">Zugang freigeschaltet</option>
+                    <option value="nextcloud_connected">Nextcloud verbunden</option>
+                    <option value="orgaplan_source_changed">Orgaplan-Quelle geändert</option>
                   </select>
                 </div>
                 <button class="btn btn-sm" id="btn-audit-refresh" type="button">Aktualisieren</button>
-                <button class="btn btn-sm" id="btn-audit-csv" type="button" title="Audit-Log als CSV exportieren">📥 CSV-Export</button>
+                <button class="btn btn-sm" id="btn-audit-csv" type="button" title="Protokoll als CSV exportieren">CSV-Export</button>
               </div>
             </div>
             <div id="audit-feedback"></div>
@@ -697,7 +706,7 @@
           <div class="form-field">
             <label for="new-role">Rolle</label>
             <select id="new-role">
-              <option value="teacher">Lehrkraft (teacher)</option>
+              <option value="teacher">Lehrkraft</option>
               <option value="admin">Admin</option>
             </select>
           </div>
@@ -722,7 +731,7 @@
         <div class="access-code-display" id="code-display-box">
           <span class="access-code-label">Persönlicher Zugangscode</span>
           <span class="access-code-value" id="code-display-value">–</span>
-          <span class="access-code-warning">⚠️ Dieser Code wird nur einmal angezeigt!</span>
+          <span class="access-code-warning">Dieser Code wird nur einmal angezeigt.</span>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
           <button class="btn" type="button" id="btn-copy-code">Kopieren</button>
@@ -753,7 +762,7 @@
           <div class="form-field">
             <label for="edit-role">Rolle</label>
             <select id="edit-role">
-              <option value="teacher">Lehrkraft (teacher)</option>
+              <option value="teacher">Lehrkraft</option>
               <option value="admin">Admin</option>
             </select>
           </div>
@@ -771,7 +780,7 @@
       <span class="admin-toast-title">Lehrkraft freigeschaltet!</span>
       <span style="font-size:0.8rem;color:var(--muted);">Zugangscode (einmalig anzeigen):</span>
       <span class="admin-toast-code" id="approve-toast-code">–</span>
-      <span style="font-size:0.76rem;color:var(--muted);">⚠️ Jetzt kopieren – wird nur einmal angezeigt.</span>
+      <span style="font-size:0.76rem;color:var(--muted);">Jetzt kopieren – wird nur einmal angezeigt.</span>
       <div style="display:flex;gap:0.5rem;margin-top:0.25rem;">
         <button class="btn btn-sm" id="approve-toast-copy" type="button">Kopieren</button>
         <button class="admin-toast-close" id="approve-toast-close" type="button">Schließen</button>
@@ -784,7 +793,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js"></script>
+    <script src="./src/api-client.js?v=78"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -849,6 +858,7 @@
           setupTabs();
           loadUsers();
           loadSettings();
+          loadSourceStatus();
           setupModals();
 
           // ── Audit log event wiring ─────────────────────────────────────────
@@ -935,12 +945,18 @@
         var _auditTotal = 0;
 
         var AUDIT_EVENT_LABELS = {
-          'login_success':       '✅ Anmeldung erfolgreich',
-          'login_failure':       '❌ Anmeldung fehlgeschlagen',
-          'teacher_created':     '👤 Lehrkraft erstellt',
-          'teacher_deactivated': '🚫 Lehrkraft deaktiviert',
-          'code_rotated':        '🔑 Zugangscode erneuert',
-          'bootstrap_created':   '⚙️ Bootstrap-Admin erstellt',
+          'login_success':           'Anmeldung erfolgreich',
+          'login_failure':           'Anmeldung fehlgeschlagen',
+          'teacher_created':         'Lehrkraft angelegt',
+          'teacher_deactivated':     'Lehrkraft deaktiviert',
+          'teacher_deleted':         'Lehrkraft gelöscht',
+          'code_rotated':            'Zugangscode erneuert',
+          'bootstrap_created':       'Erster Admin angelegt',
+          'access_request_approved': 'Zugang freigeschaltet',
+          'access_request_rejected': 'Zugangsanfrage abgelehnt',
+          'nextcloud_connected':     'Nextcloud verbunden',
+          'nextcloud_disconnected':  'Nextcloud getrennt',
+          'orgaplan_source_changed': 'Orgaplan-Quelle geändert',
         };
 
         function _auditEventLabel(eventType) {
@@ -1082,15 +1098,15 @@
             return;
           }
           let html = '<table class="user-table"><thead><tr>'
-            + '<th>Name</th><th>Rolle</th><th>Status</th><th>Code?</th><th>Aktionen</th>'
+            + '<th>Name</th><th>Rolle</th><th>Status</th><th>Zugangscode</th><th>Aktionen</th>'
             + '</tr></thead><tbody>';
 
           users.forEach(function (u) {
             // Phase 13: show admin badge based on is_admin flag (+ role compat)
             const isAdminUser = u.is_admin === true || u.role === 'admin';
             const roleBadge = isAdminUser
-              ? '<span class="badge badge-admin">admin</span>'
-              : '<span class="badge badge-teacher">teacher</span>';
+              ? '<span class="badge badge-admin">Admin</span>'
+              : '<span class="badge badge-teacher">Lehrkraft</span>';
             const statusBadge = u.is_active
               ? '<span class="badge badge-active">aktiv</span>'
               : '<span class="badge badge-inactive">inaktiv</span>';
@@ -1289,6 +1305,48 @@
 
         // ── Settings Tab ──────────────────────────────────────────────────────
 
+        // system_settings key → input id (school-wide sources live under "Verbindungen")
+        var SETTING_FIELDS = {
+          schulname: 's-schulname',
+          app_title: 's-app-title',
+          school_website_url: 's-school-website',
+          webuntis_url: 's-webuntis-url',
+          nextcloud_url: 's-nextcloud-url',
+          fehlzeiten_11_url: 's-fehlzeiten-11',
+          fehlzeiten_12_url: 's-fehlzeiten-12',
+          schoolportal_url: 's-schoolportal-url',
+          dienstmail_url: 's-dienstmail-url',
+        };
+
+        async function loadSourceStatus() {
+          var list = document.getElementById('school-source-status');
+          if (!list) return;
+          try {
+            var resp = await apiFetch('/api/v2/connections');
+            var data = await resp.json();
+            var c = data.connections || {};
+            var o = c.orgaplan || {};
+            var cw = c.klassenarbeitsplan || {};
+            var plan = cw.plan || {};
+            var t = c.termine || {};
+            var rows = [
+              ['Orgaplan', o.status === 'ok', o.status === 'ok'
+                ? 'Aktuell – ' + (o.name || '') + (o.stand ? ' (Stand ' + o.stand + ')' : '')
+                : (o.detail || 'Nicht aktuell'), 'orgaplan'],
+              ['Klassenarbeitsplan', plan.state === 'ok', plan.state === 'ok'
+                ? 'Aktuell – ' + (plan.fileName || 'verbunden') + ', ' + (plan.upcomingCount || 0) + ' kommende Einträge'
+                : plan.state === 'outdated' ? plan.message : (cw.url ? 'Wird geladen' : 'Noch kein Link hinterlegt'), 'klassenarbeitsplan'],
+              ['Schultermine', !!t.ok, t.ok ? (t.upcoming || 0) + ' Termine in den nächsten sechs Wochen' : (t.error || 'Nicht erreichbar'), 'termine'],
+            ];
+            list.innerHTML = rows.map(function (row) {
+              return '<li><span class="source-dot ' + (row[1] ? 'is-ok' : 'is-warn') + '"></span><strong>' + esc(row[0]) + '</strong> ' +
+                '<span>' + esc(row[2]) + '</span> <a href="./index.html#verbindungen/' + row[3] + '">' + (row[1] ? 'ansehen' : 'beheben') + '</a></li>';
+            }).join('');
+          } catch (e) {
+            list.innerHTML = '<li>Stand konnte nicht geladen werden.</li>';
+          }
+        }
+
         async function loadSettings() {
           try {
             const resp = await apiFetch('/api/v2/admin/settings');
@@ -1296,17 +1354,11 @@
             const data = await resp.json();
             const s = data.settings || data || {};
             // Slice 4 Part A5: load app_title
-            if (s.app_title !== undefined && s.app_title !== null) document.getElementById('s-app-title').value = s.app_title;
-            if (s.schulname) document.getElementById('s-schulname').value = s.schulname;
-            if (s.orgaplan_url) document.getElementById('s-orgaplan-url').value = s.orgaplan_url;
-            if (s.orgaplan_pdf_url) document.getElementById('s-orgaplan-pdf').value = s.orgaplan_pdf_url;
-            if (s.classwork_url) document.getElementById('s-classwork-url').value = s.classwork_url;
-            // Slice 4 Part B: load new URL settings
-            if (s.webuntis_url) document.getElementById('s-webuntis-url').value = s.webuntis_url;
-            if (s.fehlzeiten_11_url) document.getElementById('s-fehlzeiten-11').value = s.fehlzeiten_11_url;
-            if (s.fehlzeiten_12_url) document.getElementById('s-fehlzeiten-12').value = s.fehlzeiten_12_url;
-            if (s.wichtige_termine_ical_url) document.getElementById('s-wichtige-termine-ical').value = s.wichtige_termine_ical_url;
-            if (s.nextcloud_url) document.getElementById('s-nextcloud-url').value = s.nextcloud_url;
+            Object.keys(SETTING_FIELDS).forEach(function (key) {
+              var value = s[key];
+              if (key === 'app_title' && value === 'Lehrercockpit') value = '';
+              if (typeof value === 'string') document.getElementById(SETTING_FIELDS[key]).value = value;
+            });
           } catch (e) { /* ignore */ }
         }
 
@@ -1318,18 +1370,19 @@
           btn.textContent = 'Speichern…';
 
           // PUT /api/v2/admin/settings/<key> expects {value: ...} — iterate per key
-          const entries = {
-            app_title: document.getElementById('s-app-title').value.trim(),
-            schulname: document.getElementById('s-schulname').value.trim(),
-            orgaplan_url: document.getElementById('s-orgaplan-url').value.trim(),
-            orgaplan_pdf_url: document.getElementById('s-orgaplan-pdf').value.trim(),
-            classwork_url: document.getElementById('s-classwork-url').value.trim(),
-            webuntis_url: document.getElementById('s-webuntis-url').value.trim(),
-            fehlzeiten_11_url: document.getElementById('s-fehlzeiten-11').value.trim(),
-            fehlzeiten_12_url: document.getElementById('s-fehlzeiten-12').value.trim(),
-            wichtige_termine_ical_url: document.getElementById('s-wichtige-termine-ical').value.trim(),
-            nextcloud_url: document.getElementById('s-nextcloud-url').value.trim(),
-          };
+          const entries = {};
+          Object.keys(SETTING_FIELDS).forEach(function (key) {
+            entries[key] = document.getElementById(SETTING_FIELDS[key]).value.trim();
+          });
+          const badUrl = Object.keys(entries).find(function (key) {
+            return key !== 'schulname' && key !== 'app_title' && entries[key] && !/^https:\/\//i.test(entries[key]);
+          });
+          if (badUrl) {
+            setFeedback('settings-feedback', 'Bitte vollständige Links mit https:// eintragen.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Speichern';
+            return;
+          }
 
           try {
             let lastErr = null;

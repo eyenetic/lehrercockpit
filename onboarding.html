@@ -3,913 +3,260 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Einrichten – Lehrer-Cockpit</title>
+    <title>Einrichten – Lehrercockpit</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=77" />
-    <link rel="stylesheet" href="./styles.auth.css?v=77" />
+    <link rel="stylesheet" href="./styles.css?v=78" />
+    <link rel="stylesheet" href="./styles.auth.css?v=78" />
     <style>
-      body.onboarding-page {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        margin: 0;
-        background: var(--bg);
-      }
-
-      .onboarding-card {
+      body.onboarding-page { align-items: flex-start; padding: 48px 16px; box-sizing: border-box; }
+      .setup-card {
         background: var(--panel);
         border: 1px solid var(--line-strong);
         border-radius: var(--radius-lg);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
-        padding: 2.5rem 2rem;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
         width: 100%;
-        max-width: 480px;
+        max-width: 620px;
+        margin: 0 auto;
         display: flex;
         flex-direction: column;
-        gap: 1.5rem;
       }
-
-      .onboarding-header {
+      .setup-head { padding: 28px 32px 0; display: flex; flex-direction: column; gap: 6px; }
+      .setup-head .eyebrow { margin: 0; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+      .setup-head h1 { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--ink); }
+      .setup-head p { margin: 0; font-size: 0.88rem; color: var(--muted); line-height: 1.55; }
+      .setup-steps { display: flex; gap: 4px; padding: 18px 32px 0; list-style: none; margin: 0; }
+      .setup-steps li { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 0.72rem; color: var(--muted); }
+      .setup-steps li::before { content: ""; height: 4px; border-radius: 4px; background: var(--line-strong); }
+      .setup-steps li.is-done::before { background: var(--success); }
+      .setup-steps li.is-active::before { background: var(--accent); }
+      .setup-steps li.is-active { color: var(--ink); font-weight: 600; }
+      .setup-body { padding: 20px 32px 8px; min-height: 260px; }
+      .setup-body > h2 { margin: 0 0 6px; font-size: 1.05rem; color: var(--ink); }
+      .setup-body > p.lead, .setup-body p.lead { margin: 0 0 14px; font-size: 0.86rem; color: var(--muted); line-height: 1.55; }
+      .setup-body .connection-section:first-child { border-top: 0; padding-top: 4px; }
+      .setup-list { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+      .setup-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 0.86rem; color: var(--ink); line-height: 1.45; }
+      .setup-list li span.dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; background: var(--line-strong); }
+      .setup-list li span.dot.is-ok { background: var(--success); }
+      .setup-list li span.dot.is-warn { background: var(--warning); }
+      .setup-list li small { display: block; color: var(--muted); font-size: 0.78rem; }
+      .setup-box { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel-soft); margin-bottom: 14px; }
+      .setup-box h3 { margin: 0 0 8px; font-size: 0.8rem; color: var(--ink); }
+      .setup-box .setup-list { margin: 0; }
+      .setup-actions {
         display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .onboarding-header h1 {
-        margin: 0;
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: var(--ink);
-      }
-
-      .onboarding-header p {
-        margin: 0;
-        font-size: 0.85rem;
-        color: var(--muted);
-      }
-
-      .step-indicator {
-        display: flex;
+        flex-direction: row;
         align-items: center;
-        gap: 0.5rem;
-        font-size: 0.78rem;
-        color: var(--muted);
-        font-weight: 500;
-      }
-
-      .step-dots {
-        display: flex;
-        gap: 5px;
-      }
-
-      .step-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--line-strong);
-        transition: background 180ms ease;
-      }
-
-      .step-dot.active {
-        background: var(--accent);
-      }
-
-      .step-dot.done {
-        background: var(--success);
-      }
-
-      .onboarding-step {
-        display: none;
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .onboarding-step.visible {
-        display: flex;
-      }
-
-      .onboarding-step h2 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--ink);
-      }
-
-      .onboarding-step p {
-        margin: 0;
-        font-size: 0.85rem;
-        color: var(--muted);
-        line-height: 1.55;
-      }
-
-      .form-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-      }
-
-      .form-field label {
-        font-size: 0.82rem;
-        font-weight: 500;
-        color: var(--ink);
-      }
-
-      .form-field input[type="text"],
-      .form-field input[type="url"],
-      .form-field input[type="password"] {
-        padding: 0.6rem 0.75rem;
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-md);
-        background: var(--panel-soft);
-        color: var(--ink);
-        font-size: 0.9rem;
-        transition: border-color 120ms ease;
-      }
-
-      .form-field input:focus {
-        outline: none;
-        border-color: var(--accent);
-      }
-
-      .form-field .field-hint {
-        font-size: 0.76rem;
-        color: var(--muted);
-        margin: 0;
-      }
-
-      .onboarding-actions {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: flex-end;
-        padding-top: 0.5rem;
+        gap: 10px;
+        padding: 16px 32px 24px;
         border-top: 1px solid var(--line);
+        margin-top: 8px;
       }
-
-      .btn-skip {
-        padding: 0.55rem 1rem;
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-md);
-        background: transparent;
-        color: var(--muted);
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: border-color 120ms ease, color 120ms ease;
+      .setup-actions .spacer { flex: 1; }
+      .setup-actions .hint { font-size: 0.78rem; color: var(--muted); }
+      .setup-feedback { font-size: 0.82rem; color: var(--danger); margin: 0 32px; min-height: 1em; }
+      @media (max-width: 560px) {
+        body.onboarding-page { padding: 16px 12px; }
+        .setup-head, .setup-steps, .setup-body, .setup-actions { padding-left: 18px; padding-right: 18px; }
+        .setup-steps li { font-size: 0; }
+        .setup-actions .hint { display: none; }
       }
-
-      .btn-skip:hover {
-        border-color: var(--accent);
-        color: var(--ink);
-      }
-
-      .btn-next {
-        padding: 0.55rem 1.25rem;
-        border: none;
-        border-radius: var(--radius-md);
-        background: var(--accent);
-        color: #fff;
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: opacity 120ms ease;
-      }
-
-      .btn-next:hover:not(:disabled) {
-        opacity: 0.85;
-      }
-
-      .btn-next:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      .onboarding-feedback {
-        font-size: 0.8rem;
-        padding: 0.45rem 0.75rem;
-        border-radius: var(--radius-sm);
-        margin: 0;
-      }
-
-      .onboarding-feedback.error {
-        background: rgba(220, 38, 38, 0.1);
-        border: 1px solid rgba(220, 38, 38, 0.3);
-        color: var(--danger);
-      }
-
-      .onboarding-feedback.success {
-        background: rgba(22, 163, 74, 0.1);
-        border: 1px solid rgba(22, 163, 74, 0.3);
-        color: var(--success);
-      }
-
-      .welcome-icon {
-        font-size: 2.5rem;
-        text-align: center;
-      }
-
-      .welcome-features {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-      }
-
-      .welcome-features li {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.5rem;
-        font-size: 0.85rem;
-        color: var(--muted);
-      }
-
-      .welcome-features li::before {
-        content: "✓";
-        color: var(--success);
-        font-weight: 700;
-        flex-shrink: 0;
-        margin-top: 0.05em;
-      }
-
-      /* ── Expandable hints ────────────────────────────────────── */
-      .step-hint {
-        margin-top: 0.25rem;
-      }
-      .step-hint summary {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        font-size: 0.78rem;
-        color: var(--muted);
-        cursor: pointer;
-        user-select: none;
-        list-style: none;
-        padding: 0.25rem 0;
-      }
-      .step-hint summary::-webkit-details-marker { display: none; }
-      .step-hint summary::before {
-        content: "▸";
-        font-size: 0.65rem;
-        transition: transform 150ms ease;
-      }
-      .step-hint[open] summary::before { transform: rotate(90deg); }
-      .step-hint-body {
-        margin-top: 0.5rem;
-        padding: 0.65rem 0.85rem;
-        background: var(--panel-soft);
-        border: 1px solid var(--line);
-        border-radius: var(--radius-md);
-        font-size: 0.79rem;
-        color: var(--muted);
-        line-height: 1.65;
-      }
-      .step-hint-body ol {
-        margin: 0;
-        padding-left: 1.25rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-      }
-      .step-hint-body ul {
-        margin: 0;
-        padding-left: 1.1rem;
-        list-style: disc;
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-      }
-
-      /* ── Schulwebseite scannen – Link-Auswahl ────────────────── */
-      .link-category { margin-top: 0.75rem; }
-      .link-category-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
-      .link-checkbox-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid var(--line); }
-      .link-checkbox-row:last-child { border-bottom: none; }
-      .link-checkbox-row input[type="checkbox"] { accent-color: var(--accent); }
-      .link-checkbox-row label { font-size: 0.85rem; color: var(--ink); cursor: pointer; flex: 1; }
-      .link-checkbox-row .link-url { font-size: 0.72rem; color: var(--muted); }
     </style>
   </head>
   <body class="onboarding-page">
-    <div class="onboarding-card">
-      <div class="onboarding-header">
-        <h1>Lehrer-Cockpit einrichten</h1>
-        <p>Konfiguriere deine persönlichen Datenquellen. Du kannst Schritte jederzeit überspringen.</p>
+    <main class="setup-card">
+      <div class="setup-head">
+        <p class="eyebrow">Einrichtung</p>
+        <h1 id="setup-title">Willkommen im Lehrercockpit</h1>
+        <p id="setup-subtitle">In wenigen Schritten verbindest du deine Quellen. Jeder Schritt lässt sich überspringen und später unter „Verbindungen“ nachholen.</p>
       </div>
-
-      <div class="step-indicator">
-        <div class="step-dots" id="step-dots"></div>
-        <span id="step-label">Schritt 1 von 1</span>
+      <ol class="setup-steps" id="setup-steps"></ol>
+      <section class="setup-body" id="setup-body" aria-live="polite"></section>
+      <p class="setup-feedback" id="setup-feedback"></p>
+      <div class="setup-actions">
+        <button class="btn btn-secondary" type="button" id="setup-back">Zurück</button>
+        <span class="spacer"></span>
+        <span class="hint" id="setup-hint"></span>
+        <button class="btn btn-primary" type="button" id="setup-next">Los geht’s</button>
       </div>
-
-      <!-- Schritt: Willkommen -->
-      <div class="onboarding-step" id="step-welcome">
-        <div class="welcome-icon">👋</div>
-        <h2>Willkommen, <span id="welcome-name">Lehrkraft</span>!</h2>
-        <p>
-          Das Lehrer-Cockpit bündelt deine wichtigsten Quellen auf einer Seite:
-          Stundenplan, Noten, Inbox, Dokumente und mehr.
-        </p>
-        <ul class="welcome-features">
-          <li>Tagesüberblick mit Briefing auf einen Blick</li>
-          <li>WebUntis-Stundenplan direkt integriert</li>
-          <li>itslearning-Inbox und Aufgaben</li>
-          <li>Nextcloud-Dokumente und Ordner</li>
-        </ul>
-        <p>In den nächsten Schritten richtest du deine Datenquellen ein.</p>
-        <div id="welcome-feedback"></div>
-      </div>
-
-      <!-- Schritt: WebUntis -->
-      <div class="onboarding-step" id="step-webuntis">
-        <h2>WebUntis verbinden</h2>
-        <p>
-          Verbinde deinen persönlichen Stundenplan über die iCal-URL aus WebUntis.
-        </p>
-        <div class="form-field">
-          <label for="webuntis-ical-url">WebUntis iCal-URL</label>
-          <input
-            type="url"
-            id="webuntis-ical-url"
-            placeholder="https://mese.webuntis.com/WebUntis/ical?…"
-            autocomplete="off"
-          />
-          <details class="step-hint">
-            <summary>ℹ️ Wo finde ich die iCal-URL?</summary>
-            <div class="step-hint-body">
-              <ol>
-                <li>Auf webuntis.com einloggen</li>
-                <li>Oben rechts auf deinen Namen klicken → „Mein Profil"</li>
-                <li>Tab „Kalenderabonnement" öffnen</li>
-                <li>Die URL unter „Kalender (iCal)" kopieren</li>
-              </ol>
-            </div>
-          </details>
-        </div>
-        <div id="webuntis-feedback"></div>
-      </div>
-
-      <!-- Schritt: itslearning -->
-      <div class="onboarding-step" id="step-itslearning">
-        <h2>itslearning verbinden</h2>
-        <p>Termine und Abgabefristen kommen über das Kalender-Abo aus itslearning – ganz ohne Passwort.</p>
-        <div class="form-field">
-          <label for="its-calendar-url">Kalender-Abo-Link (empfohlen)</label>
-          <input type="url" id="its-calendar-url" placeholder="https://berlin.itslearning.com/…" autocomplete="off" />
-          <details class="step-hint">
-            <summary>ℹ️ Wo finde ich den Link?</summary>
-            <div class="step-hint-body">
-              <ol>
-                <li>In itslearning den <strong>Kalender</strong> öffnen</li>
-                <li>Oben rechts auf das Zahnrad → „Abonnieren“</li>
-                <li>Den angezeigten Link kopieren und hier einfügen</li>
-              </ol>
-            </div>
-          </details>
-        </div>
-        <details class="step-hint">
-          <summary>Nachrichten per Login (optional, experimentell)</summary>
-          <div class="step-hint-body">
-            <div class="form-field">
-              <label for="its-server">Server-URL</label>
-              <input type="url" id="its-server" placeholder="https://berlin.itslearning.com" autocomplete="off" />
-            </div>
-            <div class="form-field">
-              <label for="its-username">Benutzername</label>
-              <input type="text" id="its-username" placeholder="vorname.nachname" autocomplete="off" />
-            </div>
-            <div class="form-field">
-              <label for="its-password">Passwort</label>
-              <input type="password" id="its-password" placeholder="••••••••" autocomplete="new-password" />
-            </div>
-          </div>
-        </details>
-        <div id="itslearning-feedback"></div>
-      </div>
-
-      <!-- Schritt: Nextcloud -->
-      <div class="onboarding-step" id="step-nextcloud">
-        <h2>Nextcloud verbinden <span style="font-size:0.75rem;font-weight:400;color:var(--muted);">(optional)</span></h2>
-        <p>Neue Dateien, Änderungen und Freigaben aus euren geteilten Ordnern erscheinen dann in deinem Cockpit.</p>
-        <div class="form-field">
-          <label for="nc-server">Adresse eurer Nextcloud</label>
-          <input type="url" id="nc-server" placeholder="https://cloud.schule.de" autocomplete="off" />
-        </div>
-        <button type="button" id="nc-connect-btn" class="btn-next" style="align-self:flex-start">Mit Nextcloud verbinden</button>
-        <p class="field-hint">
-          Du meldest dich direkt auf der Nextcloud-Seite deiner Schule an. Das Cockpit bekommt nur ein eigenes
-          App-Passwort – dein Passwort sieht es nie. Du kannst es jederzeit in Nextcloud widerrufen.
-        </p>
-        <div id="nextcloud-feedback"></div>
-      </div>
-
-      <!-- Schritt: Schulwebseite scannen -->
-      <div class="onboarding-step" id="step-school-links">
-        <h2>Schulwebseite scannen</h2>
-        <p>Gib die URL der Schulwebseite ein – wir extrahieren nützliche Links automatisch für deine Direkten Zugriffe.</p>
-        <div class="form-field">
-          <label for="school-url">Schulwebseite</label>
-          <input type="url" id="school-url" placeholder="https://meine-schule.de" autocomplete="off" />
-          <p class="field-hint">z.B. https://hermann-ehlers-schule.de</p>
-        </div>
-        <button type="button" id="scan-school-btn" class="btn-next" style="align-self:flex-start">Jetzt scannen</button>
-        <div id="scan-feedback"></div>
-
-        <!-- Link-Auswahl (erscheint nach dem Scan) -->
-        <div id="school-links-result" hidden>
-          <p style="font-size:0.83rem;color:var(--muted);margin:0.5rem 0;">Wähle aus, welche Links du in deinen Direkten Zugriffen haben möchtest:</p>
-          <div id="school-links-groups"></div>
-          <!-- Checkboxen werden per JS eingefügt, nach Kategorie gruppiert -->
-        </div>
-      </div>
-
-      <!-- Letzter Schritt: Fertig -->
-      <div class="onboarding-step" id="step-finish">
-        <div class="welcome-icon">🎉</div>
-        <h2>Alles eingerichtet!</h2>
-        <p>
-          Dein Cockpit ist bereit. Du kannst alle Einstellungen jederzeit in den jeweiligen
-          Modulen anpassen.
-        </p>
-        <div id="finish-feedback"></div>
-      </div>
-
-      <div class="onboarding-actions">
-        <button class="btn-skip" id="btn-skip" type="button">Überspringen</button>
-        <button class="btn-next" id="btn-next" type="button">Weiter</button>
-      </div>
-    </div>
+    </main>
 
     <script>
       // Lokal (localhost) spricht die Seite mit dem lokalen Backend, sonst mit der Produktion.
       window.BACKEND_API_URL = ["localhost", "127.0.0.1"].includes(window.location.hostname)
         ? window.location.origin
         : "https://api.lehrercockpit.com";
+      window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/api-client.js?v=77"></script>
+    <script src="./src/features/push.js?v=78"></script>
+    <script src="./src/features/connections.js?v=78"></script>
     <script>
       (function () {
-        const BACKEND = window.BACKEND_API_URL || '';
+        'use strict';
 
-        // Module IDs die Onboarding brauchen könnten
-        const MODULE_STEPS = [
-          { id: 'step-welcome',      moduleId: null,           always: true },
-          { id: 'step-webuntis',     moduleId: 'webuntis',     always: false },
-          { id: 'step-itslearning',  moduleId: 'itslearning',  always: false },
-          { id: 'step-nextcloud',    moduleId: 'nextcloud',    always: false },
-          { id: 'step-school-links', moduleId: 'school-links', always: true },
-          { id: 'step-finish',       moduleId: null,           always: true },
+        var BACKEND = window.BACKEND_API_URL || '';
+        var C = window.LehrerConnections;
+        var STEPS = [
+          { id: 'welcome', label: 'Start' },
+          { id: 'webuntis', label: 'Stundenplan', title: 'Stundenplan verbinden',
+            lead: 'Mit dem Kalender-Abo aus WebUntis siehst du deine Stunden, Vertretungen und Entfälle – auch als Hinweis am Morgen.' },
+          { id: 'itslearning', label: 'itslearning', title: 'itslearning verbinden',
+            lead: 'Termine und Abgabefristen deiner Kurse. Das Kalender-Abo funktioniert ohne Passwort.' },
+          { id: 'nextcloud', label: 'Nextcloud', title: 'Nextcloud verbinden (optional)',
+            lead: 'Neue Dateien und Freigaben aus euren geteilten Ordnern erscheinen dann im Posteingang.' },
+          { id: 'push', label: 'Hinweise', title: 'Hinweise aufs Handy (optional)',
+            lead: 'Schultags morgens dein Tag in drei Zeilen, sonntags die Vorschau auf die Woche – direkt als Mitteilung.' },
+          { id: 'done', label: 'Fertig' },
         ];
+        var PERSONAL = { webuntis: 'Stundenplan (WebUntis)', itslearning: 'itslearning', nextcloud: 'Nextcloud' };
+        var current = 0;
+        var status = {};
+        var user = null;
 
-        let currentStepIndex = 0;
-        let activeSteps = [];
-        let currentUser = null;
+        function esc(value) { return C.esc(value); }
+        function el(id) { return document.getElementById(id); }
 
-        async function init() {
-          // Auth check
-          try {
-            const resp = await fetch(BACKEND + '/api/v2/auth/me', { credentials: 'include' });
-            if (!resp.ok) { window.location.href = './login.html'; return; }
-            const data = await resp.json();
-            if (!data.ok) { window.location.href = './login.html'; return; }
-            currentUser = data.user;
-          } catch (e) {
-            window.location.href = './login.html';
+        function connected(id) {
+          var s = status[id] || {};
+          if (id === 'webuntis') return !!s.configured;
+          if (id === 'itslearning') return !!(s.calendar || s.login);
+          if (id === 'nextcloud') return !!s.connected;
+          return false;
+        }
+
+        function schoolItems() {
+          var o = status.orgaplan || {};
+          var cw = status.klassenarbeitsplan || {};
+          var plan = cw.plan || {};
+          var t = status.termine || {};
+          return [
+            {
+              ok: o.status === 'ok',
+              title: 'Orgaplan',
+              text: o.status === 'ok'
+                ? 'Aktuell' + (o.school_year ? ' (Schuljahr ' + o.school_year + (o.stand ? ', Stand ' + o.stand : '') + ')' : '') + ' – wird automatisch von der Schulwebseite übernommen.'
+                : (o.detail || 'Wird eingerichtet.'),
+            },
+            {
+              ok: plan.state === 'ok',
+              title: 'Klassenarbeitsplan',
+              text: plan.state === 'ok' ? 'Verbunden – du siehst die kommenden Arbeiten deiner Klassen.'
+                : plan.state === 'outdated' ? 'Der hinterlegte Plan ist veraltet – die Schule muss den aktuellen Link eintragen.'
+                : cw.url ? 'Wird geladen.' : 'Noch nicht hinterlegt – du kannst die Excel-Datei später selbst hochladen.',
+            },
+            { ok: !!t.ok, title: 'Schultermine', text: t.ok ? 'Kalender der Schulwebseite – Ferien, Fahrten und Konferenzen.' : 'Gerade nicht erreichbar.' },
+            { ok: true, title: 'Dienstmail', text: 'Direktlink zu deinem Postfach (Anmeldung über das Schulportal).' },
+          ];
+        }
+
+        function listHtml(items) {
+          return '<ul class="setup-list">' + items.map(function (item) {
+            return '<li><span class="dot ' + (item.ok ? 'is-ok' : 'is-warn') + '"></span><span><strong>' + esc(item.title) + '</strong>' +
+              '<small>' + esc(item.text) + '</small></span></li>';
+          }).join('') + '</ul>';
+        }
+
+        function renderSteps() {
+          el('setup-steps').innerHTML = STEPS.map(function (step, index) {
+            var cls = index < current ? 'is-done' : index === current ? 'is-active' : '';
+            return '<li class="' + cls + '">' + esc(step.label) + '</li>';
+          }).join('');
+        }
+
+        function updateFooter() {
+          var step = STEPS[current];
+          var next = el('setup-next');
+          var hint = el('setup-hint');
+          el('setup-back').hidden = current === 0;
+          hint.textContent = '';
+          var skipping = step.id !== 'welcome' && step.id !== 'done' && !connected(step.id);
+          next.className = 'btn ' + (skipping ? 'btn-secondary' : 'btn-primary');
+          if (step.id === 'welcome') next.textContent = 'Los geht’s';
+          else if (step.id === 'done') next.textContent = 'Cockpit öffnen';
+          else if (!skipping) next.textContent = 'Weiter';
+          else {
+            next.textContent = 'Überspringen';
+            hint.textContent = 'Später unter „Verbindungen“ möglich.';
+          }
+        }
+
+        function render() {
+          var step = STEPS[current];
+          var body = el('setup-body');
+          el('setup-feedback').textContent = '';
+          renderSteps();
+
+          if (step.id === 'welcome') {
+            var name = (user && (user.first_name || user.full_name)) || '';
+            el('setup-title').textContent = 'Willkommen' + (name ? ', ' + name : '') + '!';
+            body.innerHTML =
+              '<p class="lead">Das Lehrercockpit bündelt die Kanäle deines Schulalltags auf einer Seite: Stundenplan, Orgaplan, Klassenarbeiten, Schultermine, itslearning und Nextcloud – mit einem Tagesbriefing, das zeigt, was heute wichtig ist.</p>' +
+              '<div class="setup-box"><h3>Das hat deine Schule schon eingerichtet</h3>' + listHtml(schoolItems()) + '</div>' +
+              '<p class="lead">Jetzt fehlen nur noch deine persönlichen Zugänge – das dauert etwa drei Minuten.</p>';
+            updateFooter();
+            return;
+          }
+          el('setup-title').textContent = step.id === 'done' ? 'Alles bereit' : 'Einrichtung';
+
+          if (step.id === 'done') {
+            var items = Object.keys(PERSONAL).map(function (id) {
+              return { ok: connected(id), title: PERSONAL[id],
+                       text: connected(id) ? 'Verbunden.' : 'Nicht verbunden – jederzeit unter „Verbindungen“ nachholen.' };
+            });
+            body.innerHTML = '<p class="lead">Dein Cockpit ist startklar. Alle Quellen findest du später unter „Verbindungen“ – dort siehst du auch, wie aktuell jede Quelle ist.</p>' +
+              '<div class="setup-box"><h3>Deine Zugänge</h3>' + listHtml(items) + '</div>' +
+              '<div class="setup-box"><h3>Schulweite Quellen</h3>' + listHtml(schoolItems()) + '</div>';
+            updateFooter();
             return;
           }
 
-          // Onboarding nötig?
-          try {
-            const resp = await fetch(BACKEND + '/api/v2/dashboard/onboarding-status', { credentials: 'include' });
-            if (resp.ok) {
-              const data = await resp.json();
-              if (!data.needs_onboarding) {
-                window.location.href = './index.html';
-                return;
-              }
-              buildActiveSteps(data.unconfigured_modules || []);
-            } else {
-              buildActiveSteps([]);
-            }
-          } catch (e) {
-            buildActiveSteps([]);
-          }
-
-          // Welcome-Name setzen
-          const nameEl = document.getElementById('welcome-name');
-          if (nameEl && currentUser) {
-            nameEl.textContent = currentUser.first_name || currentUser.full_name || 'Lehrkraft';
-          }
-
-          renderDots();
-          showStep(0);
-        }
-
-        function buildActiveSteps(unconfiguredModules) {
-          activeSteps = MODULE_STEPS.filter(function (s) {
-            if (s.always) return true;
-            return unconfiguredModules.includes(s.moduleId);
+          body.innerHTML = '<h2>' + esc(step.title) + '</h2><p class="lead">' + esc(step.lead) + '</p><div id="setup-section"></div>';
+          C.mount(el('setup-section'), {
+            sections: [step.id],
+            onChanged: function () { refreshStatus().then(updateFooter); },
           });
-          // Always include at least welcome + finish
-          if (activeSteps.length < 2) {
-            activeSteps = [MODULE_STEPS[0], MODULE_STEPS[MODULE_STEPS.length - 1]];
-          }
+          updateFooter();
         }
 
-        function renderDots() {
-          const container = document.getElementById('step-dots');
-          container.innerHTML = '';
-          activeSteps.forEach(function (_, i) {
-            const dot = document.createElement('div');
-            dot.className = 'step-dot';
-            dot.id = 'dot-' + i;
-            container.appendChild(dot);
-          });
+        function refreshStatus() {
+          return C.api('/api/v2/connections').then(function (data) { status = data.connections || {}; });
         }
 
-        function showStep(index) {
-          currentStepIndex = index;
-          const step = activeSteps[index];
-          const total = activeSteps.length;
-
-          // Hide all steps
-          MODULE_STEPS.forEach(function (s) {
-            const el = document.getElementById(s.id);
-            if (el) el.classList.remove('visible');
-          });
-
-          // Show current
-          const current = document.getElementById(step.id);
-          if (current) current.classList.add('visible');
-
-          // Update dots
-          activeSteps.forEach(function (_, i) {
-            const dot = document.getElementById('dot-' + i);
-            if (!dot) return;
-            dot.className = 'step-dot';
-            if (i < index) dot.classList.add('done');
-            else if (i === index) dot.classList.add('active');
-          });
-
-          // Update label
-          document.getElementById('step-label').textContent =
-            'Schritt ' + (index + 1) + ' von ' + total;
-
-          // Update buttons
-          const skipBtn = document.getElementById('btn-skip');
-          const nextBtn = document.getElementById('btn-next');
-          const isLast = index === total - 1;
-          const isFirst = index === 0;
-
-          if (isLast) {
-            skipBtn.style.display = 'none';
-            nextBtn.textContent = 'Cockpit öffnen';
-          } else if (isFirst) {
-            skipBtn.style.display = 'none';
-            nextBtn.textContent = 'Los geht\'s';
-          } else {
-            skipBtn.style.display = '';
-            skipBtn.textContent = 'Überspringen';
-            nextBtn.textContent = 'Speichern & Weiter';
-          }
+        function finish() {
+          el('setup-next').disabled = true;
+          fetch(BACKEND + '/api/v2/dashboard/onboarding/complete', { method: 'POST', credentials: 'include' })
+            .catch(function () { /* the dashboard also works without the flag */ })
+            .then(function () { window.location.href = './index.html'; });
         }
 
-        function clearFeedback() {
-          ['welcome-feedback', 'webuntis-feedback', 'itslearning-feedback', 'nextcloud-feedback', 'scan-feedback', 'finish-feedback'].forEach(function (id) {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = '';
-          });
-        }
-
-        function showFeedback(containerId, message, type) {
-          const el = document.getElementById(containerId);
-          if (!el) return;
-          el.innerHTML = '<p class="onboarding-feedback ' + type + '">' + message + '</p>';
-        }
-
-        async function saveCurrentStep() {
-          const step = activeSteps[currentStepIndex];
-          if (!step.moduleId) return true; // welcome/finish → nichts zu speichern
-
-          let config = {};
-          let feedbackId = '';
-
-          if (step.moduleId === 'webuntis') {
-            feedbackId = 'webuntis-feedback';
-            const url = document.getElementById('webuntis-ical-url').value.trim();
-            if (!url) return true; // optional
-            config = { ical_url: url };
-          } else if (step.moduleId === 'itslearning') {
-            feedbackId = 'itslearning-feedback';
-            let calendarUrl = document.getElementById('its-calendar-url').value.trim();
-            const server = document.getElementById('its-server').value.trim();
-            const user = document.getElementById('its-username').value.trim();
-            const pass = document.getElementById('its-password').value;
-            if (!calendarUrl && !user && !pass) return true; // alles leer → überspringen
-            if ((user && !pass) || (!user && pass)) {
-              showFeedback(feedbackId, 'Für den Login bitte Benutzername und Passwort ausfüllen.', 'error');
-              return false;
-            }
-            if (calendarUrl.toLowerCase().startsWith('webcal://')) calendarUrl = 'https://' + calendarUrl.slice(9);
-            if (calendarUrl && !calendarUrl.toLowerCase().startsWith('https://')) {
-              showFeedback(feedbackId, 'Bitte den vollständigen Kalender-Link (https://…) einfügen.', 'error');
-              return false;
-            }
-            if (calendarUrl) config.calendar_url = calendarUrl;
-            if (user) {
-              config.username = user;
-              config.password = pass;
-              if (server) config.base_url = server;
-            }
-          } else if (step.moduleId === 'nextcloud') {
-            return true; // gespeichert wird durch den Nextcloud-Login selbst (Login Flow v2)
-          } else if (step.moduleId === 'school-links') {
-            // Sammelt alle angehakten Checkboxen als Links-Array
-            const checkboxes = document.querySelectorAll('#school-links-groups input[type="checkbox"]:checked');
-            if (checkboxes.length === 0) return true; // Nichts ausgewählt → überspringen ok
-            const links = [];
-            checkboxes.forEach(function (cb) {
-              try {
-                links.push(JSON.parse(cb.dataset.link));
-              } catch (e) { /* ignore */ }
-            });
-            if (links.length === 0) return true;
-            try {
-              const resp = await fetch(BACKEND + '/api/v2/modules/save-custom-links', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ links: links }),
-                credentials: 'include',
-              });
-              if (!resp.ok) {
-                const err = await resp.json().catch(function () { return {}; });
-                showFeedback('scan-feedback', err.error || 'Fehler beim Speichern der Links.', 'error');
-                return false;
-              }
-              return true;
-            } catch (e) {
-              showFeedback('scan-feedback', 'Verbindungsfehler beim Speichern.', 'error');
-              return false;
-            }
-          }
-
-          try {
-            const resp = await fetch(BACKEND + '/api/v2/dashboard/module-config/' + step.moduleId, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(config),
-              credentials: 'include',
-            });
-            if (!resp.ok) {
-              const err = await resp.json().catch(function () { return {}; });
-              showFeedback(feedbackId, err.error || 'Fehler beim Speichern.', 'error');
-              return false;
-            }
-            return true;
-          } catch (e) {
-            showFeedback(feedbackId, 'Verbindungsfehler.', 'error');
-            return false;
-          }
-        }
-
-        // ── Schulwebseite scannen ────────────────────────────────────────────
-
-        var _CATEGORY_LABELS = {
-          'tools':     '🔧 Tools & Plattformen',
-          'dokumente': '📄 Dokumente',
-          'kalender':  '📅 Kalender & Zeiten',
-          'kontakt':   '👥 Kontakt',
-          'sonstiges': '↗ Weitere Links',
-        };
-        var _AUTO_CHECK_CATEGORIES = ['tools', 'dokumente', 'kalender'];
-
-        function renderScannedLinks(links) {
-          var container = document.getElementById('school-links-groups');
-          container.innerHTML = '';
-
-          // Group by category
-          var groups = {};
-          links.forEach(function (link) {
-            var cat = link.category || 'sonstiges';
-            if (!groups[cat]) groups[cat] = [];
-            groups[cat].push(link);
-          });
-
-          // Render in priority order
-          var catOrder = ['tools', 'dokumente', 'kalender', 'kontakt', 'sonstiges'];
-          catOrder.forEach(function (cat) {
-            if (!groups[cat] || groups[cat].length === 0) return;
-            var div = document.createElement('div');
-            div.className = 'link-category';
-            var label = document.createElement('div');
-            label.className = 'link-category-label';
-            label.textContent = _CATEGORY_LABELS[cat] || cat;
-            div.appendChild(label);
-
-            groups[cat].forEach(function (link, i) {
-              var row = document.createElement('div');
-              row.className = 'link-checkbox-row';
-              var cbId = 'sl-cb-' + cat + '-' + i;
-              var cb = document.createElement('input');
-              cb.type = 'checkbox';
-              cb.id = cbId;
-              cb.dataset.link = JSON.stringify(link);
-              cb.checked = _AUTO_CHECK_CATEGORIES.indexOf(cat) !== -1;
-              var lbl = document.createElement('label');
-              lbl.htmlFor = cbId;
-              lbl.textContent = link.icon + ' ' + link.title;
-              var urlSpan = document.createElement('span');
-              urlSpan.className = 'link-url';
-              try {
-                urlSpan.textContent = new URL(link.url).hostname;
-              } catch (e) {
-                urlSpan.textContent = '';
-              }
-              row.appendChild(cb);
-              row.appendChild(lbl);
-              row.appendChild(urlSpan);
-              div.appendChild(row);
-            });
-            container.appendChild(div);
-          });
-
-          document.getElementById('school-links-result').hidden = false;
-        }
-
-        document.getElementById('scan-school-btn').addEventListener('click', async function () {
-          var btn = document.getElementById('scan-school-btn');
-          var urlVal = document.getElementById('school-url').value.trim();
-          var feedbackEl = document.getElementById('scan-feedback');
-          feedbackEl.innerHTML = '';
-
-          if (!urlVal || !urlVal.startsWith('http')) {
-            feedbackEl.innerHTML = '<p class="onboarding-feedback error">Bitte eine gültige URL eingeben (beginnt mit https://).</p>';
-            return;
-          }
-
-          btn.disabled = true;
-          btn.textContent = 'Scanne…';
-
-          try {
-            var resp = await fetch(BACKEND + '/api/v2/modules/scrape-school-website', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: urlVal }),
-              credentials: 'include',
-            });
-            var data = await resp.json().catch(function () { return {}; });
-            if (!resp.ok || !data.ok) {
-              feedbackEl.innerHTML = '<p class="onboarding-feedback error">' + (data.error || 'Webseite konnte nicht geladen werden.') + '</p>';
-            } else {
-              var links = data.links || [];
-              if (links.length === 0) {
-                feedbackEl.innerHTML = '<p class="onboarding-feedback error">Keine nützlichen Links auf dieser Seite gefunden.</p>';
-              } else {
-                renderScannedLinks(links);
-              }
-            }
-          } catch (e) {
-            feedbackEl.innerHTML = '<p class="onboarding-feedback error">Verbindungsfehler beim Scannen.</p>';
-          } finally {
-            btn.disabled = false;
-            btn.textContent = 'Jetzt scannen';
-          }
+        el('setup-next').addEventListener('click', function () {
+          if (STEPS[current].id === 'done') { finish(); return; }
+          current = Math.min(current + 1, STEPS.length - 1);
+          render();
+        });
+        el('setup-back').addEventListener('click', function () {
+          current = Math.max(current - 1, 0);
+          render();
         });
 
-        // ── Nextcloud verbinden (Login Flow v2) ──────────────────────────────
-
-        let ncPollTimer = null;
-        const ncConnectBtn = document.getElementById('nc-connect-btn');
-
-        async function ncApi(path, method, body) {
-          const resp = await fetch(BACKEND + path, {
-            method: method || 'GET',
-            headers: body ? { 'Content-Type': 'application/json' } : {},
-            body: body ? JSON.stringify(body) : undefined,
-            credentials: 'include',
-          });
-          const data = await resp.json().catch(function () { return {}; });
-          if (!resp.ok || data.ok === false) throw new Error(data.error || 'Anfrage fehlgeschlagen.');
-          return data;
-        }
-
-        function ncShowConnected(account) {
-          showFeedback('nextcloud-feedback', 'Verbunden' + (account ? ' als ' + account : '') + '. ✓', 'success');
-          ncConnectBtn.hidden = true;
-        }
-
-        async function ncPrefill() {
-          try {
-            const data = await ncApi('/api/v2/connections');
-            const nc = (data.connections || {}).nextcloud || {};
-            if (nc.suggested_server) document.getElementById('nc-server').value = nc.suggested_server;
-            if (nc.connected) ncShowConnected(nc.account);
-          } catch (e) { /* optionaler Schritt – ohne Vorschlag weiter */ }
-        }
-
-        function ncPoll(startedAt) {
-          if (Date.now() - startedAt > 20 * 60 * 1000) {
-            showFeedback('nextcloud-feedback', 'Die Anmeldung ist abgelaufen. Bitte erneut verbinden.', 'error');
-            ncConnectBtn.disabled = false;
-            return;
-          }
-          ncApi('/api/v2/connections/nextcloud/poll', 'POST')
-            .then(function (data) {
-              if (data.status === 'connected') {
-                const nc = (data.connections || {}).nextcloud || {};
-                ncShowConnected(nc.account);
-                return;
-              }
-              if (data.status === 'expired') {
-                showFeedback('nextcloud-feedback', 'Die Anmeldung ist abgelaufen. Bitte erneut verbinden.', 'error');
-                ncConnectBtn.disabled = false;
-                return;
-              }
-              ncPollTimer = setTimeout(function () { ncPoll(startedAt); }, 2500);
-            })
-            .catch(function () {
-              ncPollTimer = setTimeout(function () { ncPoll(startedAt); }, 5000);
+        fetch(BACKEND + '/api/v2/auth/me', { credentials: 'include' })
+          .then(function (resp) {
+            if (!resp.ok) throw new Error('login');
+            return resp.json();
+          })
+          .then(function (data) {
+            if (!data.ok) throw new Error('login');
+            user = data.user;
+            return refreshStatus().catch(function () {
+              el('setup-feedback').textContent = 'Der Stand der Quellen konnte nicht geladen werden.';
             });
-        }
-
-        ncConnectBtn.addEventListener('click', async function () {
-          const server = document.getElementById('nc-server').value.trim();
-          if (!server) {
-            showFeedback('nextcloud-feedback', 'Bitte die Adresse eurer Nextcloud eintragen.', 'error');
-            return;
-          }
-          const loginWindow = window.open('', '_blank');
-          if (loginWindow) loginWindow.opener = null;
-          ncConnectBtn.disabled = true;
-          try {
-            const data = await ncApi('/api/v2/connections/nextcloud/start', 'POST', { base_url: server });
-            if (loginWindow && !loginWindow.closed) {
-              loginWindow.location.href = data.login_url;
-              showFeedback('nextcloud-feedback', 'Bitte im neuen Tab bei Nextcloud anmelden und „Zugriff gewähren“ bestätigen.', 'success');
-            } else {
-              const safeUrl = String(data.login_url).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-              showFeedback('nextcloud-feedback', '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">Anmeldeseite öffnen</a> und dort „Zugriff gewähren“ bestätigen.', 'success');
-            }
-            clearTimeout(ncPollTimer);
-            ncPoll(Date.now());
-          } catch (e) {
-            if (loginWindow && !loginWindow.closed) loginWindow.close();
-            showFeedback('nextcloud-feedback', e.message, 'error');
-            ncConnectBtn.disabled = false;
-          }
-        });
-
-        ncPrefill();
-
-        // Event-Handler
-        document.getElementById('btn-next').addEventListener('click', async function () {
-          clearFeedback();
-          const isLast = currentStepIndex === activeSteps.length - 1;
-
-          if (isLast) {
-            // Onboarding abschließen
-            try {
-              await fetch(BACKEND + '/api/v2/dashboard/onboarding/complete', {
-                method: 'POST',
-                credentials: 'include',
-              });
-            } catch (e) {
-              // ignorieren – weiterleiten trotzdem
-            }
-            window.location.href = './index.html';
-            return;
-          }
-
-          const isFirst = currentStepIndex === 0;
-          if (!isFirst) {
-            const btn = document.getElementById('btn-next');
-            btn.disabled = true;
-            btn.textContent = 'Speichern…';
-            const ok = await saveCurrentStep();
-            btn.disabled = false;
-            if (!ok) {
-              // Fehler angezeigt, nicht weiter
-              showStep(currentStepIndex);
-              return;
-            }
-          }
-
-          showStep(currentStepIndex + 1);
-        });
-
-        document.getElementById('btn-skip').addEventListener('click', function () {
-          clearFeedback();
-          if (currentStepIndex < activeSteps.length - 1) {
-            showStep(currentStepIndex + 1);
-          }
-        });
-
-        init();
+          })
+          .then(render, function () { window.location.href = './login.html'; });
       })();
     </script>
   </body>
