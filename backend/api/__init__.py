@@ -12,6 +12,8 @@ from .connections_routes import connections_bp
 from .signals_routes import signals_bp
 from .push_routes import push_bp
 from .ai_routes import ai_bp
+from .invitation_routes import invitation_public_bp, invitation_admin_bp
+from .feedback_routes import feedback_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -26,3 +28,6 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(signals_bp, url_prefix="/api/v2/signals")
     app.register_blueprint(push_bp, url_prefix="/api/v2/push")
     app.register_blueprint(ai_bp, url_prefix="/api/v2/ai")
+    app.register_blueprint(invitation_public_bp, url_prefix="/api/v2/auth")
+    app.register_blueprint(invitation_admin_bp, url_prefix="/api/v2/admin/invitations")
+    app.register_blueprint(feedback_bp, url_prefix="/api/v2/feedback")

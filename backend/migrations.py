@@ -441,6 +441,52 @@ def _migrate_school_sources(conn) -> None:
             print(f"[migrations] school sources step skipped: {exc}", flush=True)
 
 
+def _migrate_invitations_and_feedback(conn) -> None:
+    """Einladungslinks für Kolleg:innen und Rückmeldungen an die Admins."""
+    statements = [
+        """
+        CREATE TABLE IF NOT EXISTS invitations (
+            id                SERIAL PRIMARY KEY,
+            token_hash        TEXT NOT NULL UNIQUE,
+            token_enc         TEXT NOT NULL DEFAULT '',
+            kind              TEXT NOT NULL DEFAULT 'personal' CHECK (kind IN ('personal', 'team')),
+            name              TEXT NOT NULL DEFAULT '',
+            email             TEXT NOT NULL DEFAULT '',
+            access_request_id INTEGER REFERENCES access_requests(id) ON DELETE SET NULL,
+            created_by        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            expires_at        TIMESTAMPTZ NOT NULL,
+            revoked_at        TIMESTAMPTZ,
+            uses              INTEGER NOT NULL DEFAULT 0,
+            last_used_at      TIMESTAMPTZ,
+            used_by           INTEGER REFERENCES users(id) ON DELETE SET NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS feedback (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            kind        TEXT NOT NULL CHECK (kind IN ('problem', 'idee', 'frage', 'lob')),
+            message     TEXT NOT NULL,
+            context     JSONB NOT NULL DEFAULT '{}',
+            status      TEXT NOT NULL DEFAULT 'neu' CHECK (status IN ('neu', 'in_arbeit', 'erledigt')),
+            reply       TEXT NOT NULL DEFAULT '',
+            replied_at  TIMESTAMPTZ,
+            user_unread BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id, created_at DESC)",
+    ]
+    for statement in statements:
+        try:
+            with conn.transaction():
+                conn.execute(statement)
+        except Exception as exc:
+            print(f"[migrations] invitations/feedback statement skipped: {exc}", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -450,6 +496,7 @@ def run_all_migrations() -> None:
         _migrate_signals_and_push(conn)
         _migrate_ai_tables(conn)
         _migrate_school_sources(conn)
+        _migrate_invitations_and_feedback(conn)
 
 
 def log_audit_event(

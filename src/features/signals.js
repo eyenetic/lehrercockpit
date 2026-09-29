@@ -61,6 +61,18 @@
       .filter(function (item) { return item && !_hidden[item.id]; });
   }
 
+  var ACTION_ICONS = {
+    done: '<path d="M20 6 9 17l-5-5"/>',
+    snooze: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3 2 6M22 6l-3-3"/>',
+    hide: '<path d="M18 6 6 18M6 6l12 12"/>',
+  };
+
+  function _actionButton(action, label) {
+    return '<button type="button" data-signal-action="' + action + '" aria-label="' + label + '" title="' + label + '">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      ACTION_ICONS[action] + '</svg></button>';
+  }
+
   function _itemHtml(item) {
     var title = item.url
       ? '<a href="' + esc(item.url) + '" target="_blank" rel="noopener noreferrer">' + esc(item.title) + '</a>'
@@ -69,15 +81,13 @@
     var meta = [when, item.detail].filter(Boolean).join(' · ');
     return '<article class="signal-item signal-' + esc(item.kind) + '" data-signal-id="' + esc(item.id) + '">' +
       '<div class="signal-main">' +
-        '<div class="signal-tags"><span class="signal-kind">' + esc(KIND_LABELS[item.kind] || item.kind) + '</span>' +
-        (item.state && item.state.changed ? '<span class="signal-changed">geändert</span>' : '') + '</div>' +
         '<p class="signal-title">' + title + '</p>' +
-        (meta ? '<p class="signal-meta">' + esc(meta) + '</p>' : '') +
+        '<p class="signal-meta"><span class="tile-tag">' + esc(KIND_LABELS[item.kind] || item.kind) + '</span>' +
+        (item.state && item.state.changed ? '<span class="tile-tag tile-tag-warn">geändert</span>' : '') +
+        (meta ? '<span>' + esc(meta) + '</span>' : '') + '</p>' +
       '</div>' +
       '<div class="signal-actions">' +
-        '<button type="button" data-signal-action="done" aria-label="Erledigt" title="Erledigt">✓</button>' +
-        '<button type="button" data-signal-action="snooze" aria-label="Morgen wieder zeigen" title="Morgen wieder zeigen">⏰</button>' +
-        '<button type="button" data-signal-action="hide" aria-label="Ausblenden" title="Ausblenden">×</button>' +
+        _actionButton('done', 'Erledigt') + _actionButton('snooze', 'Morgen wieder zeigen') + _actionButton('hide', 'Ausblenden') +
       '</div>' +
     '</article>';
   }
@@ -90,9 +100,9 @@
     if (!panel || !list) return;
     var signals = (_getData() || {}).signals;
     if (!signals) { panel.hidden = true; return; }
-    panel.hidden = false;
 
     var fresh = _freshItems(signals);
+    panel.hidden = !fresh.length;
     var visible = _expanded ? fresh : fresh.slice(0, VISIBLE_LIMIT);
     if (markAll) markAll.hidden = !fresh.length;
     list.innerHTML = fresh.length
@@ -101,12 +111,12 @@
           ? '<button type="button" class="signals-more" data-signals-toggle>' +
             (_expanded ? 'Weniger anzeigen' : '+ ' + (fresh.length - VISIBLE_LIMIT) + ' weitere') + '</button>'
           : '')
-      : '<p class="signals-empty">Nichts Neues seit deinem letzten Besuch.</p>';
+      : '';
 
     var classworkLoaded = ((_getData().planDigest || {}).classwork || {}).status === 'ok';
     if (hint) {
-      hint.hidden = !(classworkLoaded && !signals.classes_known);
-      hint.textContent = 'Tipp: Wähle unter „Heute anpassen“ deine Klassen – dann erscheinen ihre Klassenarbeiten hier.';
+      hint.hidden = !(fresh.length && classworkLoaded && !signals.classes_known);
+      hint.textContent = 'Tipp: Unter „Heute anpassen“ deine Klassen wählen – dann erscheinen hier auch ihre Klassenarbeiten.';
     }
   }
 

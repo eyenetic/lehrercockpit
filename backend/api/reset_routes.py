@@ -182,6 +182,9 @@ def reset_code():
                 return error("Ungültiger oder abgelaufener Reset-Link.", 404)
 
             user_id = row["user_id"]
+            from backend.users.user_service import code_taken
+            if code_taken(conn, new_code, user_id):
+                return error("Diesen Code kannst du nicht verwenden. Bitte wähle einen anderen.", 409)
 
             # Neuen Code setzen
             code_hash = hash_code(new_code)

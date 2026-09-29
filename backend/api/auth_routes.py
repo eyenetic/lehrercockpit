@@ -8,9 +8,9 @@ from flask_limiter.util import get_remote_address
 
 from backend.db import db_connection
 from backend.auth.session import create_session, delete_session
-from backend.users.user_service import authenticate_by_code
+from backend.users.user_service import authenticate_by_code, code_taken
 from backend.users.user_store import set_access_code
-from backend.auth.access_code import hash_code, get_code_prefix
+from backend.auth.access_code import chosen_code_problem, hash_code, get_code_prefix
 from backend.migrations import log_audit_event
 from backend.api.helpers import (
     require_auth,
@@ -129,11 +129,12 @@ def me():
 
 @auth_bp.route("/me/change-code", methods=["POST"])
 @require_auth
+@limiter.limit("10 per hour")
 def change_my_code():
     """Zugangscode für den eingeloggten User ändern.
 
     Body: {"new_code": "..."}
-    Regeln: mind. 6 Zeichen, nur Buchstaben und Ziffern.
+    Regeln: mind. 8 Zeichen, nur Buchstaben und Ziffern, von keinem anderen Konto benutzt.
     Response 200: {"ok": true}
     """
     body = request.get_json(silent=True) or {}
@@ -143,15 +144,14 @@ def change_my_code():
         return error("Neuer Code erforderlich", 422)
 
     new_code = new_code.strip()
-
-    if len(new_code) < 6:
-        return error("Der Code muss mindestens 6 Zeichen haben", 422)
-
-    if not new_code.isalnum():
-        return error("Der Code darf nur Buchstaben und Ziffern enthalten", 422)
+    problem = chosen_code_problem(new_code)
+    if problem:
+        return error(problem, 422)
 
     try:
         with db_connection() as conn:
+            if code_taken(conn, new_code, g.current_user.id):
+                return error("Diesen Code kannst du nicht verwenden. Bitte wähle einen anderen.", 409)
             code_hash = hash_code(new_code)
             prefix = get_code_prefix(new_code)
             set_access_code(conn, g.current_user.id, code_hash, code_prefix=prefix)

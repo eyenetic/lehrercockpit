@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=79" />
+    <link rel="stylesheet" href="./styles.css?v=80" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -57,8 +57,10 @@
         <span></span>
         <span></span>
       </button>
-      <span class="mobile-brand-title" id="mobile-topbar-title">Lehrer-Cockpit</span>
-      <span style="width:40px;"></span>
+      <span class="mobile-brand-title" id="mobile-topbar-title">Lehrercockpit</span>
+      <button class="mobile-avatar-btn" id="mobile-more-btn" type="button" aria-label="Menü öffnen">
+        <span class="user-avatar" id="mobile-avatar" aria-hidden="true">L</span>
+      </button>
     </div>
     <!-- Drawer backdrop -->
     <div class="drawer-backdrop" id="drawer-backdrop"></div>
@@ -71,9 +73,8 @@
             <img class="brand-mark-icon brand-mark-dark" src="./icons/icon-192-dark.png" alt="" />
           </div>
           <div class="brand-copy">
-            <p class="eyebrow" id="workspace-eyebrow">Berlin Lehrer-Cockpit</p>
-            <strong class="brand-title" id="app-title-display">Lehrer-Cockpit</strong>
-            <p class="brand-subtitle">ruhig, kompakt, relevant</p>
+            <strong class="brand-title" id="app-title-display">Lehrercockpit</strong>
+            <span class="brand-subtitle" id="workspace-title"></span>
           </div>
         </div>
 
@@ -110,147 +111,143 @@
           </button>
         </nav>
 
-        <div class="sidebar-theme">
-          <p class="card-kicker">Darstellung</p>
-          <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">
-            <span id="theme-label" class="theme-toggle-label">Helles Design</span>
-            <span class="toggle-track" aria-hidden="true">
-              <span class="toggle-thumb"></span>
-            </span>
+        <div class="sidebar-footer">
+          <button class="nav-link sidebar-feedback-btn" id="sidebar-feedback-btn" type="button" data-open-feedback hidden>
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span class="nav-label">Rückmeldung</span>
+            <span class="nav-count" data-feedback-unread hidden></span>
           </button>
-        </div>
-
-        <!-- Multi-User: User-Info + Navigation -->
-        <div class="sidebar-user-info" id="sidebar-user-info" style="display:none;">
-          <span id="sidebar-user-name">Lehrkraft</span>
-          <div class="sidebar-user-actions">
-            <a href="./admin.html" id="sidebar-admin-link" style="display:none;">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:inline;vertical-align:middle;margin-right:4px;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Admin-Bereich
-            </a>
-            <button id="sidebar-connections-btn" class="sidebar-connections-btn" type="button" hidden>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              <span>Verbindungen</span>
-              <span class="sidebar-attention-dot" id="connections-attention-dot" hidden aria-label="Eine Quelle braucht Aufmerksamkeit"></span>
+          <button class="nav-link" id="sidebar-connections-btn" type="button" hidden>
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span class="nav-label">Verbindungen</span>
+            <span class="nav-dot" id="connections-attention-dot" hidden aria-label="Eine Quelle braucht Aufmerksamkeit"></span>
+          </button>
+          <div class="user-menu" id="user-menu">
+            <button class="user-menu-trigger" id="user-menu-trigger" type="button" aria-haspopup="menu" aria-expanded="false">
+              <span class="user-avatar" id="user-avatar" aria-hidden="true">L</span>
+              <span class="user-menu-name" id="sidebar-user-name">Lehrkraft</span>
+              <svg class="user-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>
             </button>
-            <button id="sidebar-change-code-btn" type="button">Zugangscode ändern</button>
-            <button id="sidebar-logout-btn" type="button">Abmelden</button>
+            <div class="user-menu-popover" id="user-menu-popover" role="menu" hidden>
+              <a class="user-menu-item" href="./admin.html" id="sidebar-admin-link" role="menuitem" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Admin-Bereich</span><span class="nav-count" id="admin-feedback-count" hidden></span>
+              </a>
+              <button class="user-menu-item" type="button" id="theme-toggle" role="menuitem" aria-pressed="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                <span id="theme-label" class="theme-toggle-label">Dunkles Design</span>
+              </button>
+              <button class="user-menu-item" type="button" id="sidebar-change-code-btn" role="menuitem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>
+                <span>Zugangscode ändern</span>
+              </button>
+              <div class="user-menu-sep" role="separator"></div>
+              <button class="user-menu-item" type="button" id="sidebar-logout-btn" role="menuitem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                <span>Abmelden</span>
+              </button>
+            </div>
           </div>
         </div>
       </aside>
 
       <main class="app-main">
-        <header class="day-masthead" id="overview">
-          <div class="masthead-left">
-            <div class="masthead-date-block">
-              <span class="masthead-school" id="workspace-title">Lehrer-Cockpit</span>
-              <h1 id="today-weekday" class="masthead-weekday">Heute</h1>
-              <span id="today-date-display" class="masthead-date"></span>
-            </div>
+        <header class="page-head" id="overview">
+          <div class="page-head-text">
+            <h1 class="page-title" id="today-weekday">Heute</h1>
+            <p class="page-subtitle" id="today-date-display"></p>
           </div>
-          <div class="masthead-actions">
-            <p class="hero-note" id="hero-note">Initialisiere Tagesbriefing</p>
-            <div class="masthead-buttons">
-              <button class="primary-button" id="briefing-button" type="button">Aktualisieren</button>
-              <button class="secondary-link" id="settings-button" type="button">Heute anpassen</button>
-            </div>
+          <div class="page-head-actions">
+            <span class="page-stand" id="hero-note">Lade …</span>
+            <button class="icon-button" id="briefing-button" type="button" aria-label="Aktualisieren" title="Aktualisieren">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
+            </button>
+            <button class="icon-button" id="settings-button" type="button" aria-label="Heute anpassen" title="Heute anpassen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+            </button>
           </div>
         </header>
 
-        <section class="overview-grid layout-pending" id="today-overview-grid" data-view-section="overview">
-          <section class="card briefing-card tone-overview today-module-card" data-today-module="briefing" aria-labelledby="briefing-title">
-            <div class="briefing-card-head">
-              <div class="briefing-card-label">
-                <p class="card-kicker">Tagesbriefing</p>
-                <h2 id="briefing-title">Was heute wichtig ist</h2>
-              </div>
-            </div>
-            <div id="source-attention" class="source-attention" hidden></div>
-            <div id="briefing-output" class="briefing-output"></div>
-            <div id="today-briefing-focus" class="today-briefing-focus"></div>
-            <div id="signals-panel" class="signals-panel" hidden>
-              <div class="signals-head">
-                <p class="card-kicker">Neu &amp; geändert</p>
-                <button id="signals-mark-all" class="secondary-link" type="button" hidden>Alles gelesen</button>
-              </div>
-              <div id="signals-list" class="signals-list"></div>
-              <p id="signals-hint" class="signals-hint" hidden></p>
-            </div>
-            <div id="ai-panel" class="ai-panel" hidden>
-              <div class="signals-head">
-                <p class="card-kicker">KI-Zusammenfassung</p>
-                <button id="ai-refresh" class="secondary-link" type="button">Neu erstellen</button>
-              </div>
-              <ul id="ai-briefing" class="ai-briefing"></ul>
-              <div id="ai-chat-log" class="ai-chat-log" hidden></div>
-              <form id="ai-chat-form" class="ai-chat-form">
-                <input id="ai-chat-input" class="form-input" type="text" maxlength="600" autocomplete="off"
-                  placeholder="Frag dein Cockpit, z. B. „Wann schreibt die 10b die nächste Arbeit?“" />
-                <button class="btn btn-primary" type="submit">Fragen</button>
-              </form>
-              <p id="ai-status" class="connection-feedback"></p>
-            </div>
-          </section>
+        <section class="today layout-pending" id="today-overview-grid" data-view-section="overview" aria-label="Heute">
+          <div id="source-attention" class="attention-list" hidden></div>
+          <nav class="quicklinks" id="heute-zugaenge-container" data-today-module="access" aria-label="Zugänge"></nav>
 
-          <section class="card tone-access today-module-card" data-today-module="access" aria-labelledby="today-zugaenge-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Zugänge</p>
-                <h2 id="today-zugaenge-title">Direkte Arbeitswege</h2>
-              </div>
-            </div>
-            <div id="heute-zugaenge-container" class="heute-module-slot"></div>
-          </section>
+          <div class="today-board">
+            <div class="today-col" data-today-col="main"></div>
+            <div class="today-col" data-today-col="side"></div>
+          </div>
 
-          <section class="card today-module-card today-preview-card tone-schedule" data-today-module="schedule" aria-labelledby="today-schedule-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Stundenplan</p>
-                <h2 id="today-schedule-preview-title">Planvorschau</h2>
-              </div>
-            </div>
-            <div id="today-schedule-preview" class="heute-module-slot"></div>
-          </section>
+          <article class="tile" data-today-module="schedule" data-col="main" aria-labelledby="tile-schedule-title">
+            <header class="tile-head">
+              <h2 id="tile-schedule-title">Stundenplan</h2>
+              <span class="tile-meta" id="tile-schedule-meta"></span>
+              <button class="tile-link" type="button" data-briefing-target="schedule">Woche</button>
+            </header>
+            <div id="briefing-output" class="tile-body"></div>
+          </article>
 
-          <section class="card today-module-card today-preview-card tone-inbox" data-today-module="inbox" aria-labelledby="today-inbox-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Posteingang</p>
-                <h2 id="today-inbox-preview-title">Kommunikation</h2>
-              </div>
-            </div>
-            <div id="today-inbox-preview" class="heute-module-slot"></div>
-          </section>
+          <article class="tile" data-today-module="school" data-col="side" aria-labelledby="tile-school-title">
+            <header class="tile-head">
+              <h2 id="tile-school-title">Heute an der Schule</h2>
+              <button class="tile-link" type="button" data-briefing-target="documents" data-plans-tab="orgaplan">Orgaplan</button>
+            </header>
+            <div id="today-school-body" class="tile-body"></div>
+          </article>
 
-          <section class="card today-module-card today-preview-card tone-documents" data-today-module="documents" aria-labelledby="today-documents-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Pläne</p>
-                <h2 id="today-documents-preview-title">Orgaplan und Klassenarbeiten</h2>
-              </div>
-            </div>
-            <div id="today-documents-preview" class="heute-module-slot"></div>
-          </section>
+          <article class="tile" data-today-module="classwork" data-col="side" aria-labelledby="tile-classwork-title">
+            <header class="tile-head">
+              <h2 id="tile-classwork-title">Klassenarbeiten</h2>
+              <span class="tile-meta" id="tile-classwork-meta"></span>
+              <button class="tile-link" type="button" data-briefing-target="documents" data-plans-tab="klassenarbeitsplan">Alle</button>
+            </header>
+            <div id="today-classwork-body" class="tile-body"></div>
+          </article>
 
-          <section class="card today-module-card today-preview-card tone-grades" data-today-module="grades" aria-labelledby="today-grades-preview-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Noten</p>
-                <h2 id="today-grades-preview-title">Notenberechnung</h2>
-              </div>
-            </div>
-            <div id="today-grades-preview" class="heute-module-slot"></div>
-          </section>
+          <article class="tile" data-today-module="inbox" data-col="main" aria-labelledby="tile-inbox-title">
+            <header class="tile-head">
+              <h2 id="tile-inbox-title">Posteingang</h2>
+              <span class="tile-meta" id="tile-inbox-meta"></span>
+              <button class="tile-link" type="button" data-briefing-target="inbox">Öffnen</button>
+            </header>
+            <div id="today-inbox-preview" class="tile-body"></div>
+          </article>
 
+          <article class="tile" data-today-module="upcoming" data-col="side" aria-labelledby="tile-upcoming-title">
+            <header class="tile-head">
+              <h2 id="tile-upcoming-title">Demnächst</h2>
+              <button class="tile-link" type="button" data-briefing-target="documents" data-plans-tab="termine">Termine</button>
+            </header>
+            <div id="today-documents-preview" class="tile-body"></div>
+          </article>
+
+          <article class="tile" data-today-module="signals" data-col="main" id="signals-panel" hidden aria-label="Neu und geändert">
+            <header class="tile-head">
+              <h2>Neu &amp; geändert</h2>
+              <button id="signals-mark-all" class="tile-link" type="button" hidden>Alles gelesen</button>
+            </header>
+            <div id="signals-list" class="signals-list tile-body"></div>
+            <p id="signals-hint" class="signals-hint" hidden></p>
+          </article>
+
+          <article class="tile" data-today-module="ai" data-col="main" id="ai-panel" hidden aria-label="KI-Zusammenfassung">
+            <header class="tile-head">
+              <h2>KI-Zusammenfassung</h2>
+              <button id="ai-refresh" class="tile-link" type="button">Neu erstellen</button>
+            </header>
+            <ul id="ai-briefing" class="ai-briefing"></ul>
+            <div id="ai-chat-log" class="ai-chat-log" hidden></div>
+            <form id="ai-chat-form" class="ai-chat-form">
+              <input id="ai-chat-input" class="form-input" type="text" maxlength="600" autocomplete="off"
+                placeholder="Frag dein Cockpit, z. B. „Wann schreibt die 10b die nächste Arbeit?“" />
+              <button class="btn btn-primary" type="submit">Fragen</button>
+            </form>
+            <p id="ai-status" class="connection-feedback"></p>
+          </article>
         </section>
+
         <section class="content-grid primary-grid" data-view-section="schedule">
           <article class="card schedule-card tone-schedule" id="schedule-section" aria-labelledby="schedule-title">
-            <div class="section-head">
-              <div>
-                <p class="card-kicker">Plan</p>
-                <h2 id="schedule-title">Stundenplan</h2>
-              </div>
-              <span class="pill">WebUntis</span>
-            </div>
+            <h2 id="schedule-title" class="sr-only">Stundenplan</h2>
             <div class="webuntis-toolbar">
               <div id="webuntis-view-switch" class="segmented-control" aria-label="WebUntis-Ansicht"></div>
               <div class="webuntis-toolbar-actions">
@@ -284,42 +281,36 @@
         </section>
 
         <section class="content-grid single-grid" data-view-section="inbox">
+          <div class="section-toolbar">
+            <a id="dienstmail-open-link" class="btn btn-secondary" href="https://lehrkraeftemail.schule.berlin.de/?iam_sso=1" target="_blank" rel="noreferrer">Dienstmail öffnen ↗</a>
+            <a id="itslearning-open-link" class="btn btn-secondary" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen ↗</a>
+          </div>
+          <div id="inbox-empty" class="empty-panel" hidden>
+            <strong>Noch nichts verbunden</strong>
+            <p>Verbinde itslearning oder Nextcloud – dann siehst du hier Nachrichten, Abgaben und neue Dateien.</p>
+            <div class="empty-panel-actions">
+              <button class="btn btn-primary" type="button" data-open-connections="itslearning">itslearning verbinden</button>
+              <button class="btn btn-secondary" type="button" data-open-connections="nextcloud">Nextcloud verbinden</button>
+            </div>
+          </div>
           <article class="card tone-inbox" id="inbox-section" aria-labelledby="inbox-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Kommunikation</p>
-                <h2 id="inbox-title">Dienstmail und Updates</h2>
-              </div>
-              <div class="section-head-actions">
-                <a id="dienstmail-open-link" class="secondary-link" href="https://lehrkraeftemail.schule.berlin.de/?iam_sso=1" target="_blank" rel="noreferrer">Dienstmail öffnen</a>
-                <a id="itslearning-open-link" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen</a>
-              </div>
-            </div>
-            <!-- itslearning Posteingang (Dienstmail entfernt) -->
+            <header class="card-head"><h2 id="inbox-title">Nachrichten aus itslearning</h2></header>
             <div id="message-list-itslearning" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
-            <div id="nextcloud-feed-block" class="inbox-subsection" hidden>
-              <p class="card-kicker">Neu in Nextcloud</p>
-              <div id="nextcloud-feed-list" class="calendar-list"></div>
-            </div>
-            <div id="itslearning-calendar-block" class="inbox-subsection" hidden>
-              <p class="card-kicker">Termine &amp; Abgaben aus itslearning</p>
-              <div id="itslearning-calendar-list" class="calendar-list"></div>
-            </div>
+          </article>
+          <article class="card" id="itslearning-calendar-block" hidden>
+            <header class="card-head"><h2>Termine &amp; Abgaben</h2><span class="card-head-meta">itslearning</span></header>
+            <div id="itslearning-calendar-list" class="calendar-list"></div>
+          </article>
+          <article class="card" id="nextcloud-feed-block" hidden>
+            <header class="card-head"><h2>Neu in Nextcloud</h2></header>
+            <div id="nextcloud-feed-list" class="calendar-list"></div>
           </article>
         </section>
 
         <section class="content-grid single-grid" data-view-section="grades">
           <article class="card tone-grades" id="grades-section" aria-labelledby="grades-title">
-            <div class="section-head section-head-wrap">
-              <div>
-                <p class="card-kicker">Notenrechner</p>
-                <h2 id="grades-title">Notenberechnung</h2>
-              </div>
-              <span class="pill pill-live">lokal</span>
-            </div>
-            <p id="grades-detail" class="source-detail">
-              Einfache Hilfe für Gewichtungen, Teilnoten und schnelle Berechnungen. Kein Notenbuch, keine Speicherung im Schulportal.
-            </p>
+            <h2 id="grades-title" class="sr-only">Notenrechner</h2>
+            <p id="grades-detail" class="source-detail">Gewichtete Teilnoten schnell ausrechnen. Nichts wird gespeichert.</p>
             <div class="grades-layout grades-layout-simple">
               <section class="grades-panel tone-grades-panel">
                 <div class="sidebar-head">
@@ -384,10 +375,7 @@
         </section>
         <section class="content-grid single-grid" data-view-section="documents">
           <article class="card tone-documents" id="documents-section" aria-labelledby="docs-title">
-            <div class="plans-section-header">
-              <h2 class="plans-section-title" id="docs-title">Pläne</h2>
-            </div>
-
+            <h2 class="sr-only" id="docs-title">Pläne</h2>
             <div class="plans-tabs">
               <div class="plans-tab-bar" role="tablist">
                 <button class="plans-tab-btn is-active" role="tab" aria-selected="true"
@@ -478,52 +466,38 @@
       </main>
     </div>
 
-    <!-- Heute anpassen Panel (Phase 14 / Slice 1) -->
+    <!-- Heute anpassen -->
     <div id="heute-anpassen-panel" class="heute-anpassen-panel" hidden>
       <div class="heute-anpassen-panel__header">
         <span class="heute-anpassen-panel__title">Heute anpassen</span>
         <button id="heute-anpassen-close" class="heute-anpassen-panel__close" aria-label="Schließen" type="button">✕</button>
       </div>
       <div class="heute-anpassen-panel__body">
-        <p class="heute-anpassen-panel__hint">Tagesbriefing und Zugänge sind immer sichtbar.</p>
+        <p class="heute-anpassen-panel__hint">Kacheln ein- und ausblenden, Reihenfolge per Ziehen ändern.</p>
         <div id="heute-anpassen-modules" class="heute-anpassen-modules"></div>
         <div id="heute-anpassen-classes-section" class="heute-anpassen-classes-section" hidden>
-          <p class="heute-anpassen-panel__hint" style="margin-top:1rem;">Klassenarbeiten auf „Heute" — welche Klassen sollen angezeigt werden?</p>
-          <div id="heute-anpassen-class-pills" class="classwork-pill-row" style="margin-top:6px;flex-wrap:wrap;gap:6px;display:flex;"></div>
+          <p class="heute-anpassen-panel__hint">Meine Klassen – ihre Klassenarbeiten erscheinen auf „Heute“:</p>
+          <div id="heute-anpassen-class-pills" class="classwork-pill-row"></div>
         </div>
       </div>
       <div class="heute-anpassen-panel__footer">
-        <button id="heute-anpassen-save" class="heute-anpassen-panel__save" type="button">Speichern</button>
+        <button id="heute-anpassen-save" class="btn btn-primary" type="button">Speichern</button>
       </div>
     </div>
 
-    <!-- Mobile Mehr-Sheet -->
-    <div id="mobile-more-sheet" class="more-sheet" hidden aria-modal="true" role="dialog">
+    <!-- Mobile: Menü -->
+    <div id="mobile-more-sheet" class="more-sheet" hidden aria-modal="true" role="dialog" aria-label="Menü">
       <div class="more-sheet-backdrop" id="more-sheet-backdrop"></div>
       <div class="more-sheet-panel">
         <div class="more-sheet-handle" aria-hidden="true"></div>
         <div class="more-sheet-user" id="more-sheet-user-name">Lehrkraft</div>
         <div class="more-sheet-actions">
-          <button class="more-sheet-row" type="button" id="more-sheet-theme-toggle">
-            <span class="more-sheet-row-icon">☀</span>
-            <span id="more-sheet-theme-label">Dunkles Design</span>
-          </button>
-          <a class="more-sheet-row" href="./admin.html" id="more-sheet-admin-link" hidden>
-            <span class="more-sheet-row-icon">⚙</span>
-            Admin-Bereich
-          </a>
-          <button class="more-sheet-row" type="button" id="more-sheet-connections-btn" hidden>
-            <span class="more-sheet-row-icon">⇄</span>
-            Verbindungen
-          </button>
-          <button class="more-sheet-row" type="button" id="more-sheet-change-code-btn">
-            <span class="more-sheet-row-icon">🔑</span>
-            Zugangscode ändern
-          </button>
-          <button class="more-sheet-row more-sheet-row--danger" type="button" id="more-sheet-logout-btn">
-            <span class="more-sheet-row-icon">↩</span>
-            Abmelden
-          </button>
+          <button class="more-sheet-row" type="button" id="more-sheet-connections-btn" hidden>Verbindungen</button>
+          <button class="more-sheet-row" type="button" data-open-feedback>Rückmeldung geben</button>
+          <a class="more-sheet-row" href="./admin.html" id="more-sheet-admin-link" hidden>Admin-Bereich</a>
+          <button class="more-sheet-row" type="button" id="more-sheet-theme-toggle"><span id="more-sheet-theme-label">Dunkles Design</span></button>
+          <button class="more-sheet-row" type="button" id="more-sheet-change-code-btn">Zugangscode ändern</button>
+          <button class="more-sheet-row more-sheet-row--danger" type="button" id="more-sheet-logout-btn">Abmelden</button>
         </div>
       </div>
     </div>
@@ -535,27 +509,54 @@
           <h2 class="modal-title" id="connections-title">Verbindungen</h2>
           <button class="modal-close" type="button" id="connections-close" aria-label="Schließen">✕</button>
         </div>
-        <p class="connection-copy">Alle Informationsquellen deines Cockpits an einem Ort – mit Stand und Zustand jeder Quelle.</p>
         <div id="connections-body" class="connections-body"></div>
       </div>
     </div>
 
-    <!-- Code-ändern Modal -->
+    <!-- Rückmeldung -->
+    <div id="feedback-modal" class="modal-overlay" hidden>
+      <div class="modal feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="feedback-title">Rückmeldung</h2>
+          <button class="modal-close" type="button" data-feedback-close aria-label="Schließen">✕</button>
+        </div>
+        <form id="feedback-form" class="feedback-form" novalidate>
+          <div class="segmented feedback-kinds" role="radiogroup" aria-label="Worum geht es?">
+            <label><input type="radio" name="feedback-kind" value="problem" checked /><span>Problem</span></label>
+            <label><input type="radio" name="feedback-kind" value="idee" /><span>Idee</span></label>
+            <label><input type="radio" name="feedback-kind" value="frage" /><span>Frage</span></label>
+            <label><input type="radio" name="feedback-kind" value="lob" /><span>Lob</span></label>
+          </div>
+          <textarea id="feedback-message" class="form-input feedback-message" rows="5" maxlength="4000"
+            placeholder="Was ist passiert, was wünschst du dir?" required></textarea>
+          <div class="feedback-form-foot">
+            <span class="feedback-hint">Geht direkt an die Verwaltung des Cockpits.</span>
+            <button class="btn btn-primary" type="submit" id="feedback-submit">Senden</button>
+          </div>
+          <p class="connection-feedback" id="feedback-status" role="status"></p>
+        </form>
+        <div class="feedback-history" id="feedback-history" hidden>
+          <h3 class="feedback-history-title">Deine Rückmeldungen</h3>
+          <div id="feedback-list" class="feedback-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zugangscode ändern -->
     <div id="change-code-modal" class="modal-overlay" hidden>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="change-code-title">
+      <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="change-code-title">
         <div class="modal-header">
           <h2 class="modal-title" id="change-code-title">Zugangscode ändern</h2>
           <button class="modal-close" type="button" id="change-code-close" aria-label="Schließen">✕</button>
         </div>
-        <p style="font-size:0.85rem;color:var(--muted);margin:0 0 1rem;">Mind. 8 Zeichen, nur Buchstaben und Ziffern. Du wirst nach dem Speichern automatisch ausgeloggt.</p>
-        <form id="change-code-form">
-          <div style="display:flex;flex-direction:column;gap:0.75rem;">
-            <input type="text" id="change-code-input" class="form-input" placeholder="Neuer Zugangscode" autocomplete="off" minlength="8" required style="font-size:1rem;letter-spacing:0.05em;" />
-            <div id="change-code-feedback" style="font-size:0.82rem;color:var(--error);min-height:1.2em;"></div>
-            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-              <button type="button" id="change-code-cancel" class="btn">Abbrechen</button>
-              <button type="submit" class="btn btn-primary" id="change-code-submit">Speichern</button>
-            </div>
+        <form id="change-code-form" class="stack-form">
+          <label class="field-label" for="change-code-input">Neuer Code</label>
+          <input type="text" id="change-code-input" class="form-input" autocomplete="off" minlength="8" required spellcheck="false" />
+          <p class="field-hint">Mindestens 8 Buchstaben oder Ziffern. Danach meldest du dich neu an.</p>
+          <div id="change-code-feedback" class="connection-feedback is-error" role="alert"></div>
+          <div class="modal-actions">
+            <button type="button" id="change-code-cancel" class="btn btn-secondary">Abbrechen</button>
+            <button type="submit" class="btn btn-primary" id="change-code-submit">Speichern</button>
           </div>
         </form>
       </div>
@@ -594,148 +595,119 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=79"></script>
-    <script src="./src/api-client.js?v=79"></script>
-    <script src="./src/modules/dashboard-manager.js?v=79"></script>
-    <script src="./src/features/grades.js?v=79"></script>
-    <script src="./src/features/webuntis.js?v=79"></script>
-    <script src="./src/features/itslearning.js?v=79"></script>
-    <script src="./src/features/nextcloud.js?v=79"></script>
-    <script src="./src/features/documents.js?v=79"></script>
-    <script src="./src/features/classwork.js?v=79"></script>
+    <script src="./data/mock-dashboard.js?v=80"></script>
+    <script src="./src/api-client.js?v=80"></script>
+    <script src="./src/modules/dashboard-manager.js?v=80"></script>
+    <script src="./src/features/grades.js?v=80"></script>
+    <script src="./src/features/webuntis.js?v=80"></script>
+    <script src="./src/features/itslearning.js?v=80"></script>
+    <script src="./src/features/nextcloud.js?v=80"></script>
+    <script src="./src/features/documents.js?v=80"></script>
+    <script src="./src/features/classwork.js?v=80"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="./src/features/classlist.js?v=79"></script>
-    <script src="./src/features/collections.js?v=79"></script>
-    <script src="./src/features/inbox.js?v=79"></script>
-    <script src="./src/features/zugaenge.js?v=79"></script>
-    <script src="./src/features/onedrive-sync.js?v=79"></script>
-    <script src="./src/features/signals.js?v=79"></script>
-    <script src="./src/features/push.js?v=79"></script>
-    <script src="./src/features/ai.js?v=79"></script>
-    <script src="./src/features/connections.js?v=79"></script>
-    <script src="./src/app.js?v=79"></script>
+    <script src="./src/features/classlist.js?v=80"></script>
+    <script src="./src/features/collections.js?v=80"></script>
+    <script src="./src/features/inbox.js?v=80"></script>
+    <script src="./src/features/zugaenge.js?v=80"></script>
+    <script src="./src/features/onedrive-sync.js?v=80"></script>
+    <script src="./src/features/signals.js?v=80"></script>
+    <script src="./src/features/push.js?v=80"></script>
+    <script src="./src/features/ai.js?v=80"></script>
+    <script src="./src/features/connections.js?v=80"></script>
+    <script src="./src/features/feedback.js?v=80"></script>
+    <script src="./src/app.js?v=80"></script>
     <script>
-// Multi-User: User-Info anzeigen + Logout
-// NOT an IIFE — called explicitly from checkAuth() after window.CURRENT_USER is set,
-// so the admin link and user name are always rendered with the correct data.
+// Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
+// Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.
 function initUserInfo() {
-  if (!window.MULTIUSER_ENABLED) {
-    return;
-  }
-  if (window.CURRENT_USER) {
-    const info = document.getElementById('sidebar-user-info');
-    const name = document.getElementById('sidebar-user-name');
-    const adminLink = document.getElementById('sidebar-admin-link');
-    const logoutBtn = document.getElementById('sidebar-logout-btn');
-    if (info) info.style.display = 'flex';
-    if (name) name.textContent = window.CURRENT_USER.full_name || window.CURRENT_USER.first_name;
-    const isAdminUser = window.CURRENT_USER.is_admin === true || window.CURRENT_USER.role === 'admin';
-    if (adminLink) adminLink.style.display = isAdminUser ? 'inline-flex' : 'none';
+  if (!window.MULTIUSER_ENABLED || !window.CURRENT_USER) return;
+  const user = window.CURRENT_USER;
+  const displayName = user.full_name || user.first_name || 'Lehrkraft';
+  const initials = ((user.first_name || '')[0] || '') + ((user.last_name || '')[0] || '');
+  const isAdminUser = user.is_admin === true || user.role === 'admin';
 
-    async function doLogout() {
-      const backendUrl = window.BACKEND_API_URL || '';
-      await fetch(backendUrl + '/api/v2/auth/logout', {method: 'POST', credentials: 'include'});
+  const byId = (id) => document.getElementById(id);
+  byId('sidebar-user-name').textContent = displayName;
+  ['user-avatar', 'mobile-avatar'].forEach((id) => { const el = byId(id); if (el) el.textContent = (initials || displayName[0] || 'L').toUpperCase(); });
+  byId('sidebar-admin-link').hidden = !isAdminUser;
+  byId('more-sheet-admin-link').hidden = !isAdminUser;
+  byId('more-sheet-user-name').textContent = displayName;
+  byId('sidebar-feedback-btn').hidden = false;
+  if (window.LehrerFeedback) window.LehrerFeedback.onUser();
+  window.dispatchEvent(new Event('lehrer:user'));
+
+  if (document.body.dataset.userMenuBound) return;
+  document.body.dataset.userMenuBound = '1';
+
+  async function doLogout() {
+    try {
+      await fetch((window.BACKEND_API_URL || '') + '/api/v2/auth/logout', {method: 'POST', credentials: 'include'});
+    } finally {
       window.location.href = './login.html';
     }
-
-    if (logoutBtn && !logoutBtn.dataset.bound) {
-      logoutBtn.dataset.bound = 'true';
-      logoutBtn.addEventListener('click', doLogout);
-    }
-
-    // ── Mobile Mehr-Sheet ──────────────────────────────────────────────────────
-    const moreBtn = document.getElementById('mobile-more-btn');
-    const moreSheet = document.getElementById('mobile-more-sheet');
-    const moreBackdrop = document.getElementById('more-sheet-backdrop');
-    const moreUserName = document.getElementById('more-sheet-user-name');
-    const moreAdminLink = document.getElementById('more-sheet-admin-link');
-    const moreThemeBtn = document.getElementById('more-sheet-theme-toggle');
-    const moreThemeLabel = document.getElementById('more-sheet-theme-label');
-    const moreLogoutBtn = document.getElementById('more-sheet-logout-btn');
-    const moreChangeCodeBtn = document.getElementById('more-sheet-change-code-btn');
-
-    if (moreUserName) moreUserName.textContent = window.CURRENT_USER.full_name || window.CURRENT_USER.first_name;
-    if (moreAdminLink) moreAdminLink.hidden = !isAdminUser;
-
-    function openMoreSheet() { if (moreSheet) moreSheet.hidden = false; }
-    function closeMoreSheet() { if (moreSheet) moreSheet.hidden = true; }
-
-    if (moreBtn) moreBtn.addEventListener('click', openMoreSheet);
-    if (moreBackdrop) moreBackdrop.addEventListener('click', closeMoreSheet);
-    if (moreLogoutBtn) moreLogoutBtn.addEventListener('click', doLogout);
-
-    // Sync theme label in sheet
-    function syncMoreThemeLabel() {
-      const isDark = document.documentElement.dataset.theme === 'dark';
-      if (moreThemeLabel) moreThemeLabel.textContent = isDark ? 'Helles Design' : 'Dunkles Design';
-      if (moreThemeBtn) {
-        const icon = moreThemeBtn.querySelector('.more-sheet-row-icon');
-        if (icon) icon.textContent = isDark ? '☀' : '☽';
-      }
-    }
-    syncMoreThemeLabel();
-
-    if (moreThemeBtn) {
-      moreThemeBtn.addEventListener('click', function() {
-        const themeToggle = document.getElementById('theme-toggle');
-        if (themeToggle) themeToggle.click();
-        syncMoreThemeLabel();
-      });
-    }
-
-    // ── Code ändern ────────────────────────────────────────────────────────────
-    const changeCodeModal = document.getElementById('change-code-modal');
-    const changeCodeForm = document.getElementById('change-code-form');
-    const changeCodeInput = document.getElementById('change-code-input');
-    const changeCodeFeedback = document.getElementById('change-code-feedback');
-    const changeCodeClose = document.getElementById('change-code-close');
-    const changeCodeCancel = document.getElementById('change-code-cancel');
-
-    function openChangeCode() { closeMoreSheet(); if (changeCodeModal) changeCodeModal.hidden = false; }
-    function closeChangeCode() {
-      if (changeCodeModal) changeCodeModal.hidden = true;
-      if (changeCodeInput) changeCodeInput.value = '';
-      if (changeCodeFeedback) changeCodeFeedback.textContent = '';
-    }
-
-    if (moreChangeCodeBtn) moreChangeCodeBtn.addEventListener('click', openChangeCode);
-    const sidebarChangeCodeBtn = document.getElementById('sidebar-change-code-btn');
-    if (sidebarChangeCodeBtn) sidebarChangeCodeBtn.addEventListener('click', openChangeCode);
-    if (changeCodeClose) changeCodeClose.addEventListener('click', closeChangeCode);
-    if (changeCodeCancel) changeCodeCancel.addEventListener('click', closeChangeCode);
-
-    if (changeCodeForm) {
-      changeCodeForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const newCode = (changeCodeInput ? changeCodeInput.value.trim() : '');
-        if (!newCode) return;
-        const submitBtn = document.getElementById('change-code-submit');
-        if (submitBtn) submitBtn.disabled = true;
-        if (changeCodeFeedback) changeCodeFeedback.textContent = '';
-        try {
-          const backendUrl = window.BACKEND_API_URL || '';
-          const resp = await fetch(backendUrl + '/api/v2/auth/me/change-code', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({new_code: newCode}),
-          });
-          const data = await resp.json().catch(function() { return {}; });
-          if (!resp.ok) {
-            if (changeCodeFeedback) changeCodeFeedback.textContent = data.error || 'Fehler beim Speichern.';
-            if (submitBtn) submitBtn.disabled = false;
-          } else {
-            // Success — logout so user has to re-login with new code
-            alert('Code geändert! Du wirst jetzt ausgeloggt.');
-            doLogout();
-          }
-        } catch (err) {
-          if (changeCodeFeedback) changeCodeFeedback.textContent = 'Verbindungsfehler.';
-          if (submitBtn) submitBtn.disabled = false;
-        }
-      });
-    }
   }
+
+  // ── Nutzermenü (Desktop) ────────────────────────────────────────────────────
+  const trigger = byId('user-menu-trigger');
+  const popover = byId('user-menu-popover');
+  function setMenu(open) {
+    popover.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+  }
+  trigger.addEventListener('click', (event) => { event.stopPropagation(); setMenu(popover.hidden); });
+  document.addEventListener('click', (event) => { if (!popover.hidden && !event.target.closest('#user-menu')) setMenu(false); });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setMenu(false); });
+  popover.addEventListener('click', (event) => { if (event.target.closest('.user-menu-item')) setMenu(false); });
+  byId('sidebar-logout-btn').addEventListener('click', doLogout);
+
+  // ── Menü (Mobil) ────────────────────────────────────────────────────────────
+  const moreSheet = byId('mobile-more-sheet');
+  const closeMoreSheet = () => { moreSheet.hidden = true; };
+  byId('mobile-more-btn').addEventListener('click', () => { moreSheet.hidden = false; });
+  byId('more-sheet-backdrop').addEventListener('click', closeMoreSheet);
+  moreSheet.addEventListener('click', (event) => { if (event.target.closest('.more-sheet-row')) closeMoreSheet(); });
+  byId('more-sheet-logout-btn').addEventListener('click', doLogout);
+  byId('more-sheet-theme-toggle').addEventListener('click', () => byId('theme-toggle').click());
+
+  // ── Zugangscode ändern ──────────────────────────────────────────────────────
+  const modal = byId('change-code-modal');
+  const form = byId('change-code-form');
+  const input = byId('change-code-input');
+  const feedbackEl = byId('change-code-feedback');
+  const submitBtn = byId('change-code-submit');
+  function openChangeCode() { modal.hidden = false; setTimeout(() => input.focus(), 30); }
+  function closeChangeCode() { modal.hidden = true; input.value = ''; feedbackEl.textContent = ''; }
+  byId('sidebar-change-code-btn').addEventListener('click', openChangeCode);
+  byId('more-sheet-change-code-btn').addEventListener('click', openChangeCode);
+  byId('change-code-close').addEventListener('click', closeChangeCode);
+  byId('change-code-cancel').addEventListener('click', closeChangeCode);
+  modal.addEventListener('click', (event) => { if (event.target === modal) closeChangeCode(); });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const newCode = input.value.trim();
+    if (!newCode) return;
+    submitBtn.disabled = true;
+    feedbackEl.textContent = '';
+    try {
+      const resp = await fetch((window.BACKEND_API_URL || '') + '/api/v2/auth/me/change-code', {
+        method: 'POST', credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({new_code: newCode}),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        feedbackEl.textContent = data.error || 'Speichern fehlgeschlagen.';
+        submitBtn.disabled = false;
+        return;
+      }
+      feedbackEl.className = 'connection-feedback is-success';
+      feedbackEl.textContent = 'Gespeichert. Du wirst abgemeldet …';
+      setTimeout(doLogout, 900);
+    } catch (err) {
+      feedbackEl.textContent = 'Keine Verbindung zum Server.';
+      submitBtn.disabled = false;
+    }
+  });
 }
 if (window.CURRENT_USER) initUserInfo();
     </script>
@@ -746,17 +718,6 @@ if (window.CURRENT_USER) initUserInfo();
   var backdrop = document.getElementById('drawer-backdrop');
   var sidebar = document.querySelector('.app-sidebar');
   if (!burgerBtn || !backdrop || !sidebar) return;
-
-  // Sync topbar title from app-title-display
-  var topbarTitle = document.getElementById('mobile-topbar-title');
-  var appTitleDisplay = document.getElementById('app-title-display');
-  if (topbarTitle && appTitleDisplay) {
-    var observer = new MutationObserver(function() {
-      topbarTitle.textContent = appTitleDisplay.textContent;
-    });
-    observer.observe(appTitleDisplay, {childList: true, subtree: true, characterData: true});
-    topbarTitle.textContent = appTitleDisplay.textContent;
-  }
 
   function openDrawer() {
     sidebar.classList.add('drawer-open');

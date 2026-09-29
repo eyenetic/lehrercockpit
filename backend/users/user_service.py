@@ -63,6 +63,15 @@ def regenerate_access_code(conn, user_id: int) -> Optional[str]:
     return plain_code
 
 
+def code_taken(conn, plain_code: str, user_id: Optional[int] = None) -> bool:
+    """True if another active account already logs in with this code.
+
+    Self-chosen codes must be unique: login finds the account by its code.
+    """
+    other = authenticate_by_code(conn, plain_code)
+    return other is not None and other.id != user_id
+
+
 def authenticate_by_code(conn, plain_code: str) -> Optional[User]:
     """Authentifiziert einen User anhand seines Zugangscodes.
 

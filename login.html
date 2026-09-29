@@ -2,400 +2,257 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anmelden – Lehrer-Cockpit</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f0f0e" media="(prefers-color-scheme: dark)" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <title>Anmelden – Lehrercockpit</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
-    />
-    <link rel="stylesheet" href="./styles.css?v=79" />
-    <link rel="stylesheet" href="./styles.auth.css?v=79" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" />
+    <script>
+      (function () {
+        var theme = null;
+        try { theme = localStorage.getItem('lehrerCockpit.theme'); } catch (e) {}
+        if (theme !== 'dark' && theme !== 'light') {
+          theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <link rel="stylesheet" href="./styles.css?v=80" />
     <style>
-      body.login-page {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+      body.auth {
         min-height: 100vh;
+        min-height: 100dvh;
         margin: 0;
-        background: var(--bg);
-      }
-
-      .login-card {
-        background: var(--panel);
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-lg);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
-        padding: 2.5rem 2rem;
-        width: 100%;
-        max-width: 400px;
         display: flex;
         flex-direction: column;
-        gap: 1.25rem;
-      }
-
-      .login-brand {
-        display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 0.25rem;
+        background:
+          radial-gradient(900px 420px at 50% -120px, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+          var(--bg);
       }
-
-      .login-brand-mark {
-        width: 40px;
-        height: 40px;
-        display: grid;
-        place-items: center;
+      .auth-main {
+        flex: 1;
+        width: 100%;
+        max-width: 380px;
+        padding: max(9vh, 48px) 20px 32px;
+        box-sizing: border-box;
+      }
+      .auth-logo {
+        display: block;
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 22px;
         border-radius: 12px;
-        background: var(--panel-soft);
-        border: 1px solid var(--line);
-        color: var(--accent);
-        font-size: 1rem;
-        font-weight: 700;
+        box-shadow: var(--shadow-soft), 0 0 0 1px var(--line);
       }
-
-      .login-card h1 {
+      .auth-logo-dark { display: none; }
+      :root[data-theme="dark"] .auth-logo-light { display: none; }
+      :root[data-theme="dark"] .auth-logo-dark { display: block; }
+      .auth-title {
         margin: 0;
-        font-size: 1.15rem;
-        font-weight: 700;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 650;
+        letter-spacing: -0.025em;
         color: var(--ink);
-        line-height: 1.2;
       }
-
-      .login-subtitle {
-        margin: 0;
-        font-size: 0.82rem;
+      .auth-subtitle {
+        margin: 8px 0 28px;
+        text-align: center;
         color: var(--muted);
-        font-weight: 400;
-      }
-
-      .login-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .login-form label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-        font-size: 0.82rem;
-        font-weight: 500;
-        color: var(--ink);
-      }
-
-      .login-form input[type="text"] {
-        padding: 0.6rem 0.75rem;
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-md);
-        background: var(--panel-soft);
-        color: var(--ink);
-        font-size: 1rem;
-        font-family: "Geist Mono", monospace;
-        letter-spacing: 0.04em;
-        transition: border-color 120ms ease;
-      }
-
-      .login-form input[type="text"]:focus {
-        border-color: var(--accent);
-      }
-
-      .login-form input[type="text"]:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 0;
-        border-color: var(--accent);
-      }
-
-      .login-form input[type="text"]:focus:not(:focus-visible) {
-        outline: none;
-      }
-
-      .login-hint {
-        margin: 0;
-        font-size: 0.77rem;
-        color: var(--muted);
-      }
-
-      .login-error {
-        margin: 0;
-        padding: 0.5rem 0.75rem;
-        border-radius: var(--radius-sm);
-        background: rgba(220, 38, 38, 0.1);
-        border: 1px solid rgba(220, 38, 38, 0.3);
-        color: var(--danger);
-        font-size: 0.82rem;
-      }
-
-      .login-submit {
-        padding: 0.65rem 1rem;
-        border: none;
-        border-radius: var(--radius-md);
-        background: var(--accent);
-        color: #fff;
-        font-size: 0.9rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: opacity 120ms ease;
-      }
-
-      .login-submit:hover:not(:disabled) {
-        opacity: 0.88;
-      }
-
-      .login-submit:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-      }
-
-      /* ── Register form ───────────────────────────── */
-      .login-form input[type="email"] {
-        padding: 0.6rem 0.75rem;
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-md);
-        background: var(--panel-soft);
-        color: var(--ink);
-        font-size: 1rem;
-        transition: border-color 120ms ease;
-      }
-      .login-form input[type="email"]:focus {
-        border-color: var(--accent);
-        outline: none;
-      }
-      .login-register-success {
-        margin: 0;
-        padding: 0.65rem 0.85rem;
-        border-radius: var(--radius-sm);
-        background: rgba(34, 197, 94, 0.1);
-        border: 1px solid rgba(34, 197, 94, 0.3);
-        color: #15803d;
-        font-size: 0.84rem;
+        font-size: 0.92rem;
         line-height: 1.5;
       }
-
-      /* ── Privacy Modal ───────────────────────────── */
-      .login-footer {
-        display: flex;
-        justify-content: center;
-        margin-top: 0.25rem;
-      }
-      .btn-privacy {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 0.72rem;
+      .auth-form { display: grid; gap: 14px; }
+      .auth-form[hidden] { display: none; }
+      .auth-field { display: grid; gap: 6px; }
+      .auth-field > span { font-size: 0.82rem; font-weight: 560; color: var(--ink-2); }
+      .auth-field .form-input { min-height: 42px; font-size: 0.95rem; }
+      .auth-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .auth-secret { position: relative; }
+      .auth-secret .form-input { padding-right: 44px; width: 100%; box-sizing: border-box; letter-spacing: 0.02em; }
+      .auth-eye {
+        position: absolute;
+        top: 50%;
+        right: 6px;
+        transform: translateY(-50%);
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
         color: var(--muted);
-        text-decoration: underline;
+        cursor: pointer;
+      }
+      .auth-eye:hover { background: var(--panel-hover); color: var(--ink); }
+      .auth-eye svg { width: 17px; height: 17px; }
+      .auth-hint { margin: -4px 0 0; font-size: 0.78rem; color: var(--muted); }
+      .auth-submit { width: 100%; min-height: 42px; font-size: 0.92rem; margin-top: 2px; }
+      .auth-message {
+        margin: 0;
+        padding: 10px 12px;
+        border-radius: 9px;
+        font-size: 0.85rem;
+        line-height: 1.45;
+      }
+      .auth-message[hidden] { display: none; }
+      .auth-message.is-error { background: var(--danger-soft); color: var(--danger); }
+      .auth-message.is-success { background: var(--success-soft); color: var(--success); }
+      .auth-links {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px 18px;
+        margin-top: 22px;
+        font-size: 0.85rem;
+      }
+      .auth-link {
         padding: 0;
-      }
-      .btn-privacy:hover { color: var(--ink); }
-
-      .privacy-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.55);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        padding: 1rem;
-      }
-      .privacy-overlay[hidden] { display: none !important; }
-      .privacy-panel {
-        background: var(--panel);
-        border: 1px solid var(--line-strong);
-        border-radius: var(--radius-lg);
-        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
-        padding: 1.75rem;
-        width: 100%;
-        max-width: 480px;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        max-height: 90vh;
-        overflow-y: auto;
-      }
-      .privacy-panel h2 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 700;
-        color: var(--ink);
-      }
-      .privacy-panel h3 {
-        margin: 0 0 0.25rem;
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: var(--ink);
-      }
-      .privacy-panel p,
-      .privacy-panel li {
-        margin: 0;
-        font-size: 0.82rem;
-        color: var(--muted);
-        line-height: 1.6;
-      }
-      .privacy-panel ul {
-        padding-left: 1.2rem;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-      }
-      .privacy-section {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid var(--line);
-      }
-      .privacy-section:last-of-type { border-bottom: none; }
-      .privacy-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-      .privacy-close {
+        border: 0;
         background: none;
-        border: none;
         color: var(--muted);
-        font-size: 1.25rem;
+        font: inherit;
         cursor: pointer;
-        line-height: 1;
-        padding: 0 0.25rem;
       }
-      .privacy-close:hover { color: var(--ink); }
+      .auth-link:hover { color: var(--ink); }
+      .auth-link strong { color: var(--accent); font-weight: 560; }
+      .auth-legal { margin: 2px 0 0; text-align: center; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+      .auth-legal button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+      .auth-footer { padding: 20px; font-size: 0.76rem; color: var(--muted); text-align: center; }
+      .auth-footer button { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+      .auth-footer button:hover { color: var(--ink); }
+      .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      .privacy-panel { max-width: 520px; }
+      .privacy-panel h3 { margin: 16px 0 4px; font-size: 0.86rem; font-weight: 620; color: var(--ink); }
+      .privacy-panel p, .privacy-panel li { margin: 0; font-size: 0.85rem; color: var(--ink-2); line-height: 1.55; }
+      .privacy-panel ul { margin: 0; padding-left: 1.1rem; }
+      @media (max-width: 420px) {
+        .auth-main { padding-top: 40px; }
+        .auth-row { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
-  <body class="login-page">
-    <div class="login-card">
-      <div class="login-brand">
-        <div class="login-brand-mark">L</div>
-        <div>
-          <h1>Lehrer-Cockpit</h1>
-          <p class="login-subtitle">ruhig, kompakt, relevant</p>
+  <body class="auth">
+    <main class="auth-main">
+      <img class="auth-logo auth-logo-light" src="./icons/icon-192.png" alt="" />
+      <img class="auth-logo auth-logo-dark" src="./icons/icon-192-dark.png" alt="" />
+      <h1 class="auth-title" id="auth-title">Anmelden</h1>
+      <p class="auth-subtitle" id="auth-subtitle">Mit deinem persönlichen Zugangscode.</p>
+
+      <!-- Anmelden -->
+      <form class="auth-form" id="login-form" data-view="login" novalidate>
+        <input class="sr-only" type="text" name="username" autocomplete="username" value="Lehrercockpit" tabindex="-1" aria-hidden="true" />
+        <label class="auth-field">
+          <span>Zugangscode</span>
+          <span class="auth-secret">
+            <input class="form-input" type="password" id="access-code" autocomplete="current-password" spellcheck="false" autofocus required />
+            <button class="auth-eye" type="button" data-toggle-secret="access-code" aria-label="Code anzeigen"></button>
+          </span>
+        </label>
+        <p class="auth-message is-error" id="error-message" role="alert" hidden></p>
+        <button class="btn btn-primary auth-submit" type="submit" id="submit-btn">Anmelden</button>
+      </form>
+
+      <!-- Einladung annehmen -->
+      <form class="auth-form" id="invite-form" data-view="invite" novalidate hidden>
+        <input class="sr-only" type="text" id="invite-username" name="username" autocomplete="username" tabindex="-1" aria-hidden="true" />
+        <div class="auth-row">
+          <label class="auth-field"><span>Vorname</span><input class="form-input" type="text" id="invite-first" autocomplete="given-name" required /></label>
+          <label class="auth-field"><span>Nachname</span><input class="form-input" type="text" id="invite-last" autocomplete="family-name" required /></label>
         </div>
+        <label class="auth-field" id="invite-email-field" hidden>
+          <span>E-Mail <span class="auth-hint">(optional, falls du den Code vergisst)</span></span>
+          <input class="form-input" type="email" id="invite-email" autocomplete="email" />
+        </label>
+        <label class="auth-field">
+          <span>Dein Zugangscode</span>
+          <span class="auth-secret">
+            <input class="form-input" type="password" id="invite-code" autocomplete="new-password" minlength="8" spellcheck="false" required />
+            <button class="auth-eye" type="button" data-toggle-secret="invite-code" aria-label="Code anzeigen"></button>
+          </span>
+        </label>
+        <p class="auth-hint">Mindestens 8 Buchstaben oder Ziffern. Damit meldest du dich künftig an.</p>
+        <p class="auth-message is-error" id="invite-error" role="alert" hidden></p>
+        <button class="btn btn-primary auth-submit" type="submit" id="invite-btn">Konto anlegen</button>
+        <p class="auth-legal">Mit dem Anlegen gelten die <button type="button" data-open-privacy>Datenschutzhinweise</button>.</p>
+      </form>
+
+      <!-- Einladung ungültig -->
+      <div class="auth-form" id="invite-invalid" data-view="invite-invalid" hidden>
+        <p class="auth-message is-error" id="invite-invalid-text"></p>
+        <button class="btn btn-secondary auth-submit" type="button" data-show="register">Zugang anfragen</button>
       </div>
 
-      <p style="margin:0; font-size:0.88rem; color:var(--muted);">
-        Bitte gib deinen persönlichen Zugangscode ein.
-      </p>
-
-      <!-- ── Login-Formular ── -->
-      <form class="login-form" id="login-form" autocomplete="off">
-        <label for="access-code">
-          Zugangscode
-          <input
-            type="text"
-            id="access-code"
-            name="access-code"
-            placeholder="z. B. ABC-123-XYZ"
-            autofocus
-            autocomplete="off"
-            spellcheck="false"
-          />
-        </label>
-        <p class="login-hint">Deinen Code bekommst du von der Schuladministration.</p>
-        <p id="error-message" hidden class="login-error" role="alert" aria-live="assertive"></p>
-        <button type="submit" id="submit-btn" class="login-submit">Anmelden</button>
-        <button type="button" id="forgot-link" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">Code vergessen?</button>
-        <button type="button" id="register-link" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">Noch kein Zugang? Hier anmelden</button>
+      <!-- Code vergessen -->
+      <form class="auth-form" id="forgot-form" data-view="forgot" novalidate hidden>
+        <label class="auth-field"><span>E-Mail-Adresse</span><input class="form-input" type="email" id="reset-email" autocomplete="email" required /></label>
+        <p class="auth-message is-error" id="forgot-message" role="alert" hidden></p>
+        <p class="auth-message is-success" id="forgot-success" hidden></p>
+        <button class="btn btn-primary auth-submit" type="submit" id="forgot-btn">Link senden</button>
       </form>
 
-      <!-- ── Code-vergessen-Formular ── -->
-      <form class="login-form" id="forgot-form" autocomplete="off" hidden>
-        <p style="margin:0;font-size:0.88rem;color:var(--muted);">Gib deine E-Mail-Adresse ein – du erhältst einen Link zum Zurücksetzen.</p>
-        <label for="reset-email">
-          E-Mail-Adresse
-          <input type="email" id="reset-email" placeholder="deine@schule.de" autocomplete="email" />
+      <!-- Neuen Code festlegen (Link aus der E-Mail) -->
+      <form class="auth-form" id="reset-form" data-view="reset" novalidate hidden>
+        <input class="sr-only" type="text" name="username" autocomplete="username" value="Lehrercockpit" tabindex="-1" aria-hidden="true" />
+        <label class="auth-field">
+          <span>Neuer Zugangscode</span>
+          <span class="auth-secret">
+            <input class="form-input" type="password" id="new-code-input" autocomplete="new-password" minlength="8" spellcheck="false" required />
+            <button class="auth-eye" type="button" data-toggle-secret="new-code-input" aria-label="Code anzeigen"></button>
+          </span>
         </label>
-        <p id="forgot-message" hidden class="login-error" role="alert"></p>
-        <p id="forgot-success" hidden style="margin:0;padding:0.5rem 0.75rem;border-radius:var(--radius-sm);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#15803d;font-size:0.82rem;"></p>
-        <button type="submit" id="forgot-btn" class="login-submit">Reset-Link senden</button>
-        <button type="button" id="back-to-login" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">← Zurück zum Login</button>
+        <p class="auth-hint">Mindestens 8 Buchstaben oder Ziffern.</p>
+        <p class="auth-message is-error" id="reset-error" role="alert" hidden></p>
+        <p class="auth-message is-success" id="reset-success" hidden></p>
+        <button class="btn btn-primary auth-submit" type="submit" id="reset-btn">Code speichern</button>
       </form>
 
-      <!-- ── Neuen Code setzen (via Reset-Token aus URL) ── -->
-      <form class="login-form" id="reset-form" autocomplete="off" hidden>
-        <p style="margin:0;font-size:0.88rem;color:var(--muted);" id="reset-greeting">Neuen Zugangscode vergeben.</p>
-        <label for="new-code-input">
-          Neuer Zugangscode
-          <input type="text" id="new-code-input" placeholder="Mind. 8 Zeichen, nur Buchstaben & Ziffern" autocomplete="off" spellcheck="false" minlength="8" />
-        </label>
-        <p class="login-hint">Mind. 8 Zeichen, nur Buchstaben und Ziffern (keine Sonderzeichen).</p>
-        <p id="reset-error" hidden class="login-error" role="alert"></p>
-        <p id="reset-success" hidden style="margin:0;padding:0.5rem 0.75rem;border-radius:var(--radius-sm);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:#15803d;font-size:0.82rem;"></p>
-        <button type="submit" id="reset-btn" class="login-submit">Neuen Code speichern</button>
+      <!-- Zugang anfragen -->
+      <form class="auth-form" id="register-form" data-view="register" novalidate hidden>
+        <label class="auth-field"><span>Name</span><input class="form-input" type="text" id="register-name" autocomplete="name" required /></label>
+        <label class="auth-field"><span>E-Mail-Adresse</span><input class="form-input" type="email" id="register-email" autocomplete="email" required /></label>
+        <p class="auth-message is-error" id="register-error" role="alert" hidden></p>
+        <p class="auth-message is-success" id="register-success" hidden></p>
+        <button class="btn btn-primary auth-submit" type="submit" id="register-btn">Anfrage senden</button>
       </form>
 
-      <!-- ── Registrierungsformular (Interesse anmelden) ── -->
-      <form class="login-form" id="register-form" autocomplete="off" hidden>
-        <p style="margin:0;font-size:0.88rem;color:var(--muted);">Noch kein Zugang? Melde dein Interesse an – du bekommst deinen Code per E-Mail.</p>
-        <label for="register-name">
-          Name
-          <input type="text" id="register-name" placeholder="Vorname Nachname" autocomplete="name" />
-        </label>
-        <label for="register-email">
-          E-Mail-Adresse
-          <input type="email" id="register-email" placeholder="deine@schule.de" autocomplete="email" />
-        </label>
-        <p id="register-error" hidden class="login-error" role="alert"></p>
-        <p id="register-success" hidden class="login-register-success"></p>
-        <button type="submit" id="register-btn" class="login-submit">Anfrage senden</button>
-        <button type="button" id="back-from-register" style="background:none;border:none;cursor:pointer;font-size:0.8rem;color:var(--muted);text-decoration:underline;padding:0;align-self:center;">← Zurück zum Login</button>
-      </form>
+      <nav class="auth-links" id="auth-links">
+        <button class="auth-link" type="button" data-show="forgot" data-on="login">Code vergessen?</button>
+        <button class="auth-link" type="button" data-show="register" data-on="login">Noch kein Zugang? <strong>Anfragen</strong></button>
+        <button class="auth-link" type="button" data-show="login" data-on="forgot register invite invite-invalid reset">Zur Anmeldung</button>
+      </nav>
+    </main>
 
-      <!-- ── Footer ── -->
-      <div class="login-footer">
-        <button type="button" class="btn-privacy" id="btn-privacy">Datenschutz</button>
-      </div>
-    </div>
+    <footer class="auth-footer">
+      <button type="button" data-open-privacy>Datenschutz</button>
+    </footer>
 
-    <!-- ── Datenschutz-Modal ── -->
-    <div class="privacy-overlay" id="privacy-modal" hidden role="dialog" aria-modal="true" aria-labelledby="privacy-title">
-      <div class="privacy-panel">
-        <div class="privacy-header">
-          <h2 id="privacy-title">Datenschutz &amp; Datensicherheit</h2>
-          <button class="privacy-close" id="privacy-close" aria-label="Schließen" type="button">✕</button>
+    <!-- Datenschutz -->
+    <div class="modal-overlay" id="privacy-modal" hidden>
+      <div class="modal privacy-panel" role="dialog" aria-modal="true" aria-labelledby="privacy-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="privacy-title">Datenschutz</h2>
+          <button class="modal-close" id="privacy-close" aria-label="Schließen" type="button">✕</button>
         </div>
-
-        <div class="privacy-section">
-          <h3>Verantwortliche Stelle</h3>
-          <p>Lehrer-Cockpit Plattform – privat betriebener Dienst für Lehrkräfte.</p>
-        </div>
-
-        <div class="privacy-section">
-          <h3>Was wird gespeichert?</h3>
-          <ul>
-            <li>Name und E-Mail-Adresse (Kontodaten)</li>
-            <li>WebUntis-Kalender-URL (iCal)</li>
-            <li>Verschlüsselte Zugangsdaten zu verbundenen Diensten (itslearning, Nextcloud)</li>
-          </ul>
-        </div>
-
-        <div class="privacy-section">
-          <h3>Passwortsicherheit</h3>
-          <p>Zugangscodes werden mit <strong>Argon2id</strong> gehasht – einer modernen kryptografischen Funktion, die als State-of-the-Art für Passwortspeicherung gilt. Es wird kein Klartext-Passwort gespeichert; eine Wiederherstellung ist technisch nicht möglich.</p>
-        </div>
-
-        <div class="privacy-section">
-          <h3>Was NICHT eingegeben werden soll</h3>
-          <p>Bitte gib <strong>keine personenbezogenen Schülerdaten</strong> ein – also keine Schülernamen, Noten mit Namensangabe oder andere datenschutzrelevante Informationen zu Schülerinnen und Schülern.</p>
-        </div>
-
-        <div class="privacy-section">
-          <h3>Datenweitergabe</h3>
-          <p>Es erfolgt <strong>keine Weitergabe von Daten an Dritte</strong>. Es werden keine Tracking-Tools, keine Werbedienste und keine Analyseplattformen eingesetzt.</p>
-        </div>
-
-        <div class="privacy-section">
-          <h3>DSGVO</h3>
-          <p>Die Plattform verarbeitet ausschließlich die Daten, die für den Betrieb des Dienstes technisch notwendig sind, und speichert diese nicht länger als erforderlich.</p>
-        </div>
-
-        <div class="privacy-section">
-          <h3>Kontakt</h3>
-          <p>Bei Fragen zum Datenschutz wende dich direkt über die Plattform an den Betreiber.</p>
-        </div>
+        <p>Das Lehrercockpit ist ein privat betriebener Dienst für die Lehrkräfte eurer Schule.</p>
+        <h3>Was gespeichert wird</h3>
+        <ul>
+          <li>Name und – falls angegeben – E-Mail-Adresse</li>
+          <li>Links und Zugänge zu verbundenen Diensten (WebUntis, itslearning, Nextcloud), verschlüsselt</li>
+          <li>Rückmeldungen, die du an die Verwaltung schickst</li>
+        </ul>
+        <h3>Zugangscode</h3>
+        <p>Dein Code wird nur als Argon2id-Hash gespeichert – niemand kann ihn auslesen, auch die Verwaltung nicht.</p>
+        <h3>Bitte nicht eingeben</h3>
+        <p>Keine personenbezogenen Daten von Schülerinnen und Schülern (Namen mit Noten o. Ä.).</p>
+        <h3>Weitergabe</h3>
+        <p>Keine Weitergabe an Dritte, kein Tracking, keine Werbung. Der optionale KI-Assistent schickt nur Plan- und Termindaten an die Claude API von Anthropic – und nur, wenn du ihn einschaltest.</p>
       </div>
     </div>
 
@@ -406,192 +263,277 @@
         : "https://api.lehrercockpit.com";
     </script>
     <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        const API = window.BACKEND_API_URL || '';
+      (function () {
+        'use strict';
+        var API = window.BACKEND_API_URL || '';
+        var $ = function (id) { return document.getElementById(id); };
 
-        const loginForm    = document.getElementById('login-form');
-        const forgotForm   = document.getElementById('forgot-form');
-        const resetForm    = document.getElementById('reset-form');
-        const registerForm = document.getElementById('register-form');
+        var TITLES = {
+          login: ['Anmelden', 'Mit deinem persönlichen Zugangscode.'],
+          forgot: ['Code vergessen?', 'Wir schicken dir einen Link, mit dem du einen neuen Code festlegst.'],
+          reset: ['Neuen Code festlegen', 'Danach meldest du dich mit dem neuen Code an.'],
+          register: ['Zugang anfragen', 'Die Verwaltung schickt dir dann einen Einladungslink.'],
+          invite: ['Willkommen im Lehrercockpit', 'Leg dein Konto an – das dauert eine Minute.'],
+          'invite-invalid': ['Einladung', ''],
+        };
 
-        // ── Hilfsfunktionen ────────────────────────────────────────────────
-        function showOnly(form) {
-          [loginForm, forgotForm, resetForm, registerForm].forEach(function(f){ f.hidden = (f !== form); });
+        var EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+        var EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.39-1.61M2 2l20 20"/></svg>';
+
+        var view = 'login';
+
+        function show(name, subtitle) {
+          view = name;
+          document.querySelectorAll('[data-view]').forEach(function (el) { el.hidden = el.getAttribute('data-view') !== name; });
+          document.querySelectorAll('[data-on]').forEach(function (el) {
+            el.hidden = el.getAttribute('data-on').split(' ').indexOf(name) === -1;
+          });
+          var title = TITLES[name] || TITLES.login;
+          $('auth-title').textContent = title[0];
+          $('auth-subtitle').textContent = subtitle || title[1];
+          $('auth-subtitle').hidden = !(subtitle || title[1]);
+          var first = document.querySelector('[data-view="' + name + '"] input:not(.sr-only):not([type="hidden"])');
+          if (first && window.innerWidth > 640) setTimeout(function () { first.focus(); }, 30);
         }
 
-        function redirectByRole(user) {
-          if (user && user.onboarding_complete === false) { window.location.href = './onboarding.html'; return; }
-          window.location.href = './index.html';
+        function message(el, text) {
+          el.textContent = text || '';
+          el.hidden = !text;
         }
 
-        // ── Reset-Token in URL? → Reset-Formular zeigen ───────────────────
-        const urlParams = new URLSearchParams(window.location.search);
-        const resetToken = urlParams.get('reset_token');
-        if (resetToken) {
-          (async function() {
-            try {
-              const r = await fetch(API + '/api/v2/auth/reset-info?token=' + encodeURIComponent(resetToken));
-              const d = await r.json();
-              if (r.ok && d.ok) {
-                document.getElementById('reset-greeting').textContent =
-                  'Hallo ' + d.first_name + ', vergib dir einen neuen Zugangscode.';
-                showOnly(resetForm);
+        function post(path, body, withCookies) {
+          return fetch(API + path, {
+            method: 'POST',
+            credentials: withCookies ? 'include' : 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }).then(function (resp) {
+            return resp.json().catch(function () { return {}; }).then(function (data) {
+              return { ok: resp.ok && data.ok !== false, status: resp.status, data: data };
+            });
+          });
+        }
+
+        function busy(button, text) {
+          button.dataset.label = button.dataset.label || button.textContent;
+          button.disabled = !!text;
+          button.textContent = text || button.dataset.label;
+        }
+
+        function afterLogin(user) {
+          window.location.href = user && user.onboarding_complete === false ? './onboarding.html' : './index.html';
+        }
+
+        // ── Code anzeigen/verbergen ────────────────────────────────────────
+        document.querySelectorAll('[data-toggle-secret]').forEach(function (button) {
+          var input = $(button.getAttribute('data-toggle-secret'));
+          button.innerHTML = EYE;
+          button.addEventListener('click', function () {
+            var visible = input.type === 'text';
+            input.type = visible ? 'password' : 'text';
+            button.innerHTML = visible ? EYE : EYE_OFF;
+            button.setAttribute('aria-label', visible ? 'Code anzeigen' : 'Code verbergen');
+          });
+        });
+
+        document.querySelectorAll('[data-show]').forEach(function (button) {
+          button.addEventListener('click', function () { show(button.getAttribute('data-show')); });
+        });
+
+        // ── Anmelden ───────────────────────────────────────────────────────
+        $('login-form').addEventListener('submit', function (event) {
+          event.preventDefault();
+          var code = $('access-code').value.trim();
+          var error = $('error-message');
+          if (!code) { message(error, 'Bitte gib deinen Zugangscode ein.'); return; }
+          busy($('submit-btn'), 'Anmelden …');
+          message(error, '');
+          post('/api/v2/auth/login', { code: code }, true).then(function (result) {
+            if (result.ok) { afterLogin(result.data.user); return; }
+            message(error, result.status === 429
+              ? 'Zu viele Versuche. Bitte warte kurz.'
+              : (result.data.error === 'Ungültiger Zugangscode' ? 'Dieser Code passt zu keinem Konto.' : (result.data.error || 'Anmeldung fehlgeschlagen.')));
+            busy($('submit-btn'));
+          }).catch(function () {
+            message(error, 'Keine Verbindung zum Server. Bitte gleich noch einmal versuchen.');
+            busy($('submit-btn'));
+          });
+        });
+
+        // ── Einladung ──────────────────────────────────────────────────────
+        var inviteToken = '';
+        var hashMatch = (window.location.hash || '').match(/^#einladung=([\w-]+)$/);
+        if (hashMatch) {
+          inviteToken = hashMatch[1];
+          try { sessionStorage.setItem('lc.invite', inviteToken); } catch (e) {}
+          history.replaceState(null, '', window.location.pathname);
+        } else {
+          try { inviteToken = sessionStorage.getItem('lc.invite') || ''; } catch (e) {}
+        }
+
+        function startInvite() {
+          show('invite', 'Einladung wird geprüft …');
+          post('/api/v2/auth/invitation', { token: inviteToken }).then(function (result) {
+            if (!result.ok) {
+              try { sessionStorage.removeItem('lc.invite'); } catch (e) {}
+              show('invite-invalid');
+              message($('invite-invalid-text'), result.data.error || 'Dieser Einladungslink funktioniert nicht mehr.');
+              return;
+            }
+            var info = result.data.invitation || {};
+            var who = info.inviter ? info.inviter + ' lädt dich ein' : 'Du bist eingeladen';
+            show('invite', who + (info.school_name ? ' – ' + info.school_name + '.' : '.') + ' Leg dein Konto an, das dauert eine Minute.');
+            if (info.first_name) $('invite-first').value = info.first_name;
+            if (info.last_name) $('invite-last').value = info.last_name;
+            if (info.email) $('invite-email').value = info.email;
+            $('invite-email-field').hidden = !info.mail_reset;
+          }).catch(function () {
+            show('invite-invalid');
+            message($('invite-invalid-text'), 'Keine Verbindung zum Server. Bitte lade die Seite gleich noch einmal.');
+          });
+        }
+
+        $('invite-form').addEventListener('submit', function (event) {
+          event.preventDefault();
+          var error = $('invite-error');
+          var first = $('invite-first').value.trim();
+          var last = $('invite-last').value.trim();
+          var code = $('invite-code').value.trim();
+          if (!first || !last) { message(error, 'Bitte gib Vor- und Nachnamen ein.'); return; }
+          if (code.length < 8) { message(error, 'Der Code braucht mindestens 8 Zeichen.'); return; }
+          if (!/^[A-Za-z0-9ÄÖÜäöüß]+$/.test(code)) { message(error, 'Bitte nur Buchstaben und Ziffern verwenden.'); return; }
+          $('invite-username').value = first + ' ' + last;
+          message(error, '');
+          busy($('invite-btn'), 'Lege Konto an …');
+          post('/api/v2/auth/invitation/accept', {
+            token: inviteToken, first_name: first, last_name: last,
+            email: $('invite-email-field').hidden ? '' : $('invite-email').value.trim(), code: code,
+          }, true).then(function (result) {
+            if (result.ok) {
+              try { sessionStorage.removeItem('lc.invite'); } catch (e) {}
+              window.location.href = './onboarding.html';
+              return;
+            }
+            if (result.status === 410) {
+              show('invite-invalid');
+              message($('invite-invalid-text'), result.data.error);
+              return;
+            }
+            message(error, result.status === 429 ? 'Zu viele Versuche. Bitte warte ein paar Minuten.' : (result.data.error || 'Das hat nicht geklappt.'));
+            busy($('invite-btn'));
+          }).catch(function () {
+            message(error, 'Keine Verbindung zum Server. Bitte gleich noch einmal versuchen.');
+            busy($('invite-btn'));
+          });
+        });
+
+        // ── Zugang anfragen ────────────────────────────────────────────────
+        $('register-form').addEventListener('submit', function (event) {
+          event.preventDefault();
+          var name = $('register-name').value.trim();
+          var email = $('register-email').value.trim();
+          var error = $('register-error');
+          var success = $('register-success');
+          message(success, '');
+          if (!name) { message(error, 'Bitte gib deinen Namen ein.'); return; }
+          if (!email || email.indexOf('@') === -1) { message(error, 'Bitte gib deine E-Mail-Adresse ein.'); return; }
+          message(error, '');
+          busy($('register-btn'), 'Sende …');
+          post('/api/v2/register-interest', { name: name, email: email }).then(function (result) {
+            if (result.ok) {
+              message(success, 'Danke! Deine Anfrage ist angekommen. Sobald sie angenommen ist, bekommst du einen Einladungslink.');
+              $('register-btn').hidden = true;
+              return;
+            }
+            message(error, result.data.error || 'Die Anfrage konnte nicht gesendet werden.');
+            busy($('register-btn'));
+          }).catch(function () {
+            message(error, 'Keine Verbindung zum Server.');
+            busy($('register-btn'));
+          });
+        });
+
+        // ── Code vergessen ─────────────────────────────────────────────────
+        $('forgot-form').addEventListener('submit', function (event) {
+          event.preventDefault();
+          var email = $('reset-email').value.trim();
+          var error = $('forgot-message');
+          var success = $('forgot-success');
+          if (!email) { message(error, 'Bitte gib deine E-Mail-Adresse ein.'); return; }
+          message(error, ''); message(success, '');
+          busy($('forgot-btn'), 'Sende …');
+          post('/api/v2/auth/request-reset', { email: email }).then(function (result) {
+            if (result.ok) {
+              message(success, 'Falls es ein Konto mit dieser Adresse gibt, ist der Link unterwegs. Schau auch im Spam-Ordner nach.');
+            } else if (result.status === 503) {
+              message(error, 'E-Mail-Versand ist nicht eingerichtet. Bitte wende dich an die Verwaltung des Cockpits – sie kann dir einen neuen Einladungslink schicken.');
+            } else {
+              message(error, result.data.error || 'Das hat nicht geklappt.');
+            }
+            busy($('forgot-btn'));
+          }).catch(function () {
+            message(error, 'Keine Verbindung zum Server.');
+            busy($('forgot-btn'));
+          });
+        });
+
+        // ── Neuen Code festlegen ───────────────────────────────────────────
+        var resetToken = new URLSearchParams(window.location.search).get('reset_token');
+        $('reset-form').addEventListener('submit', function (event) {
+          event.preventDefault();
+          var code = $('new-code-input').value.trim();
+          var error = $('reset-error');
+          if (code.length < 8) { message(error, 'Der Code braucht mindestens 8 Zeichen.'); return; }
+          if (!/^[A-Za-z0-9ÄÖÜäöüß]+$/.test(code)) { message(error, 'Bitte nur Buchstaben und Ziffern verwenden.'); return; }
+          message(error, '');
+          busy($('reset-btn'), 'Speichere …');
+          post('/api/v2/auth/reset-code', { token: resetToken, new_code: code }).then(function (result) {
+            if (result.ok) {
+              message($('reset-success'), 'Gespeichert. Du kannst dich jetzt mit dem neuen Code anmelden.');
+              $('reset-btn').hidden = true;
+              setTimeout(function () { window.location.href = './login.html'; }, 2200);
+              return;
+            }
+            message(error, result.data.error || 'Das hat nicht geklappt.');
+            busy($('reset-btn'));
+          }).catch(function () {
+            message(error, 'Keine Verbindung zum Server.');
+            busy($('reset-btn'));
+          });
+        });
+
+        // ── Datenschutz ────────────────────────────────────────────────────
+        var privacy = $('privacy-modal');
+        document.querySelectorAll('[data-open-privacy]').forEach(function (button) {
+          button.addEventListener('click', function () { privacy.hidden = false; });
+        });
+        $('privacy-close').addEventListener('click', function () { privacy.hidden = true; });
+        privacy.addEventListener('click', function (event) { if (event.target === privacy) privacy.hidden = true; });
+        document.addEventListener('keydown', function (event) { if (event.key === 'Escape') privacy.hidden = true; });
+
+        // ── Start ──────────────────────────────────────────────────────────
+        if (inviteToken) {
+          startInvite();
+        } else if (resetToken) {
+          show('reset');
+          fetch(API + '/api/v2/auth/reset-info?token=' + encodeURIComponent(resetToken))
+            .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok && data.ok, data: data }; }); })
+            .then(function (result) {
+              if (result.ok) {
+                show('reset', 'Hallo ' + result.data.first_name + ', leg einen neuen Zugangscode fest.');
               } else {
-                document.getElementById('reset-error').textContent = d.error || 'Ungültiger oder abgelaufener Reset-Link.';
-                document.getElementById('reset-error').hidden = false;
-                showOnly(resetForm);
-                document.getElementById('reset-btn').disabled = true;
+                message($('reset-error'), result.data.error || 'Der Link ist abgelaufen. Fordere einfach einen neuen an.');
+                $('reset-btn').disabled = true;
               }
-            } catch(e) {
-              showOnly(loginForm);
-            }
-          })();
+            }).catch(function () {});
+        } else {
+          show('login');
+          fetch(API + '/api/v2/auth/me', { credentials: 'include' })
+            .then(function (resp) { return resp.ok ? resp.json() : null; })
+            .then(function (data) { if (data && data.ok) afterLogin(data.user); })
+            .catch(function () {});
         }
-
-        // ── Session prüfen ────────────────────────────────────────────────
-        async function checkSession() {
-          if (resetToken) return; // Reset-Flow hat Vorrang
-          try {
-            const resp = await fetch(API + '/api/v2/auth/me', { credentials: 'include' });
-            if (resp.ok) { const d = await resp.json(); if (d.ok) redirectByRole(d.user); }
-          } catch(e) {}
-        }
-
-        // ── Login ──────────────────────────────────────────────────────────
-        loginForm.addEventListener('submit', async function(e) {
-          e.preventDefault();
-          const code = document.getElementById('access-code').value.trim();
-          const errorMsg = document.getElementById('error-message');
-          const submitBtn = document.getElementById('submit-btn');
-          if (!code) return;
-          submitBtn.disabled = true; submitBtn.textContent = 'Anmelden…'; errorMsg.hidden = true;
-          try {
-            const resp = await fetch(API + '/api/v2/auth/login', {
-              method: 'POST', credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ code }),
-            });
-            const data = await resp.json();
-            if (resp.ok && data.ok) { redirectByRole(data.user); }
-            else { errorMsg.textContent = data.error || 'Ungültiger Zugangscode.'; errorMsg.hidden = false; }
-          } catch(e) { errorMsg.textContent = 'Verbindungsfehler. Bitte erneut versuchen.'; errorMsg.hidden = false; }
-          finally { submitBtn.disabled = false; submitBtn.textContent = 'Anmelden'; }
-        });
-
-        // ── Code vergessen / zurück ────────────────────────────────────────
-        document.getElementById('forgot-link').addEventListener('click', function() { showOnly(forgotForm); });
-        document.getElementById('back-to-login').addEventListener('click', function() { showOnly(loginForm); });
-
-        // ── Registrierung ──────────────────────────────────────────────────
-        document.getElementById('register-link').addEventListener('click', function() { showOnly(registerForm); });
-        document.getElementById('back-from-register').addEventListener('click', function() { showOnly(loginForm); });
-
-        registerForm.addEventListener('submit', async function(e) {
-          e.preventDefault();
-          const name  = document.getElementById('register-name').value.trim();
-          const email = document.getElementById('register-email').value.trim();
-          const errEl = document.getElementById('register-error');
-          const okEl  = document.getElementById('register-success');
-          const btn   = document.getElementById('register-btn');
-          errEl.hidden = true; okEl.hidden = true;
-          if (!name) { errEl.textContent = 'Bitte gib deinen Namen ein.'; errEl.hidden = false; return; }
-          if (!email) { errEl.textContent = 'Bitte gib deine E-Mail-Adresse ein.'; errEl.hidden = false; return; }
-          btn.disabled = true; btn.textContent = 'Sende…';
-          try {
-            const resp = await fetch(API + '/api/v2/register-interest', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name, email }),
-            });
-            const data = await resp.json();
-            if (resp.ok && data.ok) {
-              okEl.textContent = 'Schön, dass du dabei sein willst! Du wirst freigeschaltet und bekommst demnächst deinen Code. 🎉';
-              okEl.hidden = false;
-              btn.hidden = true;
-              document.getElementById('back-from-register').textContent = '← Zurück zum Login';
-            } else if (resp.status === 409) {
-              errEl.textContent = data.error || 'Diese E-Mail ist bereits registriert.';
-              errEl.hidden = false;
-            } else {
-              errEl.textContent = data.error || 'Fehler beim Senden der Anfrage.';
-              errEl.hidden = false;
-            }
-          } catch(e) { errEl.textContent = 'Verbindungsfehler. Bitte erneut versuchen.'; errEl.hidden = false; }
-          finally { if (!btn.hidden) { btn.disabled = false; btn.textContent = 'Anfrage senden'; } }
-        });
-
-        // ── Datenschutz-Modal ──────────────────────────────────────────────
-        document.getElementById('btn-privacy').addEventListener('click', function() {
-          document.getElementById('privacy-modal').hidden = false;
-        });
-        document.getElementById('privacy-close').addEventListener('click', function() {
-          document.getElementById('privacy-modal').hidden = true;
-        });
-        document.getElementById('privacy-modal').addEventListener('click', function(e) {
-          if (e.target === this) this.hidden = true;
-        });
-
-        // ── Forgot-Formular absenden ───────────────────────────────────────
-        forgotForm.addEventListener('submit', async function(e) {
-          e.preventDefault();
-          const email = document.getElementById('reset-email').value.trim();
-          const msg   = document.getElementById('forgot-message');
-          const ok    = document.getElementById('forgot-success');
-          const btn   = document.getElementById('forgot-btn');
-          if (!email) return;
-          btn.disabled = true; btn.textContent = 'Sende…'; msg.hidden = true; ok.hidden = true;
-          try {
-            const resp = await fetch(API + '/api/v2/auth/request-reset', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email }),
-            });
-            const data = await resp.json();
-            if (resp.ok && data.ok) {
-              ok.textContent = 'Falls ein Account mit dieser E-Mail existiert, wurde ein Link versendet. Bitte prüfe auch deinen Spam-Ordner.';
-              ok.hidden = false;
-            } else {
-              msg.textContent = data.error || 'Fehler beim Senden.';
-              msg.hidden = false;
-            }
-          } catch(e) { msg.textContent = 'Verbindungsfehler.'; msg.hidden = false; }
-          finally { btn.disabled = false; btn.textContent = 'Reset-Link senden'; }
-        });
-
-        // ── Neuen Code setzen ──────────────────────────────────────────────
-        resetForm.addEventListener('submit', async function(e) {
-          e.preventDefault();
-          const newCode = document.getElementById('new-code-input').value.trim();
-          const errEl   = document.getElementById('reset-error');
-          const okEl    = document.getElementById('reset-success');
-          const btn     = document.getElementById('reset-btn');
-          errEl.hidden = true; okEl.hidden = true;
-          if (newCode.length < 8) { errEl.textContent = 'Mindestens 8 Zeichen erforderlich.'; errEl.hidden = false; return; }
-          if (!/^[a-zA-Z0-9]+$/.test(newCode)) { errEl.textContent = 'Nur Buchstaben und Ziffern erlaubt.'; errEl.hidden = false; return; }
-          btn.disabled = true; btn.textContent = 'Speichern…';
-          try {
-            const resp = await fetch(API + '/api/v2/auth/reset-code', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token: resetToken, new_code: newCode }),
-            });
-            const data = await resp.json();
-            if (resp.ok && data.ok) {
-              okEl.textContent = '✅ Zugangscode geändert! Du wirst zum Login weitergeleitet…';
-              okEl.hidden = false;
-              btn.hidden = true;
-              // URL bereinigen und zum Login
-              setTimeout(function() { window.location.href = './login.html'; }, 2500);
-            } else {
-              errEl.textContent = data.error || 'Fehler beim Speichern.';
-              errEl.hidden = false;
-            }
-          } catch(e) { errEl.textContent = 'Verbindungsfehler.'; errEl.hidden = false; }
-          finally { btn.disabled = false; if (!btn.hidden) btn.textContent = 'Neuen Code speichern'; }
-        });
-
-        checkSession();
-      });
+      })();
     </script>
   </body>
 </html>

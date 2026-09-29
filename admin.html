@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=79" />
-    <link rel="stylesheet" href="./styles.admin.css?v=79" />
+    <link rel="stylesheet" href="./styles.css?v=80" />
+    <link rel="stylesheet" href="./styles.admin.css?v=80" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -521,13 +521,14 @@
       <!-- Top Bar -->
       <header class="admin-topbar">
         <div class="admin-topbar-brand">
-          <div class="brand-mark-sm">L</div>
+          <img class="brand-mark-img" src="./icons/icon-192.png" alt="" />
           <span>Lehrercockpit · Verwaltung</span>
         </div>
 
         <nav class="admin-tabs" role="tablist" aria-label="Admin-Bereiche">
           <button class="admin-tab active" type="button" data-tab="users" role="tab" aria-selected="true">Lehrkräfte</button>
-          <button class="admin-tab" type="button" data-tab="requests" role="tab" aria-selected="false">Zugangsanfragen</button>
+          <button class="admin-tab" type="button" data-tab="invite" role="tab" aria-selected="false">Einladen <span class="tab-count" id="requests-count" hidden></span></button>
+          <button class="admin-tab" type="button" data-tab="feedback" role="tab" aria-selected="false">Rückmeldungen <span class="tab-count" id="feedback-count" hidden></span></button>
           <button class="admin-tab" type="button" data-tab="settings" role="tab" aria-selected="false">Einstellungen</button>
           <button class="admin-tab" type="button" data-tab="audit" role="tab" aria-selected="false">Protokoll</button>
         </nav>
@@ -546,7 +547,10 @@
           <div class="admin-card">
             <div class="admin-card-header">
               <h2 class="admin-section-title">Lehrkräfte</h2>
-              <button class="btn btn-primary" id="btn-add-user" type="button">+ Neue Lehrkraft</button>
+              <div class="header-actions">
+                <button class="btn btn-secondary" id="btn-add-user" type="button">Direkt anlegen</button>
+                <button class="btn btn-primary" type="button" data-goto-tab="invite">Kolleg:in einladen</button>
+              </div>
             </div>
             <div id="users-feedback"></div>
             <div id="users-table-container">
@@ -555,17 +559,59 @@
           </div>
         </section>
 
-        <!-- Tab: Zugangsanfragen -->
-        <section class="admin-section" id="tab-requests" role="tabpanel">
+        <!-- Tab: Einladen -->
+        <section class="admin-section" id="tab-invite" role="tabpanel">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <div>
+                <h2 class="admin-section-title">Kollegiums-Link</h2>
+                <p class="card-sub">Ein Link für alle – z. B. in die Dienstmail oder den Kollegiums-Chat. Jede:r legt damit in einer Minute ein eigenes Konto an.</p>
+              </div>
+            </div>
+            <div id="team-invite"><p class="loading-row">Lade …</p></div>
+          </div>
+
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <div>
+                <h2 class="admin-section-title">Persönliche Einladung</h2>
+                <p class="card-sub">Für eine Person – der Link funktioniert einmal und 14 Tage lang.</p>
+              </div>
+            </div>
+            <form class="invite-form" id="personal-invite-form">
+              <input type="text" id="invite-name" placeholder="Name (optional)" autocomplete="off" />
+              <input type="email" id="invite-email" placeholder="E-Mail (optional)" autocomplete="off" />
+              <button class="btn btn-primary" type="submit" id="btn-create-invite">Link erstellen</button>
+            </form>
+            <div id="personal-invite-result"></div>
+            <div id="invite-list"></div>
+          </div>
+
           <div class="admin-card">
             <div class="admin-card-header">
               <h2 class="admin-section-title">Zugangsanfragen</h2>
-              <button class="btn btn-sm" id="btn-requests-refresh" type="button">Aktualisieren</button>
+              <button class="btn btn-sm btn-secondary" id="btn-requests-refresh" type="button">Aktualisieren</button>
             </div>
             <div id="requests-feedback"></div>
             <div id="requests-table-container">
               <p class="loading-row">Lade Anfragen…</p>
             </div>
+          </div>
+        </section>
+
+        <!-- Tab: Rückmeldungen -->
+        <section class="admin-section" id="tab-feedback" role="tabpanel">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-section-title">Rückmeldungen</h2>
+              <div class="segmented" id="feedback-filter" role="radiogroup" aria-label="Filter">
+                <label><input type="radio" name="fb-filter" value="open" checked /><span>Offen</span></label>
+                <label><input type="radio" name="fb-filter" value="erledigt" /><span>Erledigt</span></label>
+                <label><input type="radio" name="fb-filter" value="all" /><span>Alle</span></label>
+              </div>
+            </div>
+            <div id="feedback-admin-feedback"></div>
+            <div id="feedback-admin-list"><p class="loading-row">Lade …</p></div>
           </div>
         </section>
 
@@ -662,7 +708,9 @@
                     <option value="teacher_deactivated">Lehrkraft deaktiviert</option>
                     <option value="teacher_deleted">Lehrkraft gelöscht</option>
                     <option value="code_rotated">Zugangscode erneuert</option>
-                    <option value="access_request_approved">Zugang freigeschaltet</option>
+                    <option value="access_request_approved">Zugangsanfrage angenommen</option>
+                    <option value="invitation_created">Einladung erstellt</option>
+                    <option value="invitation_accepted">Konto per Einladung angelegt</option>
                     <option value="nextcloud_connected">Nextcloud verbunden</option>
                     <option value="orgaplan_source_changed">Orgaplan-Quelle geändert</option>
                   </select>
@@ -775,25 +823,13 @@
       </div>
     </div>
 
-    <!-- Toast für Zugangscode nach Freischaltung -->
-    <div class="admin-toast" id="approve-toast" hidden>
-      <span class="admin-toast-title">Lehrkraft freigeschaltet!</span>
-      <span style="font-size:0.8rem;color:var(--muted);">Zugangscode (einmalig anzeigen):</span>
-      <span class="admin-toast-code" id="approve-toast-code">–</span>
-      <span style="font-size:0.76rem;color:var(--muted);">Jetzt kopieren – wird nur einmal angezeigt.</span>
-      <div style="display:flex;gap:0.5rem;margin-top:0.25rem;">
-        <button class="btn btn-sm" id="approve-toast-copy" type="button">Kopieren</button>
-        <button class="admin-toast-close" id="approve-toast-close" type="button">Schließen</button>
-      </div>
-    </div>
-
     <script>
       // Lokal (localhost) spricht die Seite mit dem lokalen Backend, sonst mit der Produktion.
       window.BACKEND_API_URL = ["localhost", "127.0.0.1"].includes(window.location.hostname)
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=79"></script>
+    <script src="./src/api-client.js?v=80"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -914,28 +950,36 @@
 
         // ── Tabs ──────────────────────────────────────────────────────────────
 
+        var TAB_HASH = { users: 'nutzer', invite: 'einladen', feedback: 'rueckmeldungen', settings: 'einstellungen', audit: 'protokoll' };
+
+        function showTab(tab) {
+          if (!document.getElementById('tab-' + tab)) tab = 'users';
+          document.querySelectorAll('.admin-tab').forEach(function (b) {
+            b.classList.toggle('active', b.dataset.tab === tab);
+            b.setAttribute('aria-selected', b.dataset.tab === tab ? 'true' : 'false');
+          });
+          document.querySelectorAll('.admin-section').forEach(function (s) {
+            s.classList.toggle('visible', s.id === 'tab-' + tab);
+          });
+          if (tab === 'audit') { _auditOffset = 0; loadAuditLog(); }
+          if (tab === 'invite') { loadInvitations(); loadAccessRequests(); }
+          if (tab === 'feedback') loadFeedback();
+          history.replaceState(null, '', '#' + (TAB_HASH[tab] || tab));
+        }
+
         function setupTabs() {
           document.querySelectorAll('.admin-tab').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-              const tab = btn.dataset.tab;
-              document.querySelectorAll('.admin-tab').forEach(function (b) {
-                b.classList.toggle('active', b.dataset.tab === tab);
-                b.setAttribute('aria-selected', b.dataset.tab === tab ? 'true' : 'false');
-              });
-              document.querySelectorAll('.admin-section').forEach(function (s) {
-                s.classList.toggle('visible', s.id === 'tab-' + tab);
-              });
-              // Load audit log when switching to audit tab
-              if (tab === 'audit') {
-                _auditOffset = 0;
-                loadAuditLog();
-              }
-              // Load requests when switching to requests tab
-              if (tab === 'requests') {
-                loadAccessRequests();
-              }
-            });
+            btn.addEventListener('click', function () { showTab(btn.dataset.tab); });
           });
+          document.addEventListener('click', function (event) {
+            var goto = event.target.closest('[data-goto-tab]');
+            if (goto) showTab(goto.getAttribute('data-goto-tab'));
+          });
+          var fromHash = (window.location.hash || '').replace('#', '');
+          var initial = Object.keys(TAB_HASH).filter(function (key) { return TAB_HASH[key] === fromHash; })[0];
+          if (initial && initial !== 'users') showTab(initial);
+          loadRequestCount();
+          loadFeedback(true);
         }
 
         // ── Audit Log Tab ─────────────────────────────────────────────────────
@@ -952,7 +996,10 @@
           'teacher_deleted':         'Lehrkraft gelöscht',
           'code_rotated':            'Zugangscode erneuert',
           'bootstrap_created':       'Erster Admin angelegt',
-          'access_request_approved': 'Zugang freigeschaltet',
+          'access_request_approved': 'Zugangsanfrage angenommen',
+          'invitation_created':      'Einladung erstellt',
+          'invitation_accepted':     'Konto per Einladung angelegt',
+          'invitation_revoked':      'Einladung abgeschaltet',
           'access_request_rejected': 'Zugangsanfrage abgelehnt',
           'nextcloud_connected':     'Nextcloud verbunden',
           'nextcloud_disconnected':  'Nextcloud getrennt',
@@ -1500,11 +1547,11 @@
             if (req.status === 'pending') {
               statusBadge = '<span class="badge badge-pending">Ausstehend</span>';
               actions = '<div class="actions-cell">'
-                + '<button class="btn btn-sm btn-primary" type="button" data-req-action="approve" data-req-id="' + req.id + '" data-req-name="' + esc(req.name) + '">Freigeben</button>'
-                + '<button class="btn btn-sm" type="button" data-req-action="reject" data-req-id="' + req.id + '">Ablehnen</button>'
+                + '<button class="btn btn-sm btn-primary" type="button" data-req-action="approve" data-req-id="' + req.id + '" data-req-name="' + esc(req.name) + '">Annehmen</button>'
+                + '<button class="btn btn-sm btn-secondary" type="button" data-req-action="reject" data-req-id="' + req.id + '">Ablehnen</button>'
                 + '</div>';
             } else if (req.status === 'approved') {
-              statusBadge = '<span class="badge badge-approved">Freigeschaltet</span>';
+              statusBadge = '<span class="badge badge-approved">Eingeladen</span>';
               actions = '–';
             } else {
               statusBadge = '<span class="badge badge-rejected">Abgelehnt</span>';
@@ -1533,21 +1580,25 @@
             var reqId  = parseInt(btn.dataset.reqId, 10);
             var reqName = btn.dataset.reqName || '';
             if (action === 'approve') {
-              if (!confirm('Lehrkraft "' + reqName + '" freischalten und Zugangscode senden?')) return;
-              btn.disabled = true; btn.textContent = 'Freigeben…';
+              btn.disabled = true; btn.textContent = 'Einen Moment …';
               try {
                 var resp = await apiFetch('/api/v2/admin/access-requests/' + reqId + '/approve', { method: 'POST' });
                 var data = await resp.json();
                 if (!resp.ok) {
-                  setFeedback('requests-feedback', data.error || 'Fehler beim Freischalten.', 'error');
+                  setFeedback('requests-feedback', data.error || 'Das hat nicht geklappt.', 'error');
                 } else {
+                  var invite = data.invitation || {};
+                  document.getElementById('requests-feedback').innerHTML =
+                    '<div class="invite-created"><p><strong>' + esc(reqName) + '</strong> ist eingeladen. ' +
+                    (data.mailed ? 'Der Link wurde per E-Mail verschickt – zur Sicherheit hier noch einmal:' : 'Schick ihr/ihm diesen Link:') + '</p>' +
+                    linkBox(inviteLink(invite.token), { name: invite.name, email: invite.email }) + '</div>';
                   loadAccessRequests();
-                  showApproveToast(data.code || '');
+                  loadRequestCount();
                 }
               } catch (err) {
-                setFeedback('requests-feedback', 'Verbindungsfehler.', 'error');
+                setFeedback('requests-feedback', 'Keine Verbindung zum Server.', 'error');
               } finally {
-                btn.disabled = false; btn.textContent = 'Freigeben';
+                btn.disabled = false; btn.textContent = 'Annehmen';
               }
             } else if (action === 'reject') {
               if (!confirm('Anfrage ablehnen?')) return;
@@ -1574,32 +1625,303 @@
           btnRequestsRefresh.addEventListener('click', loadAccessRequests);
         }
 
-        function showApproveToast(code) {
-          var toast = document.getElementById('approve-toast');
-          var codeEl = document.getElementById('approve-toast-code');
-          if (!toast || !codeEl) return;
-          codeEl.textContent = code;
-          toast.hidden = false;
-          // auto-hide after 60s
-          setTimeout(function () { toast.hidden = true; }, 60000);
+        // ── Einladen ──────────────────────────────────────────────────────────
+
+        function inviteLink(token) {
+          return token ? window.location.origin + '/login.html#einladung=' + token : '';
         }
 
-        var toastCopy  = document.getElementById('approve-toast-copy');
-        var toastClose = document.getElementById('approve-toast-close');
-        if (toastCopy) {
-          toastCopy.addEventListener('click', function () {
-            var code = document.getElementById('approve-toast-code').textContent;
-            navigator.clipboard.writeText(code).then(function () {
-              toastCopy.textContent = 'Kopiert!';
-              setTimeout(function () { toastCopy.textContent = 'Kopieren'; }, 1500);
-            });
-          });
+        function shortDate(iso) {
+          if (!iso) return '';
+          var date = new Date(iso);
+          return isNaN(date.getTime()) ? '' : date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
         }
-        if (toastClose) {
-          toastClose.addEventListener('click', function () {
-            document.getElementById('approve-toast').hidden = true;
-          });
+
+        function mailtoHref(link, person) {
+          var school = (currentAdmin && currentAdmin.school_name) || '';
+          var name = (person && person.name) || '';
+          var body = (name ? 'Hallo ' + name.split(' ')[0] + ',' : 'Hallo,') + '\n\n'
+            + 'hier ist dein Link fürs Lehrercockpit: Stundenplan, Orgaplan, Klassenarbeiten und Nachrichten auf einen Blick.\n\n'
+            + link + '\n\n'
+            + 'Damit legst du in einer Minute dein Konto an (Name und eigener Zugangscode).\n\n'
+            + 'Viele Grüße\n' + ((currentAdmin && currentAdmin.first_name) || '');
+          return 'mailto:' + encodeURIComponent((person && person.email) || '')
+            + '?subject=' + encodeURIComponent('Einladung ins Lehrercockpit' + (school ? ' – ' + school : ''))
+            + '&body=' + encodeURIComponent(body);
         }
+
+        function linkBox(link, person) {
+          if (!link) return '';
+          return '<div class="link-box">'
+            + '<input class="link-box-input" type="text" readonly value="' + esc(link) + '" aria-label="Einladungslink" />'
+            + '<div class="link-box-actions">'
+            + '<button class="btn btn-sm btn-primary" type="button" data-copy-link="' + esc(link) + '">Kopieren</button>'
+            + '<a class="btn btn-sm btn-secondary" href="' + esc(mailtoHref(link, person)) + '">Per E-Mail</a>'
+            + (navigator.share ? '<button class="btn btn-sm btn-secondary" type="button" data-share-link="' + esc(link) + '">Teilen</button>' : '')
+            + '</div></div>';
+        }
+
+        document.addEventListener('click', function (event) {
+          var copy = event.target.closest('[data-copy-link]');
+          if (copy) {
+            var value = copy.getAttribute('data-copy-link');
+            var done = function () {
+              var label = copy.textContent;
+              copy.textContent = 'Kopiert ✓';
+              setTimeout(function () { copy.textContent = label === 'Kopiert ✓' ? 'Kopieren' : label; }, 1600);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(value).then(done).catch(function () {
+                var input = copy.closest('.link-box') && copy.closest('.link-box').querySelector('input');
+                if (input) { input.select(); document.execCommand('copy'); done(); }
+              });
+            } else {
+              var input = copy.closest('.link-box') && copy.closest('.link-box').querySelector('input');
+              if (input) { input.select(); document.execCommand('copy'); done(); }
+            }
+            return;
+          }
+          var share = event.target.closest('[data-share-link]');
+          if (share && navigator.share) {
+            navigator.share({ title: 'Einladung ins Lehrercockpit', text: 'Hier ist dein Link fürs Lehrercockpit:', url: share.getAttribute('data-share-link') })
+              .catch(function () { /* abgebrochen */ });
+          }
+          var focusable = event.target.closest('.link-box-input');
+          if (focusable) focusable.select();
+        });
+
+        function inviteState(invite) {
+          if (invite.usable) return invite.kind === 'team' ? '' : 'offen bis ' + shortDate(invite.expires_at);
+          if (invite.revoked_at) return 'abgeschaltet';
+          if (invite.uses) return 'angenommen' + (invite.used_by_name ? ' von ' + invite.used_by_name : '');
+          return 'abgelaufen';
+        }
+
+        async function loadInvitations() {
+          var team = document.getElementById('team-invite');
+          var list = document.getElementById('invite-list');
+          try {
+            var resp = await apiFetch('/api/v2/admin/invitations');
+            var data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+            var t = data.team;
+            team.innerHTML = t
+              ? linkBox(inviteLink(t.token), {})
+                + '<p class="invite-meta">Gültig bis ' + esc(shortDate(t.expires_at)) + ' · '
+                + (t.uses ? esc(t.uses) + (t.uses === 1 ? ' Konto' : ' Konten') + ' darüber angelegt' : 'noch niemand dabei') + ' · '
+                + '<button class="link-button" type="button" data-invite-new-team>Neuen Link erzeugen</button> · '
+                + '<button class="link-button is-danger" type="button" data-invite-revoke="' + t.id + '">Abschalten</button></p>'
+              : '<button class="btn btn-primary" type="button" data-invite-new-team>Kollegiums-Link erstellen</button>'
+                + '<p class="invite-meta">Gilt ' + esc((data.valid_days || {}).team || 30) + ' Tage. Du siehst, wer sich damit anmeldet, und kannst ihn jederzeit abschalten.</p>';
+
+            var personal = (data.invitations || []).slice(0, 12);
+            list.innerHTML = personal.length
+              ? '<h3 class="invite-list-title">Zuletzt eingeladen</h3><ul class="invite-list">' + personal.map(function (inv) {
+                  return '<li><span class="invite-who">' + esc(inv.name || inv.email || 'Ohne Namen') + '</span>'
+                    + '<span class="invite-state' + (inv.usable ? '' : ' is-muted') + '">' + esc(inviteState(inv)) + '</span>'
+                    + (inv.usable
+                      ? '<span class="invite-actions"><button class="btn btn-sm btn-secondary" type="button" data-copy-link="' + esc(inviteLink(inv.token)) + '">Link kopieren</button>'
+                        + '<button class="btn btn-sm btn-ghost" type="button" data-invite-revoke="' + inv.id + '">Abschalten</button></span>'
+                      : '<span class="invite-actions"></span>')
+                    + '</li>';
+                }).join('') + '</ul>'
+              : '';
+          } catch (e) {
+            team.innerHTML = '<p class="feedback-msg error">Einladungen konnten nicht geladen werden.</p>';
+          }
+        }
+
+        async function createInvitation(body) {
+          var resp = await apiFetch('/api/v2/admin/invitations', { method: 'POST', body: body });
+          var data = await resp.json().catch(function () { return {}; });
+          if (!resp.ok) throw new Error(data.error || 'Einladung konnte nicht erstellt werden.');
+          return data;
+        }
+
+        document.getElementById('tab-invite').addEventListener('click', async function (event) {
+          var newTeam = event.target.closest('[data-invite-new-team]');
+          if (newTeam) {
+            if (newTeam.classList.contains('link-button') && !confirm('Neuen Kollegiums-Link erzeugen? Der bisherige Link funktioniert dann nicht mehr.')) return;
+            newTeam.disabled = true;
+            try { await createInvitation({ kind: 'team' }); } catch (e) { alert(e.message); }
+            loadInvitations();
+            return;
+          }
+          var revoke = event.target.closest('[data-invite-revoke]');
+          if (revoke) {
+            if (!confirm('Diesen Link abschalten? Wer ihn noch nicht benutzt hat, kann damit kein Konto mehr anlegen.')) return;
+            revoke.disabled = true;
+            await apiFetch('/api/v2/admin/invitations/' + revoke.getAttribute('data-invite-revoke'), { method: 'DELETE' }).catch(function () {});
+            loadInvitations();
+          }
+        });
+
+        document.getElementById('personal-invite-form').addEventListener('submit', async function (event) {
+          event.preventDefault();
+          var name = document.getElementById('invite-name').value.trim();
+          var email = document.getElementById('invite-email').value.trim();
+          var button = document.getElementById('btn-create-invite');
+          var result = document.getElementById('personal-invite-result');
+          button.disabled = true;
+          try {
+            var data = await createInvitation({ kind: 'personal', name: name, email: email, send_mail: !!email });
+            var inv = data.invitation || {};
+            result.innerHTML = '<div class="invite-created"><p>' + (data.mailed
+              ? 'Der Link wurde an <strong>' + esc(inv.email) + '</strong> geschickt. Du kannst ihn auch selbst weitergeben:'
+              : 'Fertig – schick ' + (name ? '<strong>' + esc(name) + '</strong>' : 'der Person') + ' diesen Link:') + '</p>'
+              + linkBox(inviteLink(inv.token), { name: inv.name, email: inv.email }) + '</div>';
+            document.getElementById('invite-name').value = '';
+            document.getElementById('invite-email').value = '';
+            loadInvitations();
+          } catch (e) {
+            result.innerHTML = '<p class="feedback-msg error">' + esc(e.message) + '</p>';
+          } finally {
+            button.disabled = false;
+          }
+        });
+
+        async function loadRequestCount() {
+          try {
+            var resp = await apiFetch('/api/v2/admin/access-requests');
+            var data = await resp.json();
+            var open = (data.requests || []).filter(function (r) { return r.status === 'pending'; }).length;
+            var badge = document.getElementById('requests-count');
+            badge.textContent = String(open);
+            badge.hidden = !open;
+          } catch (e) { /* badge stays hidden */ }
+        }
+
+        // ── Rückmeldungen ─────────────────────────────────────────────────────
+
+        var _feedback = [];
+        var KIND_CLASS = { problem: 'is-problem', idee: 'is-idee', frage: 'is-frage', lob: 'is-lob' };
+
+        function feedbackFilter() {
+          var checked = document.querySelector('input[name="fb-filter"]:checked');
+          return checked ? checked.value : 'open';
+        }
+
+        function contextLine(context) {
+          var parts = [];
+          var labels = { overview: 'Heute', schedule: 'Stundenplan', inbox: 'Posteingang', documents: 'Pläne', grades: 'Notenrechner', classlist: 'Klassen', collections: 'Einsammlungen' };
+          if (context.section) parts.push('Bereich: ' + (labels[context.section] || context.section));
+          if (context.viewport) parts.push(context.viewport);
+          if (context.browser) {
+            var ua = context.browser;
+            parts.push(/iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Mac OS/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Browser');
+          }
+          if (context.version) parts.push('v' + context.version);
+          return parts.join(' · ');
+        }
+
+        function renderFeedback() {
+          var box = document.getElementById('feedback-admin-list');
+          var filter = feedbackFilter();
+          var items = _feedback.filter(function (item) {
+            if (filter === 'all') return true;
+            if (filter === 'erledigt') return item.status === 'erledigt';
+            return item.status !== 'erledigt';
+          });
+          if (!items.length) {
+            box.innerHTML = '<p class="empty-note">' + (filter === 'open' ? 'Keine offenen Rückmeldungen. 🎉' : 'Noch nichts hier.') + '</p>';
+            return;
+          }
+          box.innerHTML = items.map(function (item) {
+            var context = contextLine(item.context || {});
+            return '<article class="fb-item" data-fb-id="' + item.id + '">'
+              + '<div class="fb-head">'
+              + '<span class="fb-kind ' + (KIND_CLASS[item.kind] || '') + '">' + esc(item.kind_label) + '</span>'
+              + '<strong>' + esc(item.user_name) + '</strong>'
+              + '<span class="fb-date">' + esc(shortDate(item.created_at)) + '</span>'
+              + '<select class="fb-status" data-fb-status aria-label="Status">'
+              + ['neu', 'in_arbeit', 'erledigt'].map(function (status) {
+                  var label = { neu: 'Neu', in_arbeit: 'In Arbeit', erledigt: 'Erledigt' }[status];
+                  return '<option value="' + status + '"' + (item.status === status ? ' selected' : '') + '>' + label + '</option>';
+                }).join('')
+              + '</select></div>'
+              + '<p class="fb-text">' + esc(item.message) + '</p>'
+              + (context ? '<p class="fb-context">' + esc(context) + '</p>' : '')
+              + '<div class="fb-reply">'
+              + '<textarea rows="2" data-fb-reply placeholder="Antwort (sieht ' + esc((item.user_name || '').split(' ')[0] || 'die Lehrkraft') + ' im Cockpit)">' + esc(item.reply || '') + '</textarea>'
+              + '<div class="fb-reply-actions">'
+              + (item.user_email ? '<a class="btn btn-sm btn-ghost" href="mailto:' + esc(item.user_email) + '?subject=' + encodeURIComponent('Deine Rückmeldung zum Lehrercockpit') + '">E-Mail</a>' : '')
+              + '<button class="btn btn-sm btn-ghost" type="button" data-fb-delete>Löschen</button>'
+              + '<button class="btn btn-sm btn-primary" type="button" data-fb-save>' + (item.reply ? 'Antwort aktualisieren' : 'Antworten') + '</button>'
+              + '</div></div>'
+              + (item.replied_at ? '<p class="fb-context">Beantwortet am ' + esc(shortDate(item.replied_at)) + '</p>' : '')
+              + '</article>';
+          }).join('');
+        }
+
+        function updateFeedbackCount() {
+          var fresh = _feedback.filter(function (item) { return item.status === 'neu'; }).length;
+          var badge = document.getElementById('feedback-count');
+          badge.textContent = String(fresh);
+          badge.hidden = !fresh;
+        }
+
+        async function loadFeedback(countOnly) {
+          try {
+            var resp = await apiFetch('/api/v2/feedback/admin');
+            var data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+            _feedback = data.items || [];
+            updateFeedbackCount();
+            if (!countOnly) renderFeedback();
+          } catch (e) {
+            if (!countOnly) document.getElementById('feedback-admin-list').innerHTML = '<p class="feedback-msg error">Rückmeldungen konnten nicht geladen werden.</p>';
+          }
+        }
+
+        async function patchFeedback(id, body) {
+          var resp = await apiFetch('/api/v2/feedback/admin/' + id, { method: 'PATCH', body: body });
+          var data = await resp.json().catch(function () { return {}; });
+          if (!resp.ok) throw new Error(data.error || 'Konnte nicht gespeichert werden.');
+          _feedback = _feedback.map(function (item) { return item.id === data.item.id ? data.item : item; });
+          updateFeedbackCount();
+          return data.item;
+        }
+
+        document.getElementById('feedback-filter').addEventListener('change', renderFeedback);
+
+        document.getElementById('feedback-admin-list').addEventListener('change', async function (event) {
+          var select = event.target.closest('[data-fb-status]');
+          if (!select) return;
+          var id = select.closest('[data-fb-id]').getAttribute('data-fb-id');
+          try { await patchFeedback(id, { status: select.value }); renderFeedback(); }
+          catch (e) { setFeedback('feedback-admin-feedback', e.message, 'error'); }
+        });
+
+        document.getElementById('feedback-admin-list').addEventListener('click', async function (event) {
+          var card = event.target.closest('[data-fb-id]');
+          if (!card) return;
+          var id = card.getAttribute('data-fb-id');
+          if (event.target.closest('[data-fb-save]')) {
+            var reply = card.querySelector('[data-fb-reply]').value.trim();
+            var button = event.target.closest('[data-fb-save]');
+            button.disabled = true;
+            try {
+              var current = _feedback.filter(function (item) { return String(item.id) === id; })[0] || {};
+              var body = { reply: reply };
+              if (reply && current.status === 'neu') body.status = 'in_arbeit';
+              await patchFeedback(id, body);
+              renderFeedback();
+              setFeedback('feedback-admin-feedback', 'Antwort gespeichert – sie erscheint bei der Lehrkraft unter „Rückmeldung“.', 'success');
+              setTimeout(function () { setFeedback('feedback-admin-feedback', '', ''); }, 4000);
+            } catch (e) {
+              button.disabled = false;
+              setFeedback('feedback-admin-feedback', e.message, 'error');
+            }
+            return;
+          }
+          if (event.target.closest('[data-fb-delete]')) {
+            if (!confirm('Diese Rückmeldung löschen?')) return;
+            await apiFetch('/api/v2/feedback/admin/' + id, { method: 'DELETE' }).catch(function () {});
+            _feedback = _feedback.filter(function (item) { return String(item.id) !== id; });
+            updateFeedbackCount();
+            renderFeedback();
+          }
+        });
 
         // ── Close modal on overlay click ──────────────────────────────────────
 

@@ -165,3 +165,118 @@
 .audit-teacher-deactivated   { background: #feebc8; color: #7b341e; }
 .audit-code-rotated          { background: #e9d8fd; color: #553c9a; }
 .audit-bootstrap-created     { background: #fefcbf; color: #7b6000; }
+
+/* ── Einladen & Rückmeldungen (2026) ─────────────────────────────────────── */
+.admin-topbar-brand .brand-mark-img { width: 26px; height: 26px; border-radius: 7px; }
+.admin-tab { display: inline-flex; align-items: center; gap: 6px; }
+.tab-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 18px;
+  text-align: center;
+}
+.tab-count[hidden] { display: none; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.admin-card-header { gap: 12px; align-items: flex-start; }
+.card-sub { margin: 4px 0 0; font-size: 0.84rem; color: var(--muted); line-height: 1.5; max-width: 60ch; }
+
+.invite-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+.invite-form input {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+}
+.invite-form input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.link-box { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.link-box-input {
+  flex: 1 1 280px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--ink-2);
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+}
+.link-box-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.invite-meta { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); }
+.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.link-button:hover { text-decoration: underline; }
+.link-button.is-danger { color: var(--danger); }
+.invite-created { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--success-soft); }
+.invite-created p { margin: 0 0 10px; font-size: 0.86rem; color: var(--ink); }
+.invite-list-title { margin: 20px 0 6px; font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.invite-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; }
+.invite-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+}
+.invite-list li:first-child { border-top: 0; }
+.invite-who { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invite-state { color: var(--ink-2); font-size: 0.8rem; }
+.invite-state.is-muted { color: var(--muted); }
+.invite-actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+.empty-note { margin: 8px 0; color: var(--muted); font-size: 0.88rem; }
+.fb-item { padding: 14px 0; border-top: 1px solid var(--line); }
+.fb-item:first-child { border-top: 0; padding-top: 4px; }
+.fb-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.86rem; }
+.fb-date { color: var(--muted); font-size: 0.8rem; }
+.fb-kind { padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 650; background: var(--panel-soft); color: var(--ink-2); }
+.fb-kind.is-problem { background: var(--danger-soft); color: var(--danger); }
+.fb-kind.is-idee { background: var(--accent-soft); color: var(--accent); }
+.fb-kind.is-frage { background: var(--warning-soft); color: var(--warning); }
+.fb-kind.is-lob { background: var(--success-soft); color: var(--success); }
+.fb-status {
+  margin-left: auto;
+  min-height: 30px;
+  padding: 3px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+}
+.fb-text { margin: 8px 0 4px; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-context { margin: 0; font-size: 0.74rem; color: var(--muted); }
+.fb-reply { display: grid; gap: 8px; margin-top: 10px; }
+.fb-reply textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  resize: vertical;
+}
+.fb-reply textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.fb-reply-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+@media (max-width: 720px) {
+  .invite-form { grid-template-columns: 1fr; }
+  .invite-list li { grid-template-columns: minmax(0, 1fr) auto; }
+  .invite-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}

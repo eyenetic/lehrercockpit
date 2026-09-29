@@ -52,8 +52,8 @@ def register_interest():
                 status = existing_req[1]
                 if status == "approved":
                     return error(
-                        "Diese E-Mail wurde bereits freigeschaltet. "
-                        "Bitte prüfe deinen Posteingang nach deinem Zugangscode.",
+                        "Für diese E-Mail gibt es schon eine Einladung. "
+                        "Bitte schau in dein Postfach oder frag nach dem Link.",
                         409,
                     )
                 return error(
@@ -94,9 +94,8 @@ def register_interest():
 
         return success({
             "message": (
-                "Danke! Wir haben deine Anfrage erhalten und schalten "
-                "dich in Kürze frei. Du bekommst dann eine E-Mail mit "
-                "deinem persönlichen Zugangscode."
+                "Danke! Deine Anfrage ist angekommen. Sobald sie angenommen ist, "
+                "bekommst du einen Link, mit dem du dein Konto in einer Minute anlegst."
             )
         })
 
@@ -120,8 +119,8 @@ def _send_confirmation_mail(to: str, name: str) -> None:
   <p>Hallo {name},</p>
   <p>schön, dass du dabei sein willst!</p>
   <p>
-    Wir haben deine Anfrage erhalten und schalten dich in Kürze frei.
-    Du bekommst dann eine E-Mail mit deinem persönlichen Zugangscode.
+    Deine Anfrage ist angekommen. Sobald sie angenommen ist, bekommst du einen Link,
+    mit dem du dein Konto in einer Minute anlegst.
   </p>
   <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">
   <p style="color:#999;font-size:0.75rem;">Dein Lehrer-Cockpit Team</p>
@@ -131,8 +130,8 @@ def _send_confirmation_mail(to: str, name: str) -> None:
     body_text = (
         f"Hallo {name},\n\n"
         "schön, dass du dabei sein willst!\n\n"
-        "Wir haben deine Anfrage erhalten und schalten dich in Kürze frei.\n"
-        "Du bekommst dann eine E-Mail mit deinem persönlichen Zugangscode.\n\n"
+        "Deine Anfrage ist angekommen. Sobald sie angenommen ist, bekommst du einen Link,\n"
+        "mit dem du dein Konto in einer Minute anlegst.\n\n"
         "Dein Lehrer-Cockpit Team"
     )
 

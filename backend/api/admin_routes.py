@@ -748,129 +748,46 @@ def list_access_requests():
 @admin_bp.route("/access-requests/<int:req_id>/approve", methods=["POST"])
 @require_admin
 def approve_access_request(req_id: int):
-    """Zugangswunsch freischalten: User anlegen, Code senden.
+    """Zugangswunsch annehmen: persönlichen Einladungslink erzeugen und – wenn
+    E-Mail-Versand eingerichtet ist – direkt zuschicken. Das Konto legt die
+    Lehrkraft dann selbst über den Link an (eigener Code, sofort angemeldet).
 
-    Response: {"ok": true, "user_id": ..., "code": "..."}
+    Response: {"ok": true, "invitation": {...}, "mailed": bool}
     """
+    from backend import invitations
+    from backend.api.invitation_routes import frontend_base, school_name, send_invitation_mail
+
     try:
         with db_connection() as conn:
             row = conn.execute(
                 "SELECT id, name, email, status FROM access_requests WHERE id = %s",
                 (req_id,),
             ).fetchone()
-
             if not row:
                 return error("Anfrage nicht gefunden", 404)
+            if row[3] == "approved":
+                return error("Diese Anfrage wurde bereits angenommen", 409)
+            name, email = row[1], row[2]
 
-            req_status = row[3]
-            if req_status == "approved":
-                return error("Diese Anfrage wurde bereits genehmigt", 409)
-
-            name = row[1]
-            email = row[2]
-
-            # Name splitten: erstes Wort = Vorname, Rest = Nachname
-            parts = name.strip().split(" ", 1)
-            first_name = parts[0]
-            last_name = parts[1] if len(parts) > 1 else parts[0]
-
-            # User erstellen
-            user, plain_code = create_teacher(conn, first_name, last_name, "teacher", is_admin=False)
-            initialize_user_modules(conn, user.id)
-
-            # E-Mail auf User speichern (falls Spalte existiert)
-            try:
-                conn.execute(
-                    "UPDATE users SET email = %s WHERE id = %s",
-                    (email, user.id),
-                )
-            except Exception:
-                pass
-
-            # access_request als approved markieren
+            invite = invitations.create(conn, kind="personal", name=name, email=email,
+                                        created_by=g.current_user.id, access_request_id=req_id)
             conn.execute(
-                """
-                UPDATE access_requests
-                SET status = 'approved', approved_at = NOW()
-                WHERE id = %s
-                """,
+                "UPDATE access_requests SET status = 'approved', approved_at = NOW() WHERE id = %s",
                 (req_id,),
             )
-
-            try:
-                log_audit_event(
-                    conn,
-                    "access_request_approved",
-                    user_id=user.id,
-                    ip_address=request.remote_addr,
-                    details={"approved_by": g.current_user.id, "request_id": req_id},
-                )
-            except Exception:
-                pass
-
-        # Genehmigungsmail senden
-        try:
-            from backend import mailer
-            if mailer.is_configured():
-                _send_approval_mail(email, name, plain_code)
-        except Exception as _mail_exc:
-            import logging as _logging
-            _logging.getLogger(__name__).warning(
-                "[admin] Genehmigungsmail fehlgeschlagen: %s", _mail_exc
+            school = school_name(conn)
+            log_audit_event(
+                conn,
+                "access_request_approved",
+                ip_address=request.remote_addr,
+                details={"approved_by": g.current_user.id, "request_id": req_id, "invitation_id": invite["id"]},
             )
-
-        return success({"user_id": user.id, "code": plain_code})
-
     except Exception as exc:
-        return error(f"Fehler beim Freischalten: {type(exc).__name__}: {exc}", 500)
+        return error(f"Fehler beim Annehmen: {type(exc).__name__}: {exc}", 500)
 
-
-def _send_approval_mail(to: str, name: str, code: str) -> None:
-    """Sendet die Freischaltungs-Mail mit dem Zugangscode."""
-    from backend.mailer import send_mail
-
-    import os
-
-    subject = "Dein Lehrercockpit-Zugangscode"
-    login_url = os.environ.get("FRONTEND_URL", "").strip().rstrip("/") or "https://app.lehrercockpit.com"
-    if not login_url.startswith("https://"):
-        login_url = "https://app.lehrercockpit.com"
-    login_url += "/login.html"
-
-    body_html = f"""<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="utf-8"></head>
-<body style="font-family:system-ui,sans-serif;color:#1a1a1a;max-width:480px;margin:0 auto;padding:24px;">
-  <h2 style="color:#4f46e5;margin-bottom:8px;">Du wurdest freigeschaltet!</h2>
-  <p>Hallo {name},</p>
-  <p>dein Lehrer-Cockpit-Zugang ist bereit. Hier ist dein persönlicher Zugangscode:</p>
-  <div style="background:#f3f4f6;border:2px solid #4f46e5;border-radius:8px;padding:16px 20px;margin:20px 0;text-align:center;">
-    <span style="font-family:monospace;font-size:1.5rem;font-weight:700;letter-spacing:0.1em;color:#1a1a1a;">{code}</span>
-  </div>
-  <p style="color:#666;font-size:0.85rem;">
-    ⚠️ Speichere diesen Code sicher – er wird nur einmal per E-Mail versendet.
-  </p>
-  <p style="text-align:center;margin:24px 0;">
-    <a href="{login_url}"
-       style="background:#4f46e5;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:1rem;">
-      Jetzt einloggen
-    </a>
-  </p>
-  <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">
-  <p style="color:#999;font-size:0.75rem;">Dein Lehrer-Cockpit Team</p>
-</body>
-</html>"""
-
-    body_text = (
-        f"Hallo {name},\n\n"
-        "du wurdest freigeschaltet! Dein Code:\n\n"
-        f"  {code}\n\n"
-        "Bitte speichere diesen Code sicher – er wird nur einmal per E-Mail versendet.\n\n"
-        f"Login unter: {login_url}\n\n"
-        "Dein Lehrer-Cockpit Team"
-    )
-
-    send_mail(to, subject, body_html, body_text)
+    view = invitations.public_view(invite, frontend_base())
+    mailed = send_invitation_mail(email, name, view["link"], school)
+    return success({"invitation": view, "mailed": mailed})
 
 
 @admin_bp.route("/access-requests/<int:req_id>/reject", methods=["POST"])

@@ -309,6 +309,31 @@ the status incl. file, Stand and last check). The admin area only links there.
 - `SCHOOL_WEBSITE_URL` (env, default `https://hermann-ehlers-schule.de`) is the fallback school website;
   the admin setting `school_website_url` is shown under „Zugänge".
 
+### Kolleg:innen einladen
+
+Admin-Bereich → „Einladen":
+
+- **Kollegiums-Link** (`invitations.kind = 'team'`): one link for the whole staff, 30 days, any number of
+  accounts; creating a new one switches the old one off. Admins see how many accounts were created and can
+  switch it off at any time.
+- **Persönliche Einladung** (`kind = 'personal'`): one account, 14 days. With an e-mail address and SMTP
+  configured, the link is mailed; otherwise copy it or use „Per E-Mail" (mailto).
+- **Zugangsanfragen** (login page → „Anfragen") are answered with a personal invitation instead of a
+  generated code.
+
+The link is `…/login.html#einladung=<token>` (fragment, so the token never reaches server logs). The
+colleague enters first/last name and a self-chosen code (≥ 8 letters/digits, must not match another
+account), is logged in right away and lands in the setup wizard. Only the SHA-256 of the token is used for
+lookups; the token itself is stored encrypted (`ENCRYPTION_KEY`) so admins can copy active links again.
+Admins get a push note when someone joins (if they enabled push on a device).
+
+### Rückmeldungen
+
+Teachers send problems, ideas, questions or praise via „Rückmeldung" (sidebar / menu). They land in the
+admin area under „Rückmeldungen" (status Neu → In Arbeit → Erledigt, answer field). The answer appears in
+the teacher's „Rückmeldung" dialog with a badge; admins get a push note for new entries, teachers for
+answers. Stored: kind, text, section, screen size, browser (table `feedback`).
+
 ### Frontend deploy (Netlify)
 
 `netlify.toml` builds with `scripts/build_frontend.sh`, which copies only the frontend files into

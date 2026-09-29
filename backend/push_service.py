@@ -7,6 +7,7 @@ due and sends each digest at most once per teacher and day (push_log).
 from __future__ import annotations
 
 import json
+import threading
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
@@ -94,6 +95,37 @@ def _deliver(conn, subscriptions: list[dict], payload: dict, config: VapidConfig
             conn.execute("DELETE FROM push_subscriptions WHERE id = %s AND failure_count >= %s",
                          (sub["id"], MAX_FAILURES))
     return delivered
+
+
+def notify_in_background(payload: dict, *, user_id: int | None = None, admins: bool = False) -> None:
+    """Short push note to one teacher's devices or to all admin devices.
+
+    Runs in a thread with its own connection, so a slow push service never
+    delays the request; failures are only logged.
+    """
+    config = vapid_config()
+    if config is None:
+        return
+
+    def run() -> None:
+        from .db import db_connection
+
+        try:
+            with db_connection() as conn:
+                if admins:
+                    rows = conn.execute(
+                        """SELECT s.id, s.endpoint, s.p256dh, s.auth, s.prefs
+                           FROM push_subscriptions s JOIN users u ON u.id = s.user_id
+                           WHERE u.is_admin = TRUE AND u.is_active = TRUE"""
+                    ).fetchall()
+                    subscriptions = [_row(r) for r in rows]
+                else:
+                    subscriptions = user_subscriptions(conn, user_id)
+                _deliver(conn, subscriptions, payload, config)
+        except Exception as exc:
+            print(f"[push] notification failed: {type(exc).__name__}: {exc}", flush=True)
+
+    threading.Thread(target=run, name="push-notify", daemon=True).start()
 
 
 def send_test(conn, user_id: int, config: VapidConfig) -> int:

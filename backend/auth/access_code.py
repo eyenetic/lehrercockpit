@@ -21,6 +21,18 @@ CODE_ALPHABET = string.ascii_letters + string.digits  # keine Sonderzeichen für
 
 PREFIX_LENGTH = 8
 
+# Self-chosen codes (invitation, change, reset)
+MIN_CHOSEN_LENGTH = 8
+
+
+def chosen_code_problem(code: str) -> "str | None":
+    """Why a self-chosen access code is not acceptable, or None."""
+    if len(code) < MIN_CHOSEN_LENGTH:
+        return f"Der Code braucht mindestens {MIN_CHOSEN_LENGTH} Zeichen."
+    if not code.isalnum():
+        return "Der Code darf nur Buchstaben und Ziffern enthalten."
+    return None
+
 
 def get_code_prefix(plaintext_code: str) -> str:
     """Returns first PREFIX_LENGTH characters of the access code for DB pre-filtering.

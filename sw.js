@@ -28,9 +28,15 @@ self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   var target = new URL((event.notification.data && event.notification.data.url) || '/', self.registration.scope).href;
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windows) {
+    var root = new URL('/', self.registration.scope).href;
     for (var i = 0; i < windows.length; i++) {
-      if (windows[i].url.indexOf(self.registration.scope) === 0 && 'focus' in windows[i]) {
-        return windows[i].focus();
+      var client = windows[i];
+      if (client.url.indexOf(self.registration.scope) === 0 && 'focus' in client) {
+        // Deep links (e.g. an answer to a Rückmeldung) open their place; digests just focus.
+        if (target !== root && client.url !== target && 'navigate' in client) {
+          return client.focus().then(function (focused) { return focused.navigate(target); });
+        }
+        return client.focus();
       }
     }
     return self.clients.openWindow(target);

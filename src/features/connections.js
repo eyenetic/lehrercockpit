@@ -20,10 +20,26 @@
   'use strict';
 
   var GROUPS = [
-    { id: 'personal', title: 'Deine Zugänge', hint: 'Nur für dich. Links und Zugänge werden verschlüsselt gespeichert.' },
-    { id: 'school', title: 'Schulweite Quellen', hint: 'Gelten für alle Lehrkräfte eurer Schule.' },
-    { id: 'notify', title: 'Benachrichtigungen & Assistent', hint: '' },
+    { id: 'personal', title: 'Deine Zugänge' },
+    { id: 'school', title: 'Schule' },
+    { id: 'notify', title: 'Benachrichtigungen' },
   ];
+
+  var ICONS = {
+    webuntis: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    itslearning: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+    nextcloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+    orgaplan: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/>',
+    klassenarbeitsplan: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+    termine: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
+    dienstmail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+    push: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    ai: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+  };
+
+  function _icon(id) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[id] || ICONS.orgaplan) + '</svg>';
+  }
 
   var _sections = [];
   var _status = null;
@@ -31,8 +47,7 @@
   var _modal = null;
   var _body = null;
   var _only = null;          // section ids when mounted into the setup wizard
-  var _showSummary = true;
-  var _pendingSection = '';
+  var _detail = '';          // section shown in the dialog ('' = list)
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -144,11 +159,12 @@
     group: 'personal',
     title: 'WebUntis',
     state: function (status) { return (status.webuntis || {}).configured ? 'ok' : 'off'; },
+    summary: function (status) { return (status.webuntis || {}).configured ? 'Verbunden' : 'Nicht verbunden'; },
     render: function (status) {
       var s = status.webuntis || {};
       return '' +
         '<div class="connection-head"><h3>WebUntis</h3>' + pill(s.configured ? 'ok' : 'warn', s.configured ? 'verbunden' : 'nicht verbunden') + '</div>' +
-        '<p class="connection-copy">Dein persönlicher Stundenplan mit Vertretungen und Entfällen – über das Kalender-Abo (iCal) von WebUntis.</p>' +
+        '<p class="connection-copy">Dein Stundenplan mit Vertretungen und Entfällen.</p>' +
         '<label class="connection-field">Kalender-Abo-Link' +
         '<input class="form-input" type="url" data-field="ical_url" placeholder="' +
         (s.configured ? 'Link gespeichert – zum Ändern neuen Link einfügen' : 'https://…webuntis.com/WebUntis/ical…') + '" autocomplete="off" /></label>' +
@@ -178,12 +194,13 @@
     group: 'personal',
     title: 'itslearning',
     state: function (status) { var s = status.itslearning || {}; return s.calendar || s.login ? 'ok' : 'off'; },
+    summary: function (status) { var s = status.itslearning || {}; return s.calendar ? 'Kalender verbunden' : (s.login ? 'Verbunden' : 'Nicht verbunden'); },
     render: function (status) {
       var s = status.itslearning || {};
       var connected = s.calendar || s.login;
       return '' +
         '<div class="connection-head"><h3>itslearning</h3>' + pill(connected ? 'ok' : 'warn', s.calendar ? 'Kalender verbunden' : (connected ? 'verbunden' : 'nicht verbunden')) + '</div>' +
-        '<p class="connection-copy">Termine und Abgabefristen deiner Kurse über das offizielle Kalender-Abo – ganz ohne Passwort.</p>' +
+        '<p class="connection-copy">Termine und Abgaben deiner Kurse – über das Kalender-Abo, ohne Passwort.</p>' +
         '<label class="connection-field">Kalender-Abo-Link' +
         '<input class="form-input" type="url" data-field="calendar_url" placeholder="' +
         (s.calendar ? 'Link gespeichert – zum Ändern neuen Link einfügen' : 'https://berlin.itslearning.com/…') + '" autocomplete="off" /></label>' +
@@ -191,13 +208,13 @@
         '<li>In itslearning den <strong>Kalender</strong> öffnen.</li>' +
         '<li>Oben rechts auf das Zahnrad → „Abonnieren“.</li>' +
         '<li>Den angezeigten Link kopieren und hier einfügen.</li></ol>' +
-        '<p>Der Link funktioniert ohne Passwort. Er wird deshalb verschlüsselt gespeichert.</p></details>' +
+        '<p>Der Link wird verschlüsselt gespeichert.</p></details>' +
         '<div class="connection-actions">' +
         '<button class="btn btn-primary" type="button" data-action="save-calendar">Speichern</button>' +
         (s.calendar ? '<button class="btn btn-secondary" type="button" data-action="remove-calendar">Kalender trennen</button>' : '') +
         '</div>' +
-        '<details class="connection-optional"' + (s.login ? ' open' : '') + '><summary>Nachrichten per Login (optional, experimentell)</summary>' +
-        '<p class="connection-copy">Liest die Hinweise unter der Glocke über deinen itslearning-Login. Das kann bei Änderungen an itslearning ausfallen.</p>' +
+        '<details class="connection-optional"' + (s.login ? ' open' : '') + '><summary>Nachrichten per Login (optional)</summary>' +
+        '<p class="connection-copy">Liest die Hinweise unter der Glocke. Experimentell – kann bei Änderungen an itslearning ausfallen.</p>' +
         '<label class="connection-field">Benutzername<input class="form-input" type="text" data-field="username" value="' + esc(s.username || '') + '" autocomplete="off" /></label>' +
         '<label class="connection-field">Passwort<input class="form-input" type="password" data-field="password" placeholder="' +
         (s.login ? 'Passwort gespeichert' : '') + '" autocomplete="new-password" /></label>' +
@@ -285,6 +302,10 @@
     group: 'personal',
     title: 'Nextcloud',
     state: function (status) { return (status.nextcloud || {}).connected ? 'ok' : 'off'; },
+    summary: function (status) {
+      var s = status.nextcloud || {};
+      return s.connected ? 'Verbunden' : (s.pending || _nextcloudPoll ? 'Anmeldung läuft' : 'Nicht verbunden');
+    },
     render: function (status) {
       var s = status.nextcloud || {};
       var waiting = s.pending || !!_nextcloudPoll;
@@ -292,14 +313,13 @@
         pill(s.connected ? 'ok' : 'warn', s.connected ? 'verbunden' : (waiting ? 'Anmeldung läuft' : 'nicht verbunden')) + '</div>';
       if (s.connected) {
         return head +
-          '<p class="connection-copy">Verbunden als <strong>' + esc(s.account) + '</strong> auf ' + esc(_host(s.server)) + '. ' +
-          'Neue Dateien, Änderungen und Freigaben anderer erscheinen im Posteingang.</p>' +
-          '<p class="connection-copy">Das Cockpit nutzt ein eigenes App-Passwort. Du kannst es jederzeit hier trennen oder in Nextcloud unter Einstellungen → Sicherheit widerrufen.</p>' +
+          '<p class="connection-copy">Neue Dateien und Freigaben erscheinen im Posteingang.</p>' +
+          facts([['Konto', esc(s.account)], ['Server', esc(_host(s.server))]]) +
           '<div class="connection-actions"><button class="btn btn-secondary" type="button" data-action="disconnect">Trennen</button></div>' +
           '<p class="connection-feedback" data-feedback></p>';
       }
       return head +
-        '<p class="connection-copy">Neue Dateien, Änderungen und Freigaben aus euren geteilten Ordnern. Du meldest dich direkt auf der Nextcloud-Seite deiner Schule an – das Cockpit bekommt nur ein eigenes App-Passwort, dein Passwort sieht es nie.</p>' +
+        '<p class="connection-copy">Neue Dateien und Freigaben aus euren Ordnern. Du meldest dich direkt bei Nextcloud an – dein Passwort sieht das Cockpit nie.</p>' +
         '<label class="connection-field">Adresse eurer Nextcloud' +
         '<input class="form-input" type="url" data-field="base_url" value="' + esc(s.suggested_server || '') + '" placeholder="https://cloud.schule.de" autocomplete="off" /></label>' +
         '<div class="connection-actions">' +
@@ -381,25 +401,26 @@
     group: 'school',
     title: 'Orgaplan',
     state: _orgaplanState,
+    summary: function (status) {
+      var o = status.orgaplan || {};
+      if (o.status === 'ok') return 'Aktuell' + (o.stand ? ' · Stand ' + o.stand : '');
+      return { outdated: 'Veraltet', error: 'Fehler', pending: 'Wird geladen' }[o.status] || 'Unbekannt';
+    },
     render: function (status) {
       var o = status.orgaplan || {};
       var look = ORGAPLAN_STATES[o.status] || ['off', 'unbekannt'];
-      var source = o.mode === 'fixed'
-        ? 'Feste PDF, die ein Admin hinterlegt hat.'
-        : 'Das Cockpit sucht auf ' + esc(_host(o.site)) + ' selbst die neueste PDF mit „' + esc(o.query || 'Orgaplan') +
-          '“ im Namen – ein neuer Plan der Schule wird so automatisch übernommen.';
       var html = '<div class="connection-head"><h3>Orgaplan</h3>' + pill(look[0], look[1]) + '</div>' +
-        '<p class="connection-copy">Allgemeine Termine, Mittel- und Oberstufe – das Cockpit liest den ganzen Plan und zeigt dir die nächsten Wochen. ' + source + '</p>' +
+        '<p class="connection-copy">' + (o.mode === 'fixed'
+          ? 'Feste PDF, von einem Admin hinterlegt.'
+          : 'Wird automatisch von ' + esc(_host(o.site)) + ' geholt – ein neuer Plan wird von selbst übernommen.') + '</p>' +
         facts([
           ['Datei', o.name ? (o.current_url ? extLink(o.current_url, o.name) : esc(o.name)) : ''],
-          ['Plan', [o.school_year ? 'Schuljahr ' + esc(o.school_year) : '', o.stand ? 'Stand ' + esc(o.stand) : ''].filter(Boolean).join(' · ')],
-          ['Veröffentlicht', o.published_at ? esc(_deDate(o.published_at)) : ''],
-          ['Einträge', o.entries ? esc(o.entries) + ' im ganzen Schuljahr' : ''],
+          ['Stand', [o.stand ? esc(o.stand) : '', o.school_year ? 'Schuljahr ' + esc(o.school_year) : ''].filter(Boolean).join(' · ')],
           ['Geprüft', o.checked_at ? esc(relTime(o.checked_at)) : ''],
         ]);
       if (o.status === 'error' || (o.error && o.status !== 'ok')) html += alertBox('error', esc(o.error || o.detail));
       else if (o.status === 'outdated') html += alertBox('warning', esc(o.detail));
-      else if (o.error) html += alertBox('warning', 'Letzte Prüfung fehlgeschlagen: ' + esc(o.error) + ' Angezeigt wird der zuletzt gelesene Plan.');
+      else if (o.error) html += alertBox('warning', 'Letzte Prüfung fehlgeschlagen: ' + esc(o.error));
       html += '<div class="connection-actions">' +
         '<button class="btn btn-primary" type="button" data-action="orgaplan-refresh">Jetzt prüfen</button>' +
         (o.current_url ? '<a class="btn btn-secondary" href="' + esc(o.current_url) + '" target="_blank" rel="noopener noreferrer">PDF öffnen ↗</a>' : '') +
@@ -520,6 +541,16 @@
     group: 'school',
     title: 'Klassenarbeitsplan',
     state: _classworkState,
+    summary: function (status) {
+      var cw = status.klassenarbeitsplan || {};
+      var plan = cw.plan || {};
+      var sync = cw.sync || {};
+      if (cw.plan_from_previous_link) return sync.last_error ? 'Neuer Link: Fehler' : 'Neuer Link wird geladen';
+      if (plan.state === 'outdated') return 'Veraltet';
+      if (_classworkState(status) === 'warn') return 'Abruf gestört';
+      if (plan.state === 'ok') return 'Aktuell · ' + (plan.upcomingCount || 0) + ' Termine';
+      return cw.url ? 'Verlinkt' : 'Kein Link';
+    },
     render: function (status) {
       var cw = status.klassenarbeitsplan || {};
       var plan = cw.plan || {};
@@ -531,17 +562,15 @@
         : cw.onedrive ? 'automatisch' : cw.url ? 'verlinkt' : (plan.state === 'ok' ? 'hochgeladen' : 'kein Link');
       var html = '<div class="connection-head"><h3>Klassenarbeitsplan</h3>' + pill(state, label) + '</div>' +
         '<p class="connection-copy">' + (cw.onedrive
-          ? 'Der Plan bleibt auf OneDrive. Das Cockpit prüft ihn stündlich, übernimmt Änderungen und zeigt nur kommende Arbeiten.'
+          ? 'Wird stündlich von OneDrive geholt – Änderungen erscheinen von selbst.'
           : cw.url
-            ? 'Der Plan wird vom hinterlegten Link geladen.'
+            ? 'Wird vom hinterlegten Link geladen.'
             : 'Noch kein Link hinterlegt. Bis dahin lässt sich die Excel-Datei unter „Pläne“ hochladen.') + '</p>' +
         facts([
-          ['Datei', plan.fileName ? esc(plan.fileName) + (plan.folder ? ' <span class="connection-muted">(aus dem Ordner „' + esc(plan.folder) + '“)</span>' : '') : ''],
+          ['Datei', plan.fileName ? esc(plan.fileName) + (plan.folder ? ' <span class="connection-muted">(Ordner „' + esc(plan.folder) + '“)</span>' : '') : ''],
           ['Schuljahr', plan.schoolYear ? esc(plan.schoolYear) : ''],
-          ['Geändert', plan.fileModified ? 'am ' + esc(_deDate(plan.fileModified)) + ' (auf OneDrive)' : ''],
-          ['Übernommen', cw.uploaded_at ? esc(cw.uploaded_at) + ' – ' + esc(CLASSWORK_SOURCE_LABELS[cw.upload_source] || 'hochgeladen') : ''],
-          ['Geprüft', sync.last_success ? esc(relTime(sync.last_success)) : ''],
-          ['Einträge', plan.state ? esc(plan.upcomingCount || 0) + ' ab heute' + (plan.lastDate ? ' · letzter Eintrag ' + esc(_deDate(plan.lastDate)) : '') : ''],
+          ['Termine', plan.state ? esc(plan.upcomingCount || 0) + ' ab heute' : ''],
+          ['Geprüft', sync.last_success ? esc(relTime(sync.last_success)) : (cw.uploaded_at ? esc(cw.uploaded_at) + ' (' + esc(CLASSWORK_SOURCE_LABELS[cw.upload_source] || 'hochgeladen') + ')' : '')],
         ]);
       if (cw.plan_from_previous_link) {
         html += alertBox(sync.last_error ? 'error' : 'info', sync.last_error
@@ -549,8 +578,8 @@
           : 'Der eingetragene Link wurde noch nicht geladen – „Jetzt prüfen“ lädt ihn sofort. Angezeigt wird noch der Plan vom vorherigen Link.');
       } else if (plan.state === 'outdated') {
         html += alertBox('warning', esc(plan.message) + ' ' + (cw.can_edit
-          ? 'Trag unten den Link zum aktuellen Plan ein – am besten den Link zum <strong>OneDrive-Ordner</strong>, dann findet das Cockpit neue Dateien künftig selbst.'
-          : 'Bitte gib der Person Bescheid, die das Cockpit an eurer Schule verwaltet.'));
+          ? 'Trag unten den Link zum <strong>OneDrive-Ordner</strong> ein – dann findet das Cockpit neue Pläne künftig selbst.'
+          : 'Die Verwaltung ist informiert, sobald du es über „Rückmeldung“ meldest.'));
       }
       if (cw.plan_from_previous_link) {
         // explained above
@@ -574,7 +603,7 @@
           '<details class="connection-help"><summary>Welchen Link brauche ich?</summary><ol>' +
           '<li>In OneDrive den <strong>Ordner</strong> mit den Klassenarbeitsplänen auswählen (oder die Excel-Datei) → „Teilen“.</li>' +
           '<li>„Jeder mit dem Link kann anzeigen“ einstellen und den Link kopieren.</li></ol>' +
-          '<p>Mit dem Ordner-Link nimmt das Cockpit automatisch die neueste Excel-Datei – der Plan fürs nächste Schuljahr braucht dann keinen neuen Link.</p></details>' +
+          '<p>Mit dem Ordner-Link nimmt das Cockpit immer die neueste Excel-Datei.</p></details>' +
           '<div class="connection-actions"><button class="btn btn-secondary" type="button" data-action="save-link">Link speichern</button></div>' +
           '</details>';
       }
@@ -600,11 +629,15 @@
     group: 'school',
     title: 'Schultermine',
     state: function (status) { return (status.termine || {}).ok ? 'ok' : 'warn'; },
+    summary: function (status) {
+      var t = status.termine || {};
+      return t.ok ? (t.upcoming || 0) + ' Termine in 6 Wochen' : 'Nicht erreichbar';
+    },
     render: function (status) {
       var t = status.termine || {};
       var html = '<div class="connection-head"><h3>Schultermine</h3>' +
         pill(t.ok ? 'ok' : 'error', t.ok ? 'verbunden' : 'nicht erreichbar') + '</div>' +
-        '<p class="connection-copy">Ferien, Fahrten, Konferenzen und Veranstaltungen aus dem Kalender der Schulwebseite – im Tagesbriefing und unter „Pläne“.</p>' +
+        '<p class="connection-copy">Ferien, Fahrten und Veranstaltungen aus dem Kalender der Schulwebseite.</p>' +
         facts([
           ['Quelle', t.url ? esc(_host(t.url)) + (t.is_default ? ' (Schulwebseite)' : '') : ''],
           ['Termine', t.ok ? esc(t.upcoming || 0) + ' in den nächsten sechs Wochen' : ''],
@@ -641,12 +674,12 @@
     group: 'school',
     title: 'Dienstmail',
     state: function () { return 'ok'; },
+    summary: function () { return 'Direktlink'; },
     render: function (status) {
       var d = status.dienstmail || {};
       var url = d.url || 'https://lehrkraeftemail.schule.berlin.de/?iam_sso=1';
       return '<div class="connection-head"><h3>Dienstmail</h3>' + pill('ok', 'Direktlink') + '</div>' +
-        '<p class="connection-copy">Die Berliner Dienstmail erlaubt anderen Programmen keinen Zugriff (kein IMAP) – Mails kann das Cockpit deshalb nicht anzeigen. ' +
-        'Es öffnet dein Postfach mit einem Klick; angemeldet wirst du über das Schulportal.</p>' +
+        '<p class="connection-copy">Öffnet dein Postfach mit einem Klick. Mails anzeigen kann das Cockpit nicht – die Dienstmail lässt keine anderen Programme zu.</p>' +
         '<div class="connection-actions"><a class="btn btn-secondary" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Dienstmail öffnen ↗</a></div>';
     },
   });
@@ -665,7 +698,7 @@
     if (!st.serverEnabled) {
       return '<p class="connection-copy">Push-Nachrichten sind auf dem Server noch nicht eingerichtet.</p>';
     }
-    return '<p class="connection-copy">Das Cockpit meldet sich von selbst – du musst es nicht öffnen.</p>' +
+    return '<p class="connection-copy">Das Cockpit meldet sich von selbst.</p>' +
       '<label class="connection-check"><input type="checkbox" data-pref="morning"' + (prefs.morning ? ' checked' : '') + ' /> ' +
       'Schultags morgens: dein Tag in drei Zeilen</label>' +
       '<label class="connection-check"><input type="checkbox" data-pref="weekly"' + (prefs.weekly ? ' checked' : '') + ' /> ' +
@@ -684,6 +717,13 @@
     id: 'push',
     group: 'notify',
     title: 'Push-Nachrichten',
+    summaryAsync: function () {
+      if (!window.LehrerPush) return Promise.resolve({ state: 'off', text: 'Nicht verfügbar' });
+      return window.LehrerPush.status().then(function (st) {
+        var active = st.subscribed && st.serverEnabled;
+        return { state: active ? 'ok' : 'off', text: active ? 'An auf diesem Gerät' : 'Aus' };
+      });
+    },
     render: function () {
       return '<div class="connection-head"><h3>Push-Nachrichten</h3><span class="pill" data-push-pill>…</span></div>' +
         '<div data-push-body><p class="connection-copy">Prüfe dieses Gerät …</p></div>' +
@@ -739,6 +779,12 @@
     id: 'ai',
     group: 'notify',
     title: 'KI-Assistent',
+    summaryAsync: function () {
+      return api('/api/v2/ai/status').then(function (status) {
+        if (!status.available) return { state: 'off', text: 'Nicht eingerichtet' };
+        return { state: status.enabled ? 'ok' : 'off', text: status.enabled ? 'An' : 'Aus' };
+      });
+    },
     render: function () {
       return '<div class="connection-head"><h3>KI-Assistent</h3><span class="pill" data-ai-pill>…</span></div>' +
         '<div data-ai-body><p class="connection-copy">Prüfe …</p></div>' +
@@ -758,7 +804,7 @@
         var usage = status.usage || {};
         var limits = status.limits || {};
         body.innerHTML =
-          '<p class="connection-copy">Fasst deinen Tag zusammen und beantwortet Fragen wie „Wann schreibt die 10b die nächste Arbeit?“.</p>' +
+          '<p class="connection-copy">Fasst deinen Tag zusammen und beantwortet Fragen zu Plänen und Terminen.</p>' +
           '<details class="connection-help"><summary>Welche Daten gehen an die KI?</summary>' +
           '<p>Nur Plan- und Termindaten: Stunden (Fach, Klasse, Raum), Termine, Fristen und Klassenarbeiten deiner Klassen. ' +
           'Keine Noten, keine Notizen, keine Inhalte aus Nextcloud oder itslearning-Nachrichten – davon nur die Anzahl. ' +
@@ -797,74 +843,96 @@
   function registerSection(section) {
     _sections = _sections.filter(function (s) { return s.id !== section.id; });
     _sections.push(section);
-    if (_body && _status && (!_modal || !_modal.hidden)) render();
+    if (_body && _status && (_only || (_modal && !_modal.hidden))) render();
   }
 
   function _visibleSections() {
     return _sections.filter(function (s) { return !_only || _only.indexOf(s.id) !== -1; });
   }
 
-  function _summaryHtml(status) {
-    var chips = _sections.filter(function (s) { return typeof s.state === 'function'; }).map(function (s) {
-      var state = s.state(status);
-      return '<button type="button" class="conn-chip is-' + state + '" data-goto="' + esc(s.id) + '">' +
-        '<span class="conn-chip-dot" aria-hidden="true"></span>' + esc(s.title) + '</button>';
+  var CHEVRON = '<svg class="conn-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+  var BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
+
+  // Dialog start: one row per source with a short status; details on click.
+  function _listHtml(status) {
+    return '<div class="conn-list">' + GROUPS.map(function (group) {
+      var members = _sections.filter(function (s) { return (s.group || 'notify') === group.id; });
+      if (!members.length) return '';
+      return '<section><h3 class="conn-group-label">' + esc(group.title) + '</h3><div class="conn-rows">' +
+        members.map(function (section) {
+          var state = typeof section.state === 'function' ? section.state(status) : 'off';
+          var text = typeof section.summary === 'function' ? section.summary(status) : '…';
+          return '<button type="button" class="conn-row" data-conn-open="' + esc(section.id) + '">' +
+            '<span class="conn-icon">' + _icon(section.id) + '</span>' +
+            '<span class="conn-name">' + esc(section.title) + '</span>' +
+            '<span class="conn-state is-' + esc(state) + '" data-conn-state="' + esc(section.id) + '">' + esc(text) + '</span>' +
+            CHEVRON + '</button>';
+        }).join('') + '</div></section>';
+    }).join('') + '</div>';
+  }
+
+  function _renderSections(sections, status) {
+    _body.innerHTML = sections.map(function (section) {
+      return '<section class="connection-section" data-section="' + esc(section.id) + '">' + section.render(status) + '</section>';
+    }).join('');
+  }
+
+  function _bindSections(sections, status) {
+    sections.forEach(function (section) {
+      var el = _body.querySelector('[data-section="' + section.id + '"]');
+      if (el && section.bind) section.bind(el, status);
     });
-    var attention = _sections.filter(function (s) { return typeof s.state === 'function' && s.state(status) === 'warn'; }).length;
-    return '<div class="connections-summary">' +
-      '<p class="connection-copy">' + (attention
-        ? '<strong>' + attention + (attention === 1 ? ' Quelle braucht' : ' Quellen brauchen') + ' Aufmerksamkeit.</strong> '
-        : 'Alle eingerichteten Quellen laufen. ') +
-      'Tippe auf eine Quelle, um direkt dorthin zu springen.</p>' +
-      '<div class="conn-chips">' + chips.join('') + '</div></div>';
   }
 
   function render() {
     if (!_body) return;
     var status = _status || {};
-    var sections = _visibleSections();
-    var html = (_showSummary && !_only) ? _summaryHtml(status) : '';
-    GROUPS.forEach(function (group) {
-      var members = sections.filter(function (s) { return (s.group || 'notify') === group.id; });
-      if (!members.length) return;
-      var hint = group.hint;
-      if (group.id === 'school') {
-        var editable = members.some(function (s) { return ((status[s.id] || {}).can_edit); });
-        hint += editable ? ' Du kannst sie als Admin ändern.' : ' Ändern können Admins.';
-      }
-      html += (_only ? '' : '<div class="connections-group"><h3 class="connections-group-title">' + esc(group.title) + '</h3>' +
-        (hint ? '<p class="connections-group-hint">' + esc(hint) + '</p>' : '') + '</div>') +
-        members.map(function (section) {
-          return '<section class="connection-section" data-section="' + esc(section.id) + '">' + section.render(status) + '</section>';
-        }).join('');
-    });
-    _body.innerHTML = html;
-    sections.forEach(function (section) {
-      var el = _body.querySelector('[data-section="' + section.id + '"]');
-      if (el && section.bind) section.bind(el, status);
-    });
-    _body.querySelectorAll('[data-goto]').forEach(function (chip) {
-      chip.addEventListener('click', function () { _scrollTo(chip.getAttribute('data-goto')); });
-    });
-    if (_pendingSection) {
-      var target = _pendingSection;
-      _pendingSection = '';
-      _scrollTo(target);
+
+    // Setup wizard: the chosen sections one below the other.
+    if (_only) {
+      var chosen = _visibleSections();
+      _renderSections(chosen, status);
+      _bindSections(chosen, status);
+      return;
     }
+
+    var detail = _detail && _sections.filter(function (s) { return s.id === _detail; })[0];
+    if (detail) {
+      _body.innerHTML = '<button type="button" class="conn-detail-back" data-conn-back>' + BACK + 'Alle Verbindungen</button>';
+      var holder = document.createElement('div');
+      holder.innerHTML = '<section class="connection-section" data-section="' + esc(detail.id) + '">' + detail.render(status) + '</section>';
+      _body.appendChild(holder.firstChild);
+      _bindSections([detail], status);
+      _body.querySelector('[data-conn-back]').addEventListener('click', function () { _show(''); });
+      return;
+    }
+
+    _body.innerHTML = _listHtml(status);
+    _body.querySelectorAll('[data-conn-open]').forEach(function (row) {
+      row.addEventListener('click', function () { _show(row.getAttribute('data-conn-open')); });
+    });
+    _sections.forEach(function (section) {
+      if (typeof section.summaryAsync !== 'function') return;
+      section.summaryAsync().then(function (result) {
+        var el = _body && _body.querySelector('[data-conn-state="' + section.id + '"]');
+        if (!el) return;
+        el.textContent = result.text;
+        el.className = 'conn-state is-' + result.state;
+      }).catch(function () { /* keep the placeholder */ });
+    });
   }
 
-  function _scrollTo(sectionId) {
-    var el = _freshSection(sectionId);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    el.classList.remove('is-highlighted');
-    void el.offsetWidth; // restart the highlight animation
-    el.classList.add('is-highlighted');
+  function _show(sectionId) {
+    _detail = sectionId || '';
+    if (!_detail) _stopNextcloudPolling();
+    render();
+    var dialog = _modal && _modal.querySelector('.modal');
+    if (dialog) dialog.scrollTop = 0;
   }
 
   function load() {
     if (!_body) return Promise.resolve();
-    if (!_status) _body.innerHTML = '<p class="connection-copy">Lade Verbindungen …</p>';
+    if (!_status) _body.innerHTML = '<div class="tile-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>';
     return api('/api/v2/connections')
       .then(function (data) { _status = data.connections || {}; render(); return _status; })
       .catch(function (err) {
@@ -876,14 +944,15 @@
     if (!_modal) return;
     _body = document.getElementById('connections-body');
     _only = null;
-    _showSummary = true;
+    _detail = sectionId || '';
     _modal.hidden = false;
-    _pendingSection = sectionId || '';
+    if (_status) render();
     load();
   }
 
   function close() {
     if (_modal) _modal.hidden = true;
+    _detail = '';
     _stopNextcloudPolling();
   }
 
@@ -892,7 +961,6 @@
     options = options || {};
     _body = container;
     _only = options.sections || null;
-    _showSummary = false;
     if (typeof options.onChanged === 'function') _onChanged = options.onChanged;
     if (_status) { render(); return Promise.resolve(_status); }
     return load();

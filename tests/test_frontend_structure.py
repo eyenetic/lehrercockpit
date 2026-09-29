@@ -360,11 +360,11 @@ def test_login_html_redirectbyrole_does_not_go_to_admin_html(login_html_content)
     import re
     # Find the redirectByRole function body
     match = re.search(
-        r"function\s+redirectByRole\s*\(.*?\{(.*?)\}",
+        r"function\s+afterLogin\s*\(.*?\{(.*?)\}",
         login_html_content,
         re.DOTALL,
     )
-    assert match is not None, "redirectByRole function not found in login.html"
+    assert match is not None, "afterLogin function not found in login.html"
     func_body = match.group(1)
     assert "admin.html" not in func_body, (
         "redirectByRole() still redirects to admin.html. "
@@ -375,8 +375,8 @@ def test_login_html_redirectbyrole_does_not_go_to_admin_html(login_html_content)
 def test_login_html_redirectbyrole_sends_to_index_html(login_html_content):
     """login.html redirectByRole() sends users to index.html."""
     # Find the start of the function and scan the next 600 chars (enough for the full body)
-    start = login_html_content.find("function redirectByRole")
-    assert start != -1, "redirectByRole function not found in login.html"
+    start = login_html_content.find("function afterLogin")
+    assert start != -1, "afterLogin function not found in login.html"
     func_region = login_html_content[start:start + 600]
     assert "index.html" in func_region, (
         "redirectByRole() does not redirect to index.html. "
@@ -388,11 +388,11 @@ def test_login_html_redirectbyrole_still_handles_onboarding(login_html_content):
     """login.html redirectByRole() still redirects to onboarding.html if not complete."""
     import re
     match = re.search(
-        r"function\s+redirectByRole\s*\(.*?\{(.*?)\}",
+        r"function\s+afterLogin\s*\(.*?\{(.*?)\}",
         login_html_content,
         re.DOTALL,
     )
-    assert match is not None, "redirectByRole function not found in login.html"
+    assert match is not None, "afterLogin function not found in login.html"
     func_body = match.group(1)
     assert "onboarding.html" in func_body, (
         "redirectByRole() does not redirect to onboarding.html. "
@@ -622,105 +622,36 @@ def test_app_js_isModuleVisible_delegates_to_dashboard_manager(app_js_content):
     )
 
 
-# ── Overview/Briefing module visibility gating tests ─────────────────────────
-# These tests verify that the overview section (always visible) correctly gates
-# module-specific content in renderStats() and renderBriefing() by module
-# visibility flags — fixing the bug where disabled modules still appeared in the
-# briefing card and stat tiles on the overview screen.
+# ── Heute: tiles follow module visibility ─────────────────────────────────────
+# Each tile on "Heute" belongs to modules; a tile whose modules are all hidden
+# for the teacher is hidden (renderTodayModuleLayout), and tiles that mix
+# sources check the module themselves (Orgaplan in "Heute an der Schule").
 
-def test_app_js_renderStats_gates_webuntis_card_by_module_visibility(app_js_content):
-    """src/app.js renderStats() gates the WebUntis stat card by isModuleVisible('webuntis').
-
-    When the webuntis module is disabled, the 'WebUntis' stat card must not be rendered.
-    The fix: check showWebuntis = isModuleVisible('webuntis') before adding the card.
-    """
-    start = app_js_content.find("function renderStats")
-    assert start != -1, "renderStats function not found in src/app.js"
-    func_region = app_js_content[start:start + 1200]
-    assert "isModuleVisible" in func_region or "showWebuntis" in func_region, (
-        "renderStats() does not call isModuleVisible() to gate the WebUntis stat card. "
-        "Expected: showWebuntis = isModuleVisible('webuntis') controls whether the WebUntis tile is rendered."
-    )
-    assert "webuntis" in func_region.lower(), (
-        "renderStats() does not reference 'webuntis' for visibility gating. "
-        "Expected: WebUntis stat card skipped when webuntis module is disabled."
-    )
+def test_app_js_today_tiles_map_to_modules(app_js_content):
+    start = app_js_content.find("const TODAY_TILE_MODULES")
+    assert start != -1, "TODAY_TILE_MODULES not found in src/app.js"
+    region = app_js_content[start:start + 500]
+    assert 'schedule: ["webuntis"]' in region
+    assert 'classwork: ["klassenarbeitsplan"]' in region
+    assert '"itslearning"' in region and '"mail"' in region
+    assert '"orgaplan"' in region
 
 
-def test_app_js_renderStats_gates_inbox_card_by_module_visibility(app_js_content):
-    """src/app.js renderStats() gates the Hinweise (inbox) stat card by inbox module visibility.
-
-    When both mail and itslearning modules are disabled, the 'Hinweise' stat card must not render.
-    The fix: check showInbox = isAnyModuleVisible(['itslearning', 'mail']) before adding the card.
-    """
-    start = app_js_content.find("function renderStats")
-    assert start != -1, "renderStats function not found in src/app.js"
-    func_region = app_js_content[start:start + 1200]
-    assert "showInbox" in func_region or "isAnyModuleVisible" in func_region, (
-        "renderStats() does not check inbox module visibility for the Hinweise stat card. "
-        "Expected: showInbox = isAnyModuleVisible(['itslearning', 'mail']) gates the Hinweise tile."
-    )
+def test_app_js_today_layout_hides_tiles_of_hidden_modules(app_js_content):
+    start = app_js_content.find("function renderTodayModuleLayout")
+    assert start != -1, "renderTodayModuleLayout not found in src/app.js"
+    region = app_js_content[start:start + 1800]
+    assert "isAnyModuleVisible" in region
+    assert "is-layout-hidden" in region
 
 
-def test_app_js_renderBriefing_gates_webuntis_items_by_module_visibility(app_js_content):
-    """src/app.js renderBriefing() gates WebUntis briefing items by isModuleVisible('webuntis').
-
-    When webuntis is disabled: nextEvent, todaySummary, weeklyPreview must all be null/skipped.
-    """
-    start = app_js_content.find("function renderBriefing")
-    assert start != -1, "renderBriefing function not found in src/app.js"
-    func_region = app_js_content[start:start + 2200]
-    assert "showWebuntis" in func_region, (
-        "renderBriefing() does not define showWebuntis visibility flag. "
-        "Expected: showWebuntis = isModuleVisible('webuntis') used to skip WebUntis briefing items."
-    )
-    # nextEvent must only be fetched when webuntis is visible
-    assert "showWebuntis" in func_region[:func_region.find("findNextLesson") + 50 if "findNextLesson" in func_region else len(func_region)], (
-        "renderBriefing() does not guard findNextLesson() with showWebuntis. "
-        "Expected: nextEvent = showWebuntis ? findNextLesson(data) : null."
-    )
-
-
-def test_app_js_renderBriefing_gates_orgaplan_item_by_module_visibility(app_js_content):
-    """src/app.js renderBriefing() gates Orgaplan briefing item by isModuleVisible('orgaplan').
-
-    When orgaplan is disabled, no orgaplan item should appear in the briefing card.
-    """
-    start = app_js_content.find("function renderBriefing")
-    assert start != -1, "renderBriefing function not found in src/app.js"
-    func_region = app_js_content[start:start + 2200]
-    assert "showOrgaplan" in func_region, (
-        "renderBriefing() does not define showOrgaplan visibility flag. "
-        "Expected: showOrgaplan = isModuleVisible('orgaplan') gates the orgaplan briefing item."
-    )
-
-
-def test_app_js_renderBriefing_gates_classwork_item_by_module_visibility(app_js_content):
-    """src/app.js renderBriefing() gates Klassarbeit briefing item by isModuleVisible('klassenarbeitsplan').
-
-    When klassenarbeitsplan is disabled, no classwork item appears in the briefing.
-    """
-    start = app_js_content.find("function renderBriefing")
-    assert start != -1, "renderBriefing function not found in src/app.js"
-    func_region = app_js_content[start:start + 2200]
-    assert "showClasswork" in func_region, (
-        "renderBriefing() does not define showClasswork visibility flag. "
-        "Expected: showClasswork = isModuleVisible('klassenarbeitsplan') gates classwork briefing item."
-    )
-
-
-def test_app_js_renderBriefing_gates_inbox_item_by_module_visibility(app_js_content):
-    """src/app.js renderBriefing() gates Inbox briefing item by inbox module visibility.
-
-    When both mail and itslearning are disabled, no inbox item appears in the briefing.
-    """
-    start = app_js_content.find("function renderBriefing")
-    assert start != -1, "renderBriefing function not found in src/app.js"
-    func_region = app_js_content[start:start + 2200]
-    assert "showInbox" in func_region, (
-        "renderBriefing() does not define showInbox visibility flag. "
-        "Expected: showInbox = isAnyModuleVisible(['itslearning', 'mail']) gates inbox briefing item."
-    )
+def test_app_js_school_tiles_check_orgaplan_visibility(app_js_content):
+    for name in ("function renderSchoolTile", "function renderUpcomingTile"):
+        start = app_js_content.find(name)
+        assert start != -1, f"{name} not found in src/app.js"
+        assert 'isModuleVisible("orgaplan")' in app_js_content[start:start + 800], (
+            f"{name}() must skip Orgaplan entries when the module is hidden."
+        )
 
 
 # ── First-load flash fix tests (isLayoutReady guard) ─────────────────────────
@@ -750,59 +681,19 @@ def test_dashboard_manager_exposes_isLayoutReady(dashboard_manager_content):
     )
 
 
-def test_app_js_renderStats_checks_isLayoutReady(app_js_content):
-    """src/app.js renderStats() checks isLayoutReady() before rendering module-derived tiles.
-
-    The fix for the first-load flash: when layout state is not yet available,
-    module-dependent stat tiles (WebUntis, Hinweise) must not be rendered.
-    Non-module tiles (Prioritaeten, Dokumente) always render regardless.
-    """
-    start = app_js_content.find("function renderStats")
-    assert start != -1, "renderStats function not found in src/app.js"
-    func_region = app_js_content[start:start + 1400]
-    assert "isLayoutReady" in func_region, (
-        "renderStats() does not call isLayoutReady() to guard module-derived tiles. "
-        "Expected: layoutReady = isLayoutReady() used before showWebuntis / showInbox checks."
-    )
-    assert "layoutReady" in func_region, (
-        "renderStats() does not define a 'layoutReady' local variable. "
-        "Expected: const layoutReady = isLayoutReady(); used to gate module tiles."
-    )
+def test_app_js_renderToday_checks_isLayoutReady(app_js_content):
+    """Before the layout arrives, tiles show a skeleton instead of module content (no flash)."""
+    start = app_js_content.find("function renderToday(")
+    assert start != -1, "renderToday function not found in src/app.js"
+    region = app_js_content[start:start + 900]
+    assert "isLayoutReady()" in region
+    assert "tile-skeleton" in region
 
 
-def test_app_js_renderBriefing_checks_isLayoutReady(app_js_content):
-    """src/app.js renderBriefing() checks isLayoutReady() before rendering module-derived items.
-
-    The fix for the first-load flash: when layout state is not yet available,
-    module-specific briefing items (WebUntis, Orgaplan, Klassarbeit, Inbox) must not render.
-    """
-    start = app_js_content.find("function renderBriefing")
-    assert start != -1, "renderBriefing function not found in src/app.js"
-    func_region = app_js_content[start:start + 2400]
-    assert "isLayoutReady" in func_region, (
-        "renderBriefing() does not call isLayoutReady() to guard module-derived items. "
-        "Expected: layoutReady = isLayoutReady() used before showWebuntis / showOrgaplan / etc."
-    )
-    assert "layoutReady" in func_region, (
-        "renderBriefing() does not define a 'layoutReady' local variable. "
-        "Expected: const layoutReady = isLayoutReady(); used to gate all module briefing items."
-    )
-
-
-def test_app_js_renderAll_calls_renderStats(app_js_content):
-    """src/app.js renderAll() calls renderStats() so stat tiles update on every re-render.
-
-    renderStats() must be called inside renderAll() so that when dashboard-layout-changed
-    fires (after layout data arrives), the stat tiles are re-rendered with correct visibility.
-    """
+def test_app_js_renderAll_calls_renderToday(app_js_content):
     start = app_js_content.find("function renderAll")
     assert start != -1, "renderAll function not found in src/app.js"
-    # renderAll is a short function — 400 chars covers the full body
-    func_region = app_js_content[start:start + 400]
-    assert "renderStats" in func_region, (
-        "renderAll() does not call renderStats(). "
-        "Expected: renderStats() called inside renderAll() so stat tiles update correctly."
-    )
+    assert "renderToday()" in app_js_content[start:start + 400]
 
 
 # ── Sparse sort_order fix tests ───────────────────────────────────────────────
@@ -1016,10 +907,10 @@ def admin_html_raw_content():
         return f.read()
 
 
-def test_login_html_loads_auth_css(login_html_raw_content):
-    """login.html loads styles.auth.css."""
-    assert "styles.auth.css" in login_html_raw_content, (
-        "login.html does not reference styles.auth.css"
+def test_login_html_loads_shared_styles(login_html_raw_content):
+    """login.html uses the shared design tokens from styles.css (its layout styles are inline)."""
+    assert "styles.css" in login_html_raw_content, (
+        "login.html does not reference styles.css"
     )
 
 
@@ -1502,22 +1393,6 @@ def test_app_js_renderSectionFocus_hides_dividers(app_js_content):
     )
 
 
-def test_app_js_renderStats_unhides_stats_grid(app_js_content):
-    """src/app.js renderStats() explicitly shows/hides statsGrid element (Phase 18).
-
-    The stats-grid is hidden by default in HTML. Before Phase 18 renderStats()
-    never called statsGrid.hidden = false, so stat tiles were never displayed.
-    """
-    start = app_js_content.find("function renderStats")
-    assert start != -1, "renderStats not found in src/app.js"
-    func_region = app_js_content[start:start + 2000]
-    # elements.statsGrid.hidden is the pattern in app.js
-    assert "statsGrid.hidden" in func_region, (
-        "renderStats() does not set elements.statsGrid.hidden. "
-        "Expected: statsGrid.hidden = false when cards exist, true when empty."
-    )
-
-
 def test_styles_css_briefing_empty_and_loading_states(styles_css_content):
     """styles.css defines .briefing-empty and .briefing-loading states (Phase 18).
 
@@ -1534,16 +1409,10 @@ def test_styles_css_briefing_empty_and_loading_states(styles_css_content):
     )
 
 
-def test_app_js_briefing_uses_briefing_loading_class(app_js_content):
-    """src/app.js renderBriefing() uses briefing-loading class for pre-layout placeholder."""
-    assert "briefing-loading" in app_js_content, (
-        "src/app.js renderBriefing() does not use 'briefing-loading' class. "
-        "Expected: pre-layout flash suppressed with a distinct loading placeholder."
-    )
-    assert "briefing-empty" in app_js_content, (
-        "src/app.js renderBriefing() does not use 'briefing-empty' class. "
-        "Expected: briefing empty state uses briefing-empty instead of generic empty-state."
-    )
+def test_app_js_tiles_use_skeleton_and_empty_states(app_js_content):
+    """Tiles on "Heute" show a skeleton while loading and a short text when empty."""
+    assert "tile-skeleton" in app_js_content
+    assert "function tileEmpty" in app_js_content
 
 
 # ── Phase 19: CSS consistency + density polish tests ─────────────────────────
@@ -1619,59 +1488,25 @@ def test_styles_css_section_appear_animation(styles_css_content):
 # ── Package A: Today view mandatory module model ──────────────────────────────
 
 
-def test_dashboard_manager_today_layout_definition_briefing_mandatory(dashboard_manager_content):
-    """dashboard-manager.js TODAY_LAYOUT_DEFINITION marks 'briefing' as mandatory.
-
-    Tagesbriefing must always be visible in the Today view — it is the core
-    orientation block and cannot be disabled by users.
-    The definition object must include mandatory: true.
-    """
-    # Find the TODAY_LAYOUT_DEFINITION array body
-    start = dashboard_manager_content.find("TODAY_LAYOUT_DEFINITION")
+def test_dashboard_manager_today_layout_matches_app_tiles(dashboard_manager_content, app_js_content):
+    """The tile ids in dashboard-manager.js and src/app.js are the same (layout is sanitized in both)."""
+    import re
+    start = app_js_content.find("const TODAY_LAYOUT_IDS")
+    assert start != -1, "TODAY_LAYOUT_IDS not found in src/app.js"
+    app_ids = re.findall(r'"([a-z]+)"', app_js_content[start:app_js_content.find("];", start)])
+    start = dashboard_manager_content.find("var TODAY_LAYOUT_DEFINITION")
     assert start != -1, "TODAY_LAYOUT_DEFINITION not found in dashboard-manager.js"
-    # The definition covers briefing, updates, access — ~300 chars is enough
-    region = dashboard_manager_content[start:start + 600]
-    assert "briefing" in region, "briefing entry missing from TODAY_LAYOUT_DEFINITION"
-    # Find the briefing sub-object and check mandatory within it
-    briefing_start = region.find("'briefing'")
-    if briefing_start == -1:
-        briefing_start = region.find('"briefing"')
-    assert briefing_start != -1, "briefing id not found in TODAY_LAYOUT_DEFINITION"
-    # The mandatory flag must appear after the briefing id within ~150 chars (covers the object)
-    briefing_region = region[briefing_start:briefing_start + 200]
-    assert "mandatory" in briefing_region, (
-        "TODAY_LAYOUT_DEFINITION briefing entry does not have 'mandatory' property. "
-        "Expected: mandatory: true on briefing so it cannot be disabled by users."
-    )
-    assert "true" in briefing_region, (
-        "TODAY_LAYOUT_DEFINITION briefing mandatory property is not set to true."
-    )
+    definition = dashboard_manager_content[start:dashboard_manager_content.find("];", start)]
+    manager_ids = re.findall(r"id: '([a-z]+)'", definition)
+    assert app_ids == manager_ids
+    assert "schedule" in app_ids and "access" in app_ids
 
 
-def test_dashboard_manager_today_layout_definition_access_mandatory(dashboard_manager_content):
-    """dashboard-manager.js TODAY_LAYOUT_DEFINITION marks 'access' (Zugaenge) as mandatory.
-
-    Zugaenge must always be visible in the Today view — it is the launcher
-    hub and must always be available above the fold.
-    The definition object must include mandatory: true.
-    """
-    start = dashboard_manager_content.find("TODAY_LAYOUT_DEFINITION")
-    assert start != -1, "TODAY_LAYOUT_DEFINITION not found in dashboard-manager.js"
-    region = dashboard_manager_content[start:start + 600]
-    assert "access" in region, "access entry missing from TODAY_LAYOUT_DEFINITION"
-    # Find the access sub-object and check mandatory within it
-    access_start = region.find("'access'")
-    if access_start == -1:
-        access_start = region.find('"access"')
-    assert access_start != -1, "access id not found in TODAY_LAYOUT_DEFINITION"
-    access_region = region[access_start:access_start + 200]
-    assert "mandatory" in access_region, (
-        "TODAY_LAYOUT_DEFINITION access entry does not have 'mandatory' property. "
-        "Expected: mandatory: true on access (Zugaenge) so it cannot be disabled by users."
-    )
-    assert "true" in access_region, (
-        "TODAY_LAYOUT_DEFINITION access mandatory property is not set to true."
-    )
+def test_dashboard_manager_today_tiles_are_optional(dashboard_manager_content):
+    """Every tile on "Heute" can be hidden by the teacher (no mandatory tiles)."""
+    start = dashboard_manager_content.find("var TODAY_LAYOUT_DEFINITION")
+    definition = dashboard_manager_content[start:dashboard_manager_content.find("];", start)]
+    assert "mandatory: true" not in definition
 
 
 def test_dashboard_manager_sanitize_layout_enforces_mandatory_modules(dashboard_manager_content):
@@ -1713,3 +1548,19 @@ def test_styles_css_layout_module_mandatory_badge(styles_css_content):
         "styles.css still defines .layout-panel* CSS — "
         "this is dead CSS for the removed #layout-panel-overlay and should be absent (I-001)."
     )
+
+
+def test_index_html_loads_feedback_before_app(index_html_content):
+    """Rückmeldung: feedback.js is loaded (before app.js) and the dialog exists."""
+    feedback_pos = index_html_content.find("src/features/feedback.js")
+    app_js_pos = index_html_content.find("src/app.js")
+    assert feedback_pos != -1 and feedback_pos < app_js_pos
+    assert 'id="feedback-modal"' in index_html_content
+
+
+def test_login_html_accepts_invitation_links():
+    """Einladungslinks: the token travels in the URL fragment and is accepted on login.html."""
+    with open("login.html", encoding="utf-8") as fh:
+        content = fh.read()
+    assert "#einladung=" in content
+    assert "/api/v2/auth/invitation/accept" in content

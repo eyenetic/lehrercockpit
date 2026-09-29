@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=79" />
-    <link rel="stylesheet" href="./styles.auth.css?v=79" />
+    <link rel="stylesheet" href="./styles.css?v=80" />
+    <link rel="stylesheet" href="./styles.auth.css?v=80" />
     <style>
       body.onboarding-page { align-items: flex-start; padding: 48px 16px; box-sizing: border-box; }
       .setup-card {
@@ -93,8 +93,8 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/push.js?v=79"></script>
-    <script src="./src/features/connections.js?v=79"></script>
+    <script src="./src/features/push.js?v=80"></script>
+    <script src="./src/features/connections.js?v=80"></script>
     <script>
       (function () {
         'use strict';
@@ -130,6 +130,7 @@
         }
 
         function schoolItems() {
+          if (!status.orgaplan && !status.termine && !status.klassenarbeitsplan) return null; // not loaded yet
           var o = status.orgaplan || {};
           var cw = status.klassenarbeitsplan || {};
           var plan = cw.plan || {};
@@ -155,6 +156,7 @@
         }
 
         function listHtml(items) {
+          if (!items) return '<p class="lead">Der Stand wird geladen …</p>';
           return '<ul class="setup-list">' + items.map(function (item) {
             return '<li><span class="dot ' + (item.ok ? 'is-ok' : 'is-warn') + '"></span><span><strong>' + esc(item.title) + '</strong>' +
               '<small>' + esc(item.text) + '</small></span></li>';
@@ -195,7 +197,7 @@
             var name = (user && (user.first_name || user.full_name)) || '';
             el('setup-title').textContent = 'Willkommen' + (name ? ', ' + name : '') + '!';
             body.innerHTML =
-              '<p class="lead">Das Lehrercockpit bündelt die Kanäle deines Schulalltags auf einer Seite: Stundenplan, Orgaplan, Klassenarbeiten, Schultermine, itslearning und Nextcloud – mit einem Tagesbriefing, das zeigt, was heute wichtig ist.</p>' +
+              '<p class="lead">Das Lehrercockpit bündelt deinen Schulalltag auf einer Seite: Stundenplan, Orgaplan, Klassenarbeiten, Schultermine, itslearning und Nextcloud.</p>' +
               '<div class="setup-box"><h3>Das hat deine Schule schon eingerichtet</h3>' + listHtml(schoolItems()) + '</div>' +
               '<p class="lead">Jetzt fehlen nur noch deine persönlichen Zugänge – das dauert etwa drei Minuten.</p>';
             updateFooter();
@@ -223,8 +225,16 @@
           updateFooter();
         }
 
-        function refreshStatus() {
-          return C.api('/api/v2/connections').then(function (data) { status = data.connections || {}; });
+        function refreshStatus(attempt) {
+          attempt = attempt || 0;
+          return C.api('/api/v2/connections')
+            .then(function (data) { status = data.connections || {}; })
+            .catch(function (err) {
+              // A new account's first request can race the server's start-up work: try again shortly.
+              if (attempt >= 3) throw err;
+              return new Promise(function (resolve) { setTimeout(resolve, 1500 * (attempt + 1)); })
+                .then(function () { return refreshStatus(attempt + 1); });
+            });
         }
 
         function finish() {
@@ -252,11 +262,19 @@
           .then(function (data) {
             if (!data.ok) throw new Error('login');
             user = data.user;
-            return refreshStatus().catch(function () {
-              el('setup-feedback').textContent = 'Der Stand der Quellen konnte nicht geladen werden.';
-            });
           })
-          .then(render, function () { window.location.href = './login.html'; });
+          .then(function () {
+            render();
+            refreshStatus()
+              .then(function () {
+                var step = STEPS[current].id;
+                if (step === 'welcome' || step === 'done') render();
+                else updateFooter();
+              })
+              .catch(function () {
+                el('setup-feedback').textContent = 'Der Stand der Quellen konnte gerade nicht geladen werden – das Einrichten klappt trotzdem.';
+              });
+          }, function () { window.location.href = './login.html'; });
       })();
     </script>
   </body>

@@ -43,43 +43,17 @@
       noten:              'grades',
       mail:               'inbox',
     };
+    // Tiles on "Heute" (order + visibility, stored per device). Keep in sync with
+    // TODAY_LAYOUT_IDS in src/app.js.
     var TODAY_LAYOUT_DEFINITION = [
-      {
-        id: 'briefing',
-        label: 'Tagesbriefing',
-        description: 'Stundenplan, Orgaplan und Klassenarbeiten für den aktuellen Tag.',
-        mandatory: true
-      },
-      {
-        id: 'access',
-        label: 'Zugänge',
-        description: 'Direkte Arbeitswege für die wichtigsten Dienste des Tages.',
-        mandatory: true
-      },
-      {
-        id: 'schedule',
-        label: 'Stundenplan',
-        description: 'Kompakte Vorschau auf deinen Stundenplan.',
-        mandatory: false
-      },
-      {
-        id: 'inbox',
-        label: 'Posteingang',
-        description: 'Letzte Dienstmail und itslearning-Updates.',
-        mandatory: false
-      },
-      {
-        id: 'documents',
-        label: 'Pläne',
-        description: 'Orgaplan und Klassenarbeitsplan in Kurzform.',
-        mandatory: false
-      },
-      {
-        id: 'grades',
-        label: 'Notenberechnung',
-        description: 'Schneller Einstieg in den Notenbereich.',
-        mandatory: false
-      }
+      { id: 'schedule', label: 'Stundenplan', mandatory: false },
+      { id: 'school', label: 'Heute an der Schule', mandatory: false },
+      { id: 'classwork', label: 'Klassenarbeiten', mandatory: false },
+      { id: 'inbox', label: 'Posteingang', mandatory: false },
+      { id: 'upcoming', label: 'Demnächst', mandatory: false },
+      { id: 'signals', label: 'Neu & geändert', mandatory: false },
+      { id: 'ai', label: 'KI-Zusammenfassung', mandatory: false },
+      { id: 'access', label: 'Zugänge', mandatory: false }
     ];
     var _todayLayout = null;
 
@@ -253,8 +227,7 @@
     // Unconfigured personal sources get a short banner in their section; the
     // button opens "Verbindungen" at that source (one place to set things up).
     var BANNER_COPY = {
-      webuntis: 'Verbinde deinen WebUntis-Stundenplan, dann erscheinen hier deine Stunden, Vertretungen und Entfälle.',
-      itslearning: 'Verbinde das itslearning-Kalender-Abo, dann erscheinen hier Termine und Abgabefristen deiner Kurse.',
+      webuntis: 'Verbinde WebUntis – dann siehst du hier deinen Stundenplan mit Vertretungen und Entfällen.',
     };
 
     function _injectConfigBanners() {
