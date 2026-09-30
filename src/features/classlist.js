@@ -219,16 +219,22 @@ var LehrerClasslist = (function () {
       + '<div class="classlist-panel-head">'
       +   '<div>'
       +     '<h2 class="classlist-panel-title">Klasse ' + _esc(classId) + '</h2>'
-      +     '<p class="classlist-panel-count">' + count + ' Schüler</p>'
+      +     '<p class="classlist-panel-count">' + count + (count === 1 ? ' Schüler:in' : ' Schüler:innen') + '</p>'
       +   '</div>'
       +   '<div class="classlist-panel-actions">'
-      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="import">📥 Import</button>'
-      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="export-csv">📤 CSV</button>'
-      +     '<button class="btn btn-sm btn-primary" type="button" data-action="add-student">+ Schüler</button>'
-      +     '<button class="btn btn-sm btn-danger" type="button" data-action="delete-class">Klasse löschen</button>'
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="import">Liste importieren</button>'
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="export-csv"' + (count ? '' : ' disabled') + '>Als CSV</button>'
+      +     '<button class="btn btn-sm btn-ghost classlist-delete-class" type="button" data-action="delete-class">Klasse löschen</button>'
       +   '</div>'
       + '</div>'
-      + '<ul class="classlist-student-list">' + (rows || '<li class="classlist-empty-hint">Noch keine Schüler – importieren oder manuell hinzufügen.</li>') + '</ul>'
+      + '<form class="classlist-add-form" data-add-student-form autocomplete="off">'
+      +   '<input class="form-input" name="lastName" placeholder="Nachname" aria-label="Nachname" required />'
+      +   '<input class="form-input" name="firstName" placeholder="Vorname" aria-label="Vorname" />'
+      +   '<button class="btn btn-primary btn-sm" type="submit">Hinzufügen</button>'
+      + '</form>'
+      + '<p class="classlist-add-hint">Enter fügt hinzu – danach gleich den nächsten Namen tippen. Mehrere auf einmal: „Liste importieren“.</p>'
+      + '<p class="classlist-add-feedback" data-add-feedback role="status"></p>'
+      + '<ul class="classlist-student-list">' + (rows || '<li class="classlist-empty-hint">Noch keine Schüler:innen – oben eintragen oder eine Liste importieren.</li>') + '</ul>'
       + '</div>';
   }
 
@@ -252,8 +258,8 @@ var LehrerClasslist = (function () {
           '<button class="modal-close" type="button" data-action="close-import">✕</button>',
         '</div>',
         '<div class="classlist-import-body">',
-          '<p class="classlist-import-hint">CSV oder Excel-Datei auswählen.<br>',
-          'Erwartet: <code>Nachname, Vorname</code> (mit Komma oder Semikolon getrennt)</p>',
+          '<p class="classlist-import-hint">Namen einfügen (eine Person pro Zeile, z. B. „Müller, Anna“) oder eine CSV-/Excel-Datei wählen.</p>',
+          '<textarea id="classlist-paste" class="form-input classlist-paste" rows="5" placeholder="Müller, Anna&#10;Schmidt, Ben"></textarea>',
           '<label class="classlist-upload-area" for="classlist-file-input">',
             '<span class="classlist-upload-icon">📂</span>',
             '<span>Datei auswählen oder hierher ziehen</span>',
@@ -298,6 +304,9 @@ var LehrerClasslist = (function () {
     fileInput.addEventListener('change', function () {
       if (fileInput.files[0]) _handleImportFile(fileInput.files[0], overlay);
     });
+    overlay.querySelector('#classlist-paste').addEventListener('input', function (e) {
+      _showImportRows(overlay, _parseCSV(e.target.value), null);
+    });
 
     // Close
     overlay.addEventListener('click', function (e) {
@@ -316,6 +325,22 @@ var LehrerClasslist = (function () {
     if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
   }
 
+  function _showImportRows(overlay, rows, detectedClass) {
+    var preview = overlay.querySelector('#classlist-import-preview');
+    var previewList = overlay.querySelector('#classlist-preview-list');
+    var previewCount = overlay.querySelector('#classlist-preview-count');
+    var confirmBtn = overlay.querySelector('#classlist-import-confirm');
+    var classInput = overlay.querySelector('#classlist-import-class-input');
+    if (detectedClass && !classInput.value) classInput.value = detectedClass;
+    _importPreview = rows.filter(function (r) { return r.lastName || r.firstName; });
+    previewCount.textContent = _importPreview.length + (_importPreview.length === 1 ? ' Person gefunden' : ' Personen gefunden');
+    previewList.innerHTML = _importPreview.slice(0, 8).map(function (r) {
+      return '<li>' + _esc(r.lastName) + (r.firstName ? ', ' + _esc(r.firstName) : '') + '</li>';
+    }).join('') + (_importPreview.length > 8 ? '<li class="classlist-preview-more">… und ' + (_importPreview.length - 8) + ' weitere</li>' : '');
+    preview.style.display = _importPreview.length ? '' : 'none';
+    confirmBtn.disabled = _importPreview.length === 0;
+  }
+
   function _handleImportFile(file, overlay) {
     var isExcel = /\.xlsx?$/i.test(file.name);
     var preview = overlay.querySelector('#classlist-import-preview');
@@ -324,16 +349,7 @@ var LehrerClasslist = (function () {
     var confirmBtn = overlay.querySelector('#classlist-import-confirm');
     var classInput = overlay.querySelector('#classlist-import-class-input');
 
-    function _showRows(rows, detectedClass) {
-      if (detectedClass && !classInput.value) classInput.value = detectedClass;
-      _importPreview = rows.filter(function (r) { return r.lastName || r.firstName; });
-      previewCount.textContent = _importPreview.length + ' Schüler gefunden';
-      previewList.innerHTML = _importPreview.slice(0, 8).map(function (r) {
-        return '<li>' + _esc(r.lastName) + (r.firstName ? ', ' + _esc(r.firstName) : '') + '</li>';
-      }).join('') + (_importPreview.length > 8 ? '<li class="classlist-preview-more">… und ' + (_importPreview.length - 8) + ' weitere</li>' : '');
-      preview.style.display = '';
-      confirmBtn.disabled = _importPreview.length === 0;
-    }
+    function _showRows(rows, detectedClass) { _showImportRows(overlay, rows, detectedClass); }
 
     if (isExcel) {
       _parseExcel(file).then(function (result) {
@@ -400,14 +416,41 @@ var LehrerClasslist = (function () {
     render();
   }
 
-  function _showAddStudentDialog(classId) {
-    var ln = window.prompt('Nachname:');
-    if (ln === null) return;
-    var fn = window.prompt('Vorname:');
-    if (fn === null) return;
-    _data[classId].students.push({ id: _uid(), lastName: ln.trim(), firstName: fn.trim() });
+  function _addStudent(classId, form) {
+    var cls = _data[classId];
+    if (!cls) return;
+    var lastInput = form.querySelector('[name="lastName"]');
+    var firstInput = form.querySelector('[name="firstName"]');
+    var lastName = lastInput.value.trim();
+    var firstName = firstInput.value.trim();
+    // "Müller, Anna" or "Anna Müller" typed into the first field
+    if (lastName && !firstName) {
+      if (lastName.indexOf(',') > 0) {
+        firstName = lastName.slice(lastName.indexOf(',') + 1).trim();
+        lastName = lastName.slice(0, lastName.indexOf(',')).trim();
+      }
+    }
+    if (!lastName && !firstName) { lastInput.focus(); return; }
+    var feedback = _container.querySelector('[data-add-feedback]');
+    var duplicate = cls.students.some(function (s) {
+      return (s.lastName || '').toLowerCase() === lastName.toLowerCase()
+        && (s.firstName || '').toLowerCase() === firstName.toLowerCase();
+    });
+    if (duplicate) {
+      if (feedback) {
+        feedback.textContent = (firstName ? firstName + ' ' : '') + lastName + ' steht schon in der Liste.';
+        feedback.classList.add('is-warn');
+      }
+      lastInput.select();
+      return;
+    }
+    cls.students.push({ id: _uid(), lastName: lastName, firstName: firstName });
     _save();
     render();
+    var nextForm = _container.querySelector('[data-add-student-form]');
+    var nextFeedback = _container.querySelector('[data-add-feedback]');
+    if (nextFeedback) nextFeedback.textContent = (firstName ? firstName + ' ' : '') + lastName + ' hinzugefügt.';
+    if (nextForm) nextForm.querySelector('[name="lastName"]').focus();
   }
 
   function _showEditStudentDialog(classId, studentId) {
@@ -460,10 +503,20 @@ var LehrerClasslist = (function () {
   }
 
   // ── Event Binding ─────────────────────────────────────────────────────────
+  // Bound once per container: render() replaces the inner HTML, the listeners stay.
+  // (Binding on every render stacked the handlers – one click then added a
+  // student several times.)
   function _bindEvents() {
-    if (!_container) return;
+    if (!_container || _container.dataset.classlistBound) return;
+    _container.dataset.classlistBound = '1';
 
-    // Class selection
+    _container.addEventListener('submit', function (e) {
+      var form = e.target.closest('[data-add-student-form]');
+      if (!form) return;
+      e.preventDefault();
+      _addStudent(_activeClass, form);
+    });
+
     _container.addEventListener('click', function (e) {
       var classBtn = e.target.closest('.classlist-class-btn');
       if (classBtn) {
@@ -479,19 +532,11 @@ var LehrerClasslist = (function () {
       if (act === 'add-class') { _showAddClassDialog(); return; }
       if (act === 'import') { _showImportModal(_activeClass); return; }
       if (act === 'export-csv') { _exportCSV(_activeClass); return; }
-      if (act === 'add-student') { _showAddStudentDialog(_activeClass); return; }
       if (act === 'delete-class') { _deleteClass(_activeClass); return; }
 
-      if (act === 'edit-student') {
-        var row = action.closest('[data-student-id]');
-        if (row) _showEditStudentDialog(_activeClass, row.dataset.studentId);
-        return;
-      }
-      if (act === 'delete-student') {
-        var row = action.closest('[data-student-id]');
-        if (row) _deleteStudent(_activeClass, row.dataset.studentId);
-        return;
-      }
+      var row = action.closest('[data-student-id]');
+      if (act === 'edit-student' && row) { _showEditStudentDialog(_activeClass, row.dataset.studentId); return; }
+      if (act === 'delete-student' && row) { _deleteStudent(_activeClass, row.dataset.studentId); return; }
     });
   }
 

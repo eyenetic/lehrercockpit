@@ -355,8 +355,6 @@ def _build_quick_links(settings: Any) -> list[dict[str, str]]:
         ("nextcloud-root", "Nextcloud", settings.nextcloud.workspace_url or settings.nextcloud.base_url, "Nextcloud", "Dateien und Teamordner direkt in Nextcloud öffnen"),
         ("webuntis", "WebUntis", settings.webuntis_base_url, "Planung", "Stundenplan, Vertretung und Heute"),
         ("itslearning", "itslearning", settings.itslearning_base_url, "Lernen", "Updates und Kursmeldungen"),
-        ("nextcloud-q1q2", "Fehlzeiten Q1/Q2", settings.nextcloud.q1q2_url, "Nextcloud", "Fehlzeiten-Datei für die 11. Klasse direkt in Nextcloud"),
-        ("nextcloud-q3q4", "Fehlzeiten Q3/Q4", settings.nextcloud.q3q4_url, "Nextcloud", "Fehlzeiten-Datei für die 12. Klasse direkt in Nextcloud"),
         ("orgaplan", "Orgaplan", settings.orgaplan_pdf_url, "PDF", "Aktueller Orgaplan für eure Schule"),
     ]
 

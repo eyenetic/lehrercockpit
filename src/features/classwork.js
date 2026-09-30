@@ -31,6 +31,9 @@ var LehrerClasswork = (function () {
   var _setExpandableMeta = null;
   var _weekdayLabel = null;
   var _getSelectedClassworkClasses = null;
+  var _setSelectedClassworkClasses = null;
+  var _toggleClassworkClass = null;
+  var _renderClassPills = null;
   var _refreshDashboard = null;
   var _busy = { orgaplan: false, classwork: false };
 
@@ -50,6 +53,9 @@ var LehrerClasswork = (function () {
     _setExpandableMeta = callbacks.setExpandableMeta;
     _weekdayLabel = callbacks.weekdayLabel;
     _getSelectedClassworkClasses = callbacks.getSelectedClassworkClasses;
+    _setSelectedClassworkClasses = callbacks.setSelectedClassworkClasses;
+    _toggleClassworkClass = callbacks.toggleClassworkClass;
+    _renderClassPills = callbacks.renderClassPills;
     _refreshDashboard = callbacks.refreshDashboard || null;
 
     _elements.orgaplanSourceBar = document.querySelector('#orgaplan-source-bar');
@@ -448,24 +454,12 @@ var LehrerClasswork = (function () {
     }
     if (pillSection) pillSection.hidden = false;
 
-    var active = getSelectedClasses(classes, defaultClass);
-    pillContainer.innerHTML = classes.map(function (label) {
-      var isActive = active.includes(label);
-      return '<button type="button" class="classwork-pill' + (isActive ? ' is-active' : '') + '"'
-        + ' data-classwork-class="' + esc(label) + '" aria-pressed="' + isActive + '">' + esc(label) + '</button>';
-    }).join('');
-
+    pillContainer.innerHTML = _renderClassPills(classes, 'data-classwork-class');
     pillContainer.querySelectorAll('[data-classwork-class]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var label = btn.dataset.classworkClass;
-        var current = getSelectedClasses(classes, defaultClass);
-        var next = current.includes(label)
-          ? current.filter(function (c) { return c !== label; })
-          : current.concat([label]);
-        _state.classworkSelectedClasses = next.length ? next : [label];
-        try { localStorage.setItem('lehrerCockpit.classwork.selectedClasses', JSON.stringify(_state.classworkSelectedClasses)); } catch (e) { /* ignore */ }
-        if (window.LehrerSignals) window.LehrerSignals.syncPreferredClasses(_state.classworkSelectedClasses);
-        renderPlanDigest();
+        if (label === '*') _setSelectedClassworkClasses([]);
+        else _toggleClassworkClass(label, classes);
       });
     });
   }

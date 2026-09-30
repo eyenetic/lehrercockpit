@@ -363,8 +363,10 @@ var LehrerCollections = (function () {
   }
 
   // ── Event Binding ─────────────────────────────────────────────────────────
+  // Bound once per container: render() replaces the inner HTML, the listeners stay.
   function _bindEvents() {
-    if (!_container) return;
+    if (!_container || _container.dataset.colBound) return;
+    _container.dataset.colBound = '1';
 
     _container.addEventListener('click', function(e) {
       var colBtn = e.target.closest('.col-item-btn');

@@ -116,3 +116,23 @@ def test_revoke_is_best_effort():
     with patch.object(nc, "_open", return_value=_Response({}, status=200)) as opened:
         assert nc.revoke_app_password("https://cloud.example", "anna", "pw") is True
     assert opened.call_args[0][0].get_method() == "DELETE"
+
+
+FAVORITES_XML = b"""<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
+  <d:response><d:href>/remote.php/dav/files/arif/</d:href>
+    <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>
+  <d:response><d:href>/remote.php/dav/files/arif/Schule/Fehlzeiten%20Q1.xlsx</d:href>
+    <d:propstat><d:prop><d:displayname>Fehlzeiten Q1.xlsx</d:displayname><d:resourcetype/><oc:fileid>42</oc:fileid></d:prop></d:propstat></d:response>
+  <d:response><d:href>/remote.php/dav/files/arif/Teamordner/</d:href>
+    <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype><oc:fileid>7</oc:fileid></d:prop></d:propstat></d:response>
+</d:multistatus>"""
+
+
+def test_parse_favorites_lists_folders_first_with_direct_links():
+    from backend.nextcloud_client import parse_favorites
+
+    items = parse_favorites(FAVORITES_XML, "https://cloud.schule.de", "arif")
+    assert [item["name"] for item in items] == ["Teamordner", "Fehlzeiten Q1.xlsx"]
+    assert items[0]["is_folder"] is True and items[0]["link"] == "https://cloud.schule.de/index.php/f/7"
+    assert items[1]["folder"] == "Schule" and items[1]["link"].endswith("/index.php/f/42")

@@ -18,8 +18,6 @@ window.LehrerZugaenge = (function() {
     'Orgaplan',
     'Nextcloud',
     'Teamordner',
-    'Fehlzeiten Q1/Q2',
-    'Fehlzeiten Q3/Q4',
     'Schulkalender',
     'Stunden- und Pausenzeiten',
     'Kontakt Lehrkraefte',
@@ -30,23 +28,41 @@ window.LehrerZugaenge = (function() {
     _dashboardData = dashboardData || {};
   }
 
-  // Compact row of quick links on "Heute" (icon + name, opens in a new tab).
+  // Compact row of quick links on "Heute" (icon + name, opens in a new tab),
+  // followed by the teacher's Nextcloud favourites (starred files and folders).
   function render(containerId) {
     var container = document.getElementById(containerId);
     if (!container) return;
 
     var links = _buildLinks();
-    if (!links.length) {
+    var favorites = ((_dashboardData.nextcloudFeed || {}).favorites || []).slice(0, 16);
+    if (!links.length && !favorites.length) {
       container.innerHTML = '';
       container.hidden = true;
       return;
     }
     container.hidden = false;
-    container.innerHTML = links.map(function(link) {
-      return '<a href="' + _escHtml(link.url) + '" target="_blank" rel="noopener noreferrer" class="quicklink" title="' + _escHtml(link.note || link.label) + '">' +
-        '<span class="quicklink-icon" aria-hidden="true">' + link.icon + '</span>' +
-        '<span class="quicklink-label">' + _escHtml(link.label) + '</span></a>';
+    var html = links.map(function(link) {
+      return _chip(link.url, link.label, link.note || link.label, link.icon, '');
     }).join('');
+    if (favorites.length) {
+      html += '<span class="quicklinks-label" aria-hidden="true">' + _svg(ICONS.star) + 'Nextcloud</span>';
+      html += favorites.map(function(fav) {
+        var title = fav.folder ? fav.folder + ' / ' + fav.name : fav.name;
+        return _chip(fav.link, fav.name, title, _svg(fav.is_folder ? ICONS.folder : ICONS.file), ' quicklink--fav');
+      }).join('');
+    }
+    container.innerHTML = html;
+  }
+
+  function _chip(url, label, title, icon, extraClass) {
+    return '<a href="' + _escHtml(url) + '" target="_blank" rel="noopener noreferrer" class="quicklink' + extraClass + '" title="' + _escHtml(title) + '">' +
+      '<span class="quicklink-icon" aria-hidden="true">' + icon + '</span>' +
+      '<span class="quicklink-label">' + _escHtml(label) + '</span></a>';
+  }
+
+  function _svg(paths) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
   }
 
   function _buildLinks() {
@@ -58,8 +74,6 @@ window.LehrerZugaenge = (function() {
       { title: 'itslearning', url: base.itslearning_base_url, kind: 'Lernen', note: 'Kurse und Updates' },
       { title: 'Orgaplan', url: base.orgaplan_pdf_url || base.orgaplan_url, kind: 'PDF', note: 'Aktueller Orgaplan' },
       { title: 'Nextcloud', url: base.nextcloud_workspace_url || base.nextcloud_base_url, kind: 'Dateien', note: 'Dateien und Teamordner' },
-      { title: 'Fehlzeiten Q1/Q2', url: base.fehlzeiten_11_url, kind: 'Dateien', note: 'Fehlzeiten 11. Klasse' },
-      { title: 'Fehlzeiten Q3/Q4', url: base.fehlzeiten_12_url, kind: 'Dateien', note: 'Fehlzeiten 12. Klasse' },
     ];
 
     fallbacks.forEach(function(link) {
@@ -107,9 +121,9 @@ window.LehrerZugaenge = (function() {
     school: '<path d="m4 6 8-4 8 4M18 10v10M6 10v10M2 22h20M10 22v-6h4v6"/>',
     globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20"/>',
     folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
-    chart: '<path d="M3 3v18h18M7 16v-4M12 16V8M17 16v-7"/>',
     clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
     users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    star: '<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>',
     link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   };
 
@@ -120,14 +134,13 @@ window.LehrerZugaenge = (function() {
     else if (title === 'Dienstmail') name = 'mail';
     else if (title === 'Orgaplan') name = 'file';
     else if (title === 'Nextcloud' || kind === 'Nextcloud') name = 'cloud';
-    else if (title.indexOf('Fehlzeiten') === 0) name = 'chart';
     else if (title === 'Berliner Schulportal' || title === 'Schulportal') name = 'school';
     else if (title === 'Schulwebseite') name = 'globe';
     else if (title === 'Teamordner') name = 'folder';
     else if (title === 'Schulkalender') name = 'calendar';
     else if (title === 'Stunden- und Pausenzeiten') name = 'clock';
     else if (title === 'Kontakt Lehrkraefte') name = 'users';
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONS[name] + '</svg>';
+    return _svg(ICONS[name]);
   }
 
   function _slug(value) {

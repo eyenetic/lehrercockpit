@@ -517,15 +517,32 @@
 
   // ── Event data filter ────────────────────────────────────────────────────────
 
+  // Date shown in the day view: today (or next school day on weekends) plus the
+  // offset in school days.
+  function getScheduleDay(center) {
+    var day = new Date((center.currentDate || _toLocalISODate(new Date())) + 'T00:00:00');
+    while (day.getDay() === 0 || day.getDay() === 6) day.setDate(day.getDate() + 1);
+    var offset = _state.webuntisDayOffset || 0;
+    var step = offset > 0 ? 1 : -1;
+    var remaining = Math.abs(offset);
+    while (remaining > 0) {
+      day.setDate(day.getDate() + step);
+      if (day.getDay() !== 0 && day.getDay() !== 6) remaining -= 1;
+    }
+    return day;
+  }
+
   function getWebUntisEvents() {
     var center = _getData().webuntisCenter || {};
-    var referenceDate = new Date((center.currentDate || new Date().toISOString().slice(0, 10)) + 'T00:00:00');
     var events = (center.events || []).filter(function (e) { return e.startsAt; });
 
     if (!events.length) return [];
 
     if (_state.webuntisView === 'day') {
-      return events.filter(function (e) { return _isSameDay(new Date(e.startsAt), referenceDate); });
+      var day = getScheduleDay(center);
+      return events
+        .filter(function (e) { return _isSameDay(new Date(e.startsAt), day); })
+        .sort(function (a, b) { return new Date(a.startsAt) - new Date(b.startsAt); });
     }
 
     var weekStart = getWeekAnchorDate(center.currentDate || new Date().toISOString().slice(0, 10), _state.webuntisWeekOffset || 0);
@@ -647,191 +664,213 @@
     return { start: s.getHours() * 60 + s.getMinutes(), end: e.getHours() * 60 + e.getMinutes() };
   }
 
-  function renderTimeGridColumn(columnEvents, gridStart, gridEnd, isCancelled) {
-    // Groups overlapping events into tracks (columns within a day)
-    var totalMin = gridEnd - gridStart;
-    var tracks = []; // each track is an array of events
-    columnEvents.forEach(function (ev) {
-      var m = _eventMinutes(ev);
-      if (!m) return;
-      var placed = false;
-      for (var t = 0; t < tracks.length; t++) {
-        var conflict = tracks[t].some(function (prev) {
-          var pm = _eventMinutes(prev);
-          return pm && m.start < pm.end && m.end > pm.start;
-        });
-        if (!conflict) { tracks[t].push(ev); placed = true; break; }
-      }
-      if (!placed) tracks.push([ev]);
-    });
-    var trackCount = tracks.length || 1;
-    var html = '';
-    tracks.forEach(function (track, ti) {
-      track.forEach(function (ev) {
-        var m = _eventMinutes(ev);
-        if (!m) return;
-        var top = Math.max(0, (m.start - gridStart) / totalMin * 100);
-        var height = Math.max(4, (m.end - m.start) / totalMin * 100);
-        var cancelled = isCancelledEvent(ev);
-        var timingClass = getEventTimingClass(ev);
-        var left = (ti / trackCount * 100).toFixed(1);
-        var width = (100 / trackCount).toFixed(1);
-        html += '<div class="tg-event ' + timingClass + (cancelled ? ' is-cancelled' : '') + '"'
-          + ' style="top:' + top.toFixed(2) + '%;height:' + height.toFixed(2) + '%;'
-          + 'left:' + left + '%;width:' + width + '%;">'
-          + '<span class="tg-event-title">' + (ev.title || '') + '</span>'
-          + (ev.location ? '<span class="tg-event-loc">' + ev.location + '</span>' : '')
-          + '</div>';
-      });
-    });
-    return html;
+  function _esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function renderTimeGrid(columns, gridStart, gridEnd) {
+  function _hhmm(date) {
+    return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Place overlapping lessons side by side inside a day column.
+  function _layoutTracks(events) {
+    var tracks = [];
+    events.forEach(function (ev) {
+      var m = _eventMinutes(ev);
+      if (!m) return;
+      for (var t = 0; t < tracks.length; t++) {
+        var free = tracks[t].every(function (prev) {
+          var pm = _eventMinutes(prev);
+          return !(pm && m.start < pm.end && m.end > pm.start);
+        });
+        if (free) { tracks[t].push(ev); return; }
+      }
+      tracks.push([ev]);
+    });
+    return tracks;
+  }
+
+  // Week: five columns that always fit the width; the height is scaled so the
+  // whole school day fits on the screen (phone and laptop) without scrolling.
+  function renderWeekGrid(columns, gridStart, gridEnd) {
     var totalMin = gridEnd - gridStart;
-    // Build hour tick marks
+    // Space from the top of the plan to the bottom of the screen (page scrolled to the top).
+    var list = _elements && _elements.scheduleList;
+    var top = list && list.offsetParent ? list.getBoundingClientRect().top + window.scrollY : 260;
+    // minus day headers and the card/page padding below the grid
+    var available = window.innerHeight - top - (window.innerWidth <= 768 ? 108 : 72);
+    if (window.innerWidth > 768) available = Math.min(available, 640);
+    var perMinute = Math.max(0.6, Math.min(1.5, available / totalMin));
+    var height = Math.round(totalMin * perMinute);
+    var now = new Date();
+
     var ticks = '';
-    for (var h = Math.ceil(gridStart / 60) * 60; h <= gridEnd; h += 60) {
-      var pct = (h - gridStart) / totalMin * 100;
-      ticks += '<div class="tg-tick" style="top:' + pct.toFixed(2) + '%">'
-        + '<span class="tg-tick-label">' + String(Math.floor(h / 60)).padStart(2, '0') + ':00</span>'
-        + '</div>';
+    for (var h = Math.ceil(gridStart / 60) * 60; h < gridEnd; h += 60) {
+      ticks += '<span class="wk-tick" style="top:' + ((h - gridStart) * perMinute).toFixed(1) + 'px">' + String(h / 60).padStart(2, '0') + '</span>';
     }
-    var gridHeight = Math.round(totalMin * 2.2); // ~2.2px per minute
-    return '<div class="tg-wrap">'
-      + '<div class="tg-axis" style="height:' + gridHeight + 'px">' + ticks + '</div>'
-      + '<div class="tg-body">'
-      + columns.map(function (col) {
-          return '<div class="tg-col' + (col.isToday ? ' is-today' : '') + '">'
-            + '<div class="tg-col-head">'
-            + '<span class="tg-col-day">' + col.weekday + '</span>'
-            + '<strong class="tg-col-date">' + col.date + '</strong>'
-            + '</div>'
-            + '<div class="tg-col-body" style="height:' + gridHeight + 'px">'
-            + renderTimeGridColumn(col.events, gridStart, gridEnd)
-            + '</div>'
+    var lines = '';
+    for (var l = Math.ceil(gridStart / 60) * 60; l < gridEnd; l += 60) {
+      lines += '<span class="wk-line" style="top:' + ((l - gridStart) * perMinute).toFixed(1) + 'px"></span>';
+    }
+
+    var head = '<div class="wk-head"><span></span>' + columns.map(function (col) {
+      return '<span class="wk-day' + (col.isToday ? ' is-today' : '') + '"><span class="wk-day-name">' + _esc(col.weekday.replace('.', '')) + '</span>'
+        + '<span class="wk-day-date">' + _esc(col.date.slice(0, 6)) + '</span></span>';
+    }).join('') + '</div>';
+
+    var body = columns.map(function (col) {
+      var tracks = _layoutTracks(col.events);
+      var count = tracks.length || 1;
+      var blocks = '';
+      tracks.forEach(function (track, index) {
+        track.forEach(function (ev) {
+          var m = _eventMinutes(ev);
+          var start = new Date(ev.startsAt);
+          var end = ev.endsAt ? new Date(ev.endsAt) : null;
+          var cls = 'wk-event ' + getEventTimingClass(ev) + (isCancelledEvent(ev) ? ' is-cancelled' : '');
+          var title = (ev.title || '') + (ev.location ? ' · ' + ev.location : '') + ' (' + _hhmm(start) + (end ? '–' + _hhmm(end) : '') + ')'
+            + (isCancelledEvent(ev) ? ' – entfällt' : '');
+          blocks += '<div class="' + cls + '" title="' + _esc(title) + '" style="top:' + ((m.start - gridStart) * perMinute).toFixed(1) + 'px;'
+            + 'height:' + Math.max(18, (m.end - m.start) * perMinute - 2).toFixed(1) + 'px;'
+            + 'left:calc(' + (index / count * 100).toFixed(2) + '% + 1px);width:calc(' + (100 / count).toFixed(2) + '% - 2px)">'
+            + '<span class="wk-event-title">' + _esc(ev.title || '') + '</span>'
+            + (ev.location ? '<span class="wk-event-room">' + _esc(ev.location) + '</span>' : '')
             + '</div>';
-        }).join('')
-      + '</div>'
-      + '</div>';
+        });
+      });
+      var nowLine = '';
+      if (col.isToday) {
+        var minutes = now.getHours() * 60 + now.getMinutes();
+        if (minutes > gridStart && minutes < gridEnd) nowLine = '<span class="wk-now" style="top:' + ((minutes - gridStart) * perMinute).toFixed(1) + 'px"></span>';
+      }
+      return '<div class="wk-col' + (col.isToday ? ' is-today' : '') + '" style="height:' + height + 'px">' + lines + blocks + nowLine + '</div>';
+    }).join('');
+
+    return '<div class="wk-grid">' + head
+      + '<div class="wk-body"><div class="wk-axis" style="height:' + height + 'px">' + ticks + '</div>' + body + '</div></div>';
   }
 
   function renderWeekSchedule(events, center) {
     var columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, _state.webuntisWeekOffset || 0));
     var hasAnyWeekEvents = columns.some(function (c) { return c.events.length > 0; });
-    var nextFutureEvent = findNextEventAfter((columns[columns.length - 1] || {}).isoDate || center.currentDate);
-    var totalCount = columns.reduce(function (sum, c) { return sum + c.events.length; }, 0);
-    var countLabel = hasAnyWeekEvents
-      ? totalCount + ' Einträge'
-      : (nextFutureEvent
-        ? 'Nächster bekannter Termin: ' + _formatDate(new Date(nextFutureEvent.startsAt))
-        : 'keine Einträge im iCal');
-
-    // Calculate time range from actual events (min 07:30–16:30)
-    var gridStart = 7 * 60 + 30, gridEnd = 16 * 60 + 30;
-    if (hasAnyWeekEvents) {
-      columns.forEach(function (col) {
-        col.events.forEach(function (ev) {
-          var m = _eventMinutes(ev);
-          if (!m) return;
-          if (m.start < gridStart) gridStart = Math.floor(m.start / 30) * 30;
-          if (m.end > gridEnd) gridEnd = Math.ceil(m.end / 30) * 30;
-        });
-      });
+    if (!hasAnyWeekEvents) {
+      var next = findNextEventAfter((columns[columns.length - 1] || {}).isoDate || center.currentDate);
+      return '<div class="sched-empty">In dieser Woche stehen keine Stunden im Plan.'
+        + (next ? ' Nächste Stunde am ' + _esc(_formatDate(new Date(next.startsAt))) + '.' : '') + '</div>';
     }
-
-    return '<div class="webuntis-week-board">'
-      + '<div class="webuntis-agenda-head">'
-      + '<strong>' + getWebUntisRangeLabel(center) + '</strong>'
-      + '<span>' + countLabel + '</span>'
-      + '</div>'
-      + renderTimeGrid(columns, gridStart, gridEnd)
-      + '</div>';
+    // Time range from the lessons (at least 08:00–15:00)
+    var gridStart = 8 * 60, gridEnd = 15 * 60;
+    columns.forEach(function (col) {
+      col.events.forEach(function (ev) {
+        var m = _eventMinutes(ev);
+        if (!m) return;
+        gridStart = Math.min(gridStart, Math.floor(m.start / 30) * 30);
+        gridEnd = Math.max(gridEnd, Math.ceil(m.end / 30) * 30);
+      });
+    });
+    return renderWeekGrid(columns, gridStart, gridEnd);
   }
 
-  // On mobile, scroll the week grid so the "today" column is in view
-  function _scrollWeekToToday(container) {
-    if (!container || window.innerWidth > 768) return;
-    requestAnimationFrame(function () {
-      var todayCol = container.querySelector('.webuntis-week-column.is-today');
-      var cols = container.querySelector('.webuntis-week-columns');
-      if (!todayCol || !cols) return;
-      cols.scrollLeft = todayCol.offsetLeft - 12;
-    });
+  // Day: one clear list, lesson by lesson.
+  function renderDaySchedule(events) {
+    if (!events.length) return '<div class="sched-empty">An diesem Tag stehen keine Stunden im Plan.</div>';
+    var now = new Date();
+    var running = events.some(function (e) { return !isCancelledEvent(e) && new Date(e.startsAt) <= now && (!e.endsAt || new Date(e.endsAt) > now); });
+    var nextIndex = running ? -1 : events.findIndex(function (e) { return !isCancelledEvent(e) && new Date(e.startsAt) > now; });
+    return '<ol class="dy-list">' + events.map(function (ev, index) {
+      var start = new Date(ev.startsAt);
+      var end = ev.endsAt ? new Date(ev.endsAt) : null;
+      var cancelled = isCancelledEvent(ev);
+      var current = !cancelled && start <= now && (!end || end > now);
+      var past = end ? end <= now : start < now;
+      var flag = cancelled ? '<span class="ts-flag ts-flag--cancelled">entfällt</span>'
+        : current ? '<span class="ts-flag ts-flag--now">jetzt</span>'
+        : index === nextIndex ? '<span class="ts-flag ts-flag--next">als Nächstes</span>' : '';
+      return '<li class="dy-row' + (cancelled ? ' is-cancelled' : '') + (current ? ' is-current' : past ? ' is-past' : '') + '">'
+        + '<span class="dy-time"><strong>' + _hhmm(start) + '</strong>' + (end ? '<span>' + _hhmm(end) + '</span>' : '') + '</span>'
+        + '<span class="dy-main"><span class="dy-title">' + _esc(ev.title || '') + '</span>'
+        + '<span class="dy-sub">' + _esc([ev.location, ev.description].filter(Boolean).join(' · ')) + '</span></span>'
+        + flag + '</li>';
+    }).join('') + '</ol>';
+  }
+
+  function scheduleHeading(center) {
+    if (_state.webuntisView === 'day') {
+      var day = getScheduleDay(center);
+      var label = day.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+      var today = _toLocalISODate(new Date()) === _toLocalISODate(day);
+      return { title: label, meta: today ? 'Heute' : '' };
+    }
+    var start = getWeekAnchorDate(center.currentDate || _toLocalISODate(new Date()), _state.webuntisWeekOffset || 0);
+    var friday = new Date(start);
+    friday.setDate(start.getDate() + 4);
+    var fmt = function (d) { return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }); };
+    return {
+      title: 'KW ' + _isoWeekNumber(start) + ' · ' + fmt(start) + ' – ' + fmt(friday),
+      meta: (_state.webuntisWeekOffset || 0) === 0 ? 'Diese Woche' : '',
+    };
   }
 
   function renderWebUntisSchedule() {
     if (!_state || !_elements) return;
-    var events = getWebUntisEvents();
     var center = _getData().webuntisCenter || {};
-
-    if (!events.length) {
-      if (_state.webuntisView === 'day') {
-        _elements.scheduleList.innerHTML = '<div class="empty-state">Heute liegen im WebUntis-iCal keine Termine vor.</div>';
-        return;
-      }
-      _elements.scheduleList.innerHTML = renderWeekSchedule([], center);
-      _scrollWeekToToday(_elements.scheduleList);
-      return;
-    }
-
-    if (_state.webuntisView !== 'day') {
-      _elements.scheduleList.innerHTML = renderWeekSchedule(events, center);
-      _scrollWeekToToday(_elements.scheduleList);
-      return;
-    }
-
-    var grouped = groupEventsByDay(events);
-    _elements.scheduleList.innerHTML = renderAgendaGroups(grouped, 'Heute');
+    var events = getWebUntisEvents();
+    _elements.scheduleList.innerHTML = _state.webuntisView === 'day'
+      ? renderDaySchedule(events)
+      : renderWeekSchedule(events, center);
+    var heading = scheduleHeading(center);
+    if (_elements.webuntisActivePlan) _elements.webuntisActivePlan.textContent = heading.title;
+    if (_elements.webuntisRangeLabel) _elements.webuntisRangeLabel.textContent = heading.meta;
   }
 
   function renderWebUntisControls() {
     if (!_state || !_elements) return;
     var center = _getData().webuntisCenter || {};
-    var currentDate = center.currentDate || new Date().toISOString().slice(0, 10);
-    var buttons = [
-      { id: 'prev', label: '←', action: 'prev', compact: true },
-      { id: 'day', label: 'Heute', action: 'day' },
-      { id: 'week', label: weekLabel(currentDate, _state.webuntisWeekOffset || 0, center.currentWeekLabel || 'Aktuelle Woche'), action: 'week' },
-      { id: 'next', label: '→', action: 'next', compact: true },
-    ];
+    var view = _state.webuntisView === 'day' ? 'day' : 'week';
+    var atToday = view === 'day' ? !(_state.webuntisDayOffset || 0) : !(_state.webuntisWeekOffset || 0);
+    _elements.webuntisViewSwitch.innerHTML =
+      '<div class="segmented-control" role="tablist" aria-label="Ansicht">'
+      + '<button class="segment-button' + (view === 'day' ? ' active' : '') + '" type="button" data-webuntis-action="day" aria-pressed="' + (view === 'day') + '">Tag</button>'
+      + '<button class="segment-button' + (view === 'week' ? ' active' : '') + '" type="button" data-webuntis-action="week" aria-pressed="' + (view === 'week') + '">Woche</button>'
+      + '</div>'
+      + '<div class="sched-nav">'
+      + '<button class="icon-button" type="button" data-webuntis-action="prev" aria-label="' + (view === 'day' ? 'Vorheriger Tag' : 'Vorherige Woche') + '">‹</button>'
+      + '<button class="btn btn-sm btn-secondary" type="button" data-webuntis-action="today"' + (atToday ? ' disabled' : '') + '>Heute</button>'
+      + '<button class="icon-button" type="button" data-webuntis-action="next" aria-label="' + (view === 'day' ? 'Nächster Tag' : 'Nächste Woche') + '">›</button>'
+      + '</div>';
 
-    _elements.webuntisViewSwitch.innerHTML = buttons.map(function (btn) {
-      var isActive = btn.action === 'day'
-        ? _state.webuntisView === 'day'
-        : (_state.webuntisView === 'week' && btn.action === 'week');
-      return '<button class="segment-button ' + (isActive ? 'active' : '') + (btn.compact ? ' segment-button--compact' : '') + '" type="button" data-webuntis-action="' + btn.action + '">'
-        + btn.label
-        + '</button>';
-    }).join('');
-
-    _elements.webuntisViewSwitch.querySelectorAll('[data-webuntis-action]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+    if (!_elements.webuntisViewSwitch.dataset.bound) {
+      _elements.webuntisViewSwitch.dataset.bound = '1';
+      _elements.webuntisViewSwitch.addEventListener('click', function (event) {
+        var btn = event.target.closest('[data-webuntis-action]');
+        if (!btn) return;
         var action = btn.dataset.webuntisAction;
-        if (action === 'day') {
-          _state.webuntisView = 'day';
+        var day = _state.webuntisView === 'day';
+        if (action === 'day' || action === 'week') {
+          _state.webuntisView = action;
+          try { localStorage.setItem('lc.scheduleView', action); } catch (e) { /* ignore */ }
+        } else if (action === 'today') {
+          _state.webuntisDayOffset = 0;
           _state.webuntisWeekOffset = 0;
-        } else if (action === 'week') {
-          _state.webuntisView = 'week';
-        } else if (action === 'prev') {
-          _state.webuntisView = 'week';
-          _state.webuntisWeekOffset = (_state.webuntisWeekOffset || 0) - 1;
-        } else if (action === 'next') {
-          _state.webuntisView = 'week';
-          _state.webuntisWeekOffset = (_state.webuntisWeekOffset || 0) + 1;
+        } else if (action === 'prev' || action === 'next') {
+          var step = action === 'next' ? 1 : -1;
+          if (day) _state.webuntisDayOffset = (_state.webuntisDayOffset || 0) + step;
+          else _state.webuntisWeekOffset = (_state.webuntisWeekOffset || 0) + step;
         }
         renderWebUntisControls();
         renderWebUntisSchedule();
       });
-    });
+      var resizeTimer = null;
+      window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () { if (_state.webuntisView !== 'day') renderWebUntisSchedule(); }, 150);
+      });
+    }
 
     _bindExternalLink(_elements.webuntisOpenToday, center.todayUrl, 'Heute in WebUntis');
-    _bindExternalLink(_elements.webuntisOpenBase, center.startUrl || center.todayUrl, 'WebUntis');
-
-    if (_elements.webuntisActivePlan) _elements.webuntisActivePlan.textContent = 'Mein Stundenplan';
-    if (_elements.webuntisDetail) _elements.webuntisDetail.textContent =
-      'Persönlicher Plan über WebUntis-iCal. Vergangene, laufende und kommende Stunden werden hier markiert. Ausfälle erscheinen nur, wenn WebUntis sie im iCal mitsendet.';
-    if (_elements.webuntisRangeLabel) _elements.webuntisRangeLabel.textContent = getWebUntisRangeLabel(center);
+    _bindExternalLink(_elements.webuntisOpenBase, center.startUrl || center.todayUrl, 'WebUntis ↗');
+    if (_elements.webuntisDetail) _elements.webuntisDetail.hidden = true;
     if (_elements.webuntisPlanStrip) {
       _elements.webuntisPlanStrip.hidden = true;
       _elements.webuntisPlanStrip.innerHTML = '';

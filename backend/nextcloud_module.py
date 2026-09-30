@@ -21,6 +21,7 @@ from .nextcloud_client import (
     NextcloudAuthError,
     NextcloudError,
     fetch_activity,
+    fetch_favorites,
     fetch_notifications,
 )
 
@@ -45,6 +46,7 @@ def origin(url: str) -> str:
 
 def suggested_server(settings: dict[str, Any]) -> str:
     """School Nextcloud to prefill: explicit setting, else derived from known Nextcloud links."""
+    # The former Fehlzeiten links pointed to the school Nextcloud as well.
     for key in ("nextcloud_url", "nextcloud_workspace_url", "fehlzeiten_11_url", "fehlzeiten_12_url"):
         value = settings.get(key)
         if isinstance(value, str) and origin(value):
@@ -108,6 +110,8 @@ def build_nextcloud_payload(config: dict[str, Any] | None, now: datetime) -> dic
         "server": server,
         "activity": [],
         "notifications": [],
+        "favorites": [],
+        "favorites_error": None,
         "revoked": False,
         "error": None,
         "fetched_at": now.isoformat(),
@@ -115,6 +119,12 @@ def build_nextcloud_payload(config: dict[str, Any] | None, now: datetime) -> dic
     try:
         data["activity"] = fetch_activity(server, login_name, str(config["app_password"]), limit=_ACTIVITY_LIMIT)
         data["notifications"] = fetch_notifications(server, login_name, str(config["app_password"]))
+        try:
+            data["favorites"] = fetch_favorites(server, login_name, str(config["app_password"]))
+        except NextcloudAuthError:
+            raise
+        except (NextcloudError, UnsafeUrlError) as exc:
+            data["favorites_error"] = str(exc)  # activity still works without favorites
     except NextcloudAuthError:
         data["revoked"] = True
         data["error"] = "Der Zugang wurde in Nextcloud widerrufen. Bitte unter „Verbindungen“ neu verbinden."

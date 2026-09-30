@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=80" />
+    <link rel="stylesheet" href="./styles.css?v=81" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -249,21 +249,19 @@
           <article class="card schedule-card tone-schedule" id="schedule-section" aria-labelledby="schedule-title">
             <h2 id="schedule-title" class="sr-only">Stundenplan</h2>
             <div class="webuntis-toolbar">
-              <div id="webuntis-view-switch" class="segmented-control" aria-label="WebUntis-Ansicht"></div>
+              <div id="webuntis-view-switch" class="sched-controls" aria-label="Stundenplan-Ansicht"></div>
               <div class="webuntis-toolbar-actions">
-                <button id="webuntis-refresh-button" class="secondary-link" type="button">iCal aktualisieren</button>
-                <a id="webuntis-open-today" class="secondary-link" href="#" target="_blank" rel="noreferrer" hidden>Heute in WebUntis</a>
-                <a id="webuntis-open-base" class="secondary-link" href="#" target="_blank" rel="noreferrer">WebUntis</a>
-                <a id="webuntis-open-btn" class="secondary-link webuntis-external-link" href="#" target="_blank" rel="noopener noreferrer" hidden>In WebUntis öffnen ↗</a>
+                <button id="webuntis-refresh-button" class="btn btn-sm btn-ghost" type="button">Aktualisieren</button>
+                <a id="webuntis-open-today" class="btn btn-sm btn-ghost" href="#" target="_blank" rel="noreferrer" hidden>Heute in WebUntis</a>
+                <a id="webuntis-open-base" class="btn btn-sm btn-ghost" href="#" target="_blank" rel="noreferrer">WebUntis ↗</a>
+                <a id="webuntis-open-btn" class="btn btn-sm btn-ghost webuntis-external-link" href="#" target="_blank" rel="noopener noreferrer" hidden>In WebUntis öffnen ↗</a>
               </div>
             </div>
             <div class="webuntis-main-panel webuntis-main-panel-full">
-              <div class="webuntis-summary">
-                <div>
-                  <strong id="webuntis-active-plan">Mein WebUntis-Plan</strong>
-                  <p id="webuntis-detail" class="schedule-note">Persönlicher Plan über iCal verbunden.</p>
-                </div>
-                <span id="webuntis-range-label" class="meta-tag low">Tag</span>
+              <div class="sched-heading">
+                <strong id="webuntis-active-plan"></strong>
+                <span id="webuntis-range-label" class="tile-meta"></span>
+                <p id="webuntis-detail" hidden></p>
               </div>
               <div id="webuntis-plan-strip" class="webuntis-plan-strip" aria-label="Planbibliothek" hidden></div>
               <div id="schedule-list" class="webuntis-list"></div>
@@ -595,27 +593,27 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=80"></script>
-    <script src="./src/api-client.js?v=80"></script>
-    <script src="./src/modules/dashboard-manager.js?v=80"></script>
-    <script src="./src/features/grades.js?v=80"></script>
-    <script src="./src/features/webuntis.js?v=80"></script>
-    <script src="./src/features/itslearning.js?v=80"></script>
-    <script src="./src/features/nextcloud.js?v=80"></script>
-    <script src="./src/features/documents.js?v=80"></script>
-    <script src="./src/features/classwork.js?v=80"></script>
+    <script src="./data/mock-dashboard.js?v=81"></script>
+    <script src="./src/api-client.js?v=81"></script>
+    <script src="./src/modules/dashboard-manager.js?v=81"></script>
+    <script src="./src/features/grades.js?v=81"></script>
+    <script src="./src/features/webuntis.js?v=81"></script>
+    <script src="./src/features/itslearning.js?v=81"></script>
+    <script src="./src/features/nextcloud.js?v=81"></script>
+    <script src="./src/features/documents.js?v=81"></script>
+    <script src="./src/features/classwork.js?v=81"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="./src/features/classlist.js?v=80"></script>
-    <script src="./src/features/collections.js?v=80"></script>
-    <script src="./src/features/inbox.js?v=80"></script>
-    <script src="./src/features/zugaenge.js?v=80"></script>
-    <script src="./src/features/onedrive-sync.js?v=80"></script>
-    <script src="./src/features/signals.js?v=80"></script>
-    <script src="./src/features/push.js?v=80"></script>
-    <script src="./src/features/ai.js?v=80"></script>
-    <script src="./src/features/connections.js?v=80"></script>
-    <script src="./src/features/feedback.js?v=80"></script>
-    <script src="./src/app.js?v=80"></script>
+    <script src="./src/features/classlist.js?v=81"></script>
+    <script src="./src/features/collections.js?v=81"></script>
+    <script src="./src/features/inbox.js?v=81"></script>
+    <script src="./src/features/zugaenge.js?v=81"></script>
+    <script src="./src/features/onedrive-sync.js?v=81"></script>
+    <script src="./src/features/signals.js?v=81"></script>
+    <script src="./src/features/push.js?v=81"></script>
+    <script src="./src/features/ai.js?v=81"></script>
+    <script src="./src/features/connections.js?v=81"></script>
+    <script src="./src/features/feedback.js?v=81"></script>
+    <script src="./src/app.js?v=81"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.

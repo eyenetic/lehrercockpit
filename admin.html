@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=80" />
-    <link rel="stylesheet" href="./styles.admin.css?v=80" />
+    <link rel="stylesheet" href="./styles.css?v=81" />
+    <link rel="stylesheet" href="./styles.admin.css?v=81" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -662,16 +662,6 @@
               </div>
               <div class="form-row">
                 <div class="form-field">
-                  <label for="s-fehlzeiten-11">Fehlzeiten Q1/Q2 (Link)</label>
-                  <input type="url" id="s-fehlzeiten-11" placeholder="https://…" />
-                </div>
-                <div class="form-field">
-                  <label for="s-fehlzeiten-12">Fehlzeiten Q3/Q4 (Link)</label>
-                  <input type="url" id="s-fehlzeiten-12" placeholder="https://…" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-field">
                   <label for="s-schoolportal-url">Schulportal</label>
                   <input type="url" id="s-schoolportal-url" placeholder="https://portal.berlin.de" />
                 </div>
@@ -829,7 +819,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=80"></script>
+    <script src="./src/api-client.js?v=81"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1359,8 +1349,6 @@
           school_website_url: 's-school-website',
           webuntis_url: 's-webuntis-url',
           nextcloud_url: 's-nextcloud-url',
-          fehlzeiten_11_url: 's-fehlzeiten-11',
-          fehlzeiten_12_url: 's-fehlzeiten-12',
           schoolportal_url: 's-schoolportal-url',
           dienstmail_url: 's-dienstmail-url',
         };

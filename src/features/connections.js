@@ -313,7 +313,7 @@
         pill(s.connected ? 'ok' : 'warn', s.connected ? 'verbunden' : (waiting ? 'Anmeldung läuft' : 'nicht verbunden')) + '</div>';
       if (s.connected) {
         return head +
-          '<p class="connection-copy">Neue Dateien und Freigaben erscheinen im Posteingang.</p>' +
+          '<p class="connection-copy">Neue Dateien und Freigaben erscheinen im Posteingang. Was du in Nextcloud mit ★ markierst, liegt auf „Heute“ einen Klick entfernt.</p>' +
           facts([['Konto', esc(s.account)], ['Server', esc(_host(s.server))]]) +
           '<div class="connection-actions"><button class="btn btn-secondary" type="button" data-action="disconnect">Trennen</button></div>' +
           '<p class="connection-feedback" data-feedback></p>';

@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import base64
 import json
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any
 from urllib.error import HTTPError
-from urllib.parse import urlencode, urlparse
+from urllib.parse import quote, unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from .http_utils import require_public_https_url, tls_context
@@ -166,6 +167,89 @@ def fetch_notifications(server: str, login_name: str, app_password: str) -> list
     items = _ocs_get(server, login_name, app_password,
                      "/ocs/v2.php/apps/notifications/api/v2/notifications", {})
     return [normalize_notification(item) for item in items if isinstance(item, dict)]
+
+
+# ── Favoriten (WebDAV) ────────────────────────────────────────────────────────
+
+_FAVORITES_QUERY = (
+    '<?xml version="1.0"?>'
+    '<oc:filter-files xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">'
+    '<d:prop><d:displayname/><d:resourcetype/><oc:fileid/></d:prop>'
+    '<oc:filter-rules><oc:favorite>1</oc:favorite></oc:filter-rules>'
+    '</oc:filter-files>'
+).encode("utf-8")
+_DAV = "{DAV:}"
+_OC = "{http://owncloud.org/ns}"
+MAX_FAVORITES = 40
+
+
+def _user_id(server: str, login_name: str, app_password: str) -> str:
+    """The Nextcloud user id (WebDAV paths use it; it can differ from the login name)."""
+    request = Request(
+        require_public_https_url(server) + "/ocs/v2.php/cloud/user?format=json",
+        headers=_auth_headers(login_name, app_password),
+    )
+    try:
+        with _open(request) as response:
+            payload = _read_json(response)
+    except HTTPError as exc:
+        if exc.code == 401:
+            raise NextcloudAuthError("Der Nextcloud-Zugang wurde widerrufen.") from exc
+        raise NextcloudError(f"Nextcloud antwortet mit HTTP {exc.code}.") from exc
+    except OSError as exc:
+        raise NextcloudError("Nextcloud ist nicht erreichbar.") from exc
+    user_id = (((payload or {}).get("ocs") or {}).get("data") or {}).get("id")
+    return str(user_id or login_name)
+
+
+def parse_favorites(xml_bytes: bytes, server: str, user_id: str) -> list[dict[str, Any]]:
+    """Files and folders from a WebDAV multistatus answer, folders first."""
+    root = ET.fromstring(xml_bytes)
+    prefix = f"/remote.php/dav/files/{user_id}/"
+    items = []
+    for response in root.iter(_DAV + "response"):
+        href = unquote(response.findtext(_DAV + "href") or "")
+        position = href.find(prefix)
+        path = href[position + len(prefix):] if position != -1 else ""
+        path = path.strip("/")
+        if not path:
+            continue  # the root folder itself
+        prop = response.find(f"{_DAV}propstat/{_DAV}prop")
+        if prop is None:
+            continue
+        is_folder = prop.find(f"{_DAV}resourcetype/{_DAV}collection") is not None
+        file_id = (prop.findtext(_OC + "fileid") or "").strip()
+        name = (prop.findtext(_DAV + "displayname") or "").strip() or path.rsplit("/", 1)[-1]
+        parent = path.rsplit("/", 1)[0] if "/" in path else ""
+        base = server.rstrip("/")
+        link = (f"{base}/index.php/f/{file_id}" if file_id
+                else f"{base}/index.php/apps/files/?dir=/" + quote(path if is_folder else parent))
+        items.append({"name": name, "path": path, "folder": parent, "is_folder": is_folder, "link": link})
+    items.sort(key=lambda item: (not item["is_folder"], item["name"].lower()))
+    return items[:MAX_FAVORITES]
+
+
+def fetch_favorites(server: str, login_name: str, app_password: str) -> list[dict[str, Any]]:
+    """Files and folders the teacher starred in Nextcloud."""
+    base = require_public_https_url(server)
+    user_id = _user_id(server, login_name, app_password)
+    headers = _auth_headers(login_name, app_password)
+    headers.update({"Content-Type": "application/xml; charset=utf-8", "Accept": "application/xml", "Depth": "infinity"})
+    request = Request(base + "/remote.php/dav/files/" + quote(user_id) + "/", method="REPORT",
+                      data=_FAVORITES_QUERY, headers=headers)
+    try:
+        with _open(request) as response:
+            raw = response.read(2_000_000)
+    except HTTPError as exc:
+        if exc.code == 401:
+            raise NextcloudAuthError("Der Nextcloud-Zugang wurde widerrufen.") from exc
+        raise NextcloudError(f"Favoriten: Nextcloud antwortet mit HTTP {exc.code}.") from exc
+    except OSError as exc:
+        raise NextcloudError("Nextcloud ist nicht erreichbar.") from exc
+    try:
+        return parse_favorites(raw, base, user_id)
+    except ET.ParseError as exc:
+        raise NextcloudError("Die Favoriten konnten nicht gelesen werden.") from exc
 
 
 _ACTIVITY_KINDS = {

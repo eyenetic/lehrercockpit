@@ -6228,3 +6228,148 @@ textarea.form-input { resize: vertical; line-height: 1.5; }
   text-align: center;
   font-size: 0.92rem;
 }
+
+/* Nextcloud-Favoriten in der Zugänge-Leiste */
+.quicklinks-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  margin-left: 6px;
+  padding: 0 2px 0 8px;
+  border-left: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.quicklinks-label svg { width: 13px; height: 13px; color: #d4a017; }
+.quicklink--fav .quicklink-icon { color: var(--accent); }
+.quicklink--fav .quicklink-label { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Klassen: Schüler:innen direkt eintragen */
+.classlist-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+.classlist-add-hint { margin: 0; font-size: 0.76rem; color: var(--muted); }
+.classlist-add-feedback { margin: 4px 0 8px; min-height: 1.1em; font-size: 0.8rem; color: var(--success); }
+.classlist-add-feedback:empty { min-height: 0; margin: 0 0 8px; }
+.classlist-delete-class { color: var(--danger); }
+.classlist-paste { width: 100%; box-sizing: border-box; margin: 8px 0 10px; font-size: 0.86rem; }
+@media (max-width: 560px) {
+  .classlist-add-form { grid-template-columns: 1fr 1fr; }
+  .classlist-add-form .btn { grid-column: 1 / -1; }
+}
+
+/* ── Stundenplan: Tag / Woche ─────────────────────────────────────────── */
+.webuntis-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.sched-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sched-nav { display: flex; align-items: center; gap: 4px; }
+.sched-nav .icon-button { width: 32px; height: 32px; font-size: 1.1rem; line-height: 1; }
+.sched-nav .btn:disabled { opacity: 0.45; }
+.webuntis-toolbar-actions { display: flex; gap: 2px; flex-wrap: wrap; }
+.sched-heading { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; }
+.sched-heading strong { font-size: 1rem; font-weight: 620; letter-spacing: -0.01em; }
+.sched-empty { padding: 28px 8px; text-align: center; color: var(--muted); font-size: 0.9rem; }
+
+/* Woche */
+.wk-grid { --wk-axis: 30px; user-select: none; }
+.wk-head, .wk-body { display: grid; grid-template-columns: var(--wk-axis) repeat(5, minmax(0, 1fr)); gap: 4px; }
+.wk-head { margin-bottom: 6px; }
+.wk-day { display: grid; justify-items: center; gap: 1px; padding: 4px 0; border-radius: 8px; }
+.wk-day-name { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.wk-day-date { font-size: 0.86rem; font-weight: 620; color: var(--ink); font-variant-numeric: tabular-nums; }
+.wk-day.is-today { background: var(--accent-soft); }
+.wk-day.is-today .wk-day-name, .wk-day.is-today .wk-day-date { color: var(--accent); }
+.wk-axis { position: relative; }
+.wk-tick { position: absolute; right: 4px; transform: translateY(-50%); font-size: 0.66rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wk-col { position: relative; border-radius: 8px; background: var(--panel-soft); }
+.wk-col.is-today { background: color-mix(in srgb, var(--accent) 6%, var(--panel-soft)); }
+.wk-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--line); }
+.wk-event {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  border-left: 3px solid var(--accent);
+  background: var(--panel);
+  box-shadow: var(--shadow-soft), 0 0 0 1px var(--line);
+  overflow: hidden;
+  line-height: 1.2;
+}
+.wk-event-title {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.wk-event-room { font-size: 0.66rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wk-event.is-past { opacity: 0.5; }
+.wk-event.is-current { background: var(--accent); border-left-color: var(--accent-strong); }
+.wk-event.is-current .wk-event-title, .wk-event.is-current .wk-event-room { color: #fff; }
+.wk-event.is-cancelled { border-left-color: var(--danger); background: var(--danger-soft); box-shadow: none; }
+.wk-event.is-cancelled .wk-event-title { text-decoration: line-through; color: var(--danger); }
+.wk-now { position: absolute; left: -3px; right: 0; height: 2px; background: var(--danger); border-radius: 2px; z-index: 2; }
+.wk-now::before { content: ""; position: absolute; left: -2px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+:root[data-theme="dark"] .wk-event.is-current .wk-event-title,
+:root[data-theme="dark"] .wk-event.is-current .wk-event-room { color: #0b0b0a; }
+
+/* Tag */
+.dy-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.dy-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.dy-time { display: grid; font-variant-numeric: tabular-nums; }
+.dy-time strong { font-size: 0.92rem; font-weight: 640; }
+.dy-time span { font-size: 0.76rem; color: var(--muted); }
+.dy-main { display: grid; gap: 2px; min-width: 0; }
+.dy-title { font-size: 0.96rem; font-weight: 580; }
+.dy-sub { font-size: 0.8rem; color: var(--muted); }
+.dy-sub:empty { display: none; }
+.dy-row.is-past { opacity: 0.55; }
+.dy-row.is-current { border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
+.dy-row.is-cancelled .dy-title { text-decoration: line-through; color: var(--muted); }
+
+@media (max-width: 768px) {
+  .schedule-card { padding: 12px 10px; }
+  .webuntis-toolbar { gap: 8px; }
+  .webuntis-toolbar-actions { width: 100%; justify-content: flex-end; }
+  .wk-grid { --wk-axis: 20px; }
+  .wk-head, .wk-body { gap: 3px; }
+  .wk-tick { font-size: 0.6rem; right: 2px; }
+  .wk-event { padding: 2px 3px; border-left-width: 2px; border-radius: 4px; }
+  .wk-event-title { font-size: 0.64rem; -webkit-line-clamp: 3; }
+  .wk-event-room { font-size: 0.58rem; }
+  .wk-day-date { font-size: 0.76rem; }
+  .dy-row { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; padding: 10px 12px; }
+}
+@media (max-width: 768px) {
+  .webuntis-toolbar { flex-direction: row; align-items: center; justify-content: flex-start; margin-bottom: 10px; }
+  .webuntis-toolbar-actions { display: none; }
+  .sched-controls { width: 100%; justify-content: space-between; }
+  .sched-heading { margin-bottom: 8px; }
+  .sched-heading strong { font-size: 0.92rem; }
+  [data-view-section="schedule"] .card { margin: 0; }
+}
+.classlist-add-feedback.is-warn { color: var(--warning); }

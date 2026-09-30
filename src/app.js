@@ -48,7 +48,8 @@
     activeSection: "overview",
     selectedChannel: "mail",
     documentSearch: "",
-    webuntisView: "week",
+    webuntisView: (function () { try { return localStorage.getItem("lc.scheduleView") === "day" ? "day" : "week"; } catch (_e) { return "week"; } })(),
+    webuntisDayOffset: 0,
     webuntisWeekOffset: 0,
     webuntisPickerOpen: false,
     webuntisPickerCategory: null,
@@ -801,7 +802,12 @@
       elements.settingsButton.hidden = active !== "overview";
     }
     renderPageHead();
+    // The week grid sizes itself to the visible screen: draw it once it is shown.
+    if (active === "schedule" && lastFocusedSection !== "schedule") renderWebUntisSchedule();
+    lastFocusedSection = active;
   }
+
+  var lastFocusedSection = "";
 
   function renderMeta() {
     const data = getData();
@@ -1906,12 +1912,7 @@
 
     if (elements.classworkClassFilter) {
       elements.classworkClassFilter.addEventListener("change", (event) => {
-        state.classworkSelectedClasses = Array.from(event.target.selectedOptions || [])
-          .map((option) => option.value)
-          .filter(Boolean);
-        persistClassworkSelectedClasses();
-        renderPlanDigest();
-        renderToday();
+        setSelectedClassworkClasses(Array.from(event.target.selectedOptions || []).map((option) => option.value));
       });
     }
 
@@ -2311,39 +2312,25 @@
     try { classes = getData().planDigest.classwork.classes || []; } catch (_e) {}
     if (!classes.length) { section.hidden = true; return; }
     section.hidden = false;
-
-    var STORAGE_KEY = CLASSWORK_SELECTED_CLASSES_KEY;
-    function loadSelected() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || []; } catch (_e) { return []; }
-    }
-    function saveSelected(sel) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sel));
-        state.classworkSelectedClasses = sel; // state sync
-      } catch (_e) {}
-    }
-
-    function render() {
-      var selected = loadSelected();
-      pillsEl.innerHTML = classes.map(function (label) {
-        var active = selected.includes(label);
-        return '<button type="button" class="classwork-pill' + (active ? ' is-active' : '') + '"'
-          + ' data-ha-class="' + label + '">' + label + '</button>';
-      }).join('');
-      pillsEl.querySelectorAll('[data-ha-class]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var lbl = btn.dataset.haClass;
-          var cur = loadSelected();
-          var next = cur.includes(lbl) ? cur.filter(function (c) { return c !== lbl; }) : cur.concat([lbl]);
-          if (!next.length) next = [lbl]; // mindestens eine Klasse
-          saveSelected(next);
-          render();
-          // Sofort Dashboard aktualisieren
-          if (typeof renderAll === 'function') renderAll();
-        });
+    pillsEl.innerHTML = renderClassPills(classes, 'data-ha-class');
+    pillsEl.querySelectorAll('[data-ha-class]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (btn.dataset.haClass === '*') setSelectedClassworkClasses([]);
+        else toggleClassworkClass(btn.dataset.haClass, classes);
+        _renderHeuteAnpassenClasses();
       });
-    }
-    render();
+    });
+  }
+
+  // Same pills everywhere: "Alle" plus one pill per class.
+  function renderClassPills(classes, attribute) {
+    var picked = hasStoredClassworkSelection() ? getSelectedClassworkClasses(classes) : [];
+    var all = !picked.length || picked.length === classes.length;
+    return '<button type="button" class="classwork-pill' + (all ? ' is-active' : '') + '" ' + attribute + '="*" aria-pressed="' + all + '">Alle</button>'
+      + classes.map(function (label) {
+        var active = !all && picked.includes(label);
+        return '<button type="button" class="classwork-pill' + (active ? ' is-active' : '') + '" ' + attribute + '="' + escapeHtml(label) + '" aria-pressed="' + active + '">' + escapeHtml(label) + '</button>';
+      }).join('');
   }
 
   function initHeuteAnpassen() {
@@ -2530,6 +2517,9 @@
         setExpandableMeta: setExpandableMeta,
         weekdayLabel: weekdayLabel,
         getSelectedClassworkClasses: getSelectedClassworkClasses,
+        setSelectedClassworkClasses: setSelectedClassworkClasses,
+        toggleClassworkClass: toggleClassworkClass,
+        renderClassPills: renderClassPills,
         refreshDashboard: refreshDashboard,
       });
     }
@@ -2653,18 +2643,36 @@
     }
   }
 
-  function persistClassworkSelectedClasses() {
+  function hasStoredClassworkSelection() {
+    try { return localStorage.getItem(CLASSWORK_SELECTED_CLASSES_KEY) !== null; } catch (_e) { return false; }
+  }
+
+  // One place for "Meine Klassen": Pläne, Heute anpassen, the Heute tile and the
+  // server (signals/push) all read and write the selection through here.
+  // An empty selection means "alle Klassen".
+  function setSelectedClassworkClasses(classes) {
+    const cleaned = Array.from(new Set((classes || []).filter(Boolean)));
+    state.classworkSelectedClasses = cleaned;
     try {
-      localStorage.setItem(
-        CLASSWORK_SELECTED_CLASSES_KEY,
-        JSON.stringify((state.classworkSelectedClasses || []).filter(Boolean))
-      );
+      if (cleaned.length) localStorage.setItem(CLASSWORK_SELECTED_CLASSES_KEY, JSON.stringify(cleaned));
+      else localStorage.removeItem(CLASSWORK_SELECTED_CLASSES_KEY);
     } catch (_error) {
       // ignore local storage errors
     }
-    if (window.LehrerSignals) {
-      window.LehrerSignals.syncPreferredClasses(state.classworkSelectedClasses || []);
-    }
+    if (window.LehrerSignals) window.LehrerSignals.syncPreferredClasses(cleaned);
+    renderAll();
+  }
+
+  // Click on a class pill: from "alle" the first click picks just that class;
+  // afterwards clicks toggle. Removing the last class (or picking all) means "alle".
+  function toggleClassworkClass(label, classes) {
+    const available = (classes || []).filter(Boolean);
+    const current = hasStoredClassworkSelection()
+      ? (state.classworkSelectedClasses || []).filter((c) => available.includes(c))
+      : [];
+    let next = current.includes(label) ? current.filter((c) => c !== label) : current.concat([label]);
+    if (next.length >= available.length) next = [];
+    setSelectedClassworkClasses(next);
   }
 
   function getSelectedClassworkClasses(classes, defaultClass = "") {
@@ -2672,7 +2680,7 @@
     if (!availableClasses.length) return [];
 
     // Check if user has ever explicitly saved a selection
-    const hasStoredSelection = localStorage.getItem(CLASSWORK_SELECTED_CLASSES_KEY) !== null;
+    const hasStoredSelection = hasStoredClassworkSelection();
     if (!hasStoredSelection) {
       // Nothing saved yet → show all classes (no filter)
       return availableClasses;
