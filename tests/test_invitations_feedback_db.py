@@ -61,6 +61,7 @@ def people(db_url):
         conn.execute("DELETE FROM users WHERE id IN (%s, %s) OR last_name LIKE 'Eingeladen%%'",
                      (created["admin"], created["teacher"]))
         conn.execute("DELETE FROM access_requests WHERE email LIKE '%%@einladung.test'")
+        conn.execute("DELETE FROM user_links WHERE user_id IS NULL AND url LIKE 'https://1drv.ms/x/%%'")
         conn.commit()
 
 
@@ -210,3 +211,65 @@ def test_feedback_round_trip(app, people):
 
     assert admin.delete(f"/api/v2/feedback/admin/{item_id}").status_code == 200
     assert teacher.get("/api/v2/feedback").get_json()["items"] == []
+
+
+# ── Links, Tresor, Konto ─────────────────────────────────────────────────────
+
+def test_school_links_only_admins_edit(app, people):
+    teacher = _client(app, people["teacher_session"])
+    admin = _client(app, people["admin_session"])
+    assert teacher.post("/api/v2/links", json={"title": "X", "url": "https://x.de"}).status_code == 403
+    assert admin.post("/api/v2/links", json={"url": "javascript:alert(1)"}).status_code == 422
+    created = admin.post("/api/v2/links", json={"title": "KA-Plan bearbeiten", "url": "https://1drv.ms/x/edit"})
+    assert created.status_code == 201
+    link = created.get_json()["link"]
+    listing = teacher.get("/api/v2/links").get_json()
+    assert any(item["id"] == link["id"] for item in listing["school"]) and listing["can_edit_school"] is False
+    assert teacher.delete(f"/api/v2/links/{link['id']}").status_code == 403
+    assert admin.delete(f"/api/v2/links/{link['id']}").status_code == 200
+
+
+def test_vault_stores_only_ciphertext_and_detects_conflicts(app, people):
+    teacher = _client(app, people["teacher_session"])
+    assert teacher.get("/api/v2/vault").get_json()["vault"] is None
+    first = teacher.put("/api/v2/vault", json={"iv": "aXY=", "ciphertext": "Y2lwaGVy", "base_version": 0})
+    assert first.status_code == 200 and first.get_json()["version"] == 1
+    stale = teacher.put("/api/v2/vault", json={"iv": "aXY=", "ciphertext": "b3RoZXI=", "base_version": 0})
+    assert stale.status_code == 409 and stale.get_json()["vault"]["version"] == 1
+    assert teacher.put("/api/v2/vault", json={"iv": "<script>", "ciphertext": "x", "base_version": 1}).status_code == 422
+    vault = teacher.get("/api/v2/vault").get_json()["vault"]
+    assert vault["ciphertext"] == "Y2lwaGVy" and vault["version"] == 1
+    # other accounts never see it
+    assert _client(app, people["admin_session"]).get("/api/v2/vault").get_json()["vault"] is None
+
+
+def test_change_code_requires_current_code(app, people, db_url):
+    import psycopg
+    from backend.auth.access_code import get_code_prefix, hash_code
+    from backend.users.user_store import set_access_code
+
+    with psycopg.connect(db_url) as conn:
+        set_access_code(conn, people["teacher"], hash_code("AlterCode2026"), code_prefix=get_code_prefix("AlterCode2026"))
+        conn.commit()
+    teacher = _client(app, people["teacher_session"])
+    wrong = teacher.post("/api/v2/auth/me/change-code", json={"current_code": "Falsch123", "new_code": "NeuerCode2026"})
+    assert wrong.status_code == 403
+    assert teacher.post("/api/v2/auth/me/verify-code", json={"code": "AlterCode2026"}).status_code == 200
+    ok = teacher.post("/api/v2/auth/me/change-code", json={"current_code": "AlterCode2026", "new_code": "NeuerCode2026"})
+    assert ok.status_code == 200
+    assert _client(app).post("/api/v2/auth/login", json={"code": "NeuerCode2026"}).status_code == 200
+    assert teacher.put("/api/v2/auth/me/email", json={"email": "tim@einladung.test"}).get_json()["email"] == "tim@einladung.test"
+    assert teacher.get("/api/v2/auth/me/account").get_json()["account"]["email"] == "tim@einladung.test"
+
+
+def test_admin_reset_link_lets_teacher_choose_new_code(app, people):
+    admin = _client(app, people["admin_session"])
+    data = admin.post(f"/api/v2/admin/users/{people['teacher']}/reset-link").get_json()
+    assert data["valid_days"] == 3 and "login.html?reset_token=" in data["link"]
+    assert _client(app, people["teacher_session"]).post(
+        f"/api/v2/admin/users/{people['admin']}/reset-link").status_code == 403
+    info = _client(app).get(f"/api/v2/auth/reset-info?token={data['token']}")
+    assert info.status_code == 200 and info.get_json()["first_name"] == "Tim"
+    done = _client(app).post("/api/v2/auth/reset-code", json={"token": data["token"], "new_code": "ResetCode2026"})
+    assert done.status_code == 200
+    assert _client(app).post("/api/v2/auth/login", json={"code": "ResetCode2026"}).status_code == 200

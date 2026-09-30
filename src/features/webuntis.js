@@ -407,6 +407,15 @@
     return getEventTimingClass(event) === 'is-current';
   }
 
+  // Pausenaufsicht: WebUntis exports it without a subject, only with the place.
+  function isSupervision(event) {
+    return !!event && (event.category === 'Aufsicht' || /^aufsicht\b/i.test(String(event.title || '')));
+  }
+
+  function dutyPlace(event) {
+    return String(event.location || '').trim() || String(event.title || '').replace(/^aufsicht\s*[·-]?\s*/i, '').trim();
+  }
+
   function isCancelledEvent(event) {
     var haystack = ((event.title || '') + ' ' + (event.description || '') + ' ' + (event.detail || '')).toLowerCase();
     return /(entf[aä]llt|ausfall|ausfaellt|fällt aus|faellt aus|cancelled|verlegt|vertretung)/i.test(haystack);
@@ -728,14 +737,17 @@
           var m = _eventMinutes(ev);
           var start = new Date(ev.startsAt);
           var end = ev.endsAt ? new Date(ev.endsAt) : null;
-          var cls = 'wk-event ' + getEventTimingClass(ev) + (isCancelledEvent(ev) ? ' is-cancelled' : '');
+          var duty = isSupervision(ev);
+          var cls = 'wk-event ' + getEventTimingClass(ev) + (isCancelledEvent(ev) ? ' is-cancelled' : '') + (duty ? ' is-duty' : '');
           var title = (ev.title || '') + (ev.location ? ' · ' + ev.location : '') + ' (' + _hhmm(start) + (end ? '–' + _hhmm(end) : '') + ')'
             + (isCancelledEvent(ev) ? ' – entfällt' : '');
           blocks += '<div class="' + cls + '" title="' + _esc(title) + '" style="top:' + ((m.start - gridStart) * perMinute).toFixed(1) + 'px;'
             + 'height:' + Math.max(18, (m.end - m.start) * perMinute - 2).toFixed(1) + 'px;'
             + 'left:calc(' + (index / count * 100).toFixed(2) + '% + 1px);width:calc(' + (100 / count).toFixed(2) + '% - 2px)">'
-            + '<span class="wk-event-title">' + _esc(ev.title || '') + '</span>'
-            + (ev.location ? '<span class="wk-event-room">' + _esc(ev.location) + '</span>' : '')
+            + (duty
+              ? '<span class="wk-event-title">Aufsicht</span><span class="wk-event-room">' + _esc(dutyPlace(ev)) + '</span>'
+              : '<span class="wk-event-title">' + _esc(ev.title || '') + '</span>'
+                + (ev.location ? '<span class="wk-event-room">' + _esc(ev.location) + '</span>' : ''))
             + '</div>';
         });
       });
@@ -787,10 +799,13 @@
       var flag = cancelled ? '<span class="ts-flag ts-flag--cancelled">entfällt</span>'
         : current ? '<span class="ts-flag ts-flag--now">jetzt</span>'
         : index === nextIndex ? '<span class="ts-flag ts-flag--next">als Nächstes</span>' : '';
-      return '<li class="dy-row' + (cancelled ? ' is-cancelled' : '') + (current ? ' is-current' : past ? ' is-past' : '') + '">'
+      var duty = isSupervision(ev);
+      return '<li class="dy-row' + (cancelled ? ' is-cancelled' : '') + (current ? ' is-current' : past ? ' is-past' : '') + (duty ? ' is-duty' : '') + '">'
         + '<span class="dy-time"><strong>' + _hhmm(start) + '</strong>' + (end ? '<span>' + _hhmm(end) + '</span>' : '') + '</span>'
-        + '<span class="dy-main"><span class="dy-title">' + _esc(ev.title || '') + '</span>'
-        + '<span class="dy-sub">' + _esc([ev.location, ev.description].filter(Boolean).join(' · ')) + '</span></span>'
+        + (duty
+          ? '<span class="dy-main"><span class="dy-title">Aufsicht</span><span class="dy-sub">' + _esc(dutyPlace(ev)) + '</span></span>'
+          : '<span class="dy-main"><span class="dy-title">' + _esc(ev.title || '') + '</span>'
+            + '<span class="dy-sub">' + _esc([ev.location, ev.description].filter(Boolean).join(' · ')) + '</span></span>')
         + flag + '</li>';
     }).join('') + '</ol>';
   }
@@ -1077,6 +1092,8 @@
     getEventTimingClass:      getEventTimingClass,
     isEventCurrent:           isEventCurrent,
     isCancelledEvent:         isCancelledEvent,
+    isSupervision:            isSupervision,
+    dutyPlace:                dutyPlace,
     eventStateLabel:          eventStateLabel,
     eventStateTagClass:       eventStateTagClass,
     compactEventDetail:       compactEventDetail,

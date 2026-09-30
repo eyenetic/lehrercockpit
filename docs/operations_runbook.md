@@ -327,6 +327,26 @@ account), is logged in right away and lands in the setup wizard. Only the SHA-25
 lookups; the token itself is stored encrypted (`ENCRYPTION_KEY`) so admins can copy active links again.
 Admins get a push note when someone joins (if they enabled push on a device).
 
+### Zugangscode vergessen / ändern
+
+- Teachers change their code under Menü → „Konto & Zugangscode" (current code required; other devices
+  are signed out).
+- Forgotten code: with SMTP configured and an e-mail in the account, „Code vergessen?" on the login page
+  sends a link. Otherwise an admin clicks „Code-Link" in the Lehrkräfte table and passes the link on
+  (valid 3 days, once); the teacher sets a new code – admins never see codes.
+
+### Datenschutz: wo Daten liegen (Tresor)
+
+Klassenlisten, Einsammlungen, eigene Links and a few preferences live in the browser (localStorage).
+`src/features/vault.js` keeps an encrypted copy in `user_vault` so they reappear on other devices: AES-GCM
+with a key derived in the browser from the access code (PBKDF2-SHA-256, 310 000 rounds, salt = user id).
+The server only stores ciphertext. Changing the code re-encrypts; after a forgotten-code reset the old copy
+cannot be opened any more – whatever is on the device is saved again with the new code. Logging out wipes
+the browser storage (Clear-Site-Data); the next login restores it from the vault.
+
+Links for the whole staff (e.g. the Klassenarbeitsplan edit link) are server-side (`user_links`, user_id
+NULL) and managed by admins under Verbindungen → Links.
+
 ### Rückmeldungen
 
 Teachers send problems, ideas, questions or praise via „Rückmeldung" (sidebar / menu). They land in the

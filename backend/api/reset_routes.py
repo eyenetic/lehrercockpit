@@ -27,7 +27,6 @@ from backend.users.user_store import set_access_code
 from backend.migrations import log_audit_event
 from backend.mailer import send_reset_mail, is_configured as smtp_configured
 from backend.api.helpers import success, error
-from backend.config import FRONTEND_URL
 
 reset_bp = Blueprint("reset", __name__)
 
@@ -54,7 +53,12 @@ def _get_user_by_email(conn, email: str):
     return row  # (id, first_name, last_name, email) or None
 
 
-def _create_reset_token(conn, user_id: int) -> str:
+def reset_link(token: str) -> str:
+    from backend.api.invitation_routes import frontend_base
+    return f"{frontend_base()}/login.html?reset_token={token}"
+
+
+def _create_reset_token(conn, user_id: int, minutes: int = TOKEN_TTL_MINUTES) -> str:
     """Erstellt einen neuen Reset-Token (invalidiert alte für diesen User)."""
     # Alte Token für diesen User löschen
     conn.execute(
@@ -62,7 +66,7 @@ def _create_reset_token(conn, user_id: int) -> str:
         (user_id,),
     )
     token = _generate_token()
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_TTL_MINUTES)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=minutes)
     conn.execute(
         """
         INSERT INTO password_reset_tokens (user_id, token, expires_at)
@@ -120,7 +124,8 @@ def request_reset():
             if user_row:
                 user_id, first_name, last_name, user_email = user_row
                 token = _create_reset_token(conn, user_id)
-                reset_url = f"{FRONTEND_URL}/?reset_token={token}"
+                # login.html handles ?reset_token= (index.html would bounce to the login without it)
+                reset_url = reset_link(token)
                 try:
                     send_reset_mail(user_email, reset_url, first_name)
                     log_audit_event(conn, "password_reset_requested", user_id=user_id,

@@ -1,4 +1,4 @@
-"""Nextcloud module for the v2 API: connection state and "what is new" data.
+"""Nextcloud module for the v2 API: connection state and the teacher's favourites.
 
 Config keys in user_module_configs["nextcloud"]:
   base_url            school Nextcloud chosen by the teacher
@@ -20,14 +20,11 @@ from .http_utils import UnsafeUrlError
 from .nextcloud_client import (
     NextcloudAuthError,
     NextcloudError,
-    fetch_activity,
     fetch_favorites,
-    fetch_notifications,
 )
 
 LOGIN_FLOW_TTL = timedelta(minutes=20)  # Nextcloud poll tokens expire after 20 minutes
 _CACHE_SECONDS = 120
-_ACTIVITY_LIMIT = 30
 
 _cache_lock = threading.Lock()
 _cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
@@ -111,20 +108,14 @@ def build_nextcloud_payload(config: dict[str, Any] | None, now: datetime) -> dic
         "activity": [],
         "notifications": [],
         "favorites": [],
-        "favorites_error": None,
         "revoked": False,
         "error": None,
         "fetched_at": now.isoformat(),
     }
+    # The cockpit only shows the teacher's favourites (the activity stream in the
+    # Posteingang was dropped as noise).
     try:
-        data["activity"] = fetch_activity(server, login_name, str(config["app_password"]), limit=_ACTIVITY_LIMIT)
-        data["notifications"] = fetch_notifications(server, login_name, str(config["app_password"]))
-        try:
-            data["favorites"] = fetch_favorites(server, login_name, str(config["app_password"]))
-        except NextcloudAuthError:
-            raise
-        except (NextcloudError, UnsafeUrlError) as exc:
-            data["favorites_error"] = str(exc)  # activity still works without favorites
+        data["favorites"] = fetch_favorites(server, login_name, str(config["app_password"]))
     except NextcloudAuthError:
         data["revoked"] = True
         data["error"] = "Der Zugang wurde in Nextcloud widerrufen. Bitte unter „Verbindungen“ neu verbinden."

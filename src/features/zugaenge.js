@@ -28,31 +28,27 @@ window.LehrerZugaenge = (function() {
     _dashboardData = dashboardData || {};
   }
 
-  // Compact row of quick links on "Heute" (icon + name, opens in a new tab),
-  // followed by the teacher's Nextcloud favourites (starred files and folders).
+  // Compact row of quick links on "Heute" (icon + name, opens in a new tab):
+  // school links plus the teacher's own links. Nextcloud favourites live in „Links“.
   function render(containerId) {
     var container = document.getElementById(containerId);
     if (!container) return;
 
     var links = _buildLinks();
-    var favorites = ((_dashboardData.nextcloudFeed || {}).favorites || []).slice(0, 16);
-    if (!links.length && !favorites.length) {
+    // Own links and links for the whole staff (Verbindungen → Links)
+    var own = window.LehrerLinks ? window.LehrerLinks.getLinks() : { school: [], personal: [] };
+    var extra = (own.school || []).concat(own.personal || []);
+    if (!links.length && !extra.length) {
       container.innerHTML = '';
       container.hidden = true;
       return;
     }
     container.hidden = false;
-    var html = links.map(function(link) {
+    container.innerHTML = links.map(function(link) {
       return _chip(link.url, link.label, link.note || link.label, link.icon, '');
+    }).join('') + extra.map(function(link) {
+      return _chip(link.url, link.title, link.title, _svg(ICONS.link), ' quicklink--own');
     }).join('');
-    if (favorites.length) {
-      html += '<span class="quicklinks-label" aria-hidden="true">' + _svg(ICONS.star) + 'Nextcloud</span>';
-      html += favorites.map(function(fav) {
-        var title = fav.folder ? fav.folder + ' / ' + fav.name : fav.name;
-        return _chip(fav.link, fav.name, title, _svg(fav.is_folder ? ICONS.folder : ICONS.file), ' quicklink--fav');
-      }).join('');
-    }
-    container.innerHTML = html;
   }
 
   function _chip(url, label, title, icon, extraClass) {

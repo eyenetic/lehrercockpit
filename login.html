@@ -21,7 +21,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=81" />
+    <link rel="stylesheet" href="./styles.css?v=82" />
     <style>
       body.auth {
         min-height: 100vh;
@@ -241,11 +241,11 @@
           <button class="modal-close" id="privacy-close" aria-label="Schließen" type="button">✕</button>
         </div>
         <p>Das Lehrercockpit ist ein privat betriebener Dienst für die Lehrkräfte eurer Schule.</p>
-        <h3>Was gespeichert wird</h3>
+        <h3>Wo deine Daten liegen</h3>
         <ul>
-          <li>Name und – falls angegeben – E-Mail-Adresse</li>
-          <li>Links und Zugänge zu verbundenen Diensten (WebUntis, itslearning, Nextcloud), verschlüsselt</li>
-          <li>Rückmeldungen, die du an die Verwaltung schickst</li>
+          <li><strong>Nur auf deinen Geräten:</strong> Klassenlisten, Einsammlungen, eigene Links und Einstellungen. Damit sie auf einem neuen Gerät wieder da sind, liegt eine Kopie verschlüsselt auf dem Server – der Schlüssel entsteht nur in deinem Browser aus deinem Zugangscode; der Server kann sie nicht lesen.</li>
+          <li><strong>Auf dem Server, verschlüsselt:</strong> Links und Zugänge zu WebUntis, itslearning und Nextcloud – das Cockpit braucht sie, um deinen Stundenplan und deine Termine abzurufen.</li>
+          <li><strong>Auf dem Server:</strong> Name, E-Mail (falls angegeben), deine Klassenauswahl für Hinweise und Rückmeldungen an die Verwaltung.</li>
         </ul>
         <h3>Zugangscode</h3>
         <p>Dein Code wird nur als Argon2id-Hash gespeichert – niemand kann ihn auslesen, auch die Verwaltung nicht.</p>
@@ -262,6 +262,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
+    <script src="./src/features/vault.js?v=82"></script>
     <script>
       (function () {
         'use strict';
@@ -349,7 +350,13 @@
           busy($('submit-btn'), 'Anmelden …');
           message(error, '');
           post('/api/v2/auth/login', { code: code }, true).then(function (result) {
-            if (result.ok) { afterLogin(result.data.user); return; }
+            if (result.ok) {
+              // Key for the encrypted vault (class lists, own links …) – derived only here, from the code.
+              var user = result.data.user || {};
+              (window.LehrerVault ? window.LehrerVault.rememberKey(code, user.id) : Promise.resolve())
+                .then(function () { afterLogin(user); });
+              return;
+            }
             message(error, result.status === 429
               ? 'Zu viele Versuche. Bitte warte kurz.'
               : (result.data.error === 'Ungültiger Zugangscode' ? 'Dieser Code passt zu keinem Konto.' : (result.data.error || 'Anmeldung fehlgeschlagen.')));
@@ -411,7 +418,9 @@
           }, true).then(function (result) {
             if (result.ok) {
               try { sessionStorage.removeItem('lc.invite'); } catch (e) {}
-              window.location.href = './onboarding.html';
+              var user = result.data.user || {};
+              (window.LehrerVault ? window.LehrerVault.rememberKey(code, user.id) : Promise.resolve())
+                .then(function () { window.location.href = './onboarding.html'; });
               return;
             }
             if (result.status === 410) {

@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=81" />
+    <link rel="stylesheet" href="./styles.css?v=82" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -97,6 +97,10 @@
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
             <span class="nav-label">Pläne</span>
           </button>
+          <button class="nav-link" type="button" data-section-target="links">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+            <span class="nav-label">Links</span>
+          </button>
           <button class="nav-link" type="button" data-section-target="grades">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h4M8 18h.01M12 18h.01"/></svg>
             <span class="nav-label">Notenrechner</span>
@@ -139,7 +143,7 @@
               </button>
               <button class="user-menu-item" type="button" id="sidebar-change-code-btn" role="menuitem">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>
-                <span>Zugangscode ändern</span>
+                <span>Konto & Zugangscode</span>
               </button>
               <div class="user-menu-sep" role="separator"></div>
               <button class="user-menu-item" type="button" id="sidebar-logout-btn" role="menuitem">
@@ -284,11 +288,10 @@
             <a id="itslearning-open-link" class="btn btn-secondary" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen ↗</a>
           </div>
           <div id="inbox-empty" class="empty-panel" hidden>
-            <strong>Noch nichts verbunden</strong>
-            <p>Verbinde itslearning oder Nextcloud – dann siehst du hier Nachrichten, Abgaben und neue Dateien.</p>
+            <strong>itslearning ist noch nicht verbunden</strong>
+            <p>Verbinde das Kalender-Abo von itslearning – dann siehst du hier Termine und Abgaben deiner Kurse.</p>
             <div class="empty-panel-actions">
               <button class="btn btn-primary" type="button" data-open-connections="itslearning">itslearning verbinden</button>
-              <button class="btn btn-secondary" type="button" data-open-connections="nextcloud">Nextcloud verbinden</button>
             </div>
           </div>
           <article class="card tone-inbox" id="inbox-section" aria-labelledby="inbox-title">
@@ -298,10 +301,6 @@
           <article class="card" id="itslearning-calendar-block" hidden>
             <header class="card-head"><h2>Termine &amp; Abgaben</h2><span class="card-head-meta">itslearning</span></header>
             <div id="itslearning-calendar-list" class="calendar-list"></div>
-          </article>
-          <article class="card" id="nextcloud-feed-block" hidden>
-            <header class="card-head"><h2>Neu in Nextcloud</h2></header>
-            <div id="nextcloud-feed-list" class="calendar-list"></div>
           </article>
         </section>
 
@@ -451,13 +450,21 @@
           </article>
         </section>
 
+        <!-- ── Links: Nextcloud-Favoriten, eigene Links, Links für alle ── -->
+        <section class="content-grid single-grid" data-view-section="links">
+          <div class="vault-notice" data-vault-notice hidden></div>
+          <div id="links-root" class="links-root"></div>
+        </section>
+
         <!-- ── Klassenlisten ──────────────────────────────────────────── -->
         <section class="content-grid classlist-grid" data-view-section="classlist">
+          <div class="vault-notice" data-vault-notice hidden></div>
           <div id="classlist-root"></div>
         </section>
 
         <!-- ── Einsammlungen ─────────────────────────────────────────── -->
         <section class="content-grid classlist-grid" data-view-section="collections">
+          <div class="vault-notice" data-vault-notice hidden></div>
           <div id="collections-root"></div>
         </section>
 
@@ -494,7 +501,7 @@
           <button class="more-sheet-row" type="button" data-open-feedback>Rückmeldung geben</button>
           <a class="more-sheet-row" href="./admin.html" id="more-sheet-admin-link" hidden>Admin-Bereich</a>
           <button class="more-sheet-row" type="button" id="more-sheet-theme-toggle"><span id="more-sheet-theme-label">Dunkles Design</span></button>
-          <button class="more-sheet-row" type="button" id="more-sheet-change-code-btn">Zugangscode ändern</button>
+          <button class="more-sheet-row" type="button" id="more-sheet-change-code-btn">Konto & Zugangscode</button>
           <button class="more-sheet-row more-sheet-row--danger" type="button" id="more-sheet-logout-btn">Abmelden</button>
         </div>
       </div>
@@ -540,21 +547,43 @@
       </div>
     </div>
 
-    <!-- Zugangscode ändern -->
+    <!-- Konto: Zugangscode ändern, E-Mail für „Code vergessen“ -->
     <div id="change-code-modal" class="modal-overlay" hidden>
       <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="change-code-title">
         <div class="modal-header">
-          <h2 class="modal-title" id="change-code-title">Zugangscode ändern</h2>
+          <h2 class="modal-title" id="change-code-title">Konto</h2>
           <button class="modal-close" type="button" id="change-code-close" aria-label="Schließen">✕</button>
         </div>
         <form id="change-code-form" class="stack-form">
+          <h3 class="form-section-title">Zugangscode ändern</h3>
+          <input class="sr-only" type="text" name="username" autocomplete="username" id="account-username" tabindex="-1" aria-hidden="true" />
+          <label class="field-label" for="current-code-input">Aktueller Code</label>
+          <input type="password" id="current-code-input" class="form-input" autocomplete="current-password" required spellcheck="false" />
           <label class="field-label" for="change-code-input">Neuer Code</label>
-          <input type="text" id="change-code-input" class="form-input" autocomplete="off" minlength="8" required spellcheck="false" />
-          <p class="field-hint">Mindestens 8 Buchstaben oder Ziffern. Danach meldest du dich neu an.</p>
+          <input type="password" id="change-code-input" class="form-input" autocomplete="new-password" minlength="8" required spellcheck="false" />
+          <p class="field-hint">Mindestens 8 Buchstaben oder Ziffern. Andere Geräte werden danach abgemeldet.</p>
           <div id="change-code-feedback" class="connection-feedback is-error" role="alert"></div>
           <div class="modal-actions">
-            <button type="button" id="change-code-cancel" class="btn btn-secondary">Abbrechen</button>
-            <button type="submit" class="btn btn-primary" id="change-code-submit">Speichern</button>
+            <button type="submit" class="btn btn-primary" id="change-code-submit">Code ändern</button>
+          </div>
+        </form>
+        <section class="account-vault" id="account-vault">
+          <h3 class="form-section-title">Deine Daten</h3>
+          <p class="field-hint">Klassenlisten, Einsammlungen und eigene Links liegen auf deinen Geräten. Zum Übertragen auf andere Geräte wird eine Kopie verschlüsselt abgelegt – der Schlüssel entsteht nur aus deinem Zugangscode, der Server kann nichts davon lesen.</p>
+          <p class="vault-state" id="vault-state"></p>
+          <form id="vault-unlock-form" class="vault-unlock" hidden>
+            <input type="password" id="vault-unlock-input" class="form-input" autocomplete="current-password" placeholder="Zugangscode" spellcheck="false" />
+            <button class="btn btn-primary btn-sm" type="submit">Auf allen Geräten verfügbar machen</button>
+          </form>
+          <div id="vault-unlock-feedback" class="connection-feedback" role="status"></div>
+        </section>
+        <form id="account-email-form" class="stack-form account-email-form">
+          <h3 class="form-section-title">E-Mail für „Code vergessen“</h3>
+          <p class="field-hint" id="account-email-hint">Damit kannst du deinen Code selbst zurücksetzen.</p>
+          <input type="email" id="account-email-input" class="form-input" autocomplete="email" placeholder="name@schule.de" />
+          <div id="account-email-feedback" class="connection-feedback" role="status"></div>
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-secondary" id="account-email-submit">E-Mail speichern</button>
           </div>
         </form>
       </div>
@@ -593,27 +622,29 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=81"></script>
-    <script src="./src/api-client.js?v=81"></script>
-    <script src="./src/modules/dashboard-manager.js?v=81"></script>
-    <script src="./src/features/grades.js?v=81"></script>
-    <script src="./src/features/webuntis.js?v=81"></script>
-    <script src="./src/features/itslearning.js?v=81"></script>
-    <script src="./src/features/nextcloud.js?v=81"></script>
-    <script src="./src/features/documents.js?v=81"></script>
-    <script src="./src/features/classwork.js?v=81"></script>
+    <script src="./data/mock-dashboard.js?v=82"></script>
+    <script src="./src/features/vault.js?v=82"></script>
+    <script src="./src/api-client.js?v=82"></script>
+    <script src="./src/modules/dashboard-manager.js?v=82"></script>
+    <script src="./src/features/grades.js?v=82"></script>
+    <script src="./src/features/webuntis.js?v=82"></script>
+    <script src="./src/features/itslearning.js?v=82"></script>
+    <script src="./src/features/nextcloud.js?v=82"></script>
+    <script src="./src/features/documents.js?v=82"></script>
+    <script src="./src/features/classwork.js?v=82"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="./src/features/classlist.js?v=81"></script>
-    <script src="./src/features/collections.js?v=81"></script>
-    <script src="./src/features/inbox.js?v=81"></script>
-    <script src="./src/features/zugaenge.js?v=81"></script>
-    <script src="./src/features/onedrive-sync.js?v=81"></script>
-    <script src="./src/features/signals.js?v=81"></script>
-    <script src="./src/features/push.js?v=81"></script>
-    <script src="./src/features/ai.js?v=81"></script>
-    <script src="./src/features/connections.js?v=81"></script>
-    <script src="./src/features/feedback.js?v=81"></script>
-    <script src="./src/app.js?v=81"></script>
+    <script src="./src/features/classlist.js?v=82"></script>
+    <script src="./src/features/collections.js?v=82"></script>
+    <script src="./src/features/inbox.js?v=82"></script>
+    <script src="./src/features/zugaenge.js?v=82"></script>
+    <script src="./src/features/onedrive-sync.js?v=82"></script>
+    <script src="./src/features/signals.js?v=82"></script>
+    <script src="./src/features/push.js?v=82"></script>
+    <script src="./src/features/ai.js?v=82"></script>
+    <script src="./src/features/links.js?v=82"></script>
+    <script src="./src/features/connections.js?v=82"></script>
+    <script src="./src/features/feedback.js?v=82"></script>
+    <script src="./src/app.js?v=82"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.
@@ -632,12 +663,23 @@ function initUserInfo() {
   byId('more-sheet-user-name').textContent = displayName;
   byId('sidebar-feedback-btn').hidden = false;
   if (window.LehrerFeedback) window.LehrerFeedback.onUser();
+  if (window.LehrerVault) window.LehrerVault.init(user.id);
   window.dispatchEvent(new Event('lehrer:user'));
 
   if (document.body.dataset.userMenuBound) return;
   document.body.dataset.userMenuBound = '1';
 
   async function doLogout() {
+    // Logging out wipes this browser's storage: save the vault first.
+    const vault = window.LehrerVault;
+    if (vault && vault.hasLocalData()) {
+      if (vault.status() === 'off') {
+        const leave = confirm('Deine Klassenlisten, Einsammlungen und eigenen Links liegen bisher nur auf diesem Gerät und werden beim Abmelden gelöscht.\n\nAbbrechen und unter „Konto“ erst „Auf allen Geräten verfügbar machen“?\n\nOK = trotzdem abmelden');
+        if (!leave) { openChangeCode(); return; }
+      } else {
+        await vault.syncNow().catch(() => {});
+      }
+    }
     try {
       await fetch((window.BACKEND_API_URL || '') + '/api/v2/auth/logout', {method: 'POST', credentials: 'include'});
     } finally {
@@ -667,44 +709,111 @@ function initUserInfo() {
   byId('more-sheet-logout-btn').addEventListener('click', doLogout);
   byId('more-sheet-theme-toggle').addEventListener('click', () => byId('theme-toggle').click());
 
-  // ── Zugangscode ändern ──────────────────────────────────────────────────────
+  // ── Konto: Zugangscode ändern, E-Mail ────────────────────────────────────────
   const modal = byId('change-code-modal');
   const form = byId('change-code-form');
+  const currentInput = byId('current-code-input');
   const input = byId('change-code-input');
   const feedbackEl = byId('change-code-feedback');
   const submitBtn = byId('change-code-submit');
-  function openChangeCode() { modal.hidden = false; setTimeout(() => input.focus(), 30); }
-  function closeChangeCode() { modal.hidden = true; input.value = ''; feedbackEl.textContent = ''; }
+  const emailForm = byId('account-email-form');
+  const emailInput = byId('account-email-input');
+  const emailFeedback = byId('account-email-feedback');
+  const api = (path, method, body) => fetch((window.BACKEND_API_URL || '') + path, {
+    method: method || 'GET', credentials: 'include',
+    headers: body ? {'Content-Type': 'application/json'} : {},
+    body: body ? JSON.stringify(body) : undefined,
+  }).then((resp) => resp.json().catch(() => ({})).then((data) => ({ ok: resp.ok && data.ok !== false, data })));
+
+  // ── Tresor-Status (Daten auf allen Geräten) ─────────────────────────────────
+  const VAULT_TEXT = {
+    synced: '✓ Auf deinen Geräten verfügbar – verschlüsselt abgeglichen.',
+    syncing: 'Gleiche ab …',
+    off: 'Bisher nur auf diesem Gerät gespeichert.',
+    locked: 'Die gesicherte Kopie war mit einem früheren Code verschlüsselt und lässt sich nicht mehr öffnen. Neue Einträge werden wieder gesichert.',
+    error: 'Abgleich gerade nicht möglich – deine Daten bleiben auf diesem Gerät.',
+  };
+  function renderVault(status) {
+    byId('vault-state').textContent = VAULT_TEXT[status] || '';
+    byId('vault-unlock-form').hidden = status !== 'off';
+    document.querySelectorAll('[data-vault-notice]').forEach((el) => {
+      const show = status === 'off' && window.LehrerVault.hasLocalData();
+      el.hidden = !show;
+      if (show) el.innerHTML = '<span>Diese Daten liegen bisher nur auf diesem Gerät.</span><button class="btn btn-sm btn-secondary" type="button" data-open-account>Auf allen Geräten verfügbar machen</button>';
+    });
+  }
+  if (window.LehrerVault) {
+    window.LehrerVault.onChange(renderVault);
+    renderVault(window.LehrerVault.status());
+  }
+  document.addEventListener('click', (event) => { if (event.target.closest('[data-open-account]')) openChangeCode(); });
+  byId('vault-unlock-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const fb = byId('vault-unlock-feedback');
+    fb.className = 'connection-feedback';
+    fb.textContent = 'Prüfe …';
+    try {
+      await window.LehrerVault.unlock(byId('vault-unlock-input').value.trim());
+      byId('vault-unlock-input').value = '';
+      fb.className = 'connection-feedback is-success';
+      fb.textContent = 'Erledigt – deine Daten sind jetzt auf allen Geräten verfügbar, auf denen du dich anmeldest.';
+    } catch (err) {
+      fb.className = 'connection-feedback is-error';
+      fb.textContent = err.message;
+    }
+  });
+
+  function openChangeCode() {
+    modal.hidden = false;
+    byId('account-username').value = displayName;
+    feedbackEl.textContent = '';
+    emailFeedback.textContent = '';
+    api('/api/v2/auth/me/account').then((result) => {
+      if (!result.ok) return;
+      const account = result.data.account || {};
+      emailInput.value = account.email || '';
+      byId('account-email-hint').textContent = account.mail_reset
+        ? 'Damit kannst du deinen Code bei „Code vergessen?“ selbst zurücksetzen.'
+        : 'Für „Code vergessen?“ – sobald der Mailversand eingerichtet ist. Bis dahin schickt dir die Verwaltung einen Link.';
+    });
+    setTimeout(() => currentInput.focus(), 30);
+  }
+  function closeChangeCode() { modal.hidden = true; form.reset(); feedbackEl.textContent = ''; }
   byId('sidebar-change-code-btn').addEventListener('click', openChangeCode);
   byId('more-sheet-change-code-btn').addEventListener('click', openChangeCode);
   byId('change-code-close').addEventListener('click', closeChangeCode);
-  byId('change-code-cancel').addEventListener('click', closeChangeCode);
   modal.addEventListener('click', (event) => { if (event.target === modal) closeChangeCode(); });
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const newCode = input.value.trim();
-    if (!newCode) return;
+    if (!currentInput.value || !newCode) return;
     submitBtn.disabled = true;
+    feedbackEl.className = 'connection-feedback is-error';
     feedbackEl.textContent = '';
     try {
-      const resp = await fetch((window.BACKEND_API_URL || '') + '/api/v2/auth/me/change-code', {
-        method: 'POST', credentials: 'include',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({new_code: newCode}),
-      });
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        feedbackEl.textContent = data.error || 'Speichern fehlgeschlagen.';
+      const result = await api('/api/v2/auth/me/change-code', 'POST', {current_code: currentInput.value.trim(), new_code: newCode});
+      if (!result.ok) {
+        feedbackEl.textContent = result.data.error || 'Speichern fehlgeschlagen.';
         submitBtn.disabled = false;
         return;
       }
+      form.reset();
+      if (window.LehrerVault) window.LehrerVault.rekey(newCode);
       feedbackEl.className = 'connection-feedback is-success';
-      feedbackEl.textContent = 'Gespeichert. Du wirst abgemeldet …';
-      setTimeout(doLogout, 900);
+      feedbackEl.textContent = 'Neuer Code gespeichert. Auf anderen Geräten meldest du dich damit neu an.';
+      submitBtn.disabled = false;
     } catch (err) {
       feedbackEl.textContent = 'Keine Verbindung zum Server.';
       submitBtn.disabled = false;
     }
+  });
+  emailForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    emailFeedback.className = 'connection-feedback';
+    emailFeedback.textContent = 'Speichere …';
+    const result = await api('/api/v2/auth/me/email', 'PUT', {email: emailInput.value.trim()}).catch(() => ({ ok: false, data: {} }));
+    emailFeedback.className = 'connection-feedback ' + (result.ok ? 'is-success' : 'is-error');
+    emailFeedback.textContent = result.ok ? (result.data.email ? 'Gespeichert.' : 'E-Mail entfernt.') : (result.data.error || 'Speichern fehlgeschlagen.');
   });
 }
 if (window.CURRENT_USER) initUserInfo();

@@ -6373,3 +6373,67 @@ textarea.form-input { resize: vertical; line-height: 1.5; }
   [data-view-section="schedule"] .card { margin: 0; }
 }
 .classlist-add-feedback.is-warn { color: var(--warning); }
+
+/* Pausenaufsichten: eigene Farbe, nicht wie Unterricht */
+.wk-event.is-duty { border-left-color: var(--warning); background: var(--warning-soft); box-shadow: none; flex-direction: row; align-items: center; gap: 4px; padding-top: 1px; padding-bottom: 1px; }
+.wk-event.is-duty .wk-event-title { font-size: 0.64rem; color: var(--warning); -webkit-line-clamp: 1; }
+.wk-event.is-duty .wk-event-room { font-size: 0.64rem; color: var(--ink-2); }
+.wk-event.is-duty.is-current { background: var(--warning); }
+.wk-event.is-duty.is-current .wk-event-title, .wk-event.is-duty.is-current .wk-event-room { color: #fff; }
+.dy-row.is-duty { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 25%, transparent); }
+.dy-row.is-duty .dy-title { color: var(--warning); font-size: 0.86rem; }
+.today-schedule-row.is-duty .today-schedule-title { color: var(--warning); font-size: 0.84rem; }
+.today-schedule-row.is-duty { background: var(--warning-soft); }
+@media (max-width: 768px) {
+  .wk-event.is-duty { flex-direction: column; align-items: flex-start; gap: 0; }
+  .wk-event.is-duty .wk-event-title { font-size: 0.56rem; }
+  .wk-event.is-duty .wk-event-room { font-size: 0.56rem; }
+}
+
+/* ── Links ─────────────────────────────────────────────────────────────── */
+.links-root { display: grid; gap: 14px; }
+.links-card .card-head { align-items: center; }
+.card-head-action { margin-left: auto; }
+.link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.link-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.link-tile:hover { border-color: var(--line-strong); background: var(--panel-soft); }
+.link-tile-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.link-tile-icon svg { width: 16px; height: 16px; }
+.link-tile-text { display: grid; min-width: 0; }
+.link-tile-title { font-size: 0.88rem; font-weight: 560; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-tile-sub { font-size: 0.76rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quicklink--own .quicklink-icon { color: var(--accent); }
+.links-manage-title { margin: 14px 0 2px; font-size: 0.86rem; font-weight: 620; }
+.links-manage-title:first-child { margin-top: 0; }
+.links-empty { margin: 0 0 8px; font-size: 0.82rem; color: var(--muted); }
+.links-manage-list { list-style: none; margin: 0 0 8px; padding: 0; border: 1px solid var(--line); border-radius: 9px; }
+.links-manage-list li { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-top: 1px solid var(--line); }
+.links-manage-list li:first-child { border-top: 0; }
+.links-manage-text { display: grid; flex: 1; min-width: 0; }
+.links-manage-text strong { font-size: 0.86rem; font-weight: 560; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.links-manage-text span { font-size: 0.74rem; color: var(--muted); }
+.links-add-form { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto; gap: 6px; margin-bottom: 4px; }
+@media (max-width: 560px) {
+  .links-add-form { grid-template-columns: 1fr; }
+  .link-grid { grid-template-columns: 1fr; }
+}
+.form-section-title { margin: 0 0 2px; font-size: 0.9rem; font-weight: 620; }
+.account-email-form { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+
+/* Tresor: Daten auf allen Geräten */
+.account-vault { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.vault-state { margin: 0; font-size: 0.84rem; color: var(--ink-2); }
+.vault-unlock { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.vault-notice { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.84rem; color: var(--ink-2); }
+@media (max-width: 560px) { .vault-unlock { grid-template-columns: 1fr; } }

@@ -243,6 +243,8 @@
           : true;
       case "access":
         return false;
+      case "links":
+        return Boolean(window.MULTIUSER_ENABLED);
       default:
         return true;
     }
@@ -744,6 +746,7 @@
     schedule: "Stundenplan",
     inbox: "Posteingang",
     documents: "Pläne",
+    links: "Links",
     grades: "Notenrechner",
     classlist: "Klassen",
     collections: "Einsammlungen",
@@ -870,7 +873,7 @@
     schedule: ["webuntis"],
     school: ["orgaplan", "wichtige-termine"],
     classwork: ["klassenarbeitsplan"],
-    inbox: ["itslearning", "nextcloud", "mail"],
+    inbox: ["itslearning", "mail"],
     upcoming: ["orgaplan", "wichtige-termine"],
     access: ["zugaenge"],
   };
@@ -965,10 +968,12 @@
       body.innerHTML = tileEmpty("Heute stehen keine Stunden im Plan.");
       return;
     }
+    const duties = events.filter((event) => isSupervision(event)).length;
+    const lessons = events.length - duties;
     const cancelled = events.filter((event) => event.cancelled).length;
     setTileMeta("tile-schedule-meta", previewLabel
       ? previewLabel
-      : `${events.length} ${events.length === 1 ? "Stunde" : "Stunden"}${cancelled ? ` · ${cancelled} entfällt` : ""}`);
+      : [`${lessons} ${lessons === 1 ? "Stunde" : "Stunden"}`, duties ? `${duties} ${duties === 1 ? "Aufsicht" : "Aufsichten"}` : "", cancelled ? `${cancelled} entfällt` : ""].filter(Boolean).join(" · "));
     body.innerHTML = renderTodayFullSchedule(data, events, previewLabel);
   }
 
@@ -1044,10 +1049,9 @@
     const body = elements.todayInboxPreview;
     if (!body) return;
     const itslearning = isConnected(data, "itslearning");
-    const nextcloud = isConnected(data, "nextcloud");
-    if (window.MULTIUSER_ENABLED && !itslearning && !nextcloud) {
+    if (window.MULTIUSER_ENABLED && !itslearning) {
       setTileMeta("tile-inbox-meta", "");
-      body.innerHTML = tileEmpty("Verbinde itslearning oder Nextcloud – dann siehst du hier Nachrichten, Abgaben und neue Dateien.",
+      body.innerHTML = tileEmpty("Verbinde itslearning – dann siehst du hier Termine, Abgaben und Nachrichten deiner Kurse.",
         '<button class="btn btn-secondary btn-sm" type="button" data-open-connections="itslearning">Verbinden</button>');
       return;
     }
@@ -1059,12 +1063,12 @@
       .forEach((event) => rows.push({ when: dayLabel(event.start), title: event.title, tag: "Abgabe", tagCls: "tile-tag-warn" }));
     const messages = getRelevantInboxMessages(data).filter((message) => message.unread);
     messages.slice(0, 3).forEach((message) => rows.push({ title: message.title, sub: message.sender, tag: "itslearning" }));
-    const feed = data.nextcloudFeed || {};
-    [...(feed.notifications || []).map((n) => ({ time: n.time, title: n.subject })),
-     ...(feed.activity || []).map((a) => ({ time: a.time, title: a.subject }))]
-      .sort((left, right) => String(right.time).localeCompare(String(left.time)))
-      .slice(0, 2)
-      .forEach((item) => rows.push({ title: item.title, tag: "Nextcloud" }));
+    if (rows.length < 4) {
+      ((data.itslearningCalendar || {}).events || [])
+        .filter((event) => event.kind !== "todo" && String(event.start).slice(0, 10) <= addDaysIso(7))
+        .slice(0, 4 - rows.length)
+        .forEach((event) => rows.push({ when: dayLabel(event.start), title: event.title, tag: "Termin", tagCls: "tile-tag-event" }));
+    }
 
     setTileMeta("tile-inbox-meta", messages.length ? `${messages.length} neu` : "");
     body.innerHTML = rows.length
@@ -1285,6 +1289,10 @@
   }
 
   // Today's lessons; after the last lesson (from 15:00) and on weekends the next school day.
+  function isSupervision(event) {
+    return window.LehrerWebUntis ? window.LehrerWebUntis.isSupervision(event) : event.category === "Aufsicht";
+  }
+
   function todayLessons(data) {
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -1337,10 +1345,13 @@
             if (exam) flag = `<span class="ts-flag ts-flag--${exam.tone}" title="${escapeHtml(exam.title)}">${escapeHtml(exam.text)}</span>`;
             else if (isNext) flag = '<span class="ts-flag ts-flag--next">als Nächstes</span>';
           }
-          return `<li class="today-schedule-row${stateClass}">`
+          const duty = isSupervision(e);
+          return `<li class="today-schedule-row${stateClass}${duty ? " is-duty" : ""}">`
             + `<span class="today-schedule-time"><span>${startStr}</span>${endStr ? `<span class="today-schedule-end">${endStr}</span>` : ""}</span>`
-            + `<span class="today-schedule-main"><span class="today-schedule-title">${escapeHtml(e.title || "")}</span>`
-            + (e.location ? `<span class="today-schedule-loc">${escapeHtml(e.location)}</span>` : "")
+            + (duty
+              ? `<span class="today-schedule-main"><span class="today-schedule-title">Aufsicht</span><span class="today-schedule-loc">${escapeHtml(window.LehrerWebUntis ? window.LehrerWebUntis.dutyPlace(e) : e.location || "")}</span>`
+              : `<span class="today-schedule-main"><span class="today-schedule-title">${escapeHtml(e.title || "")}</span>`
+                + (e.location ? `<span class="today-schedule-loc">${escapeHtml(e.location)}</span>` : ""))
             + "</span>"
             + flag
             + "</li>";
@@ -1428,6 +1439,15 @@
     todayWideQuery.addEventListener("change", () => renderTodayModuleLayout());
   }
   window.addEventListener("lehrer:user", () => renderPageHead());
+  if (window.LehrerLinks) window.LehrerLinks.onChange(() => renderHeuteZugaenge());
+  // Another device changed class lists, links or settings (encrypted vault).
+  window.addEventListener("lehrer:vault-updated", () => {
+    state.classworkSelectedClasses = loadStoredClassworkClasses();
+    if (window.LehrerClasslist) window.LehrerClasslist.render();
+    if (window.LehrerCollections) window.LehrerCollections.render();
+    if (window.LehrerLinks) window.LehrerLinks.reloadLocal();
+    if (state.data) renderAll();
+  });
 
   function renderExpandableSections() {
     elements.expandToggles.forEach((button) => {
@@ -1493,9 +1513,8 @@
     // Posteingang: without itslearning and Nextcloud there is nothing to show yet.
     const data = getData();
     const itslearning = isConnected(data, "itslearning");
-    const nextcloud = isConnected(data, "nextcloud");
     const emptyPanel = document.getElementById("inbox-empty");
-    if (emptyPanel) emptyPanel.hidden = !window.MULTIUSER_ENABLED || !state.data || itslearning || nextcloud;
+    if (emptyPanel) emptyPanel.hidden = !window.MULTIUSER_ENABLED || !state.data || itslearning;
     const messagesCard = document.getElementById("inbox-section");
     if (messagesCard) messagesCard.hidden = Boolean(window.MULTIUSER_ENABLED && state.data && !itslearning);
     renderMailSetupEntry();
@@ -1946,6 +1965,7 @@
   // ── SECTION: Zugaenge (Today) ───────────────────────────────────────────────
 
   function renderHeuteZugaenge() {
+    if (window.LehrerLinks) window.LehrerLinks.setDashboard(getData());
     if (!window.LehrerZugaenge) return;
     window.LehrerZugaenge.init(getData());
     if (isModuleVisible('zugaenge')) {

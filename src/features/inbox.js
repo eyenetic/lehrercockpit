@@ -133,7 +133,6 @@ var LehrerInbox = (function () {
     // Dienstmail-Tab entfernt — delegiert an renderItslearningTab für Live-Updates
     renderItslearningTab();
     renderItslearningCalendar();
-    renderNextcloudFeed();
   }
 
   function _relativeTime(iso) {

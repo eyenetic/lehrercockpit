@@ -133,28 +133,38 @@ def me():
 def change_my_code():
     """Zugangscode für den eingeloggten User ändern.
 
-    Body: {"new_code": "..."}
+    Body: {"current_code": "...", "new_code": "..."}
+    Der aktuelle Code wird geprüft (eine offen gelassene Sitzung reicht nicht).
     Regeln: mind. 8 Zeichen, nur Buchstaben und Ziffern, von keinem anderen Konto benutzt.
-    Response 200: {"ok": true}
+    Andere Sitzungen des Kontos werden abgemeldet.
     """
+    from backend.auth.access_code import verify_code
+    from backend.users.user_store import get_access_code_hash
+
     body = request.get_json(silent=True) or {}
-    new_code = body.get("new_code", "")
+    current_code = str(body.get("current_code") or "").strip()
+    new_code = str(body.get("new_code") or "").strip()
 
-    if not new_code or not isinstance(new_code, str):
+    if not new_code:
         return error("Neuer Code erforderlich", 422)
-
-    new_code = new_code.strip()
     problem = chosen_code_problem(new_code)
     if problem:
         return error(problem, 422)
 
     try:
         with db_connection() as conn:
+            stored = get_access_code_hash(conn, g.current_user.id)
+            if not stored or not current_code or not verify_code(current_code, stored):
+                log_audit_event(conn, "code_change_failed", user_id=g.current_user.id,
+                                ip_address=request.remote_addr)
+                return error("Der aktuelle Code stimmt nicht.", 403)
+            if new_code == current_code:
+                return error("Der neue Code ist derselbe wie der alte.", 422)
             if code_taken(conn, new_code, g.current_user.id):
                 return error("Diesen Code kannst du nicht verwenden. Bitte wähle einen anderen.", 409)
-            code_hash = hash_code(new_code)
-            prefix = get_code_prefix(new_code)
-            set_access_code(conn, g.current_user.id, code_hash, code_prefix=prefix)
+            set_access_code(conn, g.current_user.id, hash_code(new_code), code_prefix=get_code_prefix(new_code))
+            conn.execute("DELETE FROM sessions WHERE user_id = %s AND id <> %s",
+                         (g.current_user.id, request.cookies.get(SESSION_COOKIE_NAME, "")))
             log_audit_event(
                 conn,
                 "code_rotated",
@@ -165,3 +175,55 @@ def change_my_code():
         return success()
     except Exception as exc:
         return error(f"Fehler beim Ändern des Codes: {type(exc).__name__}", 500)
+
+
+@auth_bp.route("/me/verify-code", methods=["POST"])
+@require_auth
+@limiter.limit("10 per hour")
+def verify_my_code():
+    """Prüft den eigenen Zugangscode (z. B. bevor der Browser daraus den Tresor-Schlüssel ableitet)."""
+    from backend.auth.access_code import verify_code
+    from backend.users.user_store import get_access_code_hash
+
+    code = str((request.get_json(silent=True) or {}).get("code") or "").strip()
+    try:
+        with db_connection() as conn:
+            stored = get_access_code_hash(conn, g.current_user.id)
+    except Exception as exc:
+        return error(f"Prüfung fehlgeschlagen: {type(exc).__name__}", 500)
+    if not code or not stored or not verify_code(code, stored):
+        return error("Der Code stimmt nicht.", 403)
+    return success()
+
+
+@auth_bp.route("/me/account", methods=["GET"])
+@require_auth
+def my_account():
+    """Eigene Kontodaten inkl. E-Mail (für „Code vergessen“)."""
+    from backend import mailer
+
+    return success({"account": {
+        "full_name": g.current_user.full_name,
+        "email": g.current_user.email or "",
+        "mail_reset": mailer.is_configured(),
+    }})
+
+
+@auth_bp.route("/me/email", methods=["PUT"])
+@require_auth
+@limiter.limit("20 per hour")
+def change_my_email():
+    """E-Mail für „Code vergessen“ hinterlegen oder entfernen. Body: {"email": "..."}"""
+    email = str((request.get_json(silent=True) or {}).get("email") or "").strip().lower()[:200]
+    if email and ("@" not in email or " " in email or "." not in email.split("@")[-1]):
+        return error("Die E-Mail-Adresse sieht nicht vollständig aus.", 422)
+    try:
+        with db_connection() as conn:
+            if email and conn.execute("SELECT 1 FROM users WHERE LOWER(email) = %s AND id <> %s",
+                                      (email, g.current_user.id)).fetchone():
+                return error("Diese E-Mail gehört schon zu einem anderen Konto.", 409)
+            conn.execute("UPDATE users SET email = %s, updated_at = NOW() WHERE id = %s",
+                         (email or None, g.current_user.id))
+    except Exception as exc:
+        return error(f"Konnte nicht gespeichert werden: {type(exc).__name__}", 500)
+    return success({"email": email})

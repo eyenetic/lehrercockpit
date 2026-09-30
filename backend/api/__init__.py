@@ -14,6 +14,8 @@ from .push_routes import push_bp
 from .ai_routes import ai_bp
 from .invitation_routes import invitation_public_bp, invitation_admin_bp
 from .feedback_routes import feedback_bp
+from .links_routes import links_bp
+from .vault_routes import vault_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -31,3 +33,5 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(invitation_public_bp, url_prefix="/api/v2/auth")
     app.register_blueprint(invitation_admin_bp, url_prefix="/api/v2/admin/invitations")
     app.register_blueprint(feedback_bp, url_prefix="/api/v2/feedback")
+    app.register_blueprint(links_bp, url_prefix="/api/v2/links")
+    app.register_blueprint(vault_bp, url_prefix="/api/v2/vault")

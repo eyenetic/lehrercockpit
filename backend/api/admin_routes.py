@@ -256,6 +256,29 @@ def regenerate_code(user_id: int):
         return error(f"Fehler beim Generieren des Codes: {type(exc).__name__}: {exc}", 500)
 
 
+@admin_bp.route("/users/<int:user_id>/reset-link", methods=["POST"])
+@require_admin
+def create_reset_link(user_id: int):
+    """Link, mit dem die Lehrkraft selbst einen neuen Code festlegt (3 Tage gültig).
+
+    Der Admin sieht nie einen Code; der alte Code gilt, bis der neue gesetzt ist.
+    Response: {"ok": true, "link": "...", "valid_days": 3}
+    """
+    from backend.api.reset_routes import _create_reset_token, reset_link
+
+    try:
+        with db_connection() as conn:
+            user = get_user_by_id(conn, user_id)
+            if user is None:
+                return error("Lehrkraft nicht gefunden", 404)
+            token = _create_reset_token(conn, user_id, minutes=3 * 24 * 60)
+            log_audit_event(conn, "password_reset_link_created", user_id=user_id,
+                            ip_address=request.remote_addr, details={"created_by": g.current_user.id})
+    except Exception as exc:
+        return error(f"Link konnte nicht erstellt werden: {type(exc).__name__}", 500)
+    return success({"link": reset_link(token), "token": token, "valid_days": 3})
+
+
 @admin_bp.route("/users/<int:user_id>", methods=["DELETE"])
 @require_admin
 def delete_user_route(user_id: int):

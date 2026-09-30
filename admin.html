@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=81" />
-    <link rel="stylesheet" href="./styles.admin.css?v=81" />
+    <link rel="stylesheet" href="./styles.css?v=82" />
+    <link rel="stylesheet" href="./styles.admin.css?v=82" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -819,7 +819,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=81"></script>
+    <script src="./src/api-client.js?v=82"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1159,7 +1159,7 @@
               + '<td>' + hasCode + '</td>'
               + '<td><div class="actions-cell">'
               + '<button class="btn btn-sm" type="button" data-action="edit-user" data-uid="' + u.id + '">Bearbeiten</button>'
-              + '<button class="btn btn-sm" type="button" data-action="regen-code" data-uid="' + u.id + '" data-name="' + uName + '">Code neu</button>'
+              + '<button class="btn btn-sm" type="button" data-action="regen-code" data-uid="' + u.id + '" data-name="' + uName + '" title="Link, mit dem die Lehrkraft selbst einen neuen Code festlegt">Code-Link</button>'
               + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" data-action="toggle-active" data-uid="' + u.id + '" data-active="' + u.is_active + '">'
               + (u.is_active ? 'Deaktivieren' : 'Aktivieren') + '</button>'
               + '<button class="btn btn-sm btn-danger" type="button" data-action="delete-user" data-uid="' + u.id + '" data-name="' + uName + '">Löschen</button>'
@@ -1290,16 +1290,20 @@
           }
         };
 
+        // Code vergessen: the teacher sets a new code via a link – nobody sees codes.
         window.regenerateCode = async function (id, name) {
-          if (!confirm('Soll für ' + name + ' ein neuer Code generiert werden? Der alte Code wird ungültig.')) return;
           try {
-            const resp = await apiFetch('/api/v2/admin/users/' + id + '/regenerate-code', { method: 'POST' });
+            const resp = await apiFetch('/api/v2/admin/users/' + id + '/reset-link', { method: 'POST' });
             const data = await resp.json();
             if (!resp.ok) {
               setFeedback('users-feedback', data.error || 'Fehler.', 'error');
-            } else {
-              showCode(data.access_code || '');
+              return;
             }
+            const link = window.location.origin + '/login.html?reset_token=' + data.token;
+            document.getElementById('users-feedback').innerHTML =
+              '<div class="invite-created"><p>Schick <strong>' + esc(name) + '</strong> diesen Link – damit legt sie/er selbst einen neuen Code fest (gilt '
+              + esc(data.valid_days) + ' Tage, einmalig). Der alte Code gilt bis dahin weiter.</p>'
+              + linkBox(link, { name: name, reset: true }) + '</div>';
           } catch (e) {
             setFeedback('users-feedback', 'Verbindungsfehler.', 'error');
           }
@@ -1628,13 +1632,17 @@
         function mailtoHref(link, person) {
           var school = (currentAdmin && currentAdmin.school_name) || '';
           var name = (person && person.name) || '';
+          var reset = !!(person && person.reset);
           var body = (name ? 'Hallo ' + name.split(' ')[0] + ',' : 'Hallo,') + '\n\n'
-            + 'hier ist dein Link fürs Lehrercockpit: Stundenplan, Orgaplan, Klassenarbeiten und Nachrichten auf einen Blick.\n\n'
+            + (reset
+              ? 'mit diesem Link legst du einen neuen Zugangscode fürs Lehrercockpit fest (gilt 3 Tage, einmalig):\n\n'
+              : 'hier ist dein Link fürs Lehrercockpit: Stundenplan, Orgaplan, Klassenarbeiten und Nachrichten auf einen Blick.\n\n')
             + link + '\n\n'
-            + 'Damit legst du in einer Minute dein Konto an (Name und eigener Zugangscode).\n\n'
+            + (reset ? '' : 'Damit legst du in einer Minute dein Konto an (Name und eigener Zugangscode).\n\n')
             + 'Viele Grüße\n' + ((currentAdmin && currentAdmin.first_name) || '');
+          var subject = reset ? 'Neuer Zugangscode fürs Lehrercockpit' : 'Einladung ins Lehrercockpit' + (school ? ' – ' + school : '');
           return 'mailto:' + encodeURIComponent((person && person.email) || '')
-            + '?subject=' + encodeURIComponent('Einladung ins Lehrercockpit' + (school ? ' – ' + school : ''))
+            + '?subject=' + encodeURIComponent(subject)
             + '&body=' + encodeURIComponent(body);
         }
 

@@ -355,8 +355,8 @@ def _format_event_title(event: WebUntisEvent) -> str:
     if description:
         return description
     if event.location:
-        return f"Aufsicht - {event.location}"
-    return "WebUntis-Termin"
+        return f"Aufsicht · {event.location}"
+    return "Aufsicht"
 
 
 def _short_description(event: WebUntisEvent) -> str:
@@ -378,10 +378,11 @@ def _event_detail(event: WebUntisEvent) -> str:
 
 def _event_category(event: WebUntisEvent) -> str:
     location = event.location.lower()
+    # WebUntis exports duties (Pausenaufsicht) without a subject, only the place.
+    if not event.summary or "aufsicht" in event.summary.lower():
+        return "Aufsicht"
     if "online" in location:
         return "Online"
-    if not event.summary:
-        return "Aufsicht"
     if event.summary.lower() in {"ber", "beratung"}:
         return "Beratung"
     return "Unterricht"

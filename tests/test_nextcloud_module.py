@@ -42,37 +42,25 @@ def test_payload_not_connected():
     assert ncm.build_nextcloud_payload({}, NOW) == {"ok": True, "data": None, "configured": False}
 
 
-def test_payload_combines_activity_and_notifications_and_caches():
-    with patch.object(ncm, "fetch_activity", return_value=[{"id": "a"}]) as activity, \
-            patch.object(ncm, "fetch_notifications", return_value=[{"id": "n"}]), \
-            patch.object(ncm, "fetch_favorites", return_value=[{"name": "Fehlzeiten"}]):
+def test_payload_lists_favorites_and_caches():
+    with patch.object(ncm, "fetch_favorites", return_value=[{"name": "Fehlzeiten"}]) as favorites:
         first = ncm.build_nextcloud_payload(CONNECTED, NOW)
         second = ncm.build_nextcloud_payload(CONNECTED, NOW)
-    assert first["data"]["activity"] == [{"id": "a"}]
-    assert first["data"]["notifications"] == [{"id": "n"}]
     assert first["data"]["favorites"] == [{"name": "Fehlzeiten"}]
+    assert first["data"]["activity"] == [] and first["data"]["notifications"] == []
     assert second["data"] is first["data"]
-    assert activity.call_count == 1
+    assert favorites.call_count == 1
 
 
 def test_revoked_password_is_reported():
-    with patch.object(ncm, "fetch_activity", side_effect=NextcloudAuthError("x")):
-        data = ncm.build_nextcloud_payload(CONNECTED, NOW)["data"]
+    with patch.object(ncm, "fetch_favorites", side_effect=NextcloudAuthError("x")):
+        data = ncm.build_nextcloud_payload(dict(CONNECTED, login_name="revoked"), NOW)["data"]
     assert data["revoked"] is True
     assert "neu verbinden" in data["error"]
 
 
 def test_network_errors_are_not_cached():
-    with patch.object(ncm, "fetch_activity", side_effect=NextcloudError("down")):
-        ncm.build_nextcloud_payload(CONNECTED, NOW)
+    ncm._cache.clear()
+    with patch.object(ncm, "fetch_favorites", side_effect=NextcloudError("down")):
+        ncm.build_nextcloud_payload(dict(CONNECTED, login_name="down"), NOW)
     assert ncm._cache == {}
-
-
-def test_favorites_failure_keeps_activity():
-    with patch.object(ncm, "fetch_activity", return_value=[{"id": "a"}]), \
-            patch.object(ncm, "fetch_notifications", return_value=[]), \
-            patch.object(ncm, "fetch_favorites", side_effect=NextcloudError("Favoriten: HTTP 500")):
-        data = ncm.build_nextcloud_payload(dict(CONNECTED, login_name="fav-test"), NOW)["data"]
-    assert data["activity"] == [{"id": "a"}]
-    assert data["favorites"] == [] and "Favoriten" in data["favorites_error"]
-    assert data["error"] is None

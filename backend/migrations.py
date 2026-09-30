@@ -442,7 +442,7 @@ def _migrate_school_sources(conn) -> None:
 
 
 def _migrate_invitations_and_feedback(conn) -> None:
-    """Einladungslinks für Kolleg:innen und Rückmeldungen an die Admins."""
+    """Einladungslinks, Rückmeldungen an die Admins und eigene Links."""
     statements = [
         """
         CREATE TABLE IF NOT EXISTS invitations (
@@ -478,6 +478,26 @@ def _migrate_invitations_and_feedback(conn) -> None:
         )
         """,
         "CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id, created_at DESC)",
+        """
+        CREATE TABLE IF NOT EXISTS user_links (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            title       TEXT NOT NULL,
+            url         TEXT NOT NULL,
+            sort_order  INTEGER NOT NULL DEFAULT 0,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_user_links_user ON user_links(user_id)",
+        """
+        CREATE TABLE IF NOT EXISTS user_vault (
+            user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            iv          TEXT NOT NULL,
+            ciphertext  TEXT NOT NULL,
+            version     INTEGER NOT NULL DEFAULT 1,
+            updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
     ]
     for statement in statements:
         try:

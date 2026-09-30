@@ -22,6 +22,7 @@
   var GROUPS = [
     { id: 'personal', title: 'Deine Zugänge' },
     { id: 'school', title: 'Schule' },
+    { id: 'links', title: 'Links' },
     { id: 'notify', title: 'Benachrichtigungen' },
   ];
 
@@ -34,6 +35,7 @@
     termine: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
     dienstmail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
     push: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    links: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
     ai: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
   };
 
@@ -313,13 +315,13 @@
         pill(s.connected ? 'ok' : 'warn', s.connected ? 'verbunden' : (waiting ? 'Anmeldung läuft' : 'nicht verbunden')) + '</div>';
       if (s.connected) {
         return head +
-          '<p class="connection-copy">Neue Dateien und Freigaben erscheinen im Posteingang. Was du in Nextcloud mit ★ markierst, liegt auf „Heute“ einen Klick entfernt.</p>' +
+          '<p class="connection-copy">Was du in Nextcloud mit ★ markierst, liegt unter „Links“ einen Klick entfernt.</p>' +
           facts([['Konto', esc(s.account)], ['Server', esc(_host(s.server))]]) +
           '<div class="connection-actions"><button class="btn btn-secondary" type="button" data-action="disconnect">Trennen</button></div>' +
           '<p class="connection-feedback" data-feedback></p>';
       }
       return head +
-        '<p class="connection-copy">Neue Dateien und Freigaben aus euren Ordnern. Du meldest dich direkt bei Nextcloud an – dein Passwort sieht das Cockpit nie.</p>' +
+        '<p class="connection-copy">Deine Nextcloud-Favoriten (★) mit einem Klick erreichbar. Du meldest dich direkt bei Nextcloud an – dein Passwort sieht das Cockpit nie.</p>' +
         '<label class="connection-field">Adresse eurer Nextcloud' +
         '<input class="form-input" type="url" data-field="base_url" value="' + esc(s.suggested_server || '') + '" placeholder="https://cloud.schule.de" autocomplete="off" /></label>' +
         '<div class="connection-actions">' +
@@ -681,6 +683,29 @@
       return '<div class="connection-head"><h3>Dienstmail</h3>' + pill('ok', 'Direktlink') + '</div>' +
         '<p class="connection-copy">Öffnet dein Postfach mit einem Klick. Mails anzeigen kann das Cockpit nicht – die Dienstmail lässt keine anderen Programme zu.</p>' +
         '<div class="connection-actions"><a class="btn btn-secondary" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Dienstmail öffnen ↗</a></div>';
+    },
+  });
+
+  // ── Links (eigene und für alle) ───────────────────────────────────────────
+
+  registerSection({
+    id: 'links',
+    group: 'links',
+    title: 'Eigene Links',
+    summaryAsync: function () {
+      if (!window.LehrerLinks) return Promise.resolve({ state: 'off', text: '' });
+      return window.LehrerLinks.load().then(function (links) {
+        var own = (links.personal || []).length;
+        var all = (links.school || []).length;
+        var parts = [own + (own === 1 ? ' eigener' : ' eigene'), all + ' für alle'];
+        return { state: own || all ? 'ok' : 'off', text: parts.join(' · ') };
+      });
+    },
+    render: function () {
+      return '<div class="connection-head"><h3>Eigene Links</h3></div><div data-links-manager></div>';
+    },
+    bind: function (el) {
+      if (window.LehrerLinks) window.LehrerLinks.mountManager(el.querySelector('[data-links-manager]'));
     },
   });
 
