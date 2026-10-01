@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=82" />
+    <link rel="stylesheet" href="./styles.css?v=83" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -305,69 +305,9 @@
         </section>
 
         <section class="content-grid single-grid" data-view-section="grades">
-          <article class="card tone-grades" id="grades-section" aria-labelledby="grades-title">
+          <article class="card gr-card" id="grades-section" aria-labelledby="grades-title">
             <h2 id="grades-title" class="sr-only">Notenrechner</h2>
-            <p id="grades-detail" class="source-detail">Gewichtete Teilnoten schnell ausrechnen. Nichts wird gespeichert.</p>
-            <div class="grades-layout grades-layout-simple">
-              <section class="grades-panel tone-grades-panel">
-                <div class="sidebar-head">
-                  <div>
-                    <p class="card-kicker">Notenskala</p>
-                    <h2>Skalenwahl</h2>
-                  </div>
-                </div>
-                <div id="grades-scale-buttons" class="grades-preset-buttons" style="margin-bottom:1rem;">
-                  <button class="filter-button active" type="button" data-grade-scale="1to6plus">1– 6 mit Tendenzen</button>
-                  <button class="filter-button" type="button" data-grade-scale="1to6">1– 6 (einfach)</button>
-                  <button class="filter-button" type="button" data-grade-scale="punkte">Notenpunkte 0–15</button>
-                </div>
-                <div class="sidebar-head">
-                  <div>
-                    <p class="card-kicker">Presets</p>
-                    <h2>Häufige Gewichtungen</h2>
-                  </div>
-                </div>
-                <div id="grades-preset-buttons" class="grades-preset-buttons">
-                  <button class="filter-button active" type="button" data-grade-preset="one-third">1/3 · 2/3</button>
-                  <button class="filter-button" type="button" data-grade-preset="half-half">50/50</button>
-                  <button class="filter-button" type="button" data-grade-preset="quarters">25/25/50</button>
-                  <button class="filter-button" type="button" data-grade-preset="custom">Freie Gewichtung</button>
-                </div>
-                <form id="grades-form" class="connect-form grades-calculator-form">
-                  <div id="grades-rows" class="grades-rows"></div>
-                  <div class="assistant-actions grades-actions">
-                    <button id="grades-add-row" class="secondary-link" type="button">Teilnote hinzufügen</button>
-                    <button class="primary-button" type="submit">Berechnen</button>
-                    <button id="grades-reset" class="secondary-link" type="button">Zurücksetzen</button>
-                  </div>
-                </form>
-                <div id="grades-feedback" class="connect-feedback"></div>
-              </section>
-
-              <section class="grades-panel tone-grades-panel">
-                <div class="sidebar-head">
-                  <div>
-                    <p class="card-kicker">Ergebnis</p>
-                    <h2>Berechnete Note</h2>
-                  </div>
-                </div>
-                <div class="grades-summary-grid grades-summary-grid-simple">
-                  <article class="grades-stat-card">
-                    <span class="grades-stat-label">Teile</span>
-                    <strong id="grades-summary-count">0</strong>
-                  </article>
-                  <article class="grades-stat-card">
-                    <span class="grades-stat-label">Gewichtung</span>
-                    <strong id="grades-summary-risk">0%</strong>
-                  </article>
-                  <article class="grades-stat-card">
-                    <span class="grades-stat-label">Gesamtnote</span>
-                    <strong id="grades-summary-average">-</strong>
-                  </article>
-                </div>
-                <div id="grades-list" class="stack-list"></div>
-              </section>
-            </div>
+            <div id="grades-root"></div>
           </article>
         </section>
         <section class="content-grid single-grid" data-view-section="documents">
@@ -622,29 +562,29 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=82"></script>
-    <script src="./src/features/vault.js?v=82"></script>
-    <script src="./src/api-client.js?v=82"></script>
-    <script src="./src/modules/dashboard-manager.js?v=82"></script>
-    <script src="./src/features/grades.js?v=82"></script>
-    <script src="./src/features/webuntis.js?v=82"></script>
-    <script src="./src/features/itslearning.js?v=82"></script>
-    <script src="./src/features/nextcloud.js?v=82"></script>
-    <script src="./src/features/documents.js?v=82"></script>
-    <script src="./src/features/classwork.js?v=82"></script>
+    <script src="./data/mock-dashboard.js?v=83"></script>
+    <script src="./src/features/vault.js?v=83"></script>
+    <script src="./src/api-client.js?v=83"></script>
+    <script src="./src/modules/dashboard-manager.js?v=83"></script>
+    <script src="./src/features/grades.js?v=83"></script>
+    <script src="./src/features/webuntis.js?v=83"></script>
+    <script src="./src/features/itslearning.js?v=83"></script>
+    <script src="./src/features/nextcloud.js?v=83"></script>
+    <script src="./src/features/documents.js?v=83"></script>
+    <script src="./src/features/classwork.js?v=83"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="./src/features/classlist.js?v=82"></script>
-    <script src="./src/features/collections.js?v=82"></script>
-    <script src="./src/features/inbox.js?v=82"></script>
-    <script src="./src/features/zugaenge.js?v=82"></script>
-    <script src="./src/features/onedrive-sync.js?v=82"></script>
-    <script src="./src/features/signals.js?v=82"></script>
-    <script src="./src/features/push.js?v=82"></script>
-    <script src="./src/features/ai.js?v=82"></script>
-    <script src="./src/features/links.js?v=82"></script>
-    <script src="./src/features/connections.js?v=82"></script>
-    <script src="./src/features/feedback.js?v=82"></script>
-    <script src="./src/app.js?v=82"></script>
+    <script src="./src/features/classlist.js?v=83"></script>
+    <script src="./src/features/collections.js?v=83"></script>
+    <script src="./src/features/inbox.js?v=83"></script>
+    <script src="./src/features/zugaenge.js?v=83"></script>
+    <script src="./src/features/onedrive-sync.js?v=83"></script>
+    <script src="./src/features/signals.js?v=83"></script>
+    <script src="./src/features/push.js?v=83"></script>
+    <script src="./src/features/ai.js?v=83"></script>
+    <script src="./src/features/links.js?v=83"></script>
+    <script src="./src/features/connections.js?v=83"></script>
+    <script src="./src/features/feedback.js?v=83"></script>
+    <script src="./src/app.js?v=83"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.

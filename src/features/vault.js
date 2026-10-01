@@ -31,6 +31,7 @@
     'lehrerCockpit.todayLayout.local',
     'lc.scheduleView',
     'lc.orgaplanLevel',
+    'lc.gradesSettings',
   ];
 
   var _userId = null;
