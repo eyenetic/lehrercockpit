@@ -270,6 +270,12 @@
 
   function init() { renderGrades(); }
   function noop() { return Promise.resolve(); }
+  // Kein Notenbuch: diese Teile der Schnittstelle liefern bewusst leere Daten.
+  function getGradebookData() { return { entries: [] }; }
+  function getNotesData() { return { notes: [] }; }
+  function getGradeClasses() { return []; }
+  function summarizeGrades() { return { averageLabel: '-', riskCount: 0 }; }
+  function renderClassNotes() {}
 
   window.LehrerGrades = {
     init: init,
@@ -281,10 +287,10 @@
     deleteGradeEntry: noop,
     saveClassNote: noop,
     clearClassNote: noop,
-    getGradebookData: function () { return { entries: [] }; },
-    getNotesData: function () { return { notes: [] }; },
-    getGradeClasses: function () { return []; },
-    summarizeGrades: function () { return { averageLabel: '-', riskCount: 0 }; },
-    renderClassNotes: function () {},
+    getGradebookData: getGradebookData,
+    getNotesData: getNotesData,
+    getGradeClasses: getGradeClasses,
+    summarizeGrades: summarizeGrades,
+    renderClassNotes: renderClassNotes,
   };
 })();
