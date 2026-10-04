@@ -6476,3 +6476,52 @@ textarea.form-input { resize: vertical; line-height: 1.5; }
   .gr-field input { width: 120px; }
   .gr-result-avg, .gr-result-grade { font-size: 1.35rem; }
 }
+
+/* ── Scrollen: keine festen Höhen mit abgeschnittenem Inhalt ───────────────
+   Klassen und Einsammlungen hatten eine bildschirmhohe Fläche mit
+   overflow: hidden – lange Listen ließen sich (v. a. am Handy) nicht
+   scrollen. Jetzt fließt alles mit der Seite. */
+#classlist-root, #collections-root { height: auto; overflow: visible; }
+.classlist-layout, .col-layout {
+  height: auto;
+  min-height: 420px;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow-soft);
+}
+.classlist-main, .col-main, .classlist-student-list, .classlist-sidebar, .col-sidebar { overflow: visible; }
+.classlist-panel, .col-panel { height: auto; }
+.classlist-sidebar, .col-sidebar { background: var(--panel-soft); border-radius: var(--radius-lg) 0 0 var(--radius-lg); }
+
+/* Desktop-Seitenleiste: scrollbar, wenn der Bildschirm niedrig ist (Handy quer, kleine Laptops) */
+.app-sidebar { overflow-y: auto; overscroll-behavior: contain; }
+
+/* Dialoge: Höhe der sichtbaren Fläche (iPhone-Adressleiste), innen scrollbar */
+.modal { max-height: calc(100dvh - 32px); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 768px) {
+  .classlist-layout, .col-layout { flex-direction: column; min-height: 0; }
+  .classlist-sidebar, .col-sidebar {
+    width: auto;
+    flex: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .classlist-class-list, .col-list { display: flex; gap: 6px; overflow-x: auto; padding: 0 10px 10px; scrollbar-width: none; }
+  .classlist-class-list::-webkit-scrollbar, .col-list::-webkit-scrollbar { display: none; }
+  .classlist-class-btn, .col-item-btn { flex: 0 0 auto; width: auto; min-width: 72px; }
+  .col-item-btn { min-width: 160px; }
+  .col-sidebar-footer { padding: 0 10px 10px; }
+  .plans-tab-bar { display: flex; width: 100%; }
+  .plans-tab-btn { flex: 1 1 0; min-width: 0; padding: 6px 4px; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .modal { max-height: calc(100dvh - 12px); }
+}
+.gr-keynote { margin: 0 0 4px; padding: 10px 12px; border-radius: 10px; background: var(--warning-soft); font-size: 0.82rem; line-height: 1.45; color: var(--ink-2); }
+.gr-key-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.gr-key-status { font-size: 0.78rem; }
+/* Eine einzige Scrollfläche: die Seite. Kein innerer Scrollbereich im Hauptinhalt. */
+.app-main { overflow: visible; }
+html, body { overflow-x: clip; }

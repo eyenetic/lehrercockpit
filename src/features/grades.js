@@ -25,20 +25,39 @@
     { id: '60', label: '60 / 40', first: 60 },
   ];
 
-  // Mindestprozent je Note
-  var KEYS = {
-    standard: { label: 'Standard', scale: 'noten', steps: [[1, 92], [2, 81], [3, 67], [4, 50], [5, 30], [6, 0]] },
-    abitur: { label: 'Abitur (Punkte)', scale: 'punkte', steps: [[15, 95], [14, 90], [13, 85], [12, 80], [11, 75], [10, 70], [9, 65], [8, 60], [7, 55], [6, 50], [5, 45], [4, 40], [3, 33], [2, 27], [1, 20], [0, 0]] },
+  // Mindestprozent je Note. Einen landesweit verbindlichen Berliner Schlüssel gibt
+  // es nicht (Sek I-VO, § 15 VO-GO: die Gesamtkonferenz legt ihn fest) – deshalb
+  // trägt jede Lehrkraft ihren Schulschlüssel einmal selbst ein. Bis dahin gelten
+  // diese Beispielwerte.
+  var EXAMPLE_KEYS = {
+    noten: [[1, 92], [2, 81], [3, 67], [4, 50], [5, 30], [6, 0]],
+    punkte: [[15, 95], [14, 90], [13, 85], [12, 80], [11, 75], [10, 70], [9, 65], [8, 60], [7, 55], [6, 50], [5, 45], [4, 40], [3, 33], [2, 27], [1, 20], [0, 0]],
   };
+
+  function copySteps(steps) { return steps.map(function (step) { return step.slice(); }); }
 
   var _settings = loadSettings();
   var _inputs = { a: '', b: '' };   // eingegebene Noten (nicht gespeichert)
   var _max = '';
   var _reached = '';
+  var _editKey = false;
 
   function loadSettings() {
-    var defaults = { tool: 'zeugnis', scale: 'noten', weight: '50', custom: 50, nameA: 'Schriftlich', nameB: 'Mündlich & Sonstiges', key: 'standard', steps: null };
-    try { return Object.assign(defaults, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { return defaults; }
+    var defaults = { tool: 'zeugnis', scale: 'noten', weight: '50', custom: 50, nameA: 'Schriftlich', nameB: 'Mündlich & Sonstiges',
+      keyScale: 'noten', keys: { noten: copySteps(EXAMPLE_KEYS.noten), punkte: copySteps(EXAMPLE_KEYS.punkte) }, keysOwn: { noten: false, punkte: false } };
+    var stored = {};
+    try { stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (e) { stored = {}; }
+    // earlier versions: key "custom" with own steps for the 1–6 scale
+    if (stored.key === 'custom' && Array.isArray(stored.steps)) {
+      stored.keys = { noten: stored.steps, punkte: copySteps(EXAMPLE_KEYS.punkte) };
+      stored.keysOwn = { noten: true, punkte: false };
+    }
+    if (stored.key === 'abitur') stored.keyScale = 'punkte';
+    delete stored.key; delete stored.steps;
+    var merged = Object.assign(defaults, stored);
+    if (!merged.keys || !Array.isArray(merged.keys.noten) || !Array.isArray(merged.keys.punkte)) merged.keys = defaults.keys;
+    merged.keysOwn = Object.assign({ noten: false, punkte: false }, merged.keysOwn);
+    return merged;
   }
 
   function saveSettings() {
@@ -163,18 +182,24 @@
   }
 
   function currentSteps() {
-    var preset = KEYS[_settings.key] || KEYS.standard;
-    return _settings.key === 'custom' && Array.isArray(_settings.steps) ? _settings.steps : preset.steps;
+    return _settings.keys[_settings.keyScale === 'punkte' ? 'punkte' : 'noten'];
   }
 
   function renderSchluessel() {
+    var scale = _settings.keyScale === 'punkte' ? 'punkte' : 'noten';
+    var own = _settings.keysOwn[scale];
     return '<div class="gr-row">'
       + '<label class="gr-field"><span>Höchstpunktzahl</span><input class="form-input" type="number" min="1" step="0.5" inputmode="decimal" data-gr-max value="' + esc(_max) + '" placeholder="z. B. 48" /></label>'
       + '<label class="gr-field"><span>Erreicht (optional)</span><input class="form-input" type="number" min="0" step="0.5" inputmode="decimal" data-gr-reached value="' + esc(_reached) + '" placeholder="z. B. 37" /></label>'
-      + '<span class="gr-label">Schlüssel</span>'
-      + segmented('key', [{ id: 'standard', label: 'Standard' }, { id: 'abitur', label: 'Abitur (Punkte)' }, { id: 'custom', label: 'eigener' }], _settings.key)
-      + '</div><div class="gr-reached" data-gr-reached-result></div><div data-gr-table></div>'
-      + '<p class="gr-hint">' + (_settings.key === 'custom' ? 'Die Prozentwerte in der Tabelle kannst du ändern – sie bleiben gespeichert.' : 'Ab-Werte auf halbe Punkte gerundet. Eigene Grenzen: „eigener“ wählen.') + '</p>';
+      + segmented('keyscale', [{ id: 'noten', label: 'Noten 1–6' }, { id: 'punkte', label: 'Punkte 0–15' }], scale)
+      + '</div>'
+      + (own ? '' : '<p class="gr-keynote">Einen verbindlichen Berliner Schlüssel gibt es nicht – eure Gesamtkonferenz legt ihn fest. '
+        + 'Trag euren Schlüssel einmal unter „Grenzen anpassen“ ein: Er bleibt gespeichert und gilt auf allen deinen Geräten. Bis dahin: Beispielwerte.</p>')
+      + '<div class="gr-reached" data-gr-reached-result></div><div data-gr-table></div>'
+      + '<div class="gr-key-actions">'
+      + '<button type="button" class="btn btn-sm ' + (_editKey ? 'btn-primary' : 'btn-secondary') + '" data-gr-editkey>' + (_editKey ? 'Fertig' : 'Grenzen anpassen') + '</button>'
+      + (_editKey ? '<button type="button" class="btn btn-sm btn-ghost" data-gr-resetkey>Beispielwerte</button>' : '')
+      + '<span class="gr-muted gr-key-status">' + (own ? 'Dein Schlüssel – gespeichert.' : 'Beispielwerte') + '</span></div>';
   }
 
   function updateSchluessel() {
@@ -183,16 +208,15 @@
     var steps = currentSteps();
     var table = _root.querySelector('[data-gr-table]');
     var reachedBox = _root.querySelector('[data-gr-reached-result]');
-    var editable = _settings.key === 'custom';
-    var punkte = _settings.key === 'abitur' || (editable && steps.length > 6);
+    var punkte = _settings.keyScale === 'punkte';
     var points = function (pct) { return Math.ceil(max * pct / 100 * 2) / 2; };
-    table.innerHTML = '<table class="gr-table"><thead><tr><th>' + (punkte ? 'Punkte' : 'Note') + '</th><th>ab %</th><th>ab Punkten</th></tr></thead><tbody>'
+    table.innerHTML = '<table class="gr-table"><thead><tr><th>' + (punkte ? 'Punkte' : 'Note') + '</th><th>ab %</th><th>Punkte</th></tr></thead><tbody>'
       + steps.map(function (step, index) {
         var pct = step[1];
         var from = max > 0 ? points(pct) : null;
         var upper = index > 0 && max > 0 ? points(steps[index - 1][1]) - 0.5 : (max > 0 ? max : null);
         return '<tr><td><strong>' + esc(step[0]) + '</strong></td>'
-          + '<td>' + (editable && index < steps.length - 1 ? '<input class="gr-pct-input" type="number" min="0" max="100" data-gr-step="' + index + '" value="' + esc(pct) + '" />' : esc(pct)) + '</td>'
+          + '<td>' + (_editKey && index < steps.length - 1 ? '<input class="gr-pct-input" type="number" min="0" max="100" step="0.5" inputmode="decimal" data-gr-step="' + index + '" value="' + esc(pct) + '" />' : esc(String(pct).replace('.', ','))) + '</td>'
           + '<td>' + (from == null ? '–' : de(from, from % 1 ? 1 : 0) + (upper != null && upper > from ? ' – ' + de(upper, upper % 1 ? 1 : 0) : '')) + '</td></tr>';
       }).join('') + '</tbody></table>';
 
@@ -231,9 +255,13 @@
       if (btn.dataset.grTool) { _settings.tool = btn.dataset.grTool; saveSettings(); renderGrades(); }
       else if (btn.dataset.grScale) { _settings.scale = btn.dataset.grScale; saveSettings(); renderGrades(); }
       else if (btn.dataset.grWeight) { _settings.weight = btn.dataset.grWeight; saveSettings(); renderGrades(); }
-      else if (btn.dataset.grKey) {
-        if (btn.dataset.grKey === 'custom' && !Array.isArray(_settings.steps)) _settings.steps = KEYS.standard.steps.map(function (s) { return s.slice(); });
-        _settings.key = btn.dataset.grKey; saveSettings(); renderGrades();
+      else if (btn.dataset.grKeyscale) { _settings.keyScale = btn.dataset.grKeyscale; saveSettings(); renderGrades(); }
+      else if (btn.hasAttribute('data-gr-editkey')) { _editKey = !_editKey; renderGrades(); }
+      else if (btn.hasAttribute('data-gr-resetkey')) {
+        var scale = _settings.keyScale === 'punkte' ? 'punkte' : 'noten';
+        _settings.keys[scale] = copySteps(EXAMPLE_KEYS[scale]);
+        _settings.keysOwn[scale] = false;
+        saveSettings(); renderGrades();
       } else if (btn.hasAttribute('data-gr-clear')) {
         _inputs = { a: '', b: '' };
         renderGrades();
@@ -251,10 +279,20 @@
     });
     _root.addEventListener('change', function (event) {
       var el = event.target;
-      if (el.dataset.grStep !== undefined && Array.isArray(_settings.steps)) {
-        _settings.steps[Number(el.dataset.grStep)][1] = Math.min(100, Math.max(0, Number(el.value) || 0));
+      if (el.dataset.grStep !== undefined) {
+        var scale = _settings.keyScale === 'punkte' ? 'punkte' : 'noten';
+        var steps = _settings.keys[scale];
+        var index = Number(el.dataset.grStep);
+        var value = Math.min(100, Math.max(0, parseFloat(String(el.value).replace(',', '.')) || 0));
+        // keep the order: a better grade needs at least as much as the next one
+        var lower = index < steps.length - 1 ? steps[index + 1][1] : 0;
+        var upper = index > 0 ? steps[index - 1][1] : 100;
+        steps[index][1] = Math.min(upper, Math.max(lower, value));
+        _settings.keysOwn[scale] = true;
         saveSettings();
         updateSchluessel();
+        var status = _root.querySelector('.gr-key-status');
+        if (status) status.textContent = 'Dein Schlüssel – gespeichert.';
       }
     });
   }
