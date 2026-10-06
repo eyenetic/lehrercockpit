@@ -61,7 +61,8 @@ var LehrerCollections = (function () {
   function _progress(col) {
     var students = _getStudentsForCollection(col);
     var total = students.length;
-    var done  = students.filter(function(s){ return col.checks && col.checks[s.id] && col.checks[s.id].done; }).length;
+    // Checks are stored per "<class>|<student id>" (see _buildChecklist / _setCheck).
+    var done  = students.filter(function(s){ var c = col.checks && col.checks[s.classId + '|' + s.id]; return !!(c && c.done); }).length;
     return { done: done, total: total };
   }
 
@@ -180,7 +181,7 @@ var LehrerCollections = (function () {
       +     '</p>'
       +   '</div>'
       +   '<div class="col-panel-actions">'
-      +     '<span class="col-panel-progress">' + p.done + ' von ' + p.total + ' (' + pct + '%)</span>'
+      +     '<span class="col-panel-progress" data-col-progress>' + p.done + ' von ' + p.total + ' (' + pct + '%)</span>'
       +     '<button class="btn btn-sm btn-secondary" type="button" data-action="export-col">📤 Export</button>'
       +     archBtn
       +     '<button class="btn btn-sm btn-danger" type="button" data-action="delete-col">Löschen</button>'
@@ -294,7 +295,13 @@ var LehrerCollections = (function () {
     if (row) row.classList.toggle('is-done', done);
     var missing = _container.querySelector('#col-missing-label');
     if (missing) missing.textContent = _missingLabel(col);
-    // update sidebar progress
+    // update header and sidebar progress
+    var p = _progress(col);
+    var pct = p.total ? Math.round(p.done / p.total * 100) : 0;
+    var headline = _container.querySelector('[data-col-progress]');
+    if (headline) headline.textContent = p.done + ' von ' + p.total + ' (' + pct + '%)';
+    var bar = _container.querySelector('.col-progress-full-fill');
+    if (bar) bar.style.width = pct + '%';
     _updateSidebarProgress(colId);
   }
 
