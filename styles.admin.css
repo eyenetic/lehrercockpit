@@ -219,6 +219,9 @@
 .link-button.is-danger { color: var(--danger); }
 .invite-created { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--success-soft); }
 .invite-created p { margin: 0 0 10px; font-size: 0.86rem; color: var(--ink); }
+.invite-created.has-problem { background: var(--warning-soft); }
+.link-check ul { margin: 0; padding-left: 18px; font-size: 0.84rem; line-height: 1.5; }
+.link-check li + li { margin-top: 6px; }
 .invite-list-title { margin: 20px 0 6px; font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .invite-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; }
 .invite-list li {

@@ -155,9 +155,11 @@
   }
 
   function managerForm(scope) {
-    return '<form class="links-add-form" data-link-scope="' + scope + '" autocomplete="off">'
+    // novalidate + text field: "schule.de/x" without https:// is completed below
+    // instead of being blocked by the browser's URL check.
+    return '<form class="links-add-form" data-link-scope="' + scope + '" autocomplete="off" novalidate>'
       + '<input class="form-input" name="title" placeholder="' + (scope === 'school' ? 'z. B. KA-Plan bearbeiten' : 'Name') + '" maxlength="80" />'
-      + '<input class="form-input" name="url" type="url" placeholder="https://…" required />'
+      + '<input class="form-input" name="url" type="text" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="Adresse, z. B. schule.de/formular" />'
       + '<button class="btn btn-primary btn-sm" type="submit">Hinzufügen</button></form>';
   }
 
@@ -192,7 +194,8 @@
       if (!form) return;
       event.preventDefault();
       var url = form.querySelector('[name="url"]').value.trim();
-      if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+      if (!url) { feedback('Bitte eine Adresse eingeben.', 'error'); form.querySelector('[name="url"]').focus(); return; }
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
       var button = form.querySelector('button');
       var scope = form.getAttribute('data-link-scope');
       var title = form.querySelector('[name="title"]').value.trim();

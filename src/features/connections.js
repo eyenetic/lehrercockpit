@@ -192,6 +192,7 @@
       el.querySelector('[data-action="save"]').addEventListener('click', function () {
         var value = el.querySelector('[data-field="ical_url"]').value.trim();
         if (!value) { feedback(el, 'Bitte zuerst den Link einfügen.', 'error'); return; }
+        if (!/^(https?|webcal):\/\//i.test(value)) value = 'https://' + value;
         _patch('webuntis', { ical_url: value }, el, 'WebUntis ist verbunden.');
       });
       var remove = el.querySelector('[data-action="remove"]');
@@ -249,6 +250,7 @@
       el.querySelector('[data-action="save-calendar"]').addEventListener('click', function () {
         var value = el.querySelector('[data-field="calendar_url"]').value.trim();
         if (!value) { feedback(el, 'Bitte zuerst den Link einfügen.', 'error'); return; }
+        if (!/^(https?|webcal):\/\//i.test(value)) value = 'https://' + value;
         _patch('itslearning', { calendar_url: value }, el, 'Kalender-Abo ist verbunden.');
       });
       var removeCal = el.querySelector('[data-action="remove-calendar"]');
@@ -377,6 +379,7 @@
       el.querySelector('[data-action="connect"]').addEventListener('click', function () {
         var baseUrl = el.querySelector('[data-field="base_url"]').value.trim();
         if (!baseUrl) { feedback(el, 'Bitte die Adresse eurer Nextcloud eintragen.', 'error'); return; }
+        if (!/^https?:\/\//i.test(baseUrl)) baseUrl = 'https://' + baseUrl;
         // Open the tab synchronously (popup blockers), navigate once the login URL is known.
         var loginWindow = window.open('', '_blank');
         if (loginWindow) loginWindow.opener = null;

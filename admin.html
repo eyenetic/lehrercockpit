@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=87" />
-    <link rel="stylesheet" href="./styles.admin.css?v=87" />
+    <link rel="stylesheet" href="./styles.css?v=88" />
+    <link rel="stylesheet" href="./styles.admin.css?v=88" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -819,7 +819,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=87"></script>
+    <script src="./src/api-client.js?v=88"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1306,7 +1306,8 @@
               return '<li><strong>' + label + ':</strong> ' + esc(state) + ' <span class="connection-muted">(' + esc(c.host || '') + ')</span>'
                 + (c.message ? '<br><span>' + esc(c.message) + '</span>' : '') + '</li>';
             };
-            box.innerHTML = '<div class="invite-created link-check"><p><strong>' + esc(name) + '</strong></p><ul>'
+            const bad = ['webuntis', 'itslearning'].some(function (k) { return !data.checks[k].set || !data.checks[k].ok; });
+            box.innerHTML = '<div class="invite-created link-check' + (bad ? ' has-problem' : '') + '"><p><strong>' + esc(name) + '</strong></p><ul>'
               + line('WebUntis', data.checks.webuntis) + line('itslearning', data.checks.itslearning) + '</ul></div>';
           } catch (e) {
             setFeedback('users-feedback', 'Verbindungsfehler.', 'error');
