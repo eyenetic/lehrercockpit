@@ -6525,3 +6525,11 @@ textarea.form-input { resize: vertical; line-height: 1.5; }
 /* Eine einzige Scrollfläche: die Seite. Kein innerer Scrollbereich im Hauptinhalt. */
 .app-main { overflow: visible; }
 html, body { overflow-x: clip; }
+
+/* Einsammlungen: Fortschrittsbalken unter dem Titel sichtbar machen (span → block) */
+.col-progress-bar { display: block; height: 6px; background: var(--line-strong); }
+.col-progress-fill { display: block; }
+.col-item-progress { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.col-progress-text { font-size: 0.74rem; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.col-progress-full { height: 6px; }
+.col-progress-fill.is-complete { background: var(--success); }

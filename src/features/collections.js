@@ -115,7 +115,7 @@ var LehrerCollections = (function () {
         +   due
         + '</span>'
         + '<span class="col-item-progress">'
-        +   '<span class="col-progress-bar"><span class="col-progress-fill" style="width:' + pct + '%"></span></span>'
+        +   '<span class="col-progress-bar"><span class="col-progress-fill' + (p.total && p.done === p.total ? ' is-complete' : '') + '" style="width:' + pct + '%"></span></span>'
         +   '<span class="col-progress-text">' + p.done + '/' + p.total + '</span>'
         + '</span>'
         + '</button>';
@@ -365,7 +365,10 @@ var LehrerCollections = (function () {
     var pct = p.total ? Math.round(p.done/p.total*100) : 0;
     var fill = btn.querySelector('.col-progress-fill');
     var text = btn.querySelector('.col-progress-text');
-    if (fill) fill.style.width = pct + '%';
+    if (fill) {
+      fill.style.width = pct + '%';
+      fill.classList.toggle('is-complete', !!p.total && p.done === p.total);
+    }
     if (text) text.textContent = p.done + '/' + p.total;
   }
 
