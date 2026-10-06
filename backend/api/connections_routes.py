@@ -200,6 +200,18 @@ def patch_connection(module_id: str):
             return error(problem, 422)
         updates[field] = value
 
+    # Load calendar links once before saving: a link that does not deliver a
+    # calendar (e.g. needs a login) is refused with a plain explanation instead of
+    # showing an empty timetable later.
+    notice = ""
+    for field in ("ical_url", "calendar_url"):
+        if updates.get(field):
+            from backend.ical_utils import check_feed
+            checked = check_feed(updates[field], source=module_id)
+            if not checked["ok"] and checked["definite"]:
+                return error(checked["message"], 422)
+            notice = checked["message"] or (f"{checked['events']} Einträge gefunden." if checked["ok"] else "")
+
     user_id = g.current_user.id
     try:
         with db_connection() as conn:
@@ -213,7 +225,7 @@ def patch_connection(module_id: str):
             loaded = _load_status(conn, user_id)
     except Exception as exc:
         return error(f"Speichern fehlgeschlagen: {type(exc).__name__}", 500)
-    return success({"connections": _with_school(loaded, g.current_user.is_admin)})
+    return success({"connections": _with_school(loaded, g.current_user.is_admin), "notice": notice})
 
 
 # ── Nextcloud (Login Flow v2) ────────────────────────────────────────────────

@@ -86,3 +86,38 @@ def test_entries_are_sorted_and_windowed():
 def test_invalid_components_are_skipped():
     entries = parse_calendar(_cal(_event("UID:x", "SUMMARY:ohne Datum"), _event("UID:y", "DTSTART:kaputt")))
     assert entries == []
+
+
+# ── check_feed: does a link deliver a calendar? ─────────────────────────────
+
+def test_check_feed_accepts_calendar_and_counts_events():
+    from unittest.mock import patch
+    from backend import ical_utils
+
+    text = "BEGIN:VCALENDAR\nBEGIN:VEVENT\nEND:VEVENT\nBEGIN:VEVENT\nEND:VEVENT\nEND:VCALENDAR"
+    with patch.object(ical_utils, "fetch_calendar_text", return_value=text), \
+            patch("backend.http_utils.require_public_https_url", side_effect=lambda u: u):
+        result = ical_utils.check_feed("https://schule.webuntis.com/x", source="webuntis")
+    assert result["ok"] is True and result["events"] == 2
+
+
+def test_check_feed_refuses_login_pages_with_a_hint():
+    from unittest.mock import patch
+    from backend import ical_utils
+
+    with patch.object(ical_utils, "fetch_calendar_text", return_value="<!DOCTYPE html><html>Login</html>"), \
+            patch("backend.http_utils.require_public_https_url", side_effect=lambda u: u):
+        result = ical_utils.check_feed("https://schule.webuntis.com/x", source="webuntis")
+    assert result["ok"] is False and result["definite"] is True
+    assert "Webseite" in result["message"] and "iCal-Abo verwalten" in result["message"]
+
+
+def test_check_feed_network_problems_are_not_definite():
+    from unittest.mock import patch
+    from urllib.error import URLError
+    from backend import ical_utils
+
+    with patch.object(ical_utils, "fetch_calendar_text", side_effect=URLError("down")), \
+            patch("backend.http_utils.require_public_https_url", side_effect=lambda u: u):
+        result = ical_utils.check_feed("https://schule.webuntis.com/x")
+    assert result["ok"] is False and result["definite"] is False

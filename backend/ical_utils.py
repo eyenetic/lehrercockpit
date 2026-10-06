@@ -258,3 +258,51 @@ def berlin_today(now: datetime | None = None) -> date:
     if current.tzinfo is None:
         current = current.replace(tzinfo=timezone.utc)
     return current.astimezone(BERLIN).date()
+
+
+# ── Prüfen, ob ein Link wirklich einen Kalender liefert ─────────────────────
+
+def check_feed(url: str, *, source: str = "", timeout: int = 10) -> dict:
+    """Load a calendar link once and say in plain words whether it works.
+
+    {"ok": bool, "definite": bool, "events": int, "message": str}
+    definite=False means "could not reach it right now" (save anyway);
+    definite=True with ok=False means the link itself is wrong.
+    Never includes the link (it carries a personal token).
+    """
+    from urllib.error import HTTPError, URLError
+
+    from .http_utils import UnsafeUrlError, require_public_https_url
+
+    hints = {
+        "webuntis": "In WebUntis: „Mein Stundenplan“ → ⋯ neben der Legende → „iCal-Abo verwalten“ → Format „Standard“ → „Link erzeugen“ und diesen Link kopieren.",
+        "itslearning": "In itslearning: Kalender öffnen → Zahnrad bzw. „Abonnieren“ → den angezeigten Link kopieren.",
+    }
+    hint = hints.get(source, "")
+    try:
+        text = fetch_calendar_text(require_public_https_url(url), timeout=timeout, max_bytes=5_000_000)
+    except UnsafeUrlError as exc:
+        return {"ok": False, "definite": True, "events": 0, "message": str(exc)}
+    except HTTPError as exc:
+        if exc.code in (401, 403):
+            reason = "Der Link verlangt eine Anmeldung – es ist nicht der Abo-Link."
+        elif exc.code == 404:
+            reason = "Unter diesem Link gibt es keinen Kalender (mehr) – vermutlich wurde er neu erzeugt."
+        else:
+            return {"ok": False, "definite": False, "events": 0,
+                    "message": f"Der Kalender antwortet gerade nicht (HTTP {exc.code}). Gespeichert – das Cockpit versucht es weiter."}
+        return {"ok": False, "definite": True, "events": 0, "message": f"{reason} {hint}".strip()}
+    except (URLError, OSError, TimeoutError):
+        return {"ok": False, "definite": False, "events": 0,
+                "message": "Der Kalender ist gerade nicht erreichbar. Gespeichert – das Cockpit versucht es weiter."}
+    except ValueError as exc:
+        return {"ok": False, "definite": True, "events": 0, "message": str(exc)}
+
+    if "BEGIN:VCALENDAR" not in text.upper():
+        looks_html = "<html" in text[:2000].lower() or "<!doctype" in text[:200].lower()
+        reason = ("Der Link öffnet eine Webseite statt eines Kalenders (meist der Link aus der Adresszeile oder einer, der eine Anmeldung braucht)."
+                  if looks_html else "Unter dem Link liegt kein Kalender.")
+        return {"ok": False, "definite": True, "events": 0, "message": f"{reason} {hint}".strip()}
+    count = text.upper().count("BEGIN:VEVENT") + text.upper().count("BEGIN:VTODO")
+    return {"ok": True, "definite": True, "events": count,
+            "message": "" if count else "Der Kalender ist erreichbar, enthält aber gerade keine Termine."}

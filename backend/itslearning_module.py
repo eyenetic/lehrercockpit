@@ -93,7 +93,14 @@ def fetch_itslearning_calendar(url: str, now: datetime) -> dict[str, Any]:
     except UnsafeUrlError as exc:
         return {"ok": False, "events": [], "error": str(exc)}
     except Exception as exc:  # network, HTTP or parse errors
-        return {"ok": False, "events": [], "error": f"Kalender konnte nicht geladen werden ({type(exc).__name__})."}
+        from urllib.error import HTTPError
+        if isinstance(exc, HTTPError) and exc.code in (401, 403, 404):
+            message = "Der itslearning-Kalenderlink funktioniert nicht mehr – bitte in itslearning neu kopieren (Kalender → Abonnieren)."
+        elif isinstance(exc, ValueError):
+            message = "Der itslearning-Link liefert keinen Kalender – bitte den Abo-Link aus dem itslearning-Kalender eintragen."
+        else:
+            message = f"Der itslearning-Kalender ist gerade nicht erreichbar ({type(exc).__name__})."
+        return {"ok": False, "events": [], "error": message}
 
     current = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
     day_start = current.astimezone(BERLIN).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -111,7 +118,10 @@ def _cached_entries(url: str) -> list[CalendarEntry]:
         hit = _calendar_cache.get(url)
         if hit and _time.monotonic() - hit[0] < _CALENDAR_CACHE_SECONDS:
             return hit[1]
-    entries = parse_calendar(fetch_calendar_text(url))
+    text = fetch_calendar_text(url)
+    if "BEGIN:VCALENDAR" not in text.upper():
+        raise ValueError("kein Kalender")
+    entries = parse_calendar(text)
     with _cache_lock:
         _calendar_cache[url] = (_time.monotonic(), entries)
     return entries

@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=86" />
-    <link rel="stylesheet" href="./styles.admin.css?v=86" />
+    <link rel="stylesheet" href="./styles.css?v=87" />
+    <link rel="stylesheet" href="./styles.admin.css?v=87" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -819,7 +819,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=86"></script>
+    <script src="./src/api-client.js?v=87"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1111,6 +1111,7 @@
             const name = btn.dataset.name || '';
             if (action === 'edit-user')          window.editUser(uid);
             else if (action === 'regen-code')    window.regenerateCode(uid, name);
+            else if (action === 'check-links')   window.checkLinks(uid, name);
             else if (action === 'toggle-active') window.toggleActive(uid, btn.dataset.active === 'true');
             else if (action === 'delete-user')   window.deleteUser(uid, name);
           });
@@ -1159,6 +1160,7 @@
               + '<td>' + hasCode + '</td>'
               + '<td><div class="actions-cell">'
               + '<button class="btn btn-sm" type="button" data-action="edit-user" data-uid="' + u.id + '">Bearbeiten</button>'
+              + '<button class="btn btn-sm" type="button" data-action="check-links" data-uid="' + u.id + '" data-name="' + uName + '" title="WebUntis- und itslearning-Link dieser Lehrkraft testen">Links prüfen</button>'
               + '<button class="btn btn-sm" type="button" data-action="regen-code" data-uid="' + u.id + '" data-name="' + uName + '" title="Link, mit dem die Lehrkraft selbst einen neuen Code festlegt">Code-Link</button>'
               + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" data-action="toggle-active" data-uid="' + u.id + '" data-active="' + u.is_active + '">'
               + (u.is_active ? 'Deaktivieren' : 'Aktivieren') + '</button>'
@@ -1287,6 +1289,27 @@
             document.getElementById('modal-edit-user').hidden = false;
           } catch (e) {
             alert('Fehler beim Laden der Benutzerdaten.');
+          }
+        };
+
+        // Support: does the teacher's WebUntis / itslearning link deliver a calendar?
+        window.checkLinks = async function (id, name) {
+          const box = document.getElementById('users-feedback');
+          box.innerHTML = '<p class="feedback-msg">Prüfe die Links von ' + esc(name) + ' …</p>';
+          try {
+            const resp = await apiFetch('/api/v2/admin/users/' + id + '/connection-check', { method: 'POST' });
+            const data = await resp.json();
+            if (!resp.ok) { setFeedback('users-feedback', data.error || 'Fehler.', 'error'); return; }
+            const line = function (label, c) {
+              if (!c.set) return '<li><strong>' + label + ':</strong> kein Link eingetragen.</li>';
+              const state = c.ok ? '✓ funktioniert' + (c.events ? ' (' + c.events + ' Einträge)' : '') : (c.definite ? '✗ ' : '⚠ ') + 'Problem';
+              return '<li><strong>' + label + ':</strong> ' + esc(state) + ' <span class="connection-muted">(' + esc(c.host || '') + ')</span>'
+                + (c.message ? '<br><span>' + esc(c.message) + '</span>' : '') + '</li>';
+            };
+            box.innerHTML = '<div class="invite-created link-check"><p><strong>' + esc(name) + '</strong></p><ul>'
+              + line('WebUntis', data.checks.webuntis) + line('itslearning', data.checks.itslearning) + '</ul></div>';
+          } catch (e) {
+            setFeedback('users-feedback', 'Verbindungsfehler.', 'error');
           }
         };
 

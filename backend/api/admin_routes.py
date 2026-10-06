@@ -256,6 +256,38 @@ def regenerate_code(user_id: int):
         return error(f"Fehler beim Generieren des Codes: {type(exc).__name__}: {exc}", 500)
 
 
+@admin_bp.route("/users/<int:user_id>/connection-check", methods=["POST"])
+@require_admin
+def check_user_connections(user_id: int):
+    """Prüft WebUntis- und itslearning-Link einer Lehrkraft (für Support).
+
+    Gibt nur Ergebnis und Server zurück – nie den Link selbst (er enthält einen
+    persönlichen Schlüssel).
+    """
+    from urllib.parse import urlparse
+
+    from backend.ical_utils import check_feed
+    from backend.modules.module_registry import get_user_module_config
+
+    try:
+        with db_connection() as conn:
+            if get_user_by_id(conn, user_id) is None:
+                return error("Lehrkraft nicht gefunden", 404)
+            configs = {m: get_user_module_config(conn, user_id, m) or {} for m in ("webuntis", "itslearning")}
+    except Exception as exc:
+        return error(f"Prüfung fehlgeschlagen: {type(exc).__name__}", 500)
+
+    result = {}
+    for module, field in (("webuntis", "ical_url"), ("itslearning", "calendar_url")):
+        url = str(configs[module].get(field) or "")
+        if not url:
+            result[module] = {"set": False, "message": "Kein Link eingetragen."}
+            continue
+        checked = check_feed(url, source=module)
+        result[module] = {"set": True, "host": urlparse(url).netloc, **checked}
+    return success({"checks": result})
+
+
 @admin_bp.route("/users/<int:user_id>/reset-link", methods=["POST"])
 @require_admin
 def create_reset_link(user_id: int):

@@ -951,9 +951,31 @@
     renderUpcomingTile(data);
   }
 
+  // Problems with personal calendar links (wrong link, needs login, gone …),
+  // shown on "Heute", in the sections and under "Verbindungen".
+  function personalSourceProblems(data) {
+    const problems = {};
+    const webuntis = ((data.modules || {}).webuntis || {});
+    const source = (webuntis.data || {}).source || {};
+    if (webuntis.configured !== false && (source.status === "error" || webuntis.ok === false)) {
+      problems.webuntis = source.detail || webuntis.error || "WebUntis konnte nicht geladen werden.";
+    }
+    const calendar = data.itslearningCalendar;
+    if (calendar && calendar.ok === false) problems.itslearning = calendar.error || "Der itslearning-Kalender konnte nicht geladen werden.";
+    window.LehrerSourceProblems = problems;
+    return problems;
+  }
+
   function renderScheduleTile(data) {
     const body = elements.briefingOutput;
     if (!body) return;
+    const problem = personalSourceProblems(data).webuntis;
+    if (problem && isWebUntisConnected(data)) {
+      setTileMeta("tile-schedule-meta", "");
+      body.innerHTML = tileEmpty(problem,
+        window.MULTIUSER_ENABLED ? '<button class="btn btn-primary btn-sm" type="button" data-open-connections="webuntis">Link prüfen</button>' : "");
+      return;
+    }
     if (!isWebUntisConnected(data)) {
       setTileMeta("tile-schedule-meta", "");
       body.innerHTML = tileEmpty(
@@ -1126,6 +1148,9 @@
   function collectSourceAttention(data) {
     const items = [];
     if (!window.MULTIUSER_ENABLED || !data || !data.planDigest) return items;
+    const personal = personalSourceProblems(data);
+    if (personal.webuntis) items.push({ section: "webuntis", title: "Stundenplan", text: personal.webuntis });
+    if (personal.itslearning) items.push({ section: "itslearning", title: "itslearning", text: personal.itslearning });
     const orgaplan = data.planDigest.orgaplan || {};
     if (isModuleVisible("orgaplan") && (orgaplan.status === "outdated" || orgaplan.status === "error")) {
       items.push({ section: "orgaplan", title: "Orgaplan", text: orgaplan.status === "outdated" ? "Kein aktueller Plan gefunden." : (orgaplan.error || "Konnte nicht gelesen werden.") });

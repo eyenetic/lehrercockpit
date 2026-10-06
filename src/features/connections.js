@@ -146,11 +146,12 @@
   // ── Deine Zugänge ─────────────────────────────────────────────────────────
 
   function _patch(moduleId, fields, sectionEl, okMessage) {
-    feedback(sectionEl, 'Speichere …');
+    feedback(sectionEl, fields.ical_url || fields.calendar_url ? 'Prüfe den Link …' : 'Speichere …');
     return api('/api/v2/connections/' + moduleId, { method: 'PATCH', body: fields })
       .then(function (data) {
+        if (window.LehrerSourceProblems) delete window.LehrerSourceProblems[moduleId];
         _replaceStatus(data.connections);
-        feedback(_freshSection(moduleId), okMessage, 'success');
+        feedback(_freshSection(moduleId), okMessage + (data.notice ? ' ' + data.notice : ''), 'success');
         _onChanged(moduleId);
       })
       .catch(function (err) { feedback(sectionEl, err.message, 'error'); });
@@ -160,19 +161,28 @@
     id: 'webuntis',
     group: 'personal',
     title: 'WebUntis',
-    state: function (status) { return (status.webuntis || {}).configured ? 'ok' : 'off'; },
-    summary: function (status) { return (status.webuntis || {}).configured ? 'Verbunden' : 'Nicht verbunden'; },
+    state: function (status) {
+      if (!(status.webuntis || {}).configured) return 'off';
+      return (window.LehrerSourceProblems || {}).webuntis ? 'warn' : 'ok';
+    },
+    summary: function (status) {
+      if (!(status.webuntis || {}).configured) return 'Nicht verbunden';
+      return (window.LehrerSourceProblems || {}).webuntis ? 'Link funktioniert nicht' : 'Verbunden';
+    },
     render: function (status) {
       var s = status.webuntis || {};
       return '' +
         '<div class="connection-head"><h3>WebUntis</h3>' + pill(s.configured ? 'ok' : 'warn', s.configured ? 'verbunden' : 'nicht verbunden') + '</div>' +
         '<p class="connection-copy">Dein Stundenplan mit Vertretungen und Entfällen.</p>' +
+        ((window.LehrerSourceProblems || {}).webuntis && s.configured ? alertBox('error', esc(window.LehrerSourceProblems.webuntis)) : '') +
         '<label class="connection-field">Kalender-Abo-Link' +
         '<input class="form-input" type="url" data-field="ical_url" placeholder="' +
         (s.configured ? 'Link gespeichert – zum Ändern neuen Link einfügen' : 'https://…webuntis.com/WebUntis/ical…') + '" autocomplete="off" /></label>' +
-        '<details class="connection-help"><summary>Wo finde ich den Link?</summary><ol>' +
-        '<li>In WebUntis anmelden.</li><li>Oben rechts auf deinen Namen → „Mein Profil“.</li>' +
-        '<li>Reiter „Kalenderabonnement“ öffnen und den iCal-Link kopieren.</li></ol></details>' +
+        '<details class="connection-help"' + ((window.LehrerSourceProblems || {}).webuntis ? ' open' : '') + '><summary>Wo finde ich den Link?</summary><ol>' +
+        '<li>In WebUntis anmelden und „Mein Stundenplan“ öffnen.</li>' +
+        '<li>Unten neben der Legende auf ⋯ → „iCal-Abo verwalten“.</li>' +
+        '<li>Format „Standard“ wählen → „Link erzeugen“ → Link kopieren und hier einfügen.</li></ol>' +
+        '<p>Fehlt der Punkt: im Profil unter „Freigaben“ → „Kalender publizieren“. Nicht den Link aus der Adresszeile nehmen.</p></details>' +
         '<div class="connection-actions">' +
         '<button class="btn btn-primary" type="button" data-action="save">Speichern</button>' +
         (s.configured ? '<button class="btn btn-secondary" type="button" data-action="remove">Trennen</button>' : '') +
@@ -195,14 +205,23 @@
     id: 'itslearning',
     group: 'personal',
     title: 'itslearning',
-    state: function (status) { var s = status.itslearning || {}; return s.calendar || s.login ? 'ok' : 'off'; },
-    summary: function (status) { var s = status.itslearning || {}; return s.calendar ? 'Kalender verbunden' : (s.login ? 'Verbunden' : 'Nicht verbunden'); },
+    state: function (status) {
+      var s = status.itslearning || {};
+      if (!(s.calendar || s.login)) return 'off';
+      return (window.LehrerSourceProblems || {}).itslearning ? 'warn' : 'ok';
+    },
+    summary: function (status) {
+      var s = status.itslearning || {};
+      if ((window.LehrerSourceProblems || {}).itslearning && s.calendar) return 'Link funktioniert nicht';
+      return s.calendar ? 'Kalender verbunden' : (s.login ? 'Verbunden' : 'Nicht verbunden');
+    },
     render: function (status) {
       var s = status.itslearning || {};
       var connected = s.calendar || s.login;
       return '' +
         '<div class="connection-head"><h3>itslearning</h3>' + pill(connected ? 'ok' : 'warn', s.calendar ? 'Kalender verbunden' : (connected ? 'verbunden' : 'nicht verbunden')) + '</div>' +
         '<p class="connection-copy">Termine und Abgaben deiner Kurse – über das Kalender-Abo, ohne Passwort.</p>' +
+        ((window.LehrerSourceProblems || {}).itslearning && s.calendar ? alertBox('error', esc(window.LehrerSourceProblems.itslearning)) : '') +
         '<label class="connection-field">Kalender-Abo-Link' +
         '<input class="form-input" type="url" data-field="calendar_url" placeholder="' +
         (s.calendar ? 'Link gespeichert – zum Ändern neuen Link einfügen' : 'https://berlin.itslearning.com/…') + '" autocomplete="off" /></label>' +

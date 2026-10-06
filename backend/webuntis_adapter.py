@@ -83,6 +83,8 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
 
     try:
         calendar_text = _download_ical(ical_url)
+        if "BEGIN:VCALENDAR" not in calendar_text.upper():
+            raise ValueError("kein Kalender")
         events = _parse_events(calendar_text, now)
         visible_events = _visible_events(events, now)
         schedule = [_to_schedule_item(event, now) for event in visible_events]
@@ -115,7 +117,7 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
                 "cadence": "bei Reload",
                 "lastSync": now.strftime("%H:%M"),
                 "nextStep": "iCal-Link prüfen oder in WebUntis neu erzeugen",
-                "detail": f"WebUntis-iCal konnte nicht geladen werden: {type(exc).__name__}.",
+                "detail": _problem_text(exc),
             },
             schedule=[],
             priorities=[],
@@ -123,6 +125,21 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
             mode="webuntis-error",
             note="WebUntis konnte gerade nicht geladen werden.",
         )
+
+
+def _problem_text(exc: Exception) -> str:
+    """What went wrong with the WebUntis link, in words a teacher can act on."""
+    from urllib.error import HTTPError, URLError
+
+    if isinstance(exc, HTTPError) and exc.code in (401, 403):
+        return "Der WebUntis-Link verlangt eine Anmeldung – bitte den Abo-Link neu erzeugen (Mein Stundenplan → ⋯ → iCal-Abo verwalten)."
+    if isinstance(exc, HTTPError) and exc.code == 404:
+        return "Den WebUntis-Link gibt es nicht mehr – vermutlich wurde er in WebUntis neu erzeugt. Bitte den neuen Link eintragen."
+    if isinstance(exc, ValueError):
+        return "Der WebUntis-Link liefert keinen Kalender (meist der Link aus der Adresszeile). Bitte den Abo-Link eintragen."
+    if isinstance(exc, (URLError, OSError, TimeoutError)):
+        return "WebUntis ist gerade nicht erreichbar – das Cockpit versucht es beim nächsten Laden wieder."
+    return f"WebUntis konnte nicht geladen werden ({type(exc).__name__})."
 
 
 def _download_ical(url: str) -> str:

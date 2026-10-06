@@ -54,8 +54,28 @@ def _call(client, store, method, path, *, admin=False, **kwargs):
             patch.object(routes, "_school_settings", return_value={"nextcloud_url": "https://cloud.schule.de"}), \
             patch.object(routes, "_load_school_settings", return_value={}), \
             patch.object(routes, "_school_status", return_value=dict(SCHOOL)), \
-            patch.object(routes, "log_audit_event"):
+            patch.object(routes, "log_audit_event"), \
+            patch("backend.ical_utils.check_feed", return_value=FEED_OK):
         return getattr(client, method)(path, **kwargs)
+
+
+FEED_OK = {"ok": True, "definite": True, "events": 3, "message": ""}
+
+
+def test_patch_refuses_links_that_are_no_calendar(client):
+    store = _Store({})
+    problem = {"ok": False, "definite": True, "events": 0, "message": "Der Link öffnet eine Webseite statt eines Kalenders."}
+    with patch("backend.ical_utils.check_feed", return_value=problem):
+        ctx = MagicMock()
+        ctx.__enter__ = MagicMock(return_value=store.conn)
+        ctx.__exit__ = MagicMock(return_value=False)
+        with patch.object(backend.api.helpers, "get_current_user", return_value=_teacher()), \
+                patch.object(routes, "db_connection", return_value=ctx), \
+                patch.object(routes, "save_user_module_config", side_effect=store.save):
+            response = client.patch("/api/v2/connections/webuntis", json={"ical_url": "https://schule.webuntis.com/login"})
+    assert response.status_code == 422
+    assert "Webseite" in response.get_json()["error"]
+    assert "webuntis" not in store.configs
 
 
 def test_requires_login(client):
