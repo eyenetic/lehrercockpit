@@ -103,12 +103,30 @@ var LehrerClasslist = (function () {
    * Parse Excel file using SheetJS (XLSX global).
    * Returns Promise<{ className: string|null, rows: [{lastName, firstName}] }>
    */
+  // SheetJS (~1 MB) is only needed for Excel imports – loaded on first use
+  // instead of blocking every page load.
+  var XLSX_SRC = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+  var _xlsxLoading = null;
+  function _loadXlsx() {
+    if (typeof XLSX !== 'undefined') return Promise.resolve();
+    if (!_xlsxLoading) {
+      _xlsxLoading = new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = XLSX_SRC;
+        script.onload = function () { resolve(); };
+        script.onerror = function () { _xlsxLoading = null; reject(new Error('Excel-Leser konnte nicht geladen werden.')); };
+        document.head.appendChild(script);
+      });
+    }
+    return _xlsxLoading;
+  }
+
   function _parseExcel(file) {
+    return _loadXlsx().then(function () { return _readExcel(file); });
+  }
+
+  function _readExcel(file) {
     return new Promise(function (resolve, reject) {
-      if (typeof XLSX === 'undefined') {
-        reject(new Error('SheetJS nicht geladen'));
-        return;
-      }
       var reader = new FileReader();
       reader.onload = function (e) {
         try {

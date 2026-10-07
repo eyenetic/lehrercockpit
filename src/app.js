@@ -28,7 +28,7 @@
   const DASHBOARD_CACHE_KEY = "lc.dashboardCache";
   // Official direct mailbox link (Schulportal SSO); mail clients are not permitted in Berlin.
   const DIENSTMAIL_DEFAULT_URL = "https://lehrkraeftemail.schule.berlin.de/?iam_sso=1";
-  const DASHBOARD_CACHE_MAX_AGE_MS = 600000; // 10 minutes
+  const DASHBOARD_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // shown at once, then refreshed
   const AUTO_REFRESH_MS = 180000;
   const PANEL_COLLAPSE_LIMITS = {
     inbox: 10,
@@ -254,7 +254,8 @@
 
   function saveDashboardCache(data) {
     try {
-      localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+      const userId = window.CURRENT_USER ? window.CURRENT_USER.id : null;
+      localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ data, ts: Date.now(), userId }));
     } catch (_) {}
   }
 
@@ -265,6 +266,8 @@
       const parsed = JSON.parse(raw);
       if (!parsed || !parsed.data) return null;
       if (Date.now() - parsed.ts > maxAgeMs) return null;
+      // Only ever show a teacher their own last state.
+      if (window.MULTIUSER_ENABLED && (!window.CURRENT_USER || parsed.userId !== window.CURRENT_USER.id)) return null;
       return parsed.data;
     } catch (_) { return null; }
   }
@@ -815,7 +818,9 @@
   function renderMeta() {
     const data = getData();
     if (elements.heroNote) {
-      elements.heroNote.textContent = `Stand ${data.meta.lastUpdatedLabel} Uhr`;
+      elements.heroNote.textContent = state.showingCache
+        ? "Stand wird aktualisiert …"
+        : `Stand ${data.meta.lastUpdatedLabel} Uhr`;
     }
   }
 
@@ -2060,15 +2065,24 @@
     }
   }
 
+  function whenUserKnown() {
+    if (!window.MULTIUSER_ENABLED || window.CURRENT_USER) return Promise.resolve();
+    return new Promise((resolve) => window.addEventListener("lehrer:user", resolve, { once: true }));
+  }
+
   async function refreshDashboard(forceRefresh = false) {
-    // Stale-while-revalidate: show recent cached data immediately, then update from network
+    // Stale-while-revalidate: show the last state as soon as the user is known
+    // (auth check, ~0.1 s), then replace it with fresh data from the network.
     if (!forceRefresh && !state.data) {
-      const cached = loadDashboardCache();
-      if (cached) {
+      whenUserKnown().then(() => {
+        if (state.data) return;  // fresh data was faster
+        const cached = loadDashboardCache();
+        if (!cached) return;
         state.data = cached;
+        state.showingCache = true;
         renderAll();
         applyAppTitle();
-      }
+      });
     }
     if (elements.heroNote && (forceRefresh || !state.data)) {
       elements.heroNote.textContent = "Stand wird aktualisiert …";
@@ -2076,6 +2090,7 @@
     try {
       const fresh = await loadDashboard(forceRefresh);
       state.data = fresh;
+      state.showingCache = false;
       state.offlineSince = null;
       saveDashboardCache(fresh);
       renderAll();
@@ -2089,6 +2104,7 @@
         return;
       }
       // Keep what we have (or the last stored state, however old) and say so.
+      state.showingCache = false;
       state.offlineSince = state.offlineSince || new Date();
       if (!state.data) state.data = loadDashboardCache(24 * 60 * 60 * 1000);
       if (state.data) {

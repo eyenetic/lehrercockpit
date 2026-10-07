@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 from urllib.request import Request, urlopen
 
 from .http_utils import tls_context
+
+# The calendar feed is fetched at most every few minutes per link: the Heute view
+# loads fast, and WebUntis isn't asked again on every reload. A failed download
+# falls back to the last good copy for a few hours.
+_FRESH_SECONDS = 180
+_STALE_SECONDS = 6 * 3600
+_cache_lock = threading.Lock()
+_ical_cache: dict[str, tuple[float, str]] = {}
 
 
 @dataclass
@@ -82,9 +92,7 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
         )
 
     try:
-        calendar_text = _download_ical(ical_url)
-        if "BEGIN:VCALENDAR" not in calendar_text.upper():
-            raise ValueError("kein Kalender")
+        calendar_text = _cached_ical(ical_url)
         events = _parse_events(calendar_text, now)
         visible_events = _visible_events(events, now)
         schedule = [_to_schedule_item(event, now) for event in visible_events]
@@ -140,6 +148,24 @@ def _problem_text(exc: Exception) -> str:
     if isinstance(exc, (URLError, OSError, TimeoutError)):
         return "WebUntis ist gerade nicht erreichbar – das Cockpit versucht es beim nächsten Laden wieder."
     return f"WebUntis konnte nicht geladen werden ({type(exc).__name__})."
+
+
+def _cached_ical(url: str) -> str:
+    with _cache_lock:
+        hit = _ical_cache.get(url)
+    if hit and time.monotonic() - hit[0] < _FRESH_SECONDS:
+        return hit[1]
+    try:
+        text = _download_ical(url)
+        if "BEGIN:VCALENDAR" not in text.upper():
+            raise ValueError("kein Kalender")
+    except Exception:
+        if hit and time.monotonic() - hit[0] < _STALE_SECONDS:
+            return hit[1]
+        raise
+    with _cache_lock:
+        _ical_cache[url] = (time.monotonic(), text)
+    return text
 
 
 def _download_ical(url: str) -> str:

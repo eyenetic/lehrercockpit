@@ -98,8 +98,24 @@
   }
 
   /** After login: derive the key from the code the teacher just typed. */
+  /**
+   * Removes everything this app keeps in the browser (except the colour theme).
+   * Logout must do this itself: the server's Clear-Site-Data header only reaches
+   * the API's origin, not the app's.
+   */
+  function wipeLocal() {
+    try {
+      var theme = localStorage.getItem('lehrerCockpit.theme');
+      localStorage.clear();
+      if (theme) localStorage.setItem('lehrerCockpit.theme', theme);
+    } catch (e) { /* ignore */ }
+  }
+
   function rememberKey(code, userId) {
     if (!supported() || !code || userId == null) return Promise.resolve(false);
+    // Another account used this browser before: its class lists etc. must
+    // neither show up nor be merged into this account's vault.
+    if (get(USER_STORE) && get(USER_STORE) !== String(userId)) wipeLocal();
     return deriveRawKey(code, userId).then(function (raw) {
       set(KEY_STORE, toB64(raw));
       set(USER_STORE, String(userId));
@@ -288,8 +304,8 @@
     if (!supported() || userId == null) return;
     _userId = userId;
     if (get(USER_STORE) && get(USER_STORE) !== String(userId)) {
-      // another account used this browser before: its key and version do not apply
-      del(KEY_STORE); del(VERSION_STORE); del(DIRTY_STORE);
+      // another account used this browser before: none of its data applies
+      wipeLocal();
     }
     watchStorage();
     sync(false);
@@ -319,6 +335,7 @@
     syncNow: function () { return sync(true); },
     status: function () { return _status; },
     hasLocalData: hasLocalData,
+    wipeLocal: wipeLocal,
     onChange: function (fn) { _listeners.push(fn); },
   };
 })();
