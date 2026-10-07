@@ -66,14 +66,24 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# School-wide addresses the admin enters once (Verwaltung → Einstellungen):
+# teachers then only add their personal calendar link.
+_SCHOOL_LINK_KEYS = ("webuntis_url", "itslearning_base_url")
+_ITSLEARNING_DEFAULT = "https://berlin.itslearning.com"
+
+
+def _https(value) -> str:
+    return value.strip() if isinstance(value, str) and value.strip().lower().startswith("https://") else ""
+
+
 def _school_settings(conn) -> dict:
     settings = {}
-    for key in _NEXTCLOUD_SETTING_KEYS:
+    for key in _NEXTCLOUD_SETTING_KEYS + _SCHOOL_LINK_KEYS:
         try:
             settings[key] = get_system_setting(conn, key, "")
         except Exception:
             settings[key] = ""
-    if not any(isinstance(v, str) and v for v in settings.values()):
+    if not any(isinstance(settings.get(k), str) and settings.get(k) for k in _NEXTCLOUD_SETTING_KEYS):
         try:  # local single-school setup (.env.local)
             from backend.config import load_settings
             local = load_settings().nextcloud
@@ -86,14 +96,19 @@ def _school_settings(conn) -> dict:
 def _status_payload(configs: dict[str, dict], settings: dict | None = None) -> dict:
     webuntis = configs.get("webuntis") or {}
     itslearning = configs.get("itslearning") or {}
+    settings = settings or {}
     return {
-        "webuntis": {"configured": bool(webuntis.get("ical_url"))},
+        "webuntis": {
+            "configured": bool(webuntis.get("ical_url")),
+            "school_url": _https(settings.get("webuntis_url")),
+        },
         "itslearning": {
+            "school_url": nextcloud_module.origin(_https(settings.get("itslearning_base_url"))) or _ITSLEARNING_DEFAULT,
             "calendar": bool(itslearning.get("calendar_url")),
             "login": bool(itslearning.get("username") and itslearning.get("password")),
             "username": itslearning.get("username", ""),
         },
-        "nextcloud": nextcloud_module.status(configs.get("nextcloud"), settings or {}, _now()),
+        "nextcloud": nextcloud_module.status(configs.get("nextcloud"), settings, _now()),
     }
 
 

@@ -178,8 +178,10 @@
         '<label class="connection-field">Kalender-Abo-Link' +
         '<input class="form-input" type="url" data-field="ical_url" placeholder="' +
         (s.configured ? 'Link gespeichert – zum Ändern neuen Link einfügen' : 'https://…webuntis.com/WebUntis/ical…') + '" autocomplete="off" /></label>' +
-        '<details class="connection-help"' + ((window.LehrerSourceProblems || {}).webuntis ? ' open' : '') + '><summary>Wo finde ich den Link?</summary><ol>' +
-        '<li>In WebUntis anmelden und „Mein Stundenplan“ öffnen.</li>' +
+        '<details class="connection-help"' + (!s.configured || (window.LehrerSourceProblems || {}).webuntis ? ' open' : '') + '><summary>Wo finde ich den Link?</summary><ol>' +
+        (s.school_url
+          ? '<li>' + extLink(s.school_url, 'WebUntis eurer Schule öffnen') + ', anmelden und zu „Mein Stundenplan“ gehen.</li>'
+          : '<li>In WebUntis anmelden und „Mein Stundenplan“ öffnen.</li>') +
         '<li>Unten neben der Legende auf ⋯ → „iCal-Abo verwalten“.</li>' +
         '<li>Format „Standard“ wählen → „Link erzeugen“ → Link kopieren und hier einfügen.</li></ol>' +
         '<p>Fehlt der Punkt: im Profil unter „Freigaben“ → „Kalender publizieren“. Nicht den Link aus der Adresszeile nehmen.</p></details>' +
@@ -226,8 +228,10 @@
         '<label class="connection-field">Kalender-Abo-Link' +
         '<input class="form-input" type="url" data-field="calendar_url" placeholder="' +
         (s.calendar ? 'Link gespeichert – zum Ändern neuen Link einfügen' : 'https://berlin.itslearning.com/…') + '" autocomplete="off" /></label>' +
-        '<details class="connection-help"><summary>Wo finde ich den Link?</summary><ol>' +
-        '<li>In itslearning den <strong>Kalender</strong> öffnen.</li>' +
+        '<details class="connection-help"' + (!connected || (window.LehrerSourceProblems || {}).itslearning ? ' open' : '') + '><summary>Wo finde ich den Link?</summary><ol>' +
+        (s.school_url
+          ? '<li>' + extLink(s.school_url, 'itslearning öffnen') + ' und dort zum <strong>Kalender</strong> gehen.</li>'
+          : '<li>In itslearning den <strong>Kalender</strong> öffnen.</li>') +
         '<li>Oben rechts auf das Zahnrad → „Abonnieren“.</li>' +
         '<li>Den angezeigten Link kopieren und hier einfügen.</li></ol>' +
         '<p>Der Link wird verschlüsselt gespeichert.</p></details>' +
@@ -343,8 +347,14 @@
       }
       return head +
         '<p class="connection-copy">Deine Nextcloud-Favoriten (★) mit einem Klick erreichbar. Du meldest dich direkt bei Nextcloud an – dein Passwort sieht das Cockpit nie.</p>' +
-        '<label class="connection-field">Adresse eurer Nextcloud' +
-        '<input class="form-input" type="url" data-field="base_url" value="' + esc(s.suggested_server || '') + '" placeholder="https://cloud.schule.de" autocomplete="off" /></label>' +
+        (s.suggested_server
+          // The school's Nextcloud is set in Verwaltung: one click, no address to type.
+          ? '<input type="hidden" data-field="base_url" value="' + esc(s.suggested_server) + '" />' +
+            facts([['Server', esc(_host(s.suggested_server))]]) +
+            '<details class="connection-optional"><summary>Andere Nextcloud verwenden</summary>' +
+            '<label class="connection-field">Adresse<input class="form-input" type="text" inputmode="url" data-field="other_url" placeholder="cloud.beispiel.de" autocomplete="off" /></label></details>'
+          : '<label class="connection-field">Adresse eurer Nextcloud' +
+            '<input class="form-input" type="text" inputmode="url" data-field="base_url" placeholder="cloud.schule.de" autocomplete="off" /></label>') +
         '<div class="connection-actions">' +
         '<button class="btn btn-primary" type="button" data-action="connect">' + (waiting ? 'Erneut öffnen' : 'Mit Nextcloud verbinden') + '</button>' +
         (waiting ? '<button class="btn btn-secondary" type="button" data-action="cancel">Abbrechen</button>' : '') +
@@ -377,7 +387,8 @@
       });
 
       el.querySelector('[data-action="connect"]').addEventListener('click', function () {
-        var baseUrl = el.querySelector('[data-field="base_url"]').value.trim();
+        var other = el.querySelector('[data-field="other_url"]');
+        var baseUrl = ((other && other.value.trim()) || el.querySelector('[data-field="base_url"]').value).trim();
         if (!baseUrl) { feedback(el, 'Bitte die Adresse eurer Nextcloud eintragen.', 'error'); return; }
         if (!/^https?:\/\//i.test(baseUrl)) baseUrl = 'https://' + baseUrl;
         // Open the tab synchronously (popup blockers), navigate once the login URL is known.

@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=89" />
-    <link rel="stylesheet" href="./styles.admin.css?v=89" />
+    <link rel="stylesheet" href="./styles.css?v=90" />
+    <link rel="stylesheet" href="./styles.admin.css?v=90" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -652,12 +652,20 @@
               <div class="form-row">
                 <div class="form-field">
                   <label for="s-webuntis-url">WebUntis-Adresse</label>
-                  <input type="url" id="s-webuntis-url" placeholder="https://…webuntis.com" />
+                  <input type="url" id="s-webuntis-url" placeholder="https://…webuntis.com/WebUntis/?school=…" />
+                  <p class="field-hint">Die Anmeldeseite eurer Schule – Lehrkräfte bekommen beim Verbinden einen Knopf dorthin.</p>
                 </div>
+                <div class="form-field">
+                  <label for="s-itslearning-url">itslearning-Adresse</label>
+                  <input type="url" id="s-itslearning-url" placeholder="https://berlin.itslearning.com" />
+                  <p class="field-hint">Leer = berlin.itslearning.com.</p>
+                </div>
+              </div>
+              <div class="form-row single">
                 <div class="form-field">
                   <label for="s-nextcloud-url">Nextcloud der Schule</label>
                   <input type="url" id="s-nextcloud-url" placeholder="https://cloud.schule.de" />
-                  <p class="field-hint">Wird Lehrkräften beim Verbinden vorgeschlagen.</p>
+                  <p class="field-hint">Lehrkräfte verbinden sich dann mit einem Klick, ohne Adresse einzutippen.</p>
                 </div>
               </div>
               <div class="form-row">
@@ -819,7 +827,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=89"></script>
+    <script src="./src/api-client.js?v=90"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1376,6 +1384,7 @@
           app_title: 's-app-title',
           school_website_url: 's-school-website',
           webuntis_url: 's-webuntis-url',
+          itslearning_base_url: 's-itslearning-url',
           nextcloud_url: 's-nextcloud-url',
           schoolportal_url: 's-schoolportal-url',
           dienstmail_url: 's-dienstmail-url',

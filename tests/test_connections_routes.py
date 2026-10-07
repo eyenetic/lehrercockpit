@@ -88,7 +88,10 @@ def test_status_never_exposes_secrets(client):
     response = _call(client, store, "get", "/api/v2/connections")
     body = response.get_json()
     assert response.status_code == 200
-    assert body["connections"]["itslearning"] == {"calendar": True, "login": True, "username": "u"}
+    assert body["connections"]["itslearning"] == {
+        "calendar": True, "login": True, "username": "u",
+        "school_url": "https://berlin.itslearning.com",  # public school address, no secret
+    }
     assert "secret" not in response.get_data(as_text=True)
 
 

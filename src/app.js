@@ -1470,12 +1470,17 @@
   }
   window.addEventListener("lehrer:user", () => renderPageHead());
   if (window.LehrerLinks) window.LehrerLinks.onChange(() => renderHeuteZugaenge());
+  // A broken part (e.g. odd stored data) must never stop the rest of the cockpit.
+  function safely(fn) {
+    try { fn(); } catch (error) { console.error(error); }
+  }
+
   // Another device changed class lists, links or settings (encrypted vault).
   window.addEventListener("lehrer:vault-updated", () => {
     state.classworkSelectedClasses = loadStoredClassworkClasses();
-    if (window.LehrerClasslist) window.LehrerClasslist.render();
-    if (window.LehrerCollections) window.LehrerCollections.render();
-    if (window.LehrerLinks) window.LehrerLinks.reloadLocal();
+    safely(() => window.LehrerClasslist && window.LehrerClasslist.render());
+    safely(() => window.LehrerCollections && window.LehrerCollections.render());
+    safely(() => window.LehrerLinks && window.LehrerLinks.reloadLocal());
     if (state.data) renderAll();
   });
 
@@ -2604,13 +2609,13 @@
     // Klassenlisten
     if (window.LehrerClasslist) {
       var classlistRoot = document.getElementById('classlist-root');
-      if (classlistRoot) window.LehrerClasslist.init(classlistRoot);
+      if (classlistRoot) safely(() => window.LehrerClasslist.init(classlistRoot));
     }
 
     // Einsammlungen
     if (window.LehrerCollections) {
       var collectionsRoot = document.getElementById('collections-root');
-      if (collectionsRoot) window.LehrerCollections.init(collectionsRoot);
+      if (collectionsRoot) safely(() => window.LehrerCollections.init(collectionsRoot));
     }
 
     if (window.LehrerConnections) {

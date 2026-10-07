@@ -33,8 +33,22 @@ var LehrerCollections = (function () {
 
   // ── Persistence ──────────────────────────────────────────────────────────
   function _load() {
-    try { _data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
-    catch(e) { _data = {}; }
+    var raw;
+    try { raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+    catch(e) { raw = {}; }
+    // Stored data may come from older versions or another device: never let
+    // one odd entry break the page.
+    _data = {};
+    var list = Array.isArray(raw) ? raw : Object.values(raw && typeof raw === 'object' ? raw : {});
+    list.forEach(function (c) {
+      if (!c || typeof c !== 'object' || !c.id) return;
+      c.title = String(c.title || '');
+      c.type = c.type || 'other';
+      c.createdAt = String(c.createdAt || '');
+      c.classIds = Array.isArray(c.classIds) ? c.classIds : [];
+      c.checks = c.checks && typeof c.checks === 'object' ? c.checks : {};
+      _data[c.id] = c;
+    });
   }
   function _save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_data)); } catch(e) {}
@@ -47,7 +61,7 @@ var LehrerCollections = (function () {
   }
   function _typeLabel(v) {
     var t = TYPES.find(function(x){ return x.value === v; });
-    return t ? t.label : v;
+    return t ? t.label : String(v || '');
   }
   function _sortedCollections() {
     return Object.values(_data).sort(function(a,b){

@@ -29,12 +29,26 @@ var LehrerClasslist = (function () {
 
   // ── Persistence ──────────────────────────────────────────────────────────
   function _load() {
+    var raw;
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      _data = raw ? JSON.parse(raw) : {};
+      raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     } catch (e) {
-      _data = {};
+      raw = {};
     }
+    // Stored data may come from older versions or another device: keep what
+    // is usable instead of letting one odd entry break the page.
+    _data = {};
+    Object.keys(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}).forEach(function (classId) {
+      var cls = raw[classId];
+      var students = Array.isArray(cls) ? cls : (cls && Array.isArray(cls.students) ? cls.students : null);
+      if (!students) return;
+      _data[classId] = Object.assign({}, Array.isArray(cls) ? {} : cls, {
+        id: classId,
+        students: students.filter(function (st) { return st && typeof st === 'object' && st.id; }).map(function (st) {
+          return Object.assign({}, st, { lastName: String(st.lastName || ''), firstName: String(st.firstName || '') });
+        }),
+      });
+    });
   }
 
   function _save() {
