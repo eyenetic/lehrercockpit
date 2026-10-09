@@ -22,7 +22,7 @@ _ENC_PREFIX = "enc:"
 _SENSITIVE_PATTERNS = ("password", "secret", "token", "credential")
 # Exact field names that are secret without matching a pattern (subscription
 # links carry an access key in the URL).
-_SENSITIVE_KEYS = frozenset({"calendar_url"})
+_SENSITIVE_KEYS = frozenset({"calendar_url", "ical_url"})
 
 # One-time warning flag so we don't spam the log on every call
 _warn_once_done = False

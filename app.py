@@ -161,6 +161,9 @@ def after_request(response: Response) -> Response:
     path = request.path
     if path.startswith("/api/") and not path.startswith("/api/v2/"):
         response.headers["X-API-Version"] = "v1-legacy"
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     return response
 
 
@@ -180,6 +183,36 @@ def _legacy_disabled(path: str) -> bool:
     )
 
 
+if _HOSTED:
+    # Render's proxy appends the client address to X-Forwarded-For. Without this,
+    # every visitor shares the proxy's address – and the login limit would lock
+    # out the whole staff at once. One trusted hop: earlier (spoofable) entries are ignored.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
+_UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _foreign_origin() -> bool:
+    """A browser request that changes something but comes from another website.
+
+    The session cookie is SameSite=None (app and API live on different hosts), so a
+    foreign page could otherwise make a signed-in browser deactivate a teacher or
+    upload a plan (CSRF). Requests without an Origin header (scripts, the push cron)
+    carry no browser session and are left to the normal checks.
+    """
+    if request.method not in _UNSAFE_METHODS:
+        return False
+    origin = request.headers.get("Origin", "")
+    if not origin:
+        return False
+    allowed = {o.strip().rstrip("/") for o in CORS_ORIGIN.split(",") if o.strip()}
+    if origin.rstrip("/") in allowed:
+        return False
+    from urllib.parse import urlparse
+    return urlparse(origin).netloc != request.host  # same host (local dev, API-served pages) is fine
+
+
 @app.before_request
 def handle_options():
     """Handle CORS preflight OPTIONS requests before routing."""
@@ -188,6 +221,8 @@ def handle_options():
         return _cors(response)
     if _legacy_disabled(request.path):
         return jsonify({"error": "not_found"}), 404
+    if request.path.startswith("/api/") and _foreign_origin():
+        return jsonify({"ok": False, "error": "Anfrage von einer fremden Seite abgelehnt."}), 403
 
 
 # Only the frontend itself is served (same list as scripts/build_frontend.sh);

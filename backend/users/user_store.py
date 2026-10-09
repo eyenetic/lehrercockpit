@@ -266,7 +266,7 @@ def set_access_code(conn, user_id: int, code_hash: str, code_prefix: str = "") -
         conn: psycopg3 DB-Verbindung.
         user_id: ID des Users.
         code_hash: argon2id-Hash des neuen Zugangscodes.
-        code_prefix: Erste 8 Zeichen des Klartextcodes für O(1)-Lookup (optional).
+        code_prefix: Lookup-Tag aus get_code_prefix() (kein Klartext, optional).
     """
     conn.execute(
         """

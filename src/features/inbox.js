@@ -130,13 +130,13 @@ var LehrerInbox = (function () {
       ? data.priorities.map(function (item) {
           return '<article class="priority-item">'
             + '<div class="priority-top">'
-            + '<strong>' + item.title + '</strong>'
-            + '<span class="meta-tag ' + item.priority + '">' + priorityLabel(item.priority) + '</span>'
+            + '<strong>' + esc(item.title) + '</strong>'
+            + '<span class="meta-tag ' + esc(item.priority) + '">' + esc(priorityLabel(item.priority)) + '</span>'
             + '</div>'
-            + '<p class="priority-copy">' + item.detail + '</p>'
+            + '<p class="priority-copy">' + esc(item.detail) + '</p>'
             + '<div class="meta-row">'
-            + '<span class="meta-tag">' + item.source + '</span>'
-            + '<span class="meta-tag">' + item.due + '</span>'
+            + '<span class="meta-tag">' + esc(item.source) + '</span>'
+            + '<span class="meta-tag">' + esc(item.due) + '</span>'
             + '</div>'
             + '</article>';
         }).join('')
@@ -151,13 +151,13 @@ var LehrerInbox = (function () {
           return '<article class="source-item">'
             + '<div class="source-top">'
             + '<div>'
-            + '<strong>' + source.name + '</strong>'
-            + '<p class="source-detail">' + source.type + ' - letzter Sync ' + source.lastSync + ' - ' + source.cadence + '</p>'
+            + '<strong>' + esc(source.name) + '</strong>'
+            + '<p class="source-detail">' + esc(source.type) + ' - letzter Sync ' + esc(source.lastSync) + ' - ' + esc(source.cadence) + '</p>'
             + '</div>'
-            + '<span class="source-status ' + source.status + '">' + statusLabel(source.status) + '</span>'
+            + '<span class="source-status ' + esc(source.status) + '">' + esc(statusLabel(source.status)) + '</span>'
             + '</div>'
-            + '<p class="source-detail">' + source.detail + '</p>'
-            + '<p class="source-detail"><strong>Nächster Schritt:</strong> ' + source.nextStep + '</p>'
+            + '<p class="source-detail">' + esc(source.detail) + '</p>'
+            + '<p class="source-detail"><strong>Nächster Schritt:</strong> ' + esc(source.nextStep) + '</p>'
             + '</article>';
         }).join('')
       : '<div class="empty-state">Noch keine Quellen eingerichtet.</div>';
@@ -287,13 +287,13 @@ var LehrerInbox = (function () {
       ? data.documentMonitor.map(function (item) {
           return '<article class="priority-item">'
             + '<div class="priority-top">'
-            + '<strong>' + item.title + '</strong>'
-            + '<span class="meta-tag ' + monitorStatusClass(item.status) + '">' + monitorStatusLabel(item.status) + '</span>'
+            + '<strong>' + esc(item.title) + '</strong>'
+            + '<span class="meta-tag ' + monitorStatusClass(item.status) + '">' + esc(monitorStatusLabel(item.status)) + '</span>'
             + '</div>'
-            + '<p class="priority-copy">' + item.detail + '</p>'
+            + '<p class="priority-copy">' + esc(item.detail) + '</p>'
             + '<div class="meta-row">'
-            + '<span class="meta-tag">' + item.type + '</span>'
-            + '<span class="meta-tag">' + item.checkedAt + '</span>'
+            + '<span class="meta-tag">' + esc(item.type) + '</span>'
+            + '<span class="meta-tag">' + esc(item.checkedAt) + '</span>'
             + '</div>'
             + '</article>';
         }).join('')

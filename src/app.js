@@ -3198,11 +3198,11 @@
     const { active = false, showFavorite = true, compact = false } = options;
     return `
       <article class="picker-item ${active ? "active" : ""} ${compact ? "compact" : ""}">
-        <button class="picker-item-main" type="button" data-picker-select="${entity.id}">
+        <button class="picker-item-main" type="button" data-picker-select="${escapeHtml(entity.id)}">
           <span class="picker-item-icon">${pickerIcon(entity.type)}</span>
           <span class="picker-item-copy">
-            <strong>${entity.label}</strong>
-            ${entity.detail ? `<span>${entity.detail}</span>` : ""}
+            <strong>${escapeHtml(entity.label)}</strong>
+            ${entity.detail ? `<span>${escapeHtml(entity.detail)}</span>` : ""}
           </span>
         </button>
         ${

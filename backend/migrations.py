@@ -523,6 +523,46 @@ def _migrate_reset_unseen_signals(conn) -> None:
     print(f"[migrations] Signale: {result.rowcount} alte Neu-Markierungen als gesehen markiert.", flush=True)
 
 
+def _migrate_drop_plaintext_code_prefixes(conn) -> None:
+    """Old rows stored the first 8 characters of the access code in plaintext.
+    Remove them; the next login sets a hashed lookup tag (see get_code_prefix).
+    Idempotent: new tags start with a lowercase "h", old prefixes never did.
+    """
+    result = conn.execute(
+        "UPDATE user_access_codes SET code_prefix = NULL "
+        "WHERE code_prefix IS NOT NULL AND code_prefix NOT LIKE 'h%%'"
+    )
+    if result.rowcount:
+        print(f"[migrations] Zugangscodes: {result.rowcount} Klartext-Präfixe entfernt.", flush=True)
+
+
+def _migrate_encrypt_stored_secrets(conn) -> None:
+    """Encrypt secrets stored before they were classed as sensitive (e.g. the
+    WebUntis link, which carries a personal key). Idempotent: encrypted values
+    are skipped. Does nothing without ENCRYPTION_KEY.
+    """
+    from .crypto import encrypt_config, is_encryption_enabled
+    if not is_encryption_enabled():
+        print("[migrations] WARNUNG: ENCRYPTION_KEY fehlt – Zugangsdaten liegen unverschlüsselt in der Datenbank.", flush=True)
+        return
+    import psycopg.types.json as _pjson
+    changed = 0
+    for user_id, module_id, config in conn.execute(
+        "SELECT user_id, module_id, config_data FROM user_module_configs"
+    ).fetchall():
+        if not isinstance(config, dict):
+            continue
+        encrypted = encrypt_config(config)
+        if encrypted != config:
+            conn.execute(
+                "UPDATE user_module_configs SET config_data = %s WHERE user_id = %s AND module_id = %s",
+                (_pjson.Jsonb(encrypted), user_id, module_id),
+            )
+            changed += 1
+    if changed:
+        print(f"[migrations] Zugangsdaten: {changed} Einträge nachverschlüsselt.", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -534,6 +574,8 @@ def run_all_migrations() -> None:
         _migrate_school_sources(conn)
         _migrate_invitations_and_feedback(conn)
         _migrate_reset_unseen_signals(conn)
+        _migrate_drop_plaintext_code_prefixes(conn)
+        _migrate_encrypt_stored_secrets(conn)
 
 
 def log_audit_event(

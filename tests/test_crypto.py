@@ -140,16 +140,18 @@ def test_encrypt_config_server_url_not_encrypted(monkeypatch, fernet_key):
 
 
 @skip_no_crypto
-def test_encrypt_config_ical_url_not_encrypted(monkeypatch, fernet_key):
-    """Leaves ical_url field unchanged."""
+def test_encrypt_config_ical_url_is_encrypted(monkeypatch, fernet_key):
+    """The WebUntis link carries a personal key – it is a secret like a password."""
     monkeypatch.setenv("ENCRYPTION_KEY", fernet_key)
     import importlib
     import backend.crypto as crypto_mod
     importlib.reload(crypto_mod)
 
-    config = {"ical_url": "https://cal.example.com/feed.ics", "password": "pass"}
+    config = {"ical_url": "https://cal.example.com/feed.ics", "base_url": "https://x.webuntis.com"}
     result = crypto_mod.encrypt_config(config)
-    assert result["ical_url"] == "https://cal.example.com/feed.ics"
+    assert result["ical_url"].startswith("enc:")
+    assert result["base_url"] == "https://x.webuntis.com"
+    assert crypto_mod.decrypt_config(result)["ical_url"] == "https://cal.example.com/feed.ics"
 
 
 @skip_no_crypto

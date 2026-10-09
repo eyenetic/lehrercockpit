@@ -572,11 +572,11 @@
     var showFavorite = options.showFavorite !== false;
     var compact = options.compact || false;
     return '<article class="picker-item ' + (active ? 'active' : '') + ' ' + (compact ? 'compact' : '') + '">'
-      + '<button class="picker-item-main" type="button" data-picker-select="' + entity.id + '">'
+      + '<button class="picker-item-main" type="button" data-picker-select="' + _esc(entity.id) + '">'
       + '<span class="picker-item-icon">' + pickerIcon(entity.type) + '</span>'
       + '<span class="picker-item-copy">'
-      + '<strong>' + entity.label + '</strong>'
-      + (entity.detail ? '<span>' + entity.detail + '</span>' : '')
+      + '<strong>' + _esc(entity.label) + '</strong>'
+      + (entity.detail ? '<span>' + _esc(entity.detail) + '</span>' : '')
       + '</span>'
       + '</button>'
       + (showFavorite
@@ -599,17 +599,17 @@
   function renderDayEvent(event) {
     var timingClass = getEventTimingClass(event);
     return '<article class="webuntis-event ' + timingClass + ' ' + (isCancelledEvent(event) ? 'is-cancelled' : '') + '">'
-      + '<div class="webuntis-event-time">' + event.time + '</div>'
+      + '<div class="webuntis-event-time">' + _esc(event.time) + '</div>'
       + '<div>'
       + '<div class="webuntis-event-head">'
-      + '<strong>' + event.title + '</strong>'
+      + '<strong>' + _esc(event.title) + '</strong>'
       + '<span class="meta-tag ' + eventStateTagClass(event) + '">' + eventStateLabel(event) + '</span>'
       + '</div>'
-      + '<p class="webuntis-event-copy">' + compactEventDetail(event) + '</p>'
+      + '<p class="webuntis-event-copy">' + _esc(compactEventDetail(event)) + '</p>'
       + '<div class="meta-row">'
-      + '<span class="meta-tag">' + event.category + '</span>'
-      + (event.location ? '<span class="meta-tag">' + event.location + '</span>' : '')
-      + (event.description ? '<span class="meta-tag">' + event.description + '</span>' : '')
+      + '<span class="meta-tag">' + _esc(event.category) + '</span>'
+      + (event.location ? '<span class="meta-tag">' + _esc(event.location) + '</span>' : '')
+      + (event.description ? '<span class="meta-tag">' + _esc(event.description) + '</span>' : '')
       + '</div>'
       + '</div>'
       + '</article>';
@@ -618,14 +618,14 @@
   function renderWeekEvent(event) {
     var timingClass = getEventTimingClass(event);
     return '<article class="webuntis-week-event ' + timingClass + ' ' + (isCancelledEvent(event) ? 'is-cancelled' : '') + '">'
-      + '<div class="webuntis-week-time">' + event.time.replace(' - ', '–') + '</div>'
+      + '<div class="webuntis-week-time">' + _esc(String(event.time || '').replace(' - ', '–')) + '</div>'
       + '<div class="webuntis-week-copy">'
       + '<div class="webuntis-week-head">'
-      + '<strong>' + event.title + '</strong>'
+      + '<strong>' + _esc(event.title) + '</strong>'
       + '<span class="meta-tag ' + eventStateTagClass(event) + '">' + eventStateLabel(event) + '</span>'
       + '</div>'
-      + (event.location ? '<div class="webuntis-week-meta">' + event.location + '</div>' : '')
-      + (event.description ? '<div class="webuntis-week-meta">' + event.description + '</div>' : '')
+      + (event.location ? '<div class="webuntis-week-meta">' + _esc(event.location) + '</div>' : '')
+      + (event.description ? '<div class="webuntis-week-meta">' + _esc(event.description) + '</div>' : '')
       + '</div>'
       + '</article>';
   }
@@ -633,7 +633,7 @@
   function renderAgendaGroup(group) {
     return '<section class="webuntis-agenda-group">'
       + '<div class="webuntis-agenda-label">'
-      + '<span>' + group.label + '</span>'
+      + '<span>' + _esc(group.label) + '</span>'
       + '<span>' + (group.events.length ? group.events.length + ' Termine' : 'frei') + '</span>'
       + '</div>'
       + '<div class="webuntis-agenda-items">'
@@ -899,10 +899,10 @@
       ? finder.watchlist.map(function (item) {
           return '<article class="priority-item">'
             + '<div class="priority-top">'
-            + '<strong>' + item.title + '</strong>'
+            + '<strong>' + _esc(item.title) + '</strong>'
             + '<span class="meta-tag ' + watchStatusClass(item.status) + '">' + watchStatusLabel(item.status) + '</span>'
             + '</div>'
-            + '<p class="priority-copy">' + item.detail + '</p>'
+            + '<p class="priority-copy">' + _esc(item.detail) + '</p>'
             + '</article>';
         }).join('')
       : '<div class="empty-state">Noch keine geöffneten Pläne im Radar.</div>';
@@ -917,9 +917,9 @@
     _elements.webuntisPlanStrip.hidden = visiblePlans.length === 0;
     _elements.webuntisPlanStrip.innerHTML = visiblePlans.length
       ? visiblePlans.map(function (plan) {
-          return '<button class="plan-chip ' + (isPlanChipActive(center, plan) ? 'active' : '') + '" type="button" data-plan-chip="' + plan.id + '">'
-            + '<span class="plan-chip-type">' + shortcutTypeLabel(plan.type) + '</span>'
-            + '<strong>' + plan.label + '</strong>'
+          return '<button class="plan-chip ' + (isPlanChipActive(center, plan) ? 'active' : '') + '" type="button" data-plan-chip="' + _esc(plan.id) + '">'
+            + '<span class="plan-chip-type">' + _esc(shortcutTypeLabel(plan.type)) + '</span>'
+            + '<strong>' + _esc(plan.label) + '</strong>'
             + '</button>';
         }).join('')
       : '<div class="empty-state">Noch keine Pläne gespeichert.</div>';

@@ -8,6 +8,9 @@
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
 [[headers]]
   for = "/"

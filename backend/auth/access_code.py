@@ -2,6 +2,7 @@
 Zugangscode-Verwaltung für Lehrkräfte.
 Codes werden nur gehasht gespeichert (argon2id).
 """
+import hashlib
 import secrets
 import string
 from argon2 import PasswordHasher
@@ -19,7 +20,8 @@ _ph = PasswordHasher(
 CODE_LENGTH = 32
 CODE_ALPHABET = string.ascii_letters + string.digits  # keine Sonderzeichen für einfache Eingabe
 
-PREFIX_LENGTH = 8
+PREFIX_LENGTH = 8  # legacy: plaintext prefixes of this length are no longer stored
+LOOKUP_TAG_HEX = 4  # 16 bits: narrows the login lookup, reveals next to nothing about the code
 
 # Self-chosen codes (invitation, change, reset)
 MIN_CHOSEN_LENGTH = 8
@@ -35,17 +37,18 @@ def chosen_code_problem(code: str) -> "str | None":
 
 
 def get_code_prefix(plaintext_code: str) -> str:
-    """Returns first PREFIX_LENGTH characters of the access code for DB pre-filtering.
+    """Lookup tag stored next to the argon2 hash so login only verifies a few rows.
 
-    Args:
-        plaintext_code: Plaintext access code.
+    Formerly the first 8 characters of the code in plaintext – which, with codes of
+    8 characters, was nearly the whole code (and the vault key derives from it).
+    Now "h" + 16 bits of SHA-256: many codes share a tag, nothing can be read back.
 
     Returns:
-        First 8 characters uppercased, or empty string if code is falsy.
+        e.g. "h3f2a", or "" if the code is falsy.
     """
     if not plaintext_code:
         return ""
-    return plaintext_code[:PREFIX_LENGTH].upper()
+    return "h" + hashlib.sha256(plaintext_code.encode("utf-8")).hexdigest()[:LOOKUP_TAG_HEX]
 
 
 def generate_code() -> str:

@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=92" />
-    <link rel="stylesheet" href="./styles.admin.css?v=92" />
+    <link rel="stylesheet" href="./styles.css?v=93" />
+    <link rel="stylesheet" href="./styles.admin.css?v=93" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -629,6 +629,7 @@
           <div class="admin-card">
             <h2 class="admin-section-title" style="margin-bottom:1rem;">Schule und Links</h2>
             <div id="settings-feedback"></div>
+            <div id="security-status" class="security-status" hidden></div>
             <form class="admin-form" id="settings-form">
               <div class="form-row">
                 <div class="form-field">
@@ -827,7 +828,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=92"></script>
+    <script src="./src/api-client.js?v=93"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1425,6 +1426,14 @@
             if (!resp.ok) return;
             const data = await resp.json();
             const s = data.settings || data || {};
+            const sec = document.getElementById('security-status');
+            if (sec && data.security) {
+              sec.hidden = false;
+              sec.className = 'security-status ' + (data.security.encryption ? 'is-ok' : 'is-warn');
+              sec.textContent = data.security.encryption
+                ? 'Zugangsdaten der Lehrkräfte (Kalenderlinks, App-Passwörter) werden verschlüsselt gespeichert.'
+                : 'Achtung: Zugangsdaten der Lehrkräfte liegen unverschlüsselt in der Datenbank. Auf Render die Umgebungsvariable ENCRYPTION_KEY setzen.';
+            }
             // Slice 4 Part A5: load app_title
             Object.keys(SETTING_FIELDS).forEach(function (key) {
               var value = s[key];

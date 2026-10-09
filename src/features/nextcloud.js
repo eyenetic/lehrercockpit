@@ -40,6 +40,15 @@
 
   // ── Private helpers — delegate to callbacks ──────────────────────────────────
 
+  // External text (plans, feeds, file names) is always escaped before it becomes HTML.
+  function _h(value) {
+    return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function _safeUrl(url) {
+    return /^https?:\/\//i.test(String(url || '')) ? String(url) : '#';
+  }
+
   function _getData() {
     return _callbacks.getData ? _callbacks.getData() : (_state && _state.data) || {};
   }
@@ -176,10 +185,10 @@
       _elements.nextcloudCustomLinks.innerHTML = workspaceLinks
         .map(function (link) {
           return (
-            '<a class="nextcloud-work-card" href="' + link.url +
-            '" target="_blank" rel="noreferrer" data-nextcloud-link="' + link.id + '">' +
+            '<a class="nextcloud-work-card" href="' + _h(_safeUrl(link.url)) +
+            '" target="_blank" rel="noreferrer" data-nextcloud-link="' + _h(link.id) + '">' +
             '<span class="meta-tag low">Arbeitslink</span>' +
-            '<strong>' + link.label + '</strong>' +
+            '<strong>' + _h(link.label) + '</strong>' +
             '<p>Direkt in Nextcloud öffnen</p>' +
             '<span class="quick-link-action">öffnen</span>' +
             '</a>'

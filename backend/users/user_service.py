@@ -75,8 +75,9 @@ def code_taken(conn, plain_code: str, user_id: Optional[int] = None) -> bool:
 def authenticate_by_code(conn, plain_code: str) -> Optional[User]:
     """Authentifiziert einen User anhand seines Zugangscodes.
 
-    Nutzt code_prefix für O(1) DB-Vorfilterung: nur Users mit passendem Präfix
-    (oder ohne Präfix für Rückwärtskompatibilität) werden mit argon2 verifiziert.
+    Nutzt den Lookup-Tag (code_prefix, siehe get_code_prefix) zur Vorfilterung: nur
+    Users mit passendem Tag – oder noch ohne Tag (alte Präfixe wurden gelöscht) –
+    werden mit argon2 verifiziert. Wer noch keinen Tag hat, bekommt ihn hier.
 
     Args:
         conn: psycopg3 DB-Verbindung.
@@ -90,11 +91,12 @@ def authenticate_by_code(conn, plain_code: str) -> Optional[User]:
     rows = conn.execute(
         """
         SELECT u.id, u.first_name, u.last_name, u.role, u.is_active,
-               u.created_at, u.updated_at, uac.code_hash, u.is_admin
+               u.created_at, u.updated_at, uac.code_hash, u.is_admin, uac.code_prefix
         FROM users u
         INNER JOIN user_access_codes uac ON uac.user_id = u.id
         WHERE u.is_active = TRUE
           AND (uac.code_prefix = %s OR uac.code_prefix IS NULL)
+        ORDER BY (uac.code_prefix IS NULL)
         """,
         (prefix,),
     ).fetchall()
@@ -102,6 +104,8 @@ def authenticate_by_code(conn, plain_code: str) -> Optional[User]:
     for row in rows:
         stored_hash = row[7]
         if verify_code(plain_code, stored_hash):
+            if row[9] != prefix:
+                conn.execute("UPDATE user_access_codes SET code_prefix = %s WHERE user_id = %s", (prefix, row[0]))
             from .user_store import User as U
             user = U(
                 id=row[0],

@@ -150,57 +150,29 @@ def test_hash_salt_makes_two_hashes_unique():
     assert h1 != h2, "Salt muss sicherstellen dass zwei Hashes desselben Codes verschieden sind"
 
 
-# ── get_code_prefix() tests ───────────────────────────────────────────────────
+# ── get_code_prefix() tests: lookup tag, never plaintext ──────────────────────
 
-def test_get_code_prefix_returns_first_8_chars_uppercased():
-    """get_code_prefix('ABCDEFGH1234') → 'ABCDEFGH' (erste 8 Zeichen)."""
-    result = get_code_prefix("ABCDEFGH1234")
-    assert result == "ABCDEFGH"
-    assert len(result) == PREFIX_LENGTH
+def test_lookup_tag_contains_no_part_of_the_code():
+    """Früher lagen die ersten 8 Zeichen im Klartext in der DB – jetzt nur ein Hash-Tag."""
+    import hashlib
+    for code in ("ABCDEFGH1234", "Sommer2026", "abcdefgh"):
+        tag = get_code_prefix(code)
+        assert tag == "h" + hashlib.sha256(code.encode()).hexdigest()[:4]
+        assert code[:PREFIX_LENGTH].upper() not in tag.upper()
 
 
-def test_get_code_prefix_uppercase_short_code():
-    """get_code_prefix('abc') → 'ABC' (uppercased, kürzer als 8 Zeichen)."""
-    result = get_code_prefix("abc")
-    assert result == "ABC"
-    assert len(result) == 3
+def test_lookup_tag_is_stable():
+    assert get_code_prefix("Sommer2026") == get_code_prefix("Sommer2026")
+
+
+def test_lookup_tag_fits_the_column():
+    """user_access_codes.code_prefix ist VARCHAR(8)."""
+    assert len(get_code_prefix(generate_code())) <= 8
 
 
 def test_get_code_prefix_empty_string_returns_empty():
-    """get_code_prefix('') → '' (leerer String)."""
-    result = get_code_prefix("")
-    assert result == ""
+    assert get_code_prefix("") == ""
 
 
 def test_get_code_prefix_none_returns_empty():
-    """get_code_prefix(None) → '' (kein Absturz)."""
-    result = get_code_prefix(None)
-    assert result == ""
-
-
-def test_get_code_prefix_exactly_8_chars():
-    """get_code_prefix mit genau 8 Zeichen → alle 8 Zeichen."""
-    result = get_code_prefix("ABCDEFGH")
-    assert result == "ABCDEFGH"
-    assert len(result) == 8
-
-
-def test_get_code_prefix_longer_than_8_truncated():
-    """get_code_prefix mit mehr als 8 Zeichen → nur erste 8 Zeichen."""
-    result = get_code_prefix("ABCDEFGHIJKLMNOP")
-    assert result == "ABCDEFGH"
-    assert len(result) == PREFIX_LENGTH
-
-
-def test_get_code_prefix_lowercase_becomes_uppercase():
-    """get_code_prefix konvertiert Kleinbuchstaben zu Großbuchstaben."""
-    result = get_code_prefix("abcdefghXYZ")
-    assert result == "ABCDEFGH"
-
-
-def test_get_code_prefix_generated_code_returns_8_char_prefix():
-    """get_code_prefix auf generate_code() → PREFIX_LENGTH Zeichen zurück."""
-    code = generate_code()
-    prefix = get_code_prefix(code)
-    assert len(prefix) == PREFIX_LENGTH
-    assert prefix == code[:PREFIX_LENGTH].upper()
+    assert get_code_prefix(None) == ""

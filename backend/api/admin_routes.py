@@ -507,7 +507,8 @@ def get_settings():
     try:
         with db_connection() as conn:
             settings = get_all_system_settings(conn)
-        return success({"settings": settings})
+        from backend.crypto import is_encryption_enabled
+        return success({"settings": settings, "security": {"encryption": is_encryption_enabled()}})
     except Exception as exc:
         return error(f"Fehler beim Laden der Einstellungen: {type(exc).__name__}: {exc}", 500)
 

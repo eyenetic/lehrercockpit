@@ -20,6 +20,15 @@ var LehrerDocuments = (function () {
   var _getVisiblePanelItems = null;
   var _setExpandableMeta = null;
 
+  // External text (plans, feeds, file names) is always escaped before it becomes HTML.
+  function _h(value) {
+    return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function _safeUrl(url) {
+    return /^https?:\/\//i.test(String(url || '')) ? String(url) : '#';
+  }
+
   function init(state, elements, callbacks) {
     _state = state;
     _elements = elements;
@@ -60,14 +69,14 @@ var LehrerDocuments = (function () {
           return '<article class="document-item">'
             + '<div class="document-top">'
             + '<div>'
-            + '<strong>' + entry.title + '</strong>'
-            + '<p class="message-snippet">' + entry.source + ' - Stand ' + entry.updatedAt + '</p>'
+            + '<strong>' + _h(entry.title) + '</strong>'
+            + '<p class="message-snippet">' + _h(entry.source) + ' - Stand ' + _h(entry.updatedAt) + '</p>'
             + '</div>'
             + '<span class="meta-tag ' + (isChanged ? 'warning' : 'low') + '">' + (isChanged ? 'neu' : 'bereit') + '</span>'
             + '</div>'
-            + '<p class="document-summary">' + entry.summary + '</p>'
+            + '<p class="document-summary">' + _h(entry.summary) + '</p>'
             + '<div class="meta-row">'
-            + (entry.tags || []).map(function (tag) { return '<span class="meta-tag">' + tag + '</span>'; }).join('')
+            + (entry.tags || []).map(function (tag) { return '<span class="meta-tag">' + _h(tag) + '</span>'; }).join('')
             + '</div>'
             + '</article>';
         }).join('')
