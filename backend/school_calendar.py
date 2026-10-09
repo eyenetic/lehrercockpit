@@ -38,7 +38,7 @@ def feed_url(conn) -> str:
 def _entries(url: str, *, force: bool = False) -> list:
     with _cache_lock:
         hit = _cache.get(url)
-    if hit and not force and time.monotonic() - hit[0] < CACHE_SECONDS:
+    if hit and time.monotonic() - hit[0] < (20 if force else CACHE_SECONDS):
         return hit[1]
     entries = parse_calendar(fetch_calendar_text(require_public_https_url(url)))
     with _cache_lock:

@@ -26,7 +26,7 @@
   // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const DASHBOARD_CACHE_KEY = "lc.dashboardCache";
-  // Official direct mailbox link (Schulportal SSO); mail clients are not permitted in Berlin.
+  // Official direct mailbox link (login via the Schulportal).
   const DIENSTMAIL_DEFAULT_URL = "https://lehrkraeftemail.schule.berlin.de/?iam_sso=1";
   const DASHBOARD_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // shown at once, then refreshed
   const AUTO_REFRESH_MS = 180000;
@@ -80,7 +80,6 @@
     briefingButton: document.querySelector("#briefing-button"),
     briefingOutput: document.querySelector("#briefing-output"),
     todayInboxPreview: document.querySelector("#today-inbox-preview"),
-    todayDocumentsPreview: document.querySelector("#today-documents-preview"),
     heroNote: document.querySelector("#hero-note"),
     runtimeBanner: document.querySelector("#runtime-banner"),
     settingsButton: document.querySelector("#settings-button"),
@@ -282,7 +281,7 @@
     if (window.MULTIUSER_ENABLED && window.LehrerAPI) {
       // Multi-user: the v2 API is the only source. Never fall back to the local
       // v1 endpoints or the mock data – that would show another school's plan.
-      const resp = await window.LehrerAPI.getDashboardData();
+      const resp = await window.LehrerAPI.getDashboardData(forceRefresh);
       if (resp.status === 401) {
         window.location.href = './login.html';
         throw new Error("Nicht angemeldet.");
@@ -752,7 +751,6 @@
     links: "Links",
     grades: "Notenrechner",
     classlist: "Klassen",
-    collections: "Einsammlungen",
   };
 
   function renderPageHead() {
@@ -810,6 +808,11 @@
     renderPageHead();
     // The week grid sizes itself to the visible screen: draw it once it is shown.
     if (active === "schedule" && lastFocusedSection !== "schedule") renderWebUntisSchedule();
+    // Posteingang: „neu“ stays visible during a visit and counts as seen afterwards.
+    if (window.LehrerInbox && active !== lastFocusedSection) {
+      if (active === "inbox") window.LehrerInbox.beginVisit();
+      else if (lastFocusedSection === "inbox") { window.LehrerInbox.endVisit(); renderNavSignals(); renderToday(); }
+    }
     lastFocusedSection = active;
   }
 
@@ -871,15 +874,14 @@
   //   school     Was ist heute an der Schule los?    (Orgaplan, Schultermine)
   //   classwork  Welche Arbeiten stehen an?          (Klassenarbeitsplan, meine Klassen)
   //   inbox      Was ist neu für mich?               (itslearning, Nextcloud)
-  //   upcoming   Was kommt in den nächsten Tagen?    (Orgaplan, Schultermine)
-  // "Neu & geändert" (signals.js) and the KI tile (ai.js) render themselves.
+  // New or changed entries carry a „neu“ mark right where they appear (newMarkHtml);
+  // further days live under „Pläne“. The KI tile (ai.js) renders itself.
 
   const TODAY_TILE_MODULES = {
     schedule: ["webuntis"],
     school: ["orgaplan", "wichtige-termine"],
     classwork: ["klassenarbeitsplan"],
     inbox: ["itslearning", "mail"],
-    upcoming: ["orgaplan", "wichtige-termine"],
     access: ["zugaenge"],
   };
 
@@ -915,13 +917,93 @@
       <li class="tile-row${row.cls ? ` ${row.cls}` : ""}">
         ${row.when !== undefined ? `<span class="tile-when">${escapeHtml(row.when)}</span>` : ""}
         <span class="tile-main">
-          <span class="tile-title">${row.titleHtml || escapeHtml(row.title)}</span>
+          <span class="tile-title">${row.titleHtml || escapeHtml(row.title)}${row.markHtml || ""}</span>
           ${row.sub ? `<span class="tile-sub">${escapeHtml(row.sub)}</span>` : ""}
         </span>
         ${row.tag ? `<span class="tile-tag${row.tagCls ? ` ${row.tagCls}` : ""}">${escapeHtml(row.tag)}</span>` : ""}
       </li>`).join("")}</ul>`
       + (moreCount > 0 ? `<button class="tile-more" type="button" ${moreTarget}>+ ${moreCount} weitere</button>` : "");
   }
+
+  // ── „neu“ / „geändert“ am Eintrag ──────────────────────────────────────────
+  // The server keeps per-teacher state for every entry (backend/signal_store.py).
+  // A mark is shown where the entry appears (Heute, Pläne); once shown it counts
+  // as seen on the server but stays visible on this device for a day.
+  const NEW_SHOWN_KEY = "lc.newShown";
+  const NEW_SHOWN_MS = 24 * 60 * 60 * 1000;
+  const newMarks = { index: null, signalsRef: null, pending: {}, timer: null };
+
+  function normText(value) {
+    return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+  }
+
+  function loadShownMarks() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(NEW_SHOWN_KEY) || "{}");
+      return raw && typeof raw === "object" ? raw : {};
+    } catch (_e) { return {}; }
+  }
+
+  function newMarkKeys(item) {
+    if (item.source === "orgaplan") return [`orgaplan|${item.date}`];
+    return [`${item.source}|${item.date}|${normText(item.title)}`];
+  }
+
+  function newMarkIndex() {
+    const signals = getData().signals;
+    if (newMarks.index && newMarks.signalsRef === signals) return newMarks.index;
+    const shown = loadShownMarks();
+    const now = Date.now();
+    const index = {};
+    ((signals && signals.items) || []).forEach((item) => {
+      const state = item.state || {};
+      const fresh = (state.new || state.changed) && state.status === "open";
+      const earlier = shown[item.id] && now - shown[item.id].t < NEW_SHOWN_MS ? shown[item.id] : null;
+      if (!fresh && !earlier) return;
+      const mark = { id: item.id, label: fresh ? (state.changed ? "geändert" : "neu") : earlier.l, fresh };
+      newMarkKeys(item).forEach((key) => { index[key] = mark; });
+    });
+    newMarks.index = index;
+    newMarks.signalsRef = signals;
+    return index;
+  }
+
+  // HTML for the mark of an entry, or "" (source: orgaplan | termine | klassenarbeitsplan).
+  function newMarkHtml(source, date, title) {
+    const day = String(date || "").slice(0, 10);
+    const index = newMarkIndex();
+    const mark = source === "orgaplan" ? index[`orgaplan|${day}`] : index[`${source}|${day}|${normText(title)}`];
+    if (!mark) return "";
+    if (mark.fresh) noteMarkShown(mark);
+    return `<span class="new-mark">${escapeHtml(mark.label)}</span>`;
+  }
+
+  function noteMarkShown(mark) {
+    if (document.visibilityState !== "visible") return;
+    newMarks.pending[mark.id] = mark.label;
+    clearTimeout(newMarks.timer);
+    newMarks.timer = setTimeout(flushShownMarks, 2000);
+  }
+
+  function flushShownMarks() {
+    const ids = Object.keys(newMarks.pending);
+    if (!ids.length) return;
+    const shown = loadShownMarks();
+    const now = Date.now();
+    Object.keys(shown).forEach((id) => { if (now - shown[id].t >= NEW_SHOWN_MS) delete shown[id]; });
+    ids.forEach((id) => { if (!shown[id]) shown[id] = { t: now, l: newMarks.pending[id] }; });
+    newMarks.pending = {};
+    try { localStorage.setItem(NEW_SHOWN_KEY, JSON.stringify(shown)); } catch (_e) { /* private mode */ }
+    if (!window.MULTIUSER_ENABLED) return;
+    fetch(`${window.BACKEND_API_URL || ""}/api/v2/signals/seen`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }).catch(() => { /* shown again next time */ });
+  }
+
+  window.LehrerNewMarks = { html: newMarkHtml };
 
   function orgaplanLevel() {
     try { return localStorage.getItem("lc.orgaplanLevel") || "all"; } catch (_e) { return "all"; }
@@ -941,7 +1023,7 @@
 
   function renderToday() {
     const data = getData();
-    const bodies = ["briefing-output", "today-school-body", "today-classwork-body", "today-inbox-preview", "today-documents-preview"];
+    const bodies = ["briefing-output", "today-school-body", "today-classwork-body", "today-inbox-preview"];
     if (!isLayoutReady()) {
       bodies.forEach((id) => {
         const el = document.getElementById(id);
@@ -953,7 +1035,6 @@
     renderSchoolTile(data);
     renderClassworkTile(data);
     renderInboxTile(data);
-    renderUpcomingTile(data);
   }
 
   // Problems with personal calendar links (wrong link, needs login, gone …),
@@ -1010,7 +1091,10 @@
     const items = [];
     if (isModuleVisible("orgaplan")) {
       (data.planDigest?.orgaplan?.today_entries || []).forEach((entry) => {
-        orgaplanParts(entry).forEach((part) => items.push({ tag: part.tag, tagCls: `tile-tag-${part.kind}`, title: part.text }));
+        const mark = newMarkHtml("orgaplan", entry.isoDate || localIso(new Date()));
+        orgaplanParts(entry).forEach((part, i) => items.push({
+          tag: part.tag, tagCls: `tile-tag-${part.kind}`, title: part.text, markHtml: i === 0 ? mark : "",
+        }));
       });
     }
     (data.schoolCalendar?.today_events || []).forEach((event) => {
@@ -1019,6 +1103,7 @@
         tag: "Termin",
         tagCls: "tile-tag-event",
         title: event.title,
+        markHtml: newMarkHtml("termine", event.start, event.title),
         sub: [event.time_label ? `${event.time_label} Uhr` : "", multiDay ? `bis ${dayLabel(event.end)}` : ""].filter(Boolean).join(" · "),
       });
     });
@@ -1063,6 +1148,7 @@
     body.innerHTML = tileList(entries.slice(0, 5).map((entry) => ({
       when: dayLabel(entry.isoDate),
       title: `${entry.classLabel} · ${entry.summary || entry.title}`,
+      markHtml: newMarkHtml("klassenarbeitsplan", entry.isoDate, `${entry.classLabel}: ${entry.summary || entry.title}`),
       cls: entry.isoDate === todayIso ? "is-today" : "",
     })), entries.length - 5, 'data-briefing-target="documents" data-plans-tab="klassenarbeitsplan"');
   }
@@ -1088,8 +1174,15 @@
       .filter((event) => event.kind === "todo" && String(event.start).slice(0, 10) <= soon)
       .slice(0, 2)
       .forEach((event) => rows.push({ when: dayLabel(event.start), title: event.title, tag: "Abgabe", tagCls: "tile-tag-warn" }));
-    const messages = getRelevantInboxMessages(data).filter((message) => message.unread);
-    messages.slice(0, 3).forEach((message) => rows.push({ title: message.title, sub: message.sender, tag: "itslearning" }));
+    const isNew = (message) => (window.LehrerInbox ? window.LehrerInbox.isNewMessage(message) : message.unread);
+    const messages = getRelevantInboxMessages(data).filter(isNew)
+      .sort((left, right) => String(right.sortKey || "").localeCompare(String(left.sortKey || "")));
+    messages.slice(0, 3).forEach((message) => rows.push({
+      title: message.title,
+      titleHtml: message.url ? `<a href="${escapeHtml(message.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(message.title)}</a>` : "",
+      sub: message.sender,
+      tag: "itslearning",
+    }));
     if (rows.length < 4) {
       ((data.itslearningCalendar || {}).events || [])
         .filter((event) => event.kind !== "todo" && String(event.start).slice(0, 10) <= addDaysIso(7))
@@ -1101,51 +1194,6 @@
     body.innerHTML = rows.length
       ? tileList(rows.slice(0, 4), 0, "")
       : tileEmpty("Nichts Neues.");
-  }
-
-  function renderUpcomingTile(data) {
-    const body = elements.todayDocumentsPreview;
-    if (!body) return;
-    const tomorrow = addDaysIso(1);
-    const horizon = addDaysIso(10);
-    const rows = [];
-    if (isModuleVisible("orgaplan")) {
-      (data.planDigest?.orgaplan?.upcoming || [])
-        .filter((entry) => entry.isoDate >= tomorrow && entry.isoDate <= horizon)
-        .forEach((entry) => {
-          const parts = orgaplanParts(entry);
-          if (!parts.length) return;
-          rows.push({ iso: entry.isoDate, title: parts.map((part) => part.text).join(" · "), tag: parts.length === 1 && parts[0].kind !== "general" ? parts[0].tag : "" });
-        });
-    }
-    (data.schoolCalendar?.events || [])
-      .filter((event) => event.start && event.start.slice(0, 10) >= tomorrow && event.start.slice(0, 10) <= horizon)
-      .forEach((event) => rows.push({ iso: event.start.slice(0, 10), title: event.title, sub: event.time_label ? `${event.time_label} Uhr` : "", tag: "Termin", tagCls: "tile-tag-event" }));
-    rows.sort((left, right) => left.iso.localeCompare(right.iso));
-    // Multi-day items (class trips …) appear on every day of the plan: show them once with "bis …".
-    const merged = [];
-    const byTitle = new Map();
-    rows.forEach((row) => {
-      const key = `${row.tag}|${row.title}`;
-      const first = byTitle.get(key);
-      if (first) {
-        first.until = row.iso;
-        return;
-      }
-      byTitle.set(key, row);
-      merged.push(row);
-    });
-    if (!merged.length) {
-      body.innerHTML = tileEmpty("In den nächsten Tagen steht nichts Besonderes an.");
-      return;
-    }
-    let previous = "";
-    body.innerHTML = tileList(merged.slice(0, 6).map((row) => {
-      const when = row.iso === previous ? "" : dayLabel(row.iso);
-      previous = row.iso;
-      const until = row.until ? `bis ${dayLabel(row.until)}` : "";
-      return { ...row, when, title: truncateText(row.title, 140), sub: [row.sub, until].filter(Boolean).join(" · ") };
-    }), merged.length - 6, 'data-briefing-target="documents" data-plans-tab="orgaplan"');
   }
 
   // Sources that need someone to act (outdated plan, broken link …): shown on top
@@ -1401,7 +1449,7 @@
     return "";
   }
 
-  const TODAY_LAYOUT_IDS = ["schedule", "school", "classwork", "inbox", "upcoming", "signals", "ai", "access"];
+  const TODAY_LAYOUT_IDS = ["schedule", "school", "classwork", "inbox", "ai", "access"];
 
   function getDefaultTodayLayout() {
     return {
@@ -1431,7 +1479,7 @@
   const todayWideQuery = window.matchMedia("(min-width: 1024px)");
 
   // Tiles go into two columns on wide screens (main: schedule, inbox …; side:
-  // school, classwork, upcoming) and into one column in layout order otherwise.
+  // school, classwork) and into one column in layout order otherwise.
   function renderTodayModuleLayout() {
     const root = elements.todayOverviewGrid;
     if (!root) return;
@@ -1556,7 +1604,7 @@
   }
 
   function renderMailSetupEntry() {
-    // Berliner Dienstmail hat kein IMAP — kein lokaler Agent mehr.
+    // Dienstmail: im Cockpit nur als Link (Anmeldung über das Schulportal).
     // Schulportal-Link wird direkt in renderInboxLinks gesetzt.
     if (elements.dienstmailSetupStatus) {
       elements.dienstmailSetupStatus.textContent = "Dienstmail ist über das Schulportal erreichbar.";
@@ -1810,9 +1858,12 @@
     // data-plans-tab selects the tab inside "Pläne".
     const briefingRoot = elements.todayOverviewGrid || elements.briefingOutput;
     briefingRoot.addEventListener("click", (event) => {
-      if (event.target.closest("a, button, input, select, textarea")) return;
       const target = event.target.closest("[data-briefing-target]");
       if (!target) return;
+      // Other controls inside a card keep their own job; the tile links
+      // ("Woche", "Orgaplan", "+ 3 weitere" …) are buttons themselves.
+      const control = event.target.closest("a, button, input, select, textarea");
+      if (control && control !== target) return;
       const sectionId = target.dataset.briefingTarget;
       if (!sectionId || !isSectionEnabled(sectionId)) return;
       // Tap feedback: brief visual acknowledgment before/during scroll
@@ -2280,8 +2331,6 @@
       school: "Heute an der Schule",
       classwork: "Klassenarbeiten",
       inbox: "Posteingang",
-      upcoming: "Demnächst",
-      signals: "Neu & geändert",
       ai: "KI-Zusammenfassung",
       access: "Zugänge (Schnellzugriff)",
     };
@@ -2493,8 +2542,34 @@
 
   function initMailSetup() {
     // Mail-Agent-Setup entfernt: lokaler Agent zu komplex für Lehrkräfte,
-    // Berliner Dienstmail hat kein IMAP. Nur Link zum Schulportal.
+    // Dienstmail: im Cockpit nur als Link (Anmeldung über das Schulportal).
     renderMailSetupEntry();
+  }
+
+  // „Klassen“: Klassenlisten and Einsammlungen as two tabs of one section.
+  // Both keep their own storage (lehrerCockpit.classLists / .collections).
+  const CLASS_TAB_KEY = "lc.classTab";
+
+  function showClassTab(tab) {
+    document.querySelectorAll(".class-tab-btn").forEach((btn) => {
+      const active = btn.dataset.classTab === tab;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+      const panel = document.getElementById(btn.getAttribute("aria-controls"));
+      if (panel) panel.hidden = !active;
+    });
+    if (tab === "collections" && window.LehrerCollections) window.LehrerCollections.render();
+    if (tab === "list" && window.LehrerClasslist) window.LehrerClasslist.render();
+    try { localStorage.setItem(CLASS_TAB_KEY, tab); } catch (_e) { /* private mode */ }
+  }
+
+  function initClassTabs() {
+    document.querySelectorAll(".class-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => showClassTab(btn.dataset.classTab));
+    });
+    let saved = "list";
+    try { saved = localStorage.getItem(CLASS_TAB_KEY) === "collections" ? "collections" : "list"; } catch (_e) { /* private mode */ }
+    showClassTab(saved);
   }
 
   function initPlansTabs() {
@@ -2636,6 +2711,7 @@
     }
 
     initPlansTabs();
+    initClassTabs();
     const afterRefresh = () => {
       if (!window.MULTIUSER_ENABLED) loadClassworkCache();  // local single-user mode only
       loadGradebook();
@@ -2815,7 +2891,8 @@
 
   function renderNavSignals() {
     const data = getData();
-    const unreadCount = (data.messages || []).filter((message) => message.unread).length;
+    const isNew = (message) => (window.LehrerInbox ? window.LehrerInbox.isNewMessage(message) : message.unread);
+    const unreadCount = (data.messages || []).filter(isNew).length;
     elements.navLinks.forEach((button) => {
       const target = button.dataset.sectionTarget || "";
       let count = button.querySelector(".nav-count");

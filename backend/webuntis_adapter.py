@@ -14,6 +14,7 @@ from .http_utils import tls_context
 # falls back to the last good copy for a few hours.
 _FRESH_SECONDS = 180
 _STALE_SECONDS = 6 * 3600
+_FORCE_MIN_SECONDS = 20  # "Aktualisieren" refetches, but not more often than this
 _cache_lock = threading.Lock()
 _ical_cache: dict[str, tuple[float, str]] = {}
 
@@ -41,7 +42,7 @@ class WebUntisSyncResult:
     note: str
 
 
-def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntisSyncResult:
+def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime, *, force: bool = False) -> WebUntisSyncResult:
     # Normalise to naive local time so comparisons with floating iCal datetimes
     # (which have no tzinfo) don't raise TypeError.  If now is UTC-aware we
     # convert to Europe/Berlin first so the clock reads correctly.
@@ -92,7 +93,7 @@ def fetch_webuntis_sync(base_url: str, ical_url: str, now: datetime) -> WebUntis
         )
 
     try:
-        calendar_text = _cached_ical(ical_url)
+        calendar_text = _cached_ical(ical_url, force=force)
         events = _parse_events(calendar_text, now)
         visible_events = _visible_events(events, now)
         schedule = [_to_schedule_item(event, now) for event in visible_events]
@@ -150,10 +151,10 @@ def _problem_text(exc: Exception) -> str:
     return f"WebUntis konnte nicht geladen werden ({type(exc).__name__})."
 
 
-def _cached_ical(url: str) -> str:
+def _cached_ical(url: str, *, force: bool = False) -> str:
     with _cache_lock:
         hit = _ical_cache.get(url)
-    if hit and time.monotonic() - hit[0] < _FRESH_SECONDS:
+    if hit and time.monotonic() - hit[0] < (_FORCE_MIN_SECONDS if force else _FRESH_SECONDS):
         return hit[1]
     try:
         text = _download_ical(url)

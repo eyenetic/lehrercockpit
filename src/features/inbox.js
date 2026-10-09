@@ -66,14 +66,48 @@ var LehrerInbox = (function () {
     return (lParts[0] * 60 + (lParts[1] || 0)) - (rParts[0] * 60 + (rParts[1] || 0));
   }
 
+  // Newest first. sortKey is "YYYY-MM-DDTHH:MM" (backend/itslearning_adapter.py);
+  // messages without a readable date go last.
   function compareMessages(left, right) {
     var leftKey = left && left.sortKey ? String(left.sortKey) : '';
     var rightKey = right && right.sortKey ? String(right.sortKey) : '';
-    if (leftKey && rightKey && leftKey !== rightKey) {
+    if (leftKey !== rightKey) {
+      if (!leftKey) return 1;
+      if (!rightKey) return -1;
       return rightKey.localeCompare(leftKey);
     }
     return compareMessageTime(right && right.timestamp, left && left.timestamp);
   }
+
+  // ── „neu“ = newer than the teacher's last visit to the Posteingang ─────────
+  // itslearning does not tell the cockpit what was read there; this is honest
+  // about what the cockpit knows. Stored per device.
+  var SEEN_KEY = 'lc.inboxSeenAt';
+  var _visitSeenAt = null; // value during an open visit, so marks stay while reading
+
+  function _localIso(date) {
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+  }
+
+  function _storedSeenAt() {
+    var value = '';
+    try { value = localStorage.getItem(SEEN_KEY) || ''; } catch (e) { /* private mode */ }
+    return value || _localIso(new Date(Date.now() - 24 * 60 * 60 * 1000)); // first time: the last day
+  }
+
+  function isNewMessage(message) {
+    var since = _visitSeenAt || _storedSeenAt();
+    return Boolean(message && message.sortKey && String(message.sortKey) > since);
+  }
+
+  function beginVisit() {
+    if (_visitSeenAt) return;
+    _visitSeenAt = _storedSeenAt();
+    try { localStorage.setItem(SEEN_KEY, _localIso(new Date())); } catch (e) { /* private mode */ }
+  }
+
+  function endVisit() { _visitSeenAt = null; }
 
   function statusLabel(status) {
     return ({ ok: 'bereit', warning: 'vorbereitet', error: 'blockiert' }[status] || status);
@@ -275,7 +309,7 @@ var LehrerInbox = (function () {
    * @returns {string} briefing text, or "" if no unread messages
    */
   function pickInboxBriefing(data) {
-    var unread = (data.messages || []).filter(function (message) { return message.unread; });
+    var unread = (data.messages || []).filter(isNewMessage);
     if (!unread.length) return '';
     var mailMessages = unread.filter(function (message) { return message.channel === 'mail'; });
     if (mailMessages.length) {
@@ -304,19 +338,17 @@ var LehrerInbox = (function () {
     container.classList.add('is-expanded');
     container.innerHTML = messages.length
       ? messages.map(function (message) {
-          return '<article class="message-item">'
+          var title = message.url
+            ? '<a href="' + esc(message.url) + '" target="_blank" rel="noopener noreferrer">' + esc(message.title) + ' ↗</a>'
+            : esc(message.title);
+          return '<article class="message-item' + (isNewMessage(message) ? ' is-new' : '') + '">'
             + '<div class="message-top">'
             + '<div>'
-            + '<strong>' + esc(message.title) + '</strong>'
-            + '<p class="message-snippet">' + esc(message.sender) + ' - ' + esc(message.timestamp) + '</p>'
+            + '<strong>' + title + (isNewMessage(message) ? '<span class="new-mark">neu</span>' : '') + '</strong>'
+            + '<p class="message-snippet">' + esc(message.sender) + ' · ' + esc(message.timestamp) + '</p>'
             + '</div>'
-            + '<span class="meta-tag ' + messagePriorityClass(message.priority) + '">' + (message.unread ? 'neu' : 'gesehen') + '</span>'
             + '</div>'
             + '<p class="message-snippet">' + esc(message.snippet) + '</p>'
-            + '<div class="meta-row">'
-            + '<span class="meta-tag">itslearning</span>'
-            + '<span class="meta-tag">' + priorityLabel(message.priority) + '</span>'
-            + '</div>'
             + '</article>';
         }).join('')
       : (_getData && _getData().itslearningMode === 'calendar'
@@ -330,8 +362,8 @@ var LehrerInbox = (function () {
    */
   function renderBadges(messages) {
     var allMessages = messages || (_getRelevantInboxMessages ? _getRelevantInboxMessages() : []);
-    var mailUnread = allMessages.filter(function (m) { return m.channel === 'mail' && m.unread; }).length;
-    var itslUnread = allMessages.filter(function (m) { return m.channel === 'itslearning' && m.unread; }).length;
+    var mailUnread = allMessages.filter(function (m) { return m.channel === 'mail' && isNewMessage(m); }).length;
+    var itslUnread = allMessages.filter(function (m) { return m.channel === 'itslearning' && isNewMessage(m); }).length;
 
     var mailBadge = document.getElementById('inbox-badge-mail');
     var itslBadge = document.getElementById('inbox-badge-itslearning');
@@ -394,6 +426,9 @@ var LehrerInbox = (function () {
     renderBadges: renderBadges,
     renderItslearningTab: renderItslearningTab,
     renderItslearningCalendar: renderItslearningCalendar,
+    isNewMessage: isNewMessage,
+    beginVisit: beginVisit,
+    endVisit: endVisit,
     renderNextcloudFeed: renderNextcloudFeed,
   };
 })();

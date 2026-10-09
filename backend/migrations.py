@@ -507,6 +507,22 @@ def _migrate_invitations_and_feedback(conn) -> None:
             print(f"[migrations] invitations/feedback statement skipped: {exc}", flush=True)
 
 
+def _migrate_reset_unseen_signals(conn) -> None:
+    """Once: entries flagged „neu“ by the old rules (late sources, window drift)
+    count as seen, so the new marks on Heute/Pläne start clean.
+
+    Guarded by a marker in system_settings – runs only on the first start after the update.
+    """
+    inserted = conn.execute(
+        "INSERT INTO system_settings (key, value) VALUES ('migration_signals_seen_reset_2026_10', 'true') "
+        "ON CONFLICT (key) DO NOTHING RETURNING key"
+    ).fetchone()
+    if not inserted:
+        return
+    result = conn.execute("UPDATE user_signal_state SET seen_at = NOW() WHERE seen_at IS NULL")
+    print(f"[migrations] Signale: {result.rowcount} alte Neu-Markierungen als gesehen markiert.", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -517,6 +533,7 @@ def run_all_migrations() -> None:
         _migrate_ai_tables(conn)
         _migrate_school_sources(conn)
         _migrate_invitations_and_feedback(conn)
+        _migrate_reset_unseen_signals(conn)
 
 
 def log_audit_event(

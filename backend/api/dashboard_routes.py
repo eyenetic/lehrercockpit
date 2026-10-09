@@ -649,7 +649,7 @@ def _fetch_base_data() -> dict:
     }
 
 
-def _fetch_wichtige_termine_data(user_id: int) -> dict:
+def _fetch_wichtige_termine_data(user_id: int, force: bool = False) -> dict:
     """School calendar (iCal feed of the school website), system-wide."""
     from backend.school_calendar import build_calendar, default_feed, feed_url
 
@@ -658,10 +658,10 @@ def _fetch_wichtige_termine_data(user_id: int) -> dict:
             url = feed_url(conn)
     except Exception:
         url = default_feed()
-    return build_calendar(url, datetime.now(timezone.utc))
+    return build_calendar(url, datetime.now(timezone.utc), force=force)
 
 
-def _fetch_webuntis_data(user_id: int) -> dict:
+def _fetch_webuntis_data(user_id: int, force: bool = False) -> dict:
     """Fetch WebUntis data for the given user. Returns module result dict."""
     try:
         with db_connection() as conn:
@@ -672,20 +672,20 @@ def _fetch_webuntis_data(user_id: int) -> dict:
             return {"ok": True, "data": None, "configured": False, "error": "WebUntis iCal-Link nicht konfiguriert"}
         from backend.webuntis_adapter import fetch_webuntis_sync
         now = datetime.now(timezone.utc)
-        result = fetch_webuntis_sync(base_url, ical_url, now)
+        result = fetch_webuntis_sync(base_url, ical_url, now, force=force)
         data_dict = dataclasses.asdict(result)
         return {"ok": True, "data": data_dict, "configured": True}
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
-def _fetch_itslearning_data(user_id: int) -> dict:
+def _fetch_itslearning_data(user_id: int, force: bool = False) -> dict:
     """Fetch itslearning data (calendar subscription and/or update feed). Returns module result dict."""
     try:
         with db_connection() as conn:
             config = get_user_module_config(conn, user_id, "itslearning")
         from backend.itslearning_module import build_itslearning_payload
-        return build_itslearning_payload(config, datetime.now(timezone.utc))
+        return build_itslearning_payload(config, datetime.now(timezone.utc), force=force)
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
@@ -741,13 +741,13 @@ def _fetch_klassenarbeitsplan_data() -> dict:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
-def _fetch_nextcloud_data(user_id: int) -> dict:
+def _fetch_nextcloud_data(user_id: int, force: bool = False) -> dict:
     """Recent Nextcloud activity/notifications via the teacher's app password."""
     try:
         with db_connection() as conn:
             config = get_user_module_config(conn, user_id, "nextcloud")
         from backend.nextcloud_module import build_nextcloud_payload
-        return build_nextcloud_payload(config, datetime.now(timezone.utc))
+        return build_nextcloud_payload(config, datetime.now(timezone.utc), force=force)
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
@@ -813,6 +813,8 @@ def get_dashboard_data():
     }
     """
     user_id = g.current_user.id
+    # "Aktualisieren": fetch the personal feeds anew instead of from the short-lived caches.
+    force = request.args.get("refresh") == "1"
 
     # Determine which modules are active/visible for this user
     try:
@@ -830,9 +832,9 @@ def get_dashboard_data():
     # Define which fetchers to run (only for active modules)
     module_fetchers = {}
     if "webuntis" in active_module_ids:
-        module_fetchers["webuntis"] = lambda: _fetch_webuntis_data(user_id)
+        module_fetchers["webuntis"] = lambda: _fetch_webuntis_data(user_id, force)
     if "itslearning" in active_module_ids:
-        module_fetchers["itslearning"] = lambda: _fetch_itslearning_data(user_id)
+        module_fetchers["itslearning"] = lambda: _fetch_itslearning_data(user_id, force)
     if "orgaplan" in active_module_ids:
         module_fetchers["orgaplan"] = _fetch_orgaplan_data
     if "klassenarbeitsplan" in active_module_ids:
@@ -840,9 +842,9 @@ def get_dashboard_data():
     if "noten" in active_module_ids:
         module_fetchers["noten"] = lambda: _fetch_noten_data(user_id)
     if "nextcloud" in active_module_ids:
-        module_fetchers["nextcloud"] = lambda: _fetch_nextcloud_data(user_id)
+        module_fetchers["nextcloud"] = lambda: _fetch_nextcloud_data(user_id, force)
     if "wichtige-termine" in active_module_ids:
-        module_fetchers["wichtige-termine"] = lambda: _fetch_wichtige_termine_data(user_id)
+        module_fetchers["wichtige-termine"] = lambda: _fetch_wichtige_termine_data(user_id, force)
 
     modules_result = {}
     base_result: dict = {}

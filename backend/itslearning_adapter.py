@@ -486,7 +486,7 @@ def _extract_dashboard_updates(html: str, base_url: str, max_updates: int) -> li
         if timestamp_match:
             timestamp = _compact(timestamp_match.group(2))
             unread = "vor " in timestamp.lower() or "heute" in timestamp.lower()
-        sort_key = _compact(timestamp_match.group(1) if timestamp_match else "")
+        sort_key = _sortable_time(_compact(timestamp_match.group(1) if timestamp_match else ""))
 
         link = urljoin(base_url.rstrip("/") + "/", link_match.group(1)) if link_match else base_url
 
@@ -507,6 +507,32 @@ def _extract_dashboard_updates(html: str, base_url: str, max_updates: int) -> li
         )
 
     return messages
+
+
+_MONTHS = {"januar": 1, "februar": 2, "märz": 3, "maerz": 3, "april": 4, "mai": 5, "juni": 6, "juli": 7,
+           "august": 8, "september": 9, "oktober": 10, "november": 11, "dezember": 12}
+
+
+def _sortable_time(raw: str) -> str:
+    """itslearning's full timestamp ("09.10.2026 11:32", "9. Oktober 2026 11:32", ISO) as
+    "YYYY-MM-DDTHH:MM", so messages sort by date; "" if it cannot be read."""
+    text = (raw or "").strip().lower()
+    clock = re.search(r"(\d{1,2}):(\d{2})", text)
+    hh, mm = (int(clock.group(1)), int(clock.group(2))) if clock else (0, 0)
+    iso = re.search(r"(\d{4})-(\d{2})-(\d{2})", text)
+    numeric = re.search(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", text)
+    named = re.search(r"(\d{1,2})\.?\s+([a-zäöü]+)\s+(\d{4})", text)
+    if iso:
+        year, month, day = int(iso.group(1)), int(iso.group(2)), int(iso.group(3))
+    elif numeric:
+        day, month, year = int(numeric.group(1)), int(numeric.group(2)), int(numeric.group(3))
+    elif named and named.group(2) in _MONTHS:
+        day, month, year = int(named.group(1)), _MONTHS[named.group(2)], int(named.group(3))
+    else:
+        return ""
+    if not (1 <= month <= 12 and 1 <= day <= 31 and hh < 24 and mm < 60):
+        return ""
+    return f"{year:04d}-{month:02d}-{day:02d}T{hh:02d}:{mm:02d}"
 
 
 def _extract_bulletin_snippet(shared_attr: str) -> str:

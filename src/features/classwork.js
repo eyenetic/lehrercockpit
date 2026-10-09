@@ -144,6 +144,11 @@ var LehrerClasswork = (function () {
     return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   }
 
+  // „neu“ / „geändert“ from app.js (per-teacher state on the server).
+  function newMark(source, date, title) {
+    return window.LehrerNewMarks ? window.LehrerNewMarks.html(source, date, title) : '';
+  }
+
   // ── Orgaplan ────────────────────────────────────────────────────────────────
 
   function joinOrgaplanSection(primary, notes) {
@@ -205,7 +210,7 @@ var LehrerClasswork = (function () {
     ];
     var actions =
       (orgaplan.sourceUrl ? '<a class="secondary-link" href="' + esc(orgaplan.sourceUrl) + '" target="_blank" rel="noopener noreferrer">PDF öffnen ↗</a>' : '') +
-      '<button class="secondary-link" type="button" data-plan-action="orgaplan-refresh">' + (_busy.orgaplan ? 'Prüfe …' : 'Neu prüfen') + '</button>' +
+      '<button class="secondary-link" type="button" data-plan-action="orgaplan-refresh">' + (_busy.orgaplan ? 'Aktualisiere …' : 'Aktualisieren') + '</button>' +
       (window.MULTIUSER_ENABLED ? '<button class="secondary-link" type="button" data-open-connections="orgaplan">Quelle' + (isAdmin() ? ' ändern' : '') + '</button>' : '');
     var note = '';
     if (status === 'outdated' || status === 'error') note = esc(orgaplan.detail || orgaplan.error || '');
@@ -296,7 +301,7 @@ var LehrerClasswork = (function () {
     return '<div class="og-day' + (day.iso === today ? ' is-today' : '') + '">' +
       '<div class="og-date"><strong>' + WEEKDAYS_SHORT[date.getDay()] + '</strong> ' +
       String(date.getDate()).padStart(2, '0') + '.' + String(date.getMonth() + 1).padStart(2, '0') + '.' +
-      (day.iso === today ? '<span class="og-today">heute</span>' : '') + '</div>' +
+      (day.iso === today ? '<span class="og-today">heute</span>' : '') + newMark('orgaplan', day.iso) + '</div>' +
       '<ul class="og-items">' + day.items.map(function (item) {
         var tag = LEVEL_TAGS[item.level];
         var until = '';
@@ -352,7 +357,7 @@ var LehrerClasswork = (function () {
   function checkOrgaplanNow(button) {
     if (_busy.orgaplan) return;
     _busy.orgaplan = true;
-    if (button) { button.disabled = true; button.textContent = 'Prüfe …'; }
+    if (button) { button.disabled = true; button.textContent = 'Aktualisiere …'; }
     fetch((window.BACKEND_API_URL || '') + '/api/v2/modules/orgaplan/refresh', { method: 'POST', credentials: 'include' })
       .then(function (resp) { return resp.json().catch(function () { return {}; }); })
       .then(function () { return _refreshDashboard ? _refreshDashboard(true) : null; })
@@ -385,7 +390,7 @@ var LehrerClasswork = (function () {
       _classworkSourceLabel(plan.source),
     ];
     var actions =
-      (url ? '<button class="secondary-link" type="button" data-plan-action="classwork-refresh">' + (_busy.classwork ? 'Prüfe …' : 'Jetzt prüfen') + '</button>' : '') +
+      (url ? '<button class="secondary-link" type="button" data-plan-action="classwork-refresh">' + (_busy.classwork ? 'Aktualisiere …' : 'Aktualisieren') + '</button>' : '') +
       (url ? '<a class="secondary-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Auf OneDrive öffnen ↗</a>' : '') +
       (window.MULTIUSER_ENABLED ? '<button class="secondary-link" type="button" data-open-connections="klassenarbeitsplan">' + (isAdmin() ? 'Link ändern' : 'Details') + '</button>' : '');
     var note = '';
@@ -408,7 +413,7 @@ var LehrerClasswork = (function () {
   function checkClassworkNow(button) {
     if (_busy.classwork) return;
     _busy.classwork = true;
-    if (button) { button.disabled = true; button.textContent = 'Prüfe …'; }
+    if (button) { button.disabled = true; button.textContent = 'Aktualisiere …'; }
     var data = _getData() || {};
     var url = (data.base || {}).klassenarbeitsplan_url || '';
     var api = (window.BACKEND_API_URL || '') + '/api/v2/modules/klassenarbeitsplan/fetch';
@@ -498,7 +503,8 @@ var LehrerClasswork = (function () {
             + '<span class="cw-row-date">' + esc(_dayLabel(entry)) + '</span>'
             + '<span class="cw-row-class"><span class="meta-tag">' + esc(entry.classLabel) + '</span></span>'
             + '<span class="cw-row-kind"><span class="meta-tag low">' + esc(entry.kind) + '</span></span>'
-            + '<span class="cw-row-title">' + esc(entry.summary || entry.title) + '</span>'
+            + '<span class="cw-row-title">' + esc(entry.summary || entry.title)
+            + newMark('klassenarbeitsplan', entry.isoDate, entry.classLabel + ': ' + (entry.summary || entry.title)) + '</span>'
             + '</div>';
         }).join('')
       + '</div>';
@@ -514,7 +520,8 @@ var LehrerClasswork = (function () {
     return '<div class="cw-days">' + grouped.map(function (day) {
       return '<section class="cw-day"><h4>' + esc(day.label) + '</h4>' +
         day.items.map(function (entry) {
-          return '<p><span class="meta-tag">' + esc(entry.classLabel) + '</span> ' + esc(entry.summary || entry.title) + '</p>';
+          return '<p><span class="meta-tag">' + esc(entry.classLabel) + '</span> ' + esc(entry.summary || entry.title)
+            + newMark('klassenarbeitsplan', entry.isoDate, entry.classLabel + ': ' + (entry.summary || entry.title)) + '</p>';
         }).join('') + '</section>';
     }).join('') + '</div>';
   }
@@ -599,7 +606,7 @@ var LehrerClasswork = (function () {
       return '<article class="calendar-item' + (running ? ' is-today' : '') + '">'
         + '<div class="calendar-item-when"><strong>' + esc(_eventWhen(event)) + '</strong>'
         + '<span>' + esc(event.all_day ? (running ? 'läuft' : 'ganztägig') : (event.time_label || '')) + '</span></div>'
-        + '<div class="calendar-item-body"><p class="calendar-item-title">' + title + '</p>'
+        + '<div class="calendar-item-body"><p class="calendar-item-title">' + title + newMark('termine', event.start, event.title) + '</p>'
         + (event.location ? '<p class="message-snippet">' + esc(event.location) + '</p>' : '')
         + '</div></article>';
     }).join('');

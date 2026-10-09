@@ -99,3 +99,25 @@ def test_preferences_round_trip(db_conn, user_id):
     assert store.load_prefs(db_conn, user_id) == {}
     store.save_prefs(db_conn, user_id, {"classes": ["10B", "Q1"]})
     assert store.load_prefs(db_conn, user_id) == {"classes": ["10B", "Q1"]}
+
+
+@pytest.mark.db
+def test_a_source_seen_for_the_first_time_starts_silent(db_conn, user_id):
+    store.sync_signals(db_conn, user_id, [_signal("termine:x")], NOW)
+    later = NOW + timedelta(minutes=10)
+    items = store.sync_signals(db_conn, user_id, [_signal("termine:x"), _signal("orgaplan:2026-09-25:a"),
+                                                  _signal("termine:y")], later)
+    assert _state(items, "orgaplan:2026-09-25:a")["new"] is False  # Orgaplan only just loaded
+    assert _state(items, "termine:y")["new"] is True                # really new
+
+
+@pytest.mark.db
+def test_entries_moving_into_the_window_are_not_new(db_conn, user_id):
+    store.sync_signals(db_conn, user_id, [_signal("termine:x")], NOW)
+    next_day = NOW + timedelta(days=1)
+    edge = (next_day + timedelta(days=42)).date().isoformat()   # entered the window today
+    inside = (NOW + timedelta(days=10)).date().isoformat()      # was inside already yesterday
+    items = store.sync_signals(db_conn, user_id, [_signal("termine:x"), _signal("termine:edge", date=edge),
+                                                  _signal("termine:added", date=inside)], next_day)
+    assert _state(items, "termine:edge")["new"] is False
+    assert _state(items, "termine:added")["new"] is True

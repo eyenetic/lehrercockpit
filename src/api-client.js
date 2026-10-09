@@ -77,7 +77,8 @@
     },
 
     // ---- Dashboard composition v2 (Phase 11c) ----
-    getDashboardData: function() { return apiFetch('/api/v2/dashboard/data'); },
+    // refresh: fetch the personal feeds anew ("Aktualisieren") instead of from the server's short caches
+    getDashboardData: function(refresh) { return apiFetch('/api/v2/dashboard/data' + (refresh ? '?refresh=1' : '')); },
 
     // ---- Admin v2 ----
     admin: {

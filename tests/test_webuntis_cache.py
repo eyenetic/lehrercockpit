@@ -43,3 +43,17 @@ def test_non_calendar_is_not_cached():
         with pytest.raises(ValueError):
             wa._cached_ical("https://x.webuntis.com/a")
     assert not wa._ical_cache
+
+
+def test_refresh_fetches_anew_but_not_more_than_every_20_seconds():
+    with patch.object(wa, "_download_ical", return_value=CAL) as download:
+        wa._cached_ical("https://x.webuntis.com/a")
+        wa._cached_ical("https://x.webuntis.com/a", force=True)   # just fetched: served from cache
+        assert download.call_count == 1
+        url = "https://x.webuntis.com/a"
+        stamp, text = wa._ical_cache[url]
+        wa._ical_cache[url] = (stamp - wa._FORCE_MIN_SECONDS - 1, text)
+        wa._cached_ical(url)                                        # normal load: still fresh enough
+        assert download.call_count == 1
+        wa._cached_ical(url, force=True)                            # "Aktualisieren"
+        assert download.call_count == 2

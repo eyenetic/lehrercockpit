@@ -50,8 +50,6 @@
       { id: 'school', label: 'Heute an der Schule', mandatory: false },
       { id: 'classwork', label: 'Klassenarbeiten', mandatory: false },
       { id: 'inbox', label: 'Posteingang', mandatory: false },
-      { id: 'upcoming', label: 'Demnächst', mandatory: false },
-      { id: 'signals', label: 'Neu & geändert', mandatory: false },
       { id: 'ai', label: 'KI-Zusammenfassung', mandatory: false },
       { id: 'access', label: 'Zugänge', mandatory: false }
     ];

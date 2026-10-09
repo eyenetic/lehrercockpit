@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=90" />
+    <link rel="stylesheet" href="./styles.css?v=91" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -108,10 +108,6 @@
           <button class="nav-link" type="button" data-section-target="classlist">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span class="nav-label">Klassen</span>
-          </button>
-          <button class="nav-link" type="button" data-section-target="collections">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
-            <span class="nav-label">Einsammlungen</span>
           </button>
         </nav>
 
@@ -214,23 +210,6 @@
               <button class="tile-link" type="button" data-briefing-target="inbox">Öffnen</button>
             </header>
             <div id="today-inbox-preview" class="tile-body"></div>
-          </article>
-
-          <article class="tile" data-today-module="upcoming" data-col="side" aria-labelledby="tile-upcoming-title">
-            <header class="tile-head">
-              <h2 id="tile-upcoming-title">Demnächst</h2>
-              <button class="tile-link" type="button" data-briefing-target="documents" data-plans-tab="termine">Termine</button>
-            </header>
-            <div id="today-documents-preview" class="tile-body"></div>
-          </article>
-
-          <article class="tile" data-today-module="signals" data-col="main" id="signals-panel" hidden aria-label="Neu und geändert">
-            <header class="tile-head">
-              <h2>Neu &amp; geändert</h2>
-              <button id="signals-mark-all" class="tile-link" type="button" hidden>Alles gelesen</button>
-            </header>
-            <div id="signals-list" class="signals-list tile-body"></div>
-            <p id="signals-hint" class="signals-hint" hidden></p>
           </article>
 
           <article class="tile" data-today-module="ai" data-col="main" id="ai-panel" hidden aria-label="KI-Zusammenfassung">
@@ -396,16 +375,15 @@
           <div id="links-root" class="links-root"></div>
         </section>
 
-        <!-- ── Klassenlisten ──────────────────────────────────────────── -->
+        <!-- ── Klassen: Klassenlisten + Einsammlungen ─────────────────── -->
         <section class="content-grid classlist-grid" data-view-section="classlist">
           <div class="vault-notice" data-vault-notice hidden></div>
-          <div id="classlist-root"></div>
-        </section>
-
-        <!-- ── Einsammlungen ─────────────────────────────────────────── -->
-        <section class="content-grid classlist-grid" data-view-section="collections">
-          <div class="vault-notice" data-vault-notice hidden></div>
-          <div id="collections-root"></div>
+          <div class="plans-tab-bar class-tab-bar" role="tablist" aria-label="Klassen">
+            <button class="class-tab-btn is-active" role="tab" aria-selected="true" aria-controls="classlist-root" data-class-tab="list">Klassenlisten</button>
+            <button class="class-tab-btn" role="tab" aria-selected="false" aria-controls="collections-root" data-class-tab="collections">Einsammlungen</button>
+          </div>
+          <div id="classlist-root" role="tabpanel"></div>
+          <div id="collections-root" role="tabpanel" hidden></div>
         </section>
 
       </main>
@@ -562,28 +540,28 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=90"></script>
-    <script src="./src/features/vault.js?v=90"></script>
-    <script src="./src/api-client.js?v=90"></script>
-    <script src="./src/modules/dashboard-manager.js?v=90"></script>
-    <script src="./src/features/grades.js?v=90"></script>
-    <script src="./src/features/webuntis.js?v=90"></script>
-    <script src="./src/features/itslearning.js?v=90"></script>
-    <script src="./src/features/nextcloud.js?v=90"></script>
-    <script src="./src/features/documents.js?v=90"></script>
-    <script src="./src/features/classwork.js?v=90"></script>
-    <script src="./src/features/classlist.js?v=90"></script>
-    <script src="./src/features/collections.js?v=90"></script>
-    <script src="./src/features/inbox.js?v=90"></script>
-    <script src="./src/features/zugaenge.js?v=90"></script>
-    <script src="./src/features/onedrive-sync.js?v=90"></script>
-    <script src="./src/features/signals.js?v=90"></script>
-    <script src="./src/features/push.js?v=90"></script>
-    <script src="./src/features/ai.js?v=90"></script>
-    <script src="./src/features/links.js?v=90"></script>
-    <script src="./src/features/connections.js?v=90"></script>
-    <script src="./src/features/feedback.js?v=90"></script>
-    <script src="./src/app.js?v=90"></script>
+    <script src="./data/mock-dashboard.js?v=91"></script>
+    <script src="./src/features/vault.js?v=91"></script>
+    <script src="./src/api-client.js?v=91"></script>
+    <script src="./src/modules/dashboard-manager.js?v=91"></script>
+    <script src="./src/features/grades.js?v=91"></script>
+    <script src="./src/features/webuntis.js?v=91"></script>
+    <script src="./src/features/itslearning.js?v=91"></script>
+    <script src="./src/features/nextcloud.js?v=91"></script>
+    <script src="./src/features/documents.js?v=91"></script>
+    <script src="./src/features/classwork.js?v=91"></script>
+    <script src="./src/features/classlist.js?v=91"></script>
+    <script src="./src/features/collections.js?v=91"></script>
+    <script src="./src/features/inbox.js?v=91"></script>
+    <script src="./src/features/zugaenge.js?v=91"></script>
+    <script src="./src/features/onedrive-sync.js?v=91"></script>
+    <script src="./src/features/signals.js?v=91"></script>
+    <script src="./src/features/push.js?v=91"></script>
+    <script src="./src/features/ai.js?v=91"></script>
+    <script src="./src/features/links.js?v=91"></script>
+    <script src="./src/features/connections.js?v=91"></script>
+    <script src="./src/features/feedback.js?v=91"></script>
+    <script src="./src/app.js?v=91"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.

@@ -34,7 +34,10 @@ _CLASS_PATTERN = re.compile(r"\b(?:[5-9][A-Z]?|1[0-3][A-Z]?|Q\d(?:/Q?\d)?)\b", r
 _SEK_ONE = re.compile(r"^(?:[5-9]|1[0-3])[A-Z]$")
 _UPPER = re.compile(r"^(?:Q\d|S\d)")
 
-WINDOW_DAYS = {"entfall": 7, "klassenarbeit": 21, "termin": 14, "frist": 14}
+# How far ahead entries are tracked. Plans are watched six weeks ahead so a new
+# Termin or Klassenarbeit is marked „neu“ when it is added, not only when it
+# moves close (see signal_store.sync_signals for entries that just moved in).
+WINDOW_DAYS = {"entfall": 7, "klassenarbeit": 42, "termin": 42, "frist": 14}
 ACTIVITY_DAYS = 7
 
 

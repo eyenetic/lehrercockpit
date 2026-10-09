@@ -255,6 +255,7 @@ var LehrerClasslist = (function () {
       +   '</div>'
       +   '<div class="classlist-panel-actions">'
       +     '<button class="btn btn-sm btn-secondary" type="button" data-action="import">Liste importieren</button>'
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="print-overview"' + (count ? '' : ' disabled') + ' title="Alle Einsammlungen der Klasse als Tabelle – drucken oder als PDF sichern">Übersicht (PDF)</button>'
       +     '<button class="btn btn-sm btn-secondary" type="button" data-action="export-csv"' + (count ? '' : ' disabled') + '>Als CSV</button>'
       +     '<button class="btn btn-sm btn-ghost classlist-delete-class" type="button" data-action="delete-class">Klasse löschen</button>'
       +   '</div>'
@@ -564,12 +565,59 @@ var LehrerClasslist = (function () {
       if (act === 'add-class') { _showAddClassDialog(); return; }
       if (act === 'import') { _showImportModal(_activeClass); return; }
       if (act === 'export-csv') { _exportCSV(_activeClass); return; }
+      if (act === 'print-overview') { _printOverview(_activeClass); return; }
       if (act === 'delete-class') { _deleteClass(_activeClass); return; }
 
       var row = action.closest('[data-student-id]');
       if (act === 'edit-student' && row) { _showEditStudentDialog(_activeClass, row.dataset.studentId); return; }
       if (act === 'delete-student' && row) { _deleteStudent(_activeClass, row.dataset.studentId); return; }
     });
+  }
+
+  // ── Printable overview: students × collections ───────────────────────────
+  // Built in a new window and printed there ("Als PDF sichern" in the print
+  // dialog). Names never leave the device.
+  function _printOverview(classId) {
+    var students = _sortedStudents(classId);
+    var collections = window.LehrerCollections && window.LehrerCollections.forClass
+      ? window.LehrerCollections.forClass(classId) : [];
+    var win = window.open('', '_blank');
+    if (!win) { alert('Bitte Pop-ups für das Cockpit erlauben, um die Übersicht zu öffnen.'); return; }
+    var today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    var dateLabel = function (iso) {
+      return iso ? new Date(iso + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '';
+    };
+    var check = function (col, student) {
+      var c = col.checks && col.checks[classId + '|' + student.id];
+      if (!c) return '';
+      return (c.done ? '✓' : '') + (c.note ? '<small>' + _esc(c.note) + '</small>' : '');
+    };
+    var head = '<tr><th class="name">Name</th>' + collections.map(function (col) {
+      return '<th>' + _esc(col.title) + (col.dueDate ? '<small>bis ' + _esc(dateLabel(col.dueDate)) + '</small>' : '') + '</th>';
+    }).join('') + '</tr>';
+    var body = students.map(function (s, i) {
+      return '<tr><td class="name">' + (i + 1) + '. ' + _esc(s.lastName) + (s.firstName ? ', ' + _esc(s.firstName) : '') + '</td>'
+        + collections.map(function (col) { return '<td>' + check(col, s) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    var foot = '<tr><td class="name">Erledigt</td>' + collections.map(function (col) {
+      var done = students.filter(function (s) { var c = col.checks && col.checks[classId + '|' + s.id]; return c && c.done; }).length;
+      return '<td>' + done + ' / ' + students.length + '</td>';
+    }).join('') + '</tr>';
+    var table = collections.length
+      ? '<table><thead>' + head + '</thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table>'
+      : '<p>Für diese Klasse gibt es noch keine offenen Einsammlungen.</p>';
+    win.document.write('<!doctype html><html lang="de"><head><meta charset="utf-8">'
+      + '<title>Klasse ' + _esc(classId) + ' – Einsammlungen</title><style>'
+      + 'body{font:12px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif;color:#111;margin:24px}'
+      + 'h1{font-size:18px;margin:0 0 2px}p.meta{margin:0 0 14px;color:#555}'
+      + 'table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:4px 6px;text-align:center;vertical-align:top}'
+      + 'th{background:#f1f3f5;font-weight:600}th small,td small{display:block;font-weight:400;color:#555;font-size:10px}'
+      + '.name{text-align:left;white-space:nowrap}tfoot td{font-weight:600;background:#f8f9fa}'
+      + '@page{size:A4 landscape;margin:12mm}@media print{body{margin:0}}'
+      + '</style></head><body><h1>Klasse ' + _esc(classId) + ' – Einsammlungen</h1>'
+      + '<p class="meta">Stand ' + today + ' · ' + students.length + ' Schüler:innen</p>' + table
+      + '<script>window.onload=function(){window.print();};<\/script></body></html>');
+    win.document.close();
   }
 
   // ── Escape helper ─────────────────────────────────────────────────────────

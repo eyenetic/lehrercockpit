@@ -457,7 +457,7 @@
       else if (o.status === 'outdated') html += alertBox('warning', esc(o.detail));
       else if (o.error) html += alertBox('warning', 'Letzte Prüfung fehlgeschlagen: ' + esc(o.error));
       html += '<div class="connection-actions">' +
-        '<button class="btn btn-primary" type="button" data-action="orgaplan-refresh">Jetzt prüfen</button>' +
+        '<button class="btn btn-primary" type="button" data-action="orgaplan-refresh">Aktualisieren</button>' +
         (o.current_url ? '<a class="btn btn-secondary" href="' + esc(o.current_url) + '" target="_blank" rel="noopener noreferrer">PDF öffnen ↗</a>' : '') +
         '</div>';
       if (o.can_edit) {
@@ -610,7 +610,7 @@
       if (cw.plan_from_previous_link) {
         html += alertBox(sync.last_error ? 'error' : 'info', sync.last_error
           ? 'Der eingetragene Link konnte noch nicht geladen werden: ' + esc(sync.last_error) + ' Angezeigt wird noch der Plan vom vorherigen Link.'
-          : 'Der eingetragene Link wurde noch nicht geladen – „Jetzt prüfen“ lädt ihn sofort. Angezeigt wird noch der Plan vom vorherigen Link.');
+          : 'Der eingetragene Link wurde noch nicht geladen – „Aktualisieren“ lädt ihn sofort. Angezeigt wird noch der Plan vom vorherigen Link.');
       } else if (plan.state === 'outdated') {
         html += alertBox('warning', esc(plan.message) + ' ' + (cw.can_edit
           ? 'Trag unten den Link zum <strong>OneDrive-Ordner</strong> ein – dann findet das Cockpit neue Pläne künftig selbst.'
@@ -628,7 +628,7 @@
           ' <button class="btn btn-secondary btn-inline" type="button" data-action="use-candidate">Diesen Link verwenden</button>');
       }
       html += '<div class="connection-actions">' +
-        (cw.url ? '<button class="btn btn-primary" type="button" data-action="refresh">Jetzt prüfen</button>' : '') +
+        (cw.url ? '<button class="btn btn-primary" type="button" data-action="refresh">Aktualisieren</button>' : '') +
         (cw.url ? '<a class="btn btn-secondary" href="' + esc(cw.url) + '" target="_blank" rel="noopener noreferrer">Auf OneDrive öffnen ↗</a>' : '') +
         '</div>';
       if (cw.can_edit) {

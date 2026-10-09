@@ -427,7 +427,13 @@ var LehrerCollections = (function () {
   // ── Public ────────────────────────────────────────────────────────────────
   function init(container) { _container = container; _load(); render(); }
 
-  return { init: init, render: render };
+  /** Active collections that include a class (for the printable class overview). */
+  function forClass(classId) {
+    _load();
+    return _sortedCollections().filter(function (c) { return !c.archived && c.classIds.indexOf(classId) !== -1; });
+  }
+
+  return { init: init, render: render, forClass: forClass };
 })();
 
 if (typeof window !== 'undefined') window.LehrerCollections = LehrerCollections;

@@ -646,7 +646,7 @@ def test_app_js_today_layout_hides_tiles_of_hidden_modules(app_js_content):
 
 
 def test_app_js_school_tiles_check_orgaplan_visibility(app_js_content):
-    for name in ("function renderSchoolTile", "function renderUpcomingTile"):
+    for name in ("function renderSchoolTile",):
         start = app_js_content.find(name)
         assert start != -1, f"{name} not found in src/app.js"
         assert 'isModuleVisible("orgaplan")' in app_js_content[start:start + 800], (

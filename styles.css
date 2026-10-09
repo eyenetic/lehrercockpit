@@ -6533,3 +6533,59 @@ html, body { overflow-x: clip; }
 .col-progress-text { font-size: 0.74rem; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .col-progress-full { height: 6px; }
 .col-progress-fill.is-complete { background: var(--success); }
+
+/* ── Stufenfarben überall gleich (Pläne, Heute, Filter) ─────────────────── */
+:root .tile-tag-general, :root[data-theme="dark"] .tile-tag-general { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); }
+:root .tile-tag-middle, :root[data-theme="dark"] .tile-tag-middle { background: color-mix(in srgb, var(--warning) 16%, var(--panel)); color: color-mix(in srgb, var(--warning) 80%, var(--ink)); }
+:root .tile-tag-upper, :root[data-theme="dark"] .tile-tag-upper { background: color-mix(in srgb, var(--success) 14%, var(--panel)); color: color-mix(in srgb, var(--success) 80%, var(--ink)); }
+:root .tile-tag-event, :root[data-theme="dark"] .tile-tag-event { background: var(--panel-soft); color: var(--ink-2); }
+#orgaplan-level-filter .filter-button::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--level, var(--muted));
+}
+#orgaplan-level-filter .filter-button[data-orgaplan-level="all"] { --level: var(--accent); }
+#orgaplan-level-filter .filter-button[data-orgaplan-level="middle"] { --level: var(--warning); }
+#orgaplan-level-filter .filter-button[data-orgaplan-level="upper"] { --level: var(--success); }
+#orgaplan-level-filter .filter-button.active {
+  background: color-mix(in srgb, var(--level) 15%, var(--panel));
+  color: color-mix(in srgb, var(--level) 80%, var(--ink));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--level) 35%, transparent);
+}
+
+/* ── „neu“ / „geändert“ direkt am Eintrag ───────────────────────────────── */
+.new-mark {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+/* ── Klassen: Reiter Klassenlisten / Einsammlungen ─────────────────────── */
+.class-tab-bar { margin-bottom: 14px; align-self: flex-start; }
+.class-tab-btn {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+.class-tab-btn.is-active { background: var(--panel); color: var(--ink); box-shadow: var(--shadow-soft), 0 0 0 1px var(--line); }
+.class-tab-btn:not(.is-active):hover { color: var(--ink); }

@@ -21,6 +21,7 @@ from .ical_utils import BERLIN, CalendarEntry, entries_between, fetch_calendar_t
 DEFAULT_BASE_URL = "https://berlin.itslearning.com"
 CALENDAR_DAYS_AHEAD = 21
 _CALENDAR_CACHE_SECONDS = 600
+_FORCE_MIN_SECONDS = 20  # "Aktualisieren" refetches, but not more often than this
 
 _cache_lock = threading.Lock()
 _calendar_cache: dict[str, tuple[float, list[CalendarEntry]]] = {}
@@ -32,7 +33,7 @@ def is_configured(config: dict | None) -> bool:
     return bool(config.get("calendar_url")) or has_login
 
 
-def build_itslearning_payload(config: dict | None, now: datetime) -> dict[str, Any]:
+def build_itslearning_payload(config: dict | None, now: datetime, *, force: bool = False) -> dict[str, Any]:
     """Module result dict in the shape used by /api/v2/dashboard/data."""
     config = config or {}
     calendar_url = str(config.get("calendar_url") or "").strip()
@@ -74,7 +75,7 @@ def build_itslearning_payload(config: dict | None, now: datetime) -> dict[str, A
         }
 
     if calendar_url:
-        data["calendar"] = fetch_itslearning_calendar(calendar_url, now)
+        data["calendar"] = fetch_itslearning_calendar(calendar_url, now, force=force)
     return {"ok": True, "data": data, "configured": True}
 
 
@@ -86,10 +87,10 @@ def _origin(url: str) -> str:
     return f"https://{parsed.netloc}"
 
 
-def fetch_itslearning_calendar(url: str, now: datetime) -> dict[str, Any]:
+def fetch_itslearning_calendar(url: str, now: datetime, *, force: bool = False) -> dict[str, Any]:
     """Upcoming calendar entries (today .. +21 days) from an itslearning iCal link."""
     try:
-        entries = _cached_entries(require_public_https_url(url))
+        entries = _cached_entries(require_public_https_url(url), force=force)
     except UnsafeUrlError as exc:
         return {"ok": False, "events": [], "error": str(exc)}
     except Exception as exc:  # network, HTTP or parse errors
@@ -113,10 +114,10 @@ def fetch_itslearning_calendar(url: str, now: datetime) -> dict[str, Any]:
     }
 
 
-def _cached_entries(url: str) -> list[CalendarEntry]:
+def _cached_entries(url: str, *, force: bool = False) -> list[CalendarEntry]:
     with _cache_lock:
         hit = _calendar_cache.get(url)
-        if hit and _time.monotonic() - hit[0] < _CALENDAR_CACHE_SECONDS:
+        if hit and _time.monotonic() - hit[0] < (_FORCE_MIN_SECONDS if force else _CALENDAR_CACHE_SECONDS):
             return hit[1]
     text = fetch_calendar_text(url)
     if "BEGIN:VCALENDAR" not in text.upper():

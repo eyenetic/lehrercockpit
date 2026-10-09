@@ -5,14 +5,20 @@ Rules
   "Neu & geändert" list starts empty instead of listing the whole school year.
 - A changed fingerprint reopens an item and marks it unseen ("geändert").
 - Items count as new for NEW_MAX_AGE at most, even if never acknowledged.
+- A source seen for the first time (connected later, or still loading at the
+  first sync) starts silent as well.
+- An entry that only moved into the tracking window (its date came closer) is
+  not new – it was in the plan all along.
 """
 from __future__ import annotations
 
 import json
-from datetime import datetime, time, timedelta
+import re
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from .ical_utils import BERLIN
+from .signals import WINDOW_DAYS
 
 NEW_MAX_AGE = timedelta(days=7)
 CLEANUP_AFTER = timedelta(days=45)
@@ -39,6 +45,27 @@ def _is_unseen(row: dict[str, Any], now: datetime) -> bool:
     return since is not None and now - since <= NEW_MAX_AGE
 
 
+_ID_SOURCES = {"entfall": "webuntis", "klassenarbeit": "klassenarbeitsplan", "orgaplan": "orgaplan",
+               "termine": "termine", "itslearning": "itslearning", "nextcloud": "nextcloud"}
+
+
+def _source_of(signal_id: str) -> str | None:
+    """Source of a stored signal, from its id prefix ("orgaplan:…", "nextcloud-activity-…")."""
+    return _ID_SOURCES.get(re.split(r"[:\-]", str(signal_id), maxsplit=1)[0])
+
+
+def _moved_into_window(signal: dict, last_sync: datetime | None) -> bool:
+    """The entry was outside the tracking window at the last sync and only came closer."""
+    days = WINDOW_DAYS.get(signal.get("kind", ""))
+    if not days or not last_sync or not signal.get("date"):
+        return False
+    try:
+        day = date.fromisoformat(str(signal["date"])[:10])
+    except ValueError:
+        return False
+    return day - timedelta(days=days) > last_sync.astimezone(BERLIN).date()
+
+
 def sync_signals(conn, user_id: int, signals: list[dict], now: datetime) -> list[dict]:
     """Record current signals and return them with their state attached."""
     rows = conn.execute(
@@ -52,14 +79,22 @@ def sync_signals(conn, user_id: int, signals: list[dict], now: datetime) -> list
         for r in rows
     }
     baseline = not known
+    known_sources = {_source_of(signal_id) for signal_id in known}
+    last_sync = conn.execute(
+        "SELECT MAX(updated_at) FROM user_signal_state WHERE user_id = %s", (user_id,)
+    ).fetchone()[0] if known else None
 
     result = []
     unchanged_ids = []
     for signal in signals:
         row = known.get(signal["id"])
         if row is None:
+            source = _source_of(signal["id"])
+            silent = (baseline
+                      or (source is not None and source not in known_sources)
+                      or _moved_into_window(signal, last_sync))
             row = {"fingerprint": signal["fingerprint"], "first_seen_at": now, "changed_at": None,
-                   "seen_at": now if baseline else None, "status": "open", "snoozed_until": None}
+                   "seen_at": now if silent else None, "status": "open", "snoozed_until": None}
             conn.execute(
                 "INSERT INTO user_signal_state (user_id, signal_id, fingerprint, first_seen_at, seen_at, updated_at) "
                 "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (user_id, signal_id) DO NOTHING",

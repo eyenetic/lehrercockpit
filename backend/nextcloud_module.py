@@ -87,7 +87,7 @@ def status(config: dict[str, Any] | None, settings: dict[str, Any], now: datetim
     }
 
 
-def build_nextcloud_payload(config: dict[str, Any] | None, now: datetime) -> dict[str, Any]:
+def build_nextcloud_payload(config: dict[str, Any] | None, now: datetime, *, force: bool = False) -> dict[str, Any]:
     """Module result dict for /api/v2/dashboard/data."""
     config = config or {}
     if not is_connected(config):
@@ -98,7 +98,7 @@ def build_nextcloud_payload(config: dict[str, Any] | None, now: datetime) -> dic
     cache_key = (server, login_name)
     with _cache_lock:
         hit = _cache.get(cache_key)
-        if hit and _time.monotonic() - hit[0] < _CACHE_SECONDS:
+        if hit and _time.monotonic() - hit[0] < (20 if force else _CACHE_SECONDS):
             return {"ok": True, "data": hit[1], "configured": True}
 
     data: dict[str, Any] = {
