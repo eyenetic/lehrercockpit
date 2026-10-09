@@ -133,3 +133,39 @@ def update(conn, feedback_id: int, *, status: str | None = None, reply: str | No
 
 def delete(conn, feedback_id: int) -> bool:
     return conn.execute("DELETE FROM feedback WHERE id = %s", (feedback_id,)).rowcount > 0
+
+
+def admin_emails(conn) -> list[str]:
+    rows = conn.execute(
+        "SELECT email FROM users WHERE is_admin = TRUE AND is_active = TRUE AND COALESCE(email, '') <> ''"
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def mail_admins_in_background(kind: str, first_name: str, message: str, admin_url: str) -> bool:
+    """E-mail to every admin with an address in their account (Konto). False without SMTP."""
+    from html import escape
+    from threading import Thread
+
+    from . import mailer
+    from .db import db_connection
+
+    if not mailer.is_configured():
+        return False
+
+    def run() -> None:
+        try:
+            with db_connection() as conn:
+                recipients = admin_emails(conn)
+            label = KINDS.get(kind, "Rückmeldung")
+            subject = f"Lehrercockpit: {label} von {first_name}"
+            html = (f"<p><strong>{escape(label)}</strong> von {escape(first_name)}:</p>"
+                    f"<blockquote>{escape(message).replace(chr(10), '<br>')}</blockquote>"
+                    f'<p><a href="{escape(admin_url)}">In der Verwaltung ansehen und antworten</a></p>')
+            for to in recipients:
+                mailer.send_mail(to, subject, html)
+        except Exception as exc:  # never break feedback because of mail
+            print(f"[feedback] Mail an Admins fehlgeschlagen: {type(exc).__name__}", flush=True)
+
+    Thread(target=run, daemon=True).start()
+    return True

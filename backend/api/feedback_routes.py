@@ -67,6 +67,12 @@ def send_feedback():
         }, admins=True)
     except Exception:
         pass
+    try:
+        from backend.api.invitation_routes import frontend_base
+        feedback.mail_admins_in_background(kind, g.current_user.first_name or "einer Lehrkraft", message,
+                                           frontend_base() + "/admin.html#rueckmeldungen")
+    except Exception:
+        pass
     return success({"item": item}, 201)
 
 
