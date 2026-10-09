@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=96" />
+    <link rel="stylesheet" href="./styles.css?v=97" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -258,32 +258,38 @@
         </section>
 
         <section class="content-grid single-grid" data-view-section="inbox">
-          <div class="section-toolbar">
-            <a id="dienstmail-open-link" class="btn btn-secondary" href="https://lehrkraeftemail.schule.berlin.de/?iam_sso=1" target="_blank" rel="noreferrer">Dienstmail öffnen ↗</a>
-            <a id="itslearning-open-link" class="btn btn-secondary" href="#" target="_blank" rel="noreferrer" hidden>itslearning öffnen ↗</a>
-          </div>
           <div class="inbox-columns">
-            <article class="card" id="dienstmail-block" aria-labelledby="dienstmail-title" hidden>
-              <header class="card-head"><h2 id="dienstmail-title">Dienstmail</h2><span class="card-head-meta" id="dienstmail-meta"></span></header>
+            <article class="card inbox-card inbox-card--mail" id="dienstmail-block" aria-labelledby="dienstmail-title" hidden>
+              <header class="inbox-card-head">
+                <a class="inbox-card-title" id="dienstmail-title-link" href="https://lehrkraeftemail.schule.berlin.de/?iam_sso=1" target="_blank" rel="noopener noreferrer" title="Dienstmail öffnen">
+                  <span class="inbox-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>
+                  <span class="inbox-card-text"><span class="inbox-card-name" id="dienstmail-title">Dienstmail</span><span class="inbox-card-sub" id="dienstmail-meta"></span></span>
+                  <span class="inbox-card-arrow" aria-hidden="true">↗</span>
+                </a>
+              </header>
               <div id="dienstmail-list" class="mail-list"></div>
             </article>
-            <div class="inbox-col">
-              <div id="inbox-empty" class="empty-panel" hidden>
-                <strong>itslearning ist noch nicht verbunden</strong>
+            <article class="card inbox-card inbox-card--its" id="itslearning-block" aria-labelledby="itslearning-title">
+              <header class="inbox-card-head">
+                <a class="inbox-card-title" id="itslearning-title-link" href="https://berlin.itslearning.com" target="_blank" rel="noopener noreferrer" title="itslearning öffnen">
+                  <span class="inbox-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></span>
+                  <span class="inbox-card-text"><span class="inbox-card-name" id="itslearning-title">itslearning</span><span class="inbox-card-sub" id="itslearning-meta"></span></span>
+                  <span class="inbox-card-arrow" aria-hidden="true">↗</span>
+                </a>
+              </header>
+              <div id="inbox-empty" class="inbox-card-empty" hidden>
                 <p>Verbinde das Kalender-Abo von itslearning – dann siehst du hier Termine und Abgaben deiner Kurse.</p>
-                <div class="empty-panel-actions">
-                  <button class="btn btn-primary" type="button" data-open-connections="itslearning">itslearning verbinden</button>
-                </div>
+                <button class="btn btn-primary btn-sm" type="button" data-open-connections="itslearning">itslearning verbinden</button>
               </div>
-              <article class="card tone-inbox" id="inbox-section" aria-labelledby="inbox-title">
-                <header class="card-head"><h2 id="inbox-title">Nachrichten aus itslearning</h2></header>
-                <div id="message-list-itslearning" class="stack-list expandable-scroll" data-expand-panel="inbox"></div>
-              </article>
-              <article class="card" id="itslearning-calendar-block" hidden>
-                <header class="card-head"><h2>Termine &amp; Abgaben</h2><span class="card-head-meta">itslearning</span></header>
+              <div id="inbox-section" class="inbox-part">
+                <h3 class="inbox-part-title">Nachrichten</h3>
+                <div id="message-list-itslearning" class="stack-list" data-expand-panel="inbox"></div>
+              </div>
+              <div id="itslearning-calendar-block" class="inbox-part" hidden>
+                <h3 class="inbox-part-title">Termine &amp; Abgaben</h3>
                 <div id="itslearning-calendar-list" class="calendar-list"></div>
-              </article>
-            </div>
+              </div>
+            </article>
           </div>
         </section>
 
@@ -544,28 +550,28 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=96"></script>
-    <script src="./src/features/vault.js?v=96"></script>
-    <script src="./src/api-client.js?v=96"></script>
-    <script src="./src/modules/dashboard-manager.js?v=96"></script>
-    <script src="./src/features/grades.js?v=96"></script>
-    <script src="./src/features/webuntis.js?v=96"></script>
-    <script src="./src/features/itslearning.js?v=96"></script>
-    <script src="./src/features/nextcloud.js?v=96"></script>
-    <script src="./src/features/documents.js?v=96"></script>
-    <script src="./src/features/classwork.js?v=96"></script>
-    <script src="./src/features/classlist.js?v=96"></script>
-    <script src="./src/features/collections.js?v=96"></script>
-    <script src="./src/features/inbox.js?v=96"></script>
-    <script src="./src/features/zugaenge.js?v=96"></script>
-    <script src="./src/features/onedrive-sync.js?v=96"></script>
-    <script src="./src/features/signals.js?v=96"></script>
-    <script src="./src/features/push.js?v=96"></script>
-    <script src="./src/features/ai.js?v=96"></script>
-    <script src="./src/features/links.js?v=96"></script>
-    <script src="./src/features/connections.js?v=96"></script>
-    <script src="./src/features/feedback.js?v=96"></script>
-    <script src="./src/app.js?v=96"></script>
+    <script src="./data/mock-dashboard.js?v=97"></script>
+    <script src="./src/features/vault.js?v=97"></script>
+    <script src="./src/api-client.js?v=97"></script>
+    <script src="./src/modules/dashboard-manager.js?v=97"></script>
+    <script src="./src/features/grades.js?v=97"></script>
+    <script src="./src/features/webuntis.js?v=97"></script>
+    <script src="./src/features/itslearning.js?v=97"></script>
+    <script src="./src/features/nextcloud.js?v=97"></script>
+    <script src="./src/features/documents.js?v=97"></script>
+    <script src="./src/features/classwork.js?v=97"></script>
+    <script src="./src/features/classlist.js?v=97"></script>
+    <script src="./src/features/collections.js?v=97"></script>
+    <script src="./src/features/inbox.js?v=97"></script>
+    <script src="./src/features/zugaenge.js?v=97"></script>
+    <script src="./src/features/onedrive-sync.js?v=97"></script>
+    <script src="./src/features/signals.js?v=97"></script>
+    <script src="./src/features/push.js?v=97"></script>
+    <script src="./src/features/ai.js?v=97"></script>
+    <script src="./src/features/links.js?v=97"></script>
+    <script src="./src/features/connections.js?v=97"></script>
+    <script src="./src/features/feedback.js?v=97"></script>
+    <script src="./src/app.js?v=97"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.

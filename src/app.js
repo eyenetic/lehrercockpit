@@ -1270,7 +1270,7 @@
     block.hidden = false;
     const meta = document.getElementById("dienstmail-meta");
     if (!mail) {
-      if (meta) meta.textContent = "";
+      if (meta) meta.textContent = "nicht verbunden";
       list.innerHTML = tileEmpty("Verbinde deine Dienstmail – dann siehst du hier die neuesten Mails, ungelesene zuerst markiert.",
         '<button class="btn btn-secondary btn-sm" type="button" data-open-connections="mail">Dienstmail verbinden</button>');
       return;
@@ -1283,13 +1283,16 @@
     const messages = (mail.messages || []).slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
     const unread = messages.filter((m) => m.unread).length;
     if (meta) meta.textContent = unread ? `${unread} ungelesen` : "alles gelesen";
+    block.classList.toggle("has-unread", unread > 0);
     list.innerHTML = messages.length
       ? messages.map((m) => `
           <div class="mail-item${openMailId === m.id ? " is-open" : ""}" data-mail-id="${escapeHtml(m.id)}">
             <button class="mail-row${m.unread ? " is-unread" : ""}" type="button" aria-expanded="${openMailId === m.id}">
-              <span class="mail-from">${escapeHtml(m.from)}</span>
-              <span class="mail-subject"><span class="mail-subject-text">${escapeHtml(m.subject)}</span>${m.unread ? '<span class="new-mark">neu</span>' : ""}</span>
-              <span class="mail-time">${escapeHtml(mailTime(m.date))}</span>
+              <span class="mail-avatar" aria-hidden="true" style="--hue:${mailHue(m.from)}">${escapeHtml(mailInitials(m.from))}</span>
+              <span class="mail-lines">
+                <span class="mail-line"><span class="mail-from">${escapeHtml(m.from)}</span><span class="mail-time">${escapeHtml(mailTime(m.date))}</span></span>
+                <span class="mail-subject"><span class="mail-subject-text">${escapeHtml(m.subject)}</span>${m.unread ? '<span class="mail-dot" aria-label="ungelesen"></span>' : ""}</span>
+              </span>
             </button>
             <div class="mail-body" ${openMailId === m.id ? "" : "hidden"}>${openMailId === m.id ? mailBodyHtml(m.id, mail.webmail_url) : ""}</div>
           </div>`).join("")
@@ -1303,6 +1306,20 @@
         toggleMail(item.dataset.mailId);
       });
     }
+  }
+
+  function mailInitials(name) {
+    const parts = String(name || "?").replace(/[^\p{L}\s,-]/gu, " ").split(/[\s,]+/).filter(Boolean);
+    if (!parts.length) return "?";
+    // "Müller, Anna" → AM; "Anna Müller" → AM
+    const ordered = String(name).includes(",") ? parts.slice(1).concat(parts[0]) : parts;
+    return ((ordered[0] || "")[0] + (ordered.length > 1 ? ordered[ordered.length - 1][0] : "")).toUpperCase();
+  }
+
+  function mailHue(name) {
+    let hash = 0;
+    for (const ch of String(name || "")) hash = (hash * 31 + ch.codePointAt(0)) % 360;
+    return hash;
   }
 
   // Text of a mail on click: fetched from the server, never stored; the mail stays unread.
@@ -1767,25 +1784,31 @@
 
   function renderInboxLinks() {
     const base = state.data?.base || {};
-    const mailConnection = connectionHint("mail");
-    const dienstmailUrl = base.dienstmail_url || DIENSTMAIL_DEFAULT_URL;
-    if (elements.dienstmailOpenLink) {
-      bindExternalLink(elements.dienstmailOpenLink, dienstmailUrl, "Dienstmail öffnen ↗");
-      elements.dienstmailOpenLink.target = "_blank";
-      elements.dienstmailOpenLink.rel = "noreferrer";
-      elements.dienstmailOpenLink.hidden = false;
-    }
-    if (elements.itslearningOpenLink) {
-      bindExternalLink(elements.itslearningOpenLink, base.itslearning_base_url || "", "itslearning öffnen ↗");
-      elements.itslearningOpenLink.hidden = !base.itslearning_base_url;
-    }
-    // Posteingang: without itslearning and Nextcloud there is nothing to show yet.
     const data = getData();
+    // Card titles link to the services themselves.
+    const mailLink = document.getElementById("dienstmail-title-link");
+    if (mailLink) mailLink.href = (data.dienstmail && data.dienstmail.webmail_url) || base.dienstmail_url || DIENSTMAIL_DEFAULT_URL;
+    const itsLink = document.getElementById("itslearning-title-link");
+    if (itsLink) itsLink.href = base.itslearning_base_url || "https://berlin.itslearning.com";
+
     const itslearning = isConnected(data, "itslearning");
     const emptyPanel = document.getElementById("inbox-empty");
     if (emptyPanel) emptyPanel.hidden = !window.MULTIUSER_ENABLED || !state.data || itslearning;
-    const messagesCard = document.getElementById("inbox-section");
-    if (messagesCard) messagesCard.hidden = Boolean(window.MULTIUSER_ENABLED && state.data && !itslearning);
+    // Messages need the optional login; with the calendar subscription only, the part is left out.
+    const messagesPart = document.getElementById("inbox-section");
+    const itsMessages = getRelevantInboxMessages(data).filter((m) => m.channel === "itslearning");
+    if (messagesPart) messagesPart.hidden = Boolean(window.MULTIUSER_ENABLED && state.data && (!itslearning || (!itsMessages.length && data.itslearningMode === "calendar")));
+
+    const itsMeta = document.getElementById("itslearning-meta");
+    if (itsMeta) {
+      const events = ((data.itslearningCalendar || {}).events || []);
+      const soon = addDaysIso(7);
+      const due = events.filter((e) => e.kind === "todo" && String(e.start).slice(0, 10) <= soon).length;
+      const dates = events.filter((e) => e.kind !== "todo").length;
+      itsMeta.textContent = !itslearning ? "nicht verbunden"
+        : [due ? `${due} ${due === 1 ? "Abgabe" : "Abgaben"} diese Woche` : "", dates ? `${dates} ${dates === 1 ? "Termin" : "Termine"}` : ""]
+          .filter(Boolean).join(" · ") || "nichts Neues";
+    }
     renderMailSetupEntry();
   }
 

@@ -6709,3 +6709,118 @@ html, body { overflow-x: clip; }
 @media (min-width: 1100px) {
   .inbox-columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
+
+/* ── Posteingang 2026: zwei Karten, Kopf = Link zum Dienst ─────────────── */
+.inbox-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.inbox-card--mail { --card-accent: var(--accent); }
+.inbox-card--its { --card-accent: #e8590c; }
+:root[data-theme="dark"] .inbox-card--its { --card-accent: #ff8a4c; }
+.inbox-card-head {
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card-accent) 7%, var(--panel)), var(--panel));
+}
+.inbox-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.inbox-card-title:hover .inbox-card-name { text-decoration: underline; text-underline-offset: 3px; }
+.inbox-card-title:hover .inbox-card-arrow { color: var(--card-accent); transform: translate(1px, -1px); }
+.inbox-card-icon {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card-accent) 14%, var(--panel));
+  color: var(--card-accent);
+}
+.inbox-card-icon svg { width: 19px; height: 19px; }
+.inbox-card-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.inbox-card-name { font-size: 1rem; font-weight: 650; letter-spacing: -0.01em; }
+.inbox-card-sub { font-size: 0.78rem; color: var(--muted); }
+.inbox-card--mail.has-unread .inbox-card-sub { color: var(--card-accent); font-weight: 600; }
+.inbox-card-arrow { color: var(--muted); font-size: 1rem; transition: transform 0.15s, color 0.15s; }
+.inbox-card-empty { padding: 18px 16px; display: grid; gap: 10px; justify-items: start; }
+.inbox-card-empty p { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+.inbox-card .tile-empty { padding: 18px 16px; }
+.inbox-part { padding: 4px 0 8px; }
+.inbox-part + .inbox-part { border-top: 1px solid var(--line); }
+.inbox-part-title {
+  margin: 10px 16px 4px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Mail-Zeilen wie in einem Mailprogramm */
+.inbox-card .mail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.inbox-card .mail-row:hover { background: color-mix(in srgb, var(--card-accent) 5%, var(--panel)); }
+.mail-avatar {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: hsl(var(--hue, 220) 55% 92%);
+  color: hsl(var(--hue, 220) 45% 32%);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+:root[data-theme="dark"] .mail-avatar { background: hsl(var(--hue, 220) 30% 24%); color: hsl(var(--hue, 220) 60% 82%); }
+.mail-lines { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.mail-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.inbox-card .mail-from { flex: 1; min-width: 0; font-size: 0.86rem; color: var(--ink); }
+.inbox-card .mail-time { flex: 0 0 auto; }
+.inbox-card .mail-subject { font-size: 0.84rem; color: var(--muted); gap: 8px; }
+.inbox-card .mail-subject-text { white-space: nowrap; }
+.inbox-card .mail-row.is-unread .mail-from,
+.inbox-card .mail-row.is-unread .mail-subject { font-weight: 650; color: var(--ink); }
+.mail-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--card-accent, var(--accent)); align-self: center; }
+.inbox-card .mail-item.is-open > .mail-row { background: color-mix(in srgb, var(--card-accent) 7%, var(--panel)); }
+.inbox-card .mail-body { padding: 2px 16px 14px 62px; background: color-mix(in srgb, var(--card-accent) 4%, var(--panel)); }
+@media (max-width: 640px) {
+  .inbox-card .mail-row { display: flex; }
+  .inbox-card .mail-body { padding-left: 16px; }
+  .inbox-card .mail-subject-text { white-space: nowrap; }
+}
+
+/* itslearning: Datumsfeld links */
+.inbox-card .calendar-list { display: flex; flex-direction: column; }
+.inbox-card .calendar-item {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  margin: 0;
+  padding: 9px 16px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.inbox-card .calendar-item:first-child { border-top: 0; }
+.inbox-card .calendar-item-when { display: flex; flex-direction: column; font-size: 0.78rem; color: var(--muted); }
+.inbox-card .calendar-item-when strong { font-size: 0.84rem; color: var(--ink); font-weight: 600; }
+.inbox-card .calendar-item.is-deadline .calendar-item-when strong { color: var(--card-accent); }
+.inbox-card .calendar-item-title { margin: 0; font-size: 0.88rem; color: var(--ink); }
+.inbox-card .calendar-item-title a { color: inherit; text-decoration: none; }
+.inbox-card .calendar-item-title a:hover { text-decoration: underline; }
+.inbox-card .message-item { margin: 0; padding: 10px 16px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+.inbox-card .message-item:first-child { border-top: 0; }
+.inbox-card .empty-state { padding: 12px 16px; color: var(--muted); font-size: 0.86rem; border: 0; background: transparent; }
