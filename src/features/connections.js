@@ -146,7 +146,7 @@
   // ── Deine Zugänge ─────────────────────────────────────────────────────────
 
   function _patch(moduleId, fields, sectionEl, okMessage) {
-    feedback(sectionEl, fields.ical_url || fields.calendar_url ? 'Prüfe den Link …' : 'Speichere …');
+    if (moduleId !== 'mail') feedback(sectionEl, fields.ical_url || fields.calendar_url ? 'Prüfe den Link …' : 'Speichere …');
     return api('/api/v2/connections/' + moduleId, { method: 'PATCH', body: fields })
       .then(function (data) {
         if (window.LehrerSourceProblems) delete window.LehrerSourceProblems[moduleId];
@@ -323,6 +323,57 @@
     _nextcloudPoll = { started: Date.now(), timer: null };
     _nextcloudPoll.timer = setTimeout(function () { _pollNextcloud(sectionEl); }, NEXTCLOUD_POLL_MS);
   }
+
+  registerSection({
+    id: 'mail',
+    group: 'personal',
+    title: 'Dienstmail',
+    state: function (status) {
+      if (!(status.mail || {}).configured) return 'off';
+      return (window.LehrerSourceProblems || {}).mail ? 'warn' : 'ok';
+    },
+    summary: function (status) {
+      if (!(status.mail || {}).configured) return 'Nicht verbunden';
+      return (window.LehrerSourceProblems || {}).mail ? 'Anmeldung abgelehnt' : 'Verbunden';
+    },
+    render: function (status) {
+      var s = status.mail || {};
+      var problem = (window.LehrerSourceProblems || {}).mail;
+      return '' +
+        '<div class="connection-head"><h3>Dienstmail</h3>' + pill(s.configured ? 'ok' : 'warn', s.configured ? 'verbunden' : 'nicht verbunden') + '</div>' +
+        '<p class="connection-copy">Die neuesten Mails im Posteingang – nur Absender, Betreff und Uhrzeit. Das Cockpit liest nur: nichts wird gelöscht, verschickt oder als gelesen markiert.</p>' +
+        (problem && s.configured ? alertBox('error', esc(problem)) : '') +
+        '<label class="connection-field">Dienstmail-Adresse' +
+        '<input class="form-input" type="email" data-field="address" value="' + esc(s.address || '') + '" placeholder="vorname.nachname@…schule.berlin.de" autocomplete="off" /></label>' +
+        '<label class="connection-field">App-Passwort' +
+        '<input class="form-input" type="password" data-field="app_password" placeholder="' + (s.configured ? 'gespeichert – zum Ändern neues eingeben' : 'App-Passwort aus der Geräteverwaltung') + '" autocomplete="new-password" /></label>' +
+        '<details class="connection-help"' + (!s.configured || problem ? ' open' : '') + '><summary>Wo bekomme ich das App-Passwort?</summary><ol>' +
+        '<li>' + extLink('https://lehrkraeftemail.schule.berlin.de/?iam_sso=1', 'Dienstmail im Browser öffnen') + ' und anmelden.</li>' +
+        '<li>In der <strong>Geräteverwaltung</strong> ein neues App-Passwort erzeugen (wie beim Einrichten der Mail-App am Handy oder Mac).</li>' +
+        '<li>Das App-Passwort hier einfügen – nicht dein Schulportal-Passwort.</li></ol>' +
+        '<p>Das App-Passwort wird verschlüsselt gespeichert. Du kannst es in der Geräteverwaltung jederzeit löschen – dann liest das Cockpit nichts mehr.</p></details>' +
+        '<div class="connection-actions">' +
+        '<button class="btn btn-primary" type="button" data-action="save">Speichern</button>' +
+        (s.configured ? '<button class="btn btn-secondary" type="button" data-action="remove">Trennen</button>' : '') +
+        '</div><p class="connection-feedback" data-feedback></p>';
+    },
+    bind: function (el) {
+      el.querySelector('[data-action="save"]').addEventListener('click', function () {
+        var address = el.querySelector('[data-field="address"]').value.trim();
+        var password = el.querySelector('[data-field="app_password"]').value.trim();
+        if (!address) { feedback(el, 'Bitte die Dienstmail-Adresse eintragen.', 'error'); return; }
+        var fields = { address: address };
+        if (password) fields.app_password = password;
+        else if (!((_status || {}).mail || {}).configured) { feedback(el, 'Bitte das App-Passwort einfügen.', 'error'); return; }
+        feedback(el, password ? 'Melde mich bei der Dienstmail an …' : 'Speichere …');
+        _patch('mail', fields, el, 'Dienstmail ist verbunden.');
+      });
+      var remove = el.querySelector('[data-action="remove"]');
+      if (remove) remove.addEventListener('click', function () {
+        _patch('mail', { address: null, app_password: null }, el, 'Dienstmail wurde getrennt.');
+      });
+    },
+  });
 
   registerSection({
     id: 'nextcloud',
@@ -699,23 +750,6 @@
           })
           .catch(function (err) { feedback(el, err.message, 'error'); });
       });
-    },
-  });
-
-  // ── Schulweite Quellen: Dienstmail (nur Direktlink) ───────────────────────
-
-  registerSection({
-    id: 'dienstmail',
-    group: 'school',
-    title: 'Dienstmail',
-    state: function () { return 'ok'; },
-    summary: function () { return 'Direktlink'; },
-    render: function (status) {
-      var d = status.dienstmail || {};
-      var url = d.url || 'https://lehrkraeftemail.schule.berlin.de/?iam_sso=1';
-      return '<div class="connection-head"><h3>Dienstmail</h3>' + pill('ok', 'Direktlink') + '</div>' +
-        '<p class="connection-copy">Öffnet dein Postfach mit einem Klick. Mails anzeigen kann das Cockpit nicht – die Dienstmail lässt keine anderen Programme zu.</p>' +
-        '<div class="connection-actions"><a class="btn btn-secondary" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">Dienstmail öffnen ↗</a></div>';
     },
   });
 

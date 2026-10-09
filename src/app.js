@@ -612,6 +612,9 @@
         ? modules.klassenarbeitsplan.sync
         : null;
 
+      // Dienstmail: newest headers via IMAP (backend/dienstmail.py), null when not connected
+      data.dienstmail = modules.dienstmail && modules.dienstmail.configured ? (modules.dienstmail.data || null) : null;
+
       // Nextcloud activity + notifications (Login Flow v2)
       data.nextcloudFeed = modules.nextcloud && modules.nextcloud.ok === true ? (modules.nextcloud.data || null) : null;
 
@@ -1048,6 +1051,7 @@
     }
     const calendar = data.itslearningCalendar;
     if (calendar && calendar.ok === false) problems.itslearning = calendar.error || "Der itslearning-Kalender konnte nicht geladen werden.";
+    if (data.dienstmail && data.dienstmail.error && /Anmeldung abgelehnt/.test(data.dienstmail.error)) problems.mail = data.dienstmail.error;
     window.LehrerSourceProblems = problems;
     return problems;
   }
@@ -1240,13 +1244,61 @@
     return Boolean(module) && module.configured !== false;
   }
 
+  // ── Dienstmail (read-only headers, see backend/dienstmail.py) ──────────────
+  function unreadMails(data) {
+    const mail = data && data.dienstmail;
+    return mail && !mail.error ? (mail.messages || []).filter((m) => m.unread) : [];
+  }
+
+  function mailTime(iso) {
+    if (!iso) return "";
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return "";
+    const today = startOfDay(new Date());
+    if (date >= today) return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (date >= yesterday) return "gestern";
+    return date.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  }
+
+  function renderDienstmail() {
+    const block = document.getElementById("dienstmail-block");
+    const list = document.getElementById("dienstmail-list");
+    if (!block || !list || !window.MULTIUSER_ENABLED) return;
+    const mail = getData().dienstmail;
+    block.hidden = false;
+    const meta = document.getElementById("dienstmail-meta");
+    if (!mail) {
+      if (meta) meta.textContent = "";
+      list.innerHTML = tileEmpty("Verbinde deine Dienstmail – dann siehst du hier die neuesten Mails, ungelesene zuerst markiert.",
+        '<button class="btn btn-secondary btn-sm" type="button" data-open-connections="mail">Dienstmail verbinden</button>');
+      return;
+    }
+    if (mail.error) {
+      if (meta) meta.textContent = "";
+      list.innerHTML = tileEmpty(mail.error, '<button class="btn btn-secondary btn-sm" type="button" data-open-connections="mail">Verbindung prüfen</button>');
+      return;
+    }
+    const unread = (mail.messages || []).filter((m) => m.unread).length;
+    if (meta) meta.textContent = unread ? `${unread} ungelesen` : "alles gelesen";
+    list.innerHTML = (mail.messages || []).length
+      ? (mail.messages || []).map((m) => `
+          <a class="mail-row${m.unread ? " is-unread" : ""}" href="${escapeHtml(mail.webmail_url)}" target="_blank" rel="noopener noreferrer">
+            <span class="mail-from">${escapeHtml(m.from)}</span>
+            <span class="mail-subject">${escapeHtml(m.subject)}${m.unread ? '<span class="new-mark">neu</span>' : ""}</span>
+            <span class="mail-time">${escapeHtml(mailTime(m.date))}</span>
+          </a>`).join("")
+      : tileEmpty("Der Posteingang ist leer.");
+  }
+
   function renderInboxTile(data) {
     const body = elements.todayInboxPreview;
     if (!body) return;
     const itslearning = isConnected(data, "itslearning");
-    if (window.MULTIUSER_ENABLED && !itslearning) {
+    if (window.MULTIUSER_ENABLED && !itslearning && !data.dienstmail) {
       setTileMeta("tile-inbox-meta", "");
-      body.innerHTML = tileEmpty("Verbinde itslearning – dann siehst du hier Termine, Abgaben und Nachrichten deiner Kurse.",
+      body.innerHTML = tileEmpty("Verbinde itslearning oder deine Dienstmail – dann siehst du hier, was neu ist.",
         '<button class="btn btn-secondary btn-sm" type="button" data-open-connections="itslearning">Verbinden</button>');
       return;
     }
@@ -1256,6 +1308,12 @@
       .filter((event) => event.kind === "todo" && String(event.start).slice(0, 10) <= soon)
       .slice(0, 2)
       .forEach((event) => rows.push({ when: dayLabel(event.start), title: event.title, tag: "Abgabe", tagCls: "tile-tag-warn" }));
+    unreadMails(data).slice(0, 3).forEach((mail) => rows.push({
+      title: mail.subject,
+      titleHtml: `<a href="${escapeHtml(data.dienstmail.webmail_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(mail.subject)}</a>`,
+      sub: mail.from,
+      tag: "Dienstmail",
+    }));
     const isNew = (message) => (window.LehrerInbox ? window.LehrerInbox.isNewMessage(message) : message.unread);
     const messages = getRelevantInboxMessages(data).filter(isNew)
       .sort((left, right) => String(right.sortKey || "").localeCompare(String(left.sortKey || "")));
@@ -1272,7 +1330,8 @@
         .forEach((event) => rows.push({ when: dayLabel(event.start), title: event.title, tag: "Termin", tagCls: "tile-tag-event" }));
     }
 
-    setTileMeta("tile-inbox-meta", messages.length ? `${messages.length} neu` : "");
+    const newCount = messages.length + unreadMails(data).length;
+    setTileMeta("tile-inbox-meta", newCount ? `${newCount} neu` : "");
     body.innerHTML = rows.length
       ? tileList(rows.slice(0, 4), 0, "")
       : tileEmpty("Nichts Neues.");
@@ -1286,6 +1345,7 @@
     const personal = personalSourceProblems(data);
     if (personal.webuntis) items.push({ section: "webuntis", title: "Stundenplan", text: personal.webuntis });
     if (personal.itslearning) items.push({ section: "itslearning", title: "itslearning", text: personal.itslearning });
+    if (personal.mail) items.push({ section: "mail", title: "Dienstmail", text: personal.mail });
     const orgaplan = data.planDigest.orgaplan || {};
     if (isModuleVisible("orgaplan") && (orgaplan.status === "outdated" || orgaplan.status === "error")) {
       items.push({ section: "orgaplan", title: "Orgaplan", text: orgaplan.status === "outdated" ? "Kein aktueller Plan gefunden." : (orgaplan.error || "Konnte nicht gelesen werden.") });
@@ -2155,6 +2215,7 @@
     renderItslearningConnector();
     renderNextcloudConnector();
     renderMessages();
+    renderDienstmail();
     renderInboxLinks();
     // Slice 3: wire inbox tabs and update unread badges
     if (window.LehrerInbox && typeof window.LehrerInbox.initInboxTabs === 'function') {
@@ -2974,7 +3035,7 @@
   function renderNavSignals() {
     const data = getData();
     const isNew = (message) => (window.LehrerInbox ? window.LehrerInbox.isNewMessage(message) : message.unread);
-    const unreadCount = (data.messages || []).filter(isNew).length;
+    const unreadCount = (data.messages || []).filter(isNew).length + unreadMails(data).length;
     elements.navLinks.forEach((button) => {
       const target = button.dataset.sectionTarget || "";
       let count = button.querySelector(".nav-count");

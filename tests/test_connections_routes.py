@@ -246,3 +246,26 @@ def test_any_teacher_can_trigger_an_orgaplan_check(client):
         response = _call(client, _Store(), "post", "/api/v2/connections/school/orgaplan/refresh")
     assert response.status_code == 200
     assert current.call_args.kwargs["force"] is True
+
+
+def test_dienstmail_is_checked_before_saving_and_never_returned(client):
+    from backend import dienstmail
+    store = _Store({})
+    with patch.object(dienstmail, "fetch_headers", side_effect=dienstmail.DienstmailError("Anmeldung abgelehnt – bitte App-Passwort prüfen")):
+        bad = _call(client, store, "patch", "/api/v2/connections/mail",
+                    json={"address": "ich@schule.berlin.de", "app_password": "falsch"})
+    assert bad.status_code == 422 and "App-Passwort" in bad.get_json()["error"]
+    assert "mail" not in store.configs
+
+    with patch.object(dienstmail, "fetch_headers", return_value=[{"id": "1"}]):
+        ok = _call(client, store, "patch", "/api/v2/connections/mail",
+                   json={"address": "ich@schule.berlin.de", "app_password": "app-pw"})
+    body = ok.get_json()
+    assert ok.status_code == 200 and "Anmeldung erfolgreich" in body["notice"]
+    assert body["connections"]["mail"] == {"configured": True, "address": "ich@schule.berlin.de"}
+    assert "app-pw" not in ok.get_data(as_text=True)
+
+
+def test_dienstmail_address_must_look_like_one(client):
+    response = _call(client, _Store({}), "patch", "/api/v2/connections/mail", json={"address": "keine-adresse"})
+    assert response.status_code == 422

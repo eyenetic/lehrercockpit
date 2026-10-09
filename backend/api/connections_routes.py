@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, g, request
 
-from backend import nextcloud_module
+from backend import dienstmail, nextcloud_module
 from backend.admin.admin_service import get_system_setting
 from backend.api.helpers import error, require_auth, success
 from backend.db import db_connection
@@ -35,8 +35,10 @@ connections_bp = Blueprint("connections", __name__)
 _EDITABLE_FIELDS = {
     "webuntis": {"ical_url"},
     "itslearning": {"calendar_url", "username", "password"},
+    "mail": {"address", "app_password"},  # Dienstmail: address + app password (read-only IMAP)
 }
 _URL_FIELDS = {"ical_url", "calendar_url"}
+MAIL_CHECK_LIMIT = 3  # messages read when checking a new Dienstmail app password
 
 
 def _normalize_feed_url(value: str) -> str:
@@ -58,7 +60,7 @@ def _validate_field(field: str, value: str) -> str | None:
     return None
 
 
-_STATUS_MODULES = ("webuntis", "itslearning", "nextcloud")
+_STATUS_MODULES = ("webuntis", "itslearning", "nextcloud", "mail")
 _NEXTCLOUD_SETTING_KEYS = ("nextcloud_url", "nextcloud_workspace_url", "fehlzeiten_11_url", "fehlzeiten_12_url")
 
 
@@ -109,6 +111,10 @@ def _status_payload(configs: dict[str, dict], settings: dict | None = None) -> d
             "username": itslearning.get("username", ""),
         },
         "nextcloud": nextcloud_module.status(configs.get("nextcloud"), settings, _now()),
+        "mail": {
+            "configured": bool((configs.get("mail") or {}).get("address") and (configs.get("mail") or {}).get("app_password")),
+            "address": (configs.get("mail") or {}).get("address", ""),
+        },
     }
 
 
@@ -210,6 +216,8 @@ def patch_connection(module_id: str):
             value = _normalize_feed_url(raw)
         else:
             value = raw if field == "password" else raw.strip()
+            if field == "address" and not dienstmail.valid_address(value):
+                return error("Bitte die vollständige Dienstmail-Adresse eintragen.", 422)
         problem = _validate_field(field, value)
         if problem:
             return error(problem, 422)
@@ -228,6 +236,18 @@ def patch_connection(module_id: str):
             notice = checked["message"] or (f"{checked['events']} Einträge gefunden." if checked["ok"] else "")
 
     user_id = g.current_user.id
+    if module_id == "mail" and updates.get("app_password"):
+        # Log in once before saving: a wrong app password is refused right away.
+        with db_connection() as conn:
+            address = updates.get("address") or get_user_module_config(conn, user_id, "mail").get("address", "")
+        if not address:
+            return error("Bitte zuerst die Dienstmail-Adresse eintragen.", 422)
+        try:
+            count = len(dienstmail.fetch_headers(address, updates["app_password"], limit=MAIL_CHECK_LIMIT))
+        except dienstmail.DienstmailError as exc:
+            return error(str(exc), 422)
+        dienstmail.forget(address)
+        notice = "Anmeldung erfolgreich." + (f" {count} neueste Mails gefunden." if count else "")
     try:
         with db_connection() as conn:
             config = dict(get_user_module_config(conn, user_id, module_id))

@@ -6647,3 +6647,28 @@ html, body { overflow-x: clip; }
 .sched-tile-controls .sched-nav { display: flex; align-items: center; gap: 4px; }
 .sched-tile-controls .icon-button { width: 32px; height: 32px; font-size: 1.1rem; }
 [data-today-module="schedule"] .wk-grid { margin-top: 2px; }
+
+/* ── Dienstmail im Posteingang ─────────────────────────────────────────── */
+.mail-list { display: flex; flex-direction: column; }
+.mail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 0.88rem;
+}
+.mail-row:first-child { border-top: 0; }
+.mail-row:hover { background: var(--panel-soft); }
+.mail-row.is-unread { color: var(--ink); font-weight: 600; }
+.mail-from, .mail-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-time { font-size: 0.78rem; color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .mail-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+  .mail-from { grid-column: 1; }
+  .mail-time { grid-column: 2; grid-row: 1; }
+  .mail-subject { grid-column: 1 / -1; white-space: normal; }
+}

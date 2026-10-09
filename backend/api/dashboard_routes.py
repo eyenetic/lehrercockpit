@@ -752,6 +752,17 @@ def _fetch_nextcloud_data(user_id: int, force: bool = False) -> dict:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
+def _fetch_dienstmail_data(user_id: int, force: bool = False) -> dict:
+    """Newest Dienstmail headers via IMAP (read-only), when the teacher stored an app password."""
+    try:
+        with db_connection() as conn:
+            config = get_user_module_config(conn, user_id, "mail")
+        from backend.dienstmail import build_payload
+        return build_payload(config, datetime.now(timezone.utc), force=force)
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
 def _signals_section(user_id: int, modules_result: dict) -> dict | None:
     """Unified entries with per-teacher state ("Neu & geändert"). None on failure."""
     try:
@@ -843,6 +854,8 @@ def get_dashboard_data():
         module_fetchers["noten"] = lambda: _fetch_noten_data(user_id)
     if "nextcloud" in active_module_ids:
         module_fetchers["nextcloud"] = lambda: _fetch_nextcloud_data(user_id, force)
+    # Dienstmail: fetched whenever the teacher connected it (not a layout module).
+    module_fetchers["dienstmail"] = lambda: _fetch_dienstmail_data(user_id, force)
     if "wichtige-termine" in active_module_ids:
         module_fetchers["wichtige-termine"] = lambda: _fetch_wichtige_termine_data(user_id, force)
 
