@@ -6589,3 +6589,47 @@ html, body { overflow-x: clip; }
 }
 .class-tab-btn.is-active { background: var(--panel); color: var(--ink); box-shadow: var(--shadow-soft), 0 0 0 1px var(--line); }
 .class-tab-btn:not(.is-active):hover { color: var(--ink); }
+
+/* ── Notenrechner am Handy: Ergebnis oben und beim Tippen sichtbar ──────── */
+@media (max-width: 640px) {
+  .gr-card > div { display: flex; flex-direction: column; }
+  .gr-card > div > * { order: 5; }
+  .gr-card .gr-top { order: 1; flex-direction: column; flex-wrap: nowrap; gap: 6px; margin-bottom: 10px; }
+  .gr-card .gr-top .gr-seg { display: flex; flex-wrap: nowrap; width: 100%; }
+  .gr-card .gr-top .segment-button { flex: 1 1 0; padding: 5px 8px; white-space: nowrap; }
+  .gr-card > div > .gr-row { order: 2; margin-bottom: 10px; }
+  .gr-card .gr-row:has([data-gr-weight]) { flex-wrap: nowrap; gap: 8px; }
+  .gr-card .gr-row:has([data-gr-weight]) .gr-seg {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .gr-card .gr-row:has([data-gr-weight]) .gr-seg::-webkit-scrollbar { display: none; }
+  .gr-card .gr-row:has([data-gr-weight]) .segment-button { flex: 0 0 auto; white-space: nowrap; }
+  .gr-card .gr-result,
+  .gr-card .gr-reached {
+    order: 3;
+    position: sticky;
+    top: calc(52px + env(safe-area-inset-top, 0px) + 8px);
+    z-index: 6;
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+    box-shadow: var(--shadow-soft), 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .gr-card .gr-result { flex-wrap: nowrap; align-items: center; gap: 8px; }
+  .gr-card .gr-result-label { display: none; }
+  .gr-card .gr-result-tendency { font-size: 0.8rem; white-space: nowrap; }
+  .gr-card .gr-clear { flex: 0 0 auto; padding-inline: 8px; }
+  .gr-card .gr-boxes { order: 4; gap: 10px; }
+  .gr-card .gr-box { padding: 10px 12px; gap: 6px; }
+  .gr-card .gr-hint { order: 5; }
+  .gr-card .gr-privacy { order: 6; }
+  .gr-card .gr-table { max-width: none; }
+  .gr-card .gr-row:has([data-gr-max]) { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .gr-card .gr-row:has([data-gr-max]) .gr-field input { width: 100%; }
+  .gr-card .gr-row:has([data-gr-max]) .gr-seg { grid-column: 1 / -1; display: flex; }
+  .gr-card .gr-row:has([data-gr-max]) .segment-button { flex: 1 1 0; }
+}
