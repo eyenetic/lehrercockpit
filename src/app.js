@@ -1055,6 +1055,8 @@
   function renderScheduleTile(data) {
     const body = elements.briefingOutput;
     if (!body) return;
+    const controls = document.getElementById("tile-schedule-controls");
+    if (controls) controls.hidden = true; // shown again once there is a plan
     const problem = personalSourceProblems(data).webuntis;
     if (problem && isWebUntisConnected(data)) {
       setTileMeta("tile-schedule-meta", "");
@@ -1070,6 +1072,25 @@
       );
       return;
     }
+    renderScheduleTileControls();
+    if (heuteSchedule.view === "week" && window.LehrerWebUntis && window.LehrerWebUntis.renderWeekFor) {
+      const week = window.LehrerWebUntis.renderWeekFor(heuteSchedule.weekOffset, body);
+      setTileMeta("tile-schedule-meta", week.label);
+      body.innerHTML = week.html;
+      return;
+    }
+    if (heuteSchedule.dayOffset) {
+      const day = shownScheduleDay(data);
+      const next = new Date(day);
+      next.setDate(next.getDate() + 1);
+      const dayEvents = (data.webuntisCenter?.events || [])
+        .filter((e) => e.startsAt && new Date(e.startsAt) >= day && new Date(e.startsAt) < next)
+        .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+      const label = day.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" });
+      setTileMeta("tile-schedule-meta", label);
+      body.innerHTML = dayEvents.length ? renderTodayFullSchedule(data, dayEvents, label) : tileEmpty("An diesem Tag stehen keine Stunden im Plan.");
+      return;
+    }
     const { events, previewLabel } = todayLessons(data);
     if (!events.length) {
       setTileMeta("tile-schedule-meta", "");
@@ -1083,6 +1104,67 @@
       ? previewLabel
       : [`${lessons} ${lessons === 1 ? "Stunde" : "Stunden"}`, duties ? `${duties} ${duties === 1 ? "Aufsicht" : "Aufsichten"}` : "", cancelled ? `${cancelled} entfällt` : ""].filter(Boolean).join(" · "));
     body.innerHTML = renderTodayFullSchedule(data, events, previewLabel);
+  }
+
+  // „Stundenplan“ on Heute: the day by default (today, after school the next
+  // school day), the week on request; ‹ › page through days or weeks.
+  const heuteSchedule = {
+    view: (() => { try { return localStorage.getItem("lc.scheduleView") === "week" ? "week" : "day"; } catch (_e) { return "day"; } })(),
+    dayOffset: 0,
+    weekOffset: 0,
+  };
+
+  function shownScheduleDay(data) {
+    const now = new Date();
+    const { previewLabel } = todayLessons(data);
+    const day = previewLabel ? _nextSchoolDay(now) : startOfDay(now);
+    let remaining = Math.abs(heuteSchedule.dayOffset);
+    const step = heuteSchedule.dayOffset > 0 ? 1 : -1;
+    while (remaining > 0) {
+      day.setDate(day.getDate() + step);
+      if (day.getDay() !== 0 && day.getDay() !== 6) remaining -= 1;
+    }
+    return day;
+  }
+
+  function renderScheduleTileControls() {
+    const box = document.getElementById("tile-schedule-controls");
+    if (!box) return;
+    const week = heuteSchedule.view === "week";
+    const atStart = week ? !heuteSchedule.weekOffset : !heuteSchedule.dayOffset;
+    box.hidden = false;
+    box.innerHTML = '<div class="segmented-control" role="group" aria-label="Ansicht">'
+      + `<button class="segment-button${week ? "" : " active"}" type="button" data-sched="day" aria-pressed="${!week}">Tag</button>`
+      + `<button class="segment-button${week ? " active" : ""}" type="button" data-sched="week" aria-pressed="${week}">Woche</button>`
+      + '</div><div class="sched-nav">'
+      + `<button class="icon-button" type="button" data-sched="prev" aria-label="${week ? "Vorherige Woche" : "Vorheriger Tag"}">‹</button>`
+      + `<button class="btn btn-sm btn-secondary" type="button" data-sched="today"${atStart ? " disabled" : ""}>${week ? "Diese Woche" : "Heute"}</button>`
+      + `<button class="icon-button" type="button" data-sched="next" aria-label="${week ? "Nächste Woche" : "Nächster Tag"}">›</button>`
+      + "</div>";
+    if (box.dataset.bound) return;
+    box.dataset.bound = "1";
+    box.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-sched]");
+      if (!button) return;
+      const action = button.dataset.sched;
+      if (action === "day" || action === "week") {
+        heuteSchedule.view = action;
+        try { localStorage.setItem("lc.scheduleView", action); } catch (_e) { /* private mode */ }
+      } else if (action === "today") {
+        heuteSchedule.dayOffset = 0;
+        heuteSchedule.weekOffset = 0;
+      } else {
+        const step = action === "next" ? 1 : -1;
+        if (heuteSchedule.view === "week") heuteSchedule.weekOffset += step;
+        else heuteSchedule.dayOffset += step;
+      }
+      renderScheduleTile(getData());
+    });
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { if (heuteSchedule.view === "week") renderScheduleTile(getData()); }, 150);
+    });
   }
 
   function renderSchoolTile(data) {

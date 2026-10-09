@@ -702,10 +702,10 @@
 
   // Week: five columns that always fit the width; the height is scaled so the
   // whole school day fits on the screen (phone and laptop) without scrolling.
-  function renderWeekGrid(columns, gridStart, gridEnd) {
+  function renderWeekGrid(columns, gridStart, gridEnd, container) {
     var totalMin = gridEnd - gridStart;
     // Space from the top of the plan to the bottom of the screen (page scrolled to the top).
-    var list = _elements && _elements.scheduleList;
+    var list = container || (_elements && _elements.scheduleList);
     var top = list && list.offsetParent ? list.getBoundingClientRect().top + window.scrollY : 260;
     // minus day headers and the card/page padding below the grid
     var available = window.innerHeight - top - (window.innerWidth <= 768 ? 108 : 72);
@@ -763,8 +763,9 @@
       + '<div class="wk-body"><div class="wk-axis" style="height:' + height + 'px">' + ticks + '</div>' + body + '</div></div>';
   }
 
-  function renderWeekSchedule(events, center) {
-    var columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, _state.webuntisWeekOffset || 0));
+  function renderWeekSchedule(events, center, weekOffset, container) {
+    var offset = weekOffset === undefined ? (_state.webuntisWeekOffset || 0) : weekOffset;
+    var columns = buildWeekColumns(events, getWeekAnchorDate(center.currentDate, offset));
     var hasAnyWeekEvents = columns.some(function (c) { return c.events.length > 0; });
     if (!hasAnyWeekEvents) {
       var next = findNextEventAfter((columns[columns.length - 1] || {}).isoDate || center.currentDate);
@@ -781,7 +782,27 @@
         gridEnd = Math.max(gridEnd, Math.ceil(m.end / 30) * 30);
       });
     });
-    return renderWeekGrid(columns, gridStart, gridEnd);
+    return renderWeekGrid(columns, gridStart, gridEnd, container);
+  }
+
+  // Week view for the „Stundenplan“ tile on Heute: own week offset, sized to the tile.
+  function renderWeekFor(weekOffset, container) {
+    var center = _getData().webuntisCenter || {};
+    var weekStart = getWeekAnchorDate(center.currentDate || _toLocalISODate(new Date()), weekOffset || 0);
+    var weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    var events = (center.events || []).filter(function (e) {
+      if (!e.startsAt) return false;
+      var startsAt = new Date(e.startsAt);
+      return startsAt >= weekStart && startsAt < weekEnd;
+    });
+    var friday = new Date(weekStart);
+    friday.setDate(weekStart.getDate() + 4);
+    var fmt = function (d) { return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }); };
+    return {
+      html: renderWeekSchedule(events, center, weekOffset || 0, container),
+      label: 'KW ' + _isoWeekNumber(weekStart) + ' · ' + fmt(weekStart) + '–' + fmt(friday),
+    };
   }
 
   // Day: one clear list, lesson by lesson.
@@ -1063,6 +1084,7 @@
     renderWebUntisPlanStrip:  renderWebUntisPlanStrip,
     renderWebUntisSchedule:   renderWebUntisSchedule,
     renderWeekSchedule:       renderWeekSchedule,
+    renderWeekFor:            renderWeekFor,
     renderAgendaGroups:       renderAgendaGroups,
     renderAgendaGroup:        renderAgendaGroup,
     renderDayGroup:           renderDayGroup,

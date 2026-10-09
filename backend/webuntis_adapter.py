@@ -279,9 +279,14 @@ def _decode_ical_text(value: str) -> str:
     )
 
 
+# The Heute tile pages through weeks: last week, this week and four ahead.
+WEEKS_BACK = 1
+WEEKS_AHEAD = 4
+
+
 def _visible_events(events: list[WebUntisEvent], now: datetime) -> list[WebUntisEvent]:
-    week_start = _start_of_week(now)
-    week_end = week_start + timedelta(days=14)
+    week_start = _start_of_week(now) - timedelta(days=7 * WEEKS_BACK)
+    week_end = _start_of_week(now) + timedelta(days=7 * (WEEKS_AHEAD + 1))
     visible = [event for event in events if week_start <= event.start < week_end]
     if visible:
         return visible

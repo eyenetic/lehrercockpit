@@ -6633,3 +6633,17 @@ html, body { overflow-x: clip; }
   .gr-card .gr-row:has([data-gr-max]) .gr-seg { grid-column: 1 / -1; display: flex; }
   .gr-card .gr-row:has([data-gr-max]) .segment-button { flex: 1 1 0; }
 }
+
+/* ── Stundenplan auf Heute: Tag/Woche + Blättern ─────────────────────────── */
+.sched-tile-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 16px 10px;
+}
+.sched-tile-controls[hidden] { display: none; }
+.sched-tile-controls .sched-nav { display: flex; align-items: center; gap: 4px; }
+.sched-tile-controls .icon-button { width: 32px; height: 32px; font-size: 1.1rem; }
+[data-today-module="schedule"] .wk-grid { margin-top: 2px; }
