@@ -288,3 +288,38 @@
 .security-status { margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; font-size: 0.84rem; }
 .security-status.is-ok { background: var(--success-soft); color: var(--ink); }
 .security-status.is-warn { background: var(--danger-soft); color: var(--danger); font-weight: 600; }
+
+/* Lehrkräfte-Tabelle: eine Hauptaktion + „⋯“-Menü */
+.user-name { font-weight: 560; }
+.user-note { display: block; font-size: 0.76rem; color: var(--warning); }
+.user-table th.th-actions { text-align: right; }
+.user-table .actions-cell { justify-content: flex-end; align-items: center; flex-wrap: nowrap; }
+.row-menu { position: relative; }
+.row-menu > summary { list-style: none; cursor: pointer; min-width: 34px; text-align: center; }
+.row-menu > summary::-webkit-details-marker { display: none; }
+.row-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: grid;
+  min-width: 190px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+.row-menu-list button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+}
+.row-menu-list button:hover { background: var(--panel-soft); }
+.row-menu-list button.is-danger { color: var(--danger); }

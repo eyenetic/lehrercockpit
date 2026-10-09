@@ -1118,11 +1118,19 @@
             const action = btn.dataset.action;
             const uid = parseInt(btn.dataset.uid, 10);
             const name = btn.dataset.name || '';
+            const menu = btn.closest('details.row-menu');
+            if (menu) menu.open = false;
             if (action === 'edit-user')          window.editUser(uid);
             else if (action === 'regen-code')    window.regenerateCode(uid, name);
             else if (action === 'check-links')   window.checkLinks(uid, name);
             else if (action === 'toggle-active') window.toggleActive(uid, btn.dataset.active === 'true');
             else if (action === 'delete-user')   window.deleteUser(uid, name);
+          });
+          // Only one "⋯" menu open at a time; a click elsewhere closes it.
+          document.addEventListener('click', function (e) {
+            document.querySelectorAll('details.row-menu[open]').forEach(function (menu) {
+              if (!menu.contains(e.target)) menu.open = false;
+            });
           });
         })();
 
@@ -1145,35 +1153,32 @@
             return;
           }
           let html = '<table class="user-table"><thead><tr>'
-            + '<th>Name</th><th>Rolle</th><th>Status</th><th>Zugangscode</th><th>Aktionen</th>'
+            + '<th>Name</th><th>Status</th><th class="th-actions">Aktionen</th>'
             + '</tr></thead><tbody>';
 
           users.forEach(function (u) {
             // Phase 13: show admin badge based on is_admin flag (+ role compat)
             const isAdminUser = u.is_admin === true || u.role === 'admin';
-            const roleBadge = isAdminUser
-              ? '<span class="badge badge-admin">Admin</span>'
-              : '<span class="badge badge-teacher">Lehrkraft</span>';
             const statusBadge = u.is_active
               ? '<span class="badge badge-active">aktiv</span>'
               : '<span class="badge badge-inactive">inaktiv</span>';
-            const hasCode = u.has_access_code
-              ? '<span style="color:var(--success);">✓</span>'
-              : '<span style="color:var(--muted);">–</span>';
-
             const uName = esc(u.full_name || u.first_name || '');
+            const ids = ' data-uid="' + u.id + '" data-name="' + uName + '"';
             html += '<tr>'
-              + '<td>' + esc(u.full_name || (u.first_name + ' ' + u.last_name)) + '</td>'
-              + '<td>' + roleBadge + '</td>'
+              + '<td><span class="user-name">' + esc(u.full_name || (u.first_name + ' ' + u.last_name)) + '</span>'
+              + (isAdminUser ? ' <span class="badge badge-admin">Admin</span>' : '')
+              + (u.has_access_code ? '' : '<span class="user-note">noch kein Code</span>') + '</td>'
               + '<td>' + statusBadge + '</td>'
-              + '<td>' + hasCode + '</td>'
               + '<td><div class="actions-cell">'
-              + '<button class="btn btn-sm" type="button" data-action="edit-user" data-uid="' + u.id + '">Bearbeiten</button>'
-              + '<button class="btn btn-sm" type="button" data-action="check-links" data-uid="' + u.id + '" data-name="' + uName + '" title="WebUntis- und itslearning-Link dieser Lehrkraft testen">Links prüfen</button>'
-              + '<button class="btn btn-sm" type="button" data-action="regen-code" data-uid="' + u.id + '" data-name="' + uName + '" title="Link, mit dem die Lehrkraft selbst einen neuen Code festlegt">Code-Link</button>'
-              + '<button class="btn btn-sm ' + (u.is_active ? 'btn-danger' : '') + '" type="button" data-action="toggle-active" data-uid="' + u.id + '" data-active="' + u.is_active + '">'
+              + '<button class="btn btn-sm" type="button" data-action="check-links"' + ids + ' title="WebUntis- und itslearning-Link dieser Lehrkraft testen">Links prüfen</button>'
+              + '<details class="row-menu"><summary class="btn btn-sm" aria-label="Weitere Aktionen für ' + uName + '">⋯</summary>'
+              + '<div class="row-menu-list" role="menu">'
+              + '<button type="button" role="menuitem" data-action="edit-user"' + ids + '>Bearbeiten</button>'
+              + '<button type="button" role="menuitem" data-action="regen-code"' + ids + '>Code-Link erstellen</button>'
+              + '<button type="button" role="menuitem" data-action="toggle-active"' + ids + ' data-active="' + u.is_active + '">'
               + (u.is_active ? 'Deaktivieren' : 'Aktivieren') + '</button>'
-              + '<button class="btn btn-sm btn-danger" type="button" data-action="delete-user" data-uid="' + u.id + '" data-name="' + uName + '">Löschen</button>'
+              + '<button type="button" role="menuitem" class="is-danger" data-action="delete-user"' + ids + '>Löschen …</button>'
+              + '</div></details>'
               + '</div></td>'
               + '</tr>';
           });
