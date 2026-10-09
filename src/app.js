@@ -1280,16 +1280,60 @@
       list.innerHTML = tileEmpty(mail.error, '<button class="btn btn-secondary btn-sm" type="button" data-open-connections="mail">Verbindung prüfen</button>');
       return;
     }
-    const unread = (mail.messages || []).filter((m) => m.unread).length;
+    const messages = (mail.messages || []).slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+    const unread = messages.filter((m) => m.unread).length;
     if (meta) meta.textContent = unread ? `${unread} ungelesen` : "alles gelesen";
-    list.innerHTML = (mail.messages || []).length
-      ? (mail.messages || []).map((m) => `
-          <a class="mail-row${m.unread ? " is-unread" : ""}" href="${escapeHtml(mail.webmail_url)}" target="_blank" rel="noopener noreferrer">
-            <span class="mail-from">${escapeHtml(m.from)}</span>
-            <span class="mail-subject">${escapeHtml(m.subject)}${m.unread ? '<span class="new-mark">neu</span>' : ""}</span>
-            <span class="mail-time">${escapeHtml(mailTime(m.date))}</span>
-          </a>`).join("")
+    list.innerHTML = messages.length
+      ? messages.map((m) => `
+          <div class="mail-item${openMailId === m.id ? " is-open" : ""}" data-mail-id="${escapeHtml(m.id)}">
+            <button class="mail-row${m.unread ? " is-unread" : ""}" type="button" aria-expanded="${openMailId === m.id}">
+              <span class="mail-from">${escapeHtml(m.from)}</span>
+              <span class="mail-subject"><span class="mail-subject-text">${escapeHtml(m.subject)}</span>${m.unread ? '<span class="new-mark">neu</span>' : ""}</span>
+              <span class="mail-time">${escapeHtml(mailTime(m.date))}</span>
+            </button>
+            <div class="mail-body" ${openMailId === m.id ? "" : "hidden"}>${openMailId === m.id ? mailBodyHtml(m.id, mail.webmail_url) : ""}</div>
+          </div>`).join("")
       : tileEmpty("Der Posteingang ist leer.");
+    if (!list.dataset.bound) {
+      list.dataset.bound = "1";
+      list.addEventListener("click", (event) => {
+        const row = event.target.closest(".mail-row");
+        if (!row) return;
+        const item = row.closest("[data-mail-id]");
+        toggleMail(item.dataset.mailId);
+      });
+    }
+  }
+
+  // Text of a mail on click: fetched from the server, never stored; the mail stays unread.
+  let openMailId = null;
+  const mailBodies = {};
+
+  function mailBodyHtml(id, webmailUrl) {
+    const entry = mailBodies[id];
+    const link = `<a class="mail-open" href="${escapeHtml(webmailUrl)}" target="_blank" rel="noopener noreferrer">Im Webmail öffnen ↗</a>`;
+    if (!entry || entry.loading) return '<p class="mail-loading">Lade die Mail …</p>';
+    if (entry.error) return `<p class="mail-error">${escapeHtml(entry.error)}</p>${link}`;
+    const text = entry.text ? `<div class="mail-text">${escapeHtml(entry.text)}</div>` : '<p class="mail-loading">Diese Mail enthält keinen lesbaren Text.</p>';
+    const attachments = entry.attachments && entry.attachments.length
+      ? `<p class="mail-attachments">📎 ${entry.attachments.map(escapeHtml).join(", ")}</p>` : "";
+    const more = entry.truncated ? '<p class="mail-loading">… gekürzt – die ganze Mail im Webmail.</p>' : "";
+    return text + more + attachments + link;
+  }
+
+  function toggleMail(id) {
+    openMailId = openMailId === id ? null : id;
+    if (openMailId && !mailBodies[id]) {
+      mailBodies[id] = { loading: true };
+      fetch(`${window.BACKEND_API_URL || ""}/api/v2/dienstmail/messages/${encodeURIComponent(id)}`, { credentials: "include" })
+        .then((resp) => resp.json().then((data) => ({ resp, data })))
+        .then(({ resp, data }) => {
+          mailBodies[id] = resp.ok ? data.message : { error: data.error || "Die Mail konnte nicht geladen werden." };
+        })
+        .catch(() => { mailBodies[id] = { error: "Keine Verbindung zum Server." }; })
+        .then(() => renderDienstmail());
+    }
+    renderDienstmail();
   }
 
   function renderInboxTile(data) {
@@ -1308,7 +1352,7 @@
       .filter((event) => event.kind === "todo" && String(event.start).slice(0, 10) <= soon)
       .slice(0, 2)
       .forEach((event) => rows.push({ when: dayLabel(event.start), title: event.title, tag: "Abgabe", tagCls: "tile-tag-warn" }));
-    unreadMails(data).slice(0, 3).forEach((mail) => rows.push({
+    unreadMails(data).sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""))).slice(0, 3).forEach((mail) => rows.push({
       title: mail.subject,
       titleHtml: `<a href="${escapeHtml(data.dienstmail.webmail_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(mail.subject)}</a>`,
       sub: mail.from,

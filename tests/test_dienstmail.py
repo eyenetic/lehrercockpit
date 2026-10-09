@@ -66,3 +66,46 @@ def test_payload_caches_and_reports_errors():
     assert bad["data"]["error"] and bad["data"]["messages"] == []
     good = dienstmail.build_payload({"address": "ich@schule.berlin.de", "app_password": "app-pw"}, now)
     assert len(good["data"]["messages"]) == 2 and good["data"]["webmail_url"].startswith("https://")
+
+
+class FakeIMAPOrder(FakeIMAP):
+    """UID order ≠ date order (a mail moved into the inbox later)."""
+
+    def uid(self, command, *args):
+        FakeIMAP.calls.append(("uid", command, args))
+        if command == "search":
+            return "OK", [b"1 2"]
+        def row(uid, date):
+            return (f"x (UID {uid} FLAGS ())".encode(), f"From: a@b.de\r\nSubject: s{uid}\r\nDate: {date}\r\n\r\n".encode())
+        return "OK", [row(2, "Mon, 05 Oct 2026 08:00:00 +0200"), b")", row(1, "Fri, 09 Oct 2026 08:00:00 +0200"), b")"]
+
+
+def test_messages_are_sorted_by_date(monkeypatch):
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", FakeIMAPOrder)
+    messages = dienstmail.fetch_headers("ich@schule.berlin.de", "app-pw")
+    assert [m["id"] for m in messages] == ["1", "2"]  # 09.10. before 05.10.
+
+
+class FakeIMAPBody(FakeIMAP):
+    def uid(self, command, *args):
+        FakeIMAP.calls.append(("uid", command, args))
+        raw = (b"From: a@b.de\r\nSubject: Elternabend\r\nMIME-Version: 1.0\r\n"
+               b"Content-Type: multipart/mixed; boundary=X\r\n\r\n"
+               b"--X\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Liebe Kolleg:innen,</p><p>Raum 104 &amp; 105</p>\r\n"
+               b"--X\r\nContent-Type: application/pdf\r\nContent-Disposition: attachment; filename=plan.pdf\r\n\r\nJVBERi0=\r\n--X--\r\n")
+        return "OK", [(b"1 (UID 9 BODY[] {300}", raw), b")"]
+
+
+def test_message_text_is_read_without_marking_it_read(monkeypatch):
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", FakeIMAPBody)
+    message = dienstmail.fetch_message("ich@schule.berlin.de", "app-pw", "9")
+    assert "Liebe Kolleg:innen" in message["text"] and "Raum 104 & 105" in message["text"]
+    assert message["attachments"] == ["plan.pdf"] and message["truncated"] is False
+    fetch = next(c for c in FakeIMAP.calls if c[0] == "uid" and c[1] == "fetch")
+    assert fetch[2][1].startswith("(BODY.PEEK[]")
+    assert ("select", "INBOX", True) in FakeIMAP.calls
+
+
+def test_message_id_must_be_a_number():
+    with pytest.raises(dienstmail.DienstmailError):
+        dienstmail.fetch_message("ich@schule.berlin.de", "app-pw", "1:*")
