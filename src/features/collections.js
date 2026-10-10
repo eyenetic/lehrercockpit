@@ -181,8 +181,8 @@ var LehrerCollections = (function () {
     });
 
     var archBtn = col.archived
-      ? '<button class="btn btn-sm btn-secondary" type="button" data-action="unarchive">♻️ Reaktivieren</button>'
-      : '<button class="btn btn-sm btn-secondary" type="button" data-action="archive">📦 Archivieren</button>';
+      ? '<button class="btn btn-sm btn-secondary" type="button" data-action="unarchive">Reaktivieren</button>'
+      : '<button class="btn btn-sm btn-secondary" type="button" data-action="archive">Archivieren</button>';
 
     return '<div class="col-panel">'
       + '<div class="col-panel-head">'
@@ -193,12 +193,14 @@ var LehrerCollections = (function () {
       +       (col.dueDate ? ' · Fällig: ' + _formatDate(col.dueDate) : '')
       +       (col.note ? ' · ' + _esc(col.note) : '')
       +     '</p>'
-      +   '</div>'
-      +   '<div class="col-panel-actions">'
       +     '<span class="col-panel-progress" data-col-progress>' + p.done + ' von ' + p.total + ' (' + pct + '%)</span>'
-      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="export-col">📤 Export</button>'
+      +   '</div>'
+      +   '<div class="col-panel-actions action-row">'
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="export-col">Export</button>'
       +     archBtn
-      +     '<button class="btn btn-sm btn-danger" type="button" data-action="delete-col">Löschen</button>'
+      +     '<details class="more-menu"><summary class="btn btn-sm btn-secondary" aria-label="Weitere Aktionen">⋯</summary>'
+      +       '<div class="more-menu-list" role="menu"><button type="button" role="menuitem" class="is-danger" data-action="delete-col">Einsammlung löschen …</button></div>'
+      +     '</details>'
       +   '</div>'
       + '</div>'
       + '<div class="col-progress-full"><div class="col-progress-full-fill" style="width:' + pct + '%"></div></div>'

@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=97" />
+    <link rel="stylesheet" href="./styles.css?v=98" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -307,9 +307,9 @@
                 <button class="plans-tab-btn is-active" role="tab" aria-selected="true"
                   aria-controls="plans-block-orgaplan" data-plans-tab="orgaplan">Orgaplan</button>
                 <button class="plans-tab-btn" role="tab" aria-selected="false"
-                  aria-controls="plans-block-klassenarbeitsplan" data-plans-tab="klassenarbeitsplan">Klassenarbeitsplan</button>
+                  aria-controls="plans-block-klassenarbeitsplan" data-plans-tab="klassenarbeitsplan"><span class="wide-only">Klassenarbeitsplan</span><span class="narrow-only">Klassenarbeiten</span></button>
                 <button class="plans-tab-btn" role="tab" aria-selected="false"
-                  aria-controls="plans-block-termine" data-plans-tab="termine">Schultermine</button>
+                  aria-controls="plans-block-termine" data-plans-tab="termine"><span class="wide-only">Schultermine</span><span class="narrow-only">Termine</span></button>
               </div>
 
               <!-- Orgaplan -->
@@ -550,28 +550,28 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=97"></script>
-    <script src="./src/features/vault.js?v=97"></script>
-    <script src="./src/api-client.js?v=97"></script>
-    <script src="./src/modules/dashboard-manager.js?v=97"></script>
-    <script src="./src/features/grades.js?v=97"></script>
-    <script src="./src/features/webuntis.js?v=97"></script>
-    <script src="./src/features/itslearning.js?v=97"></script>
-    <script src="./src/features/nextcloud.js?v=97"></script>
-    <script src="./src/features/documents.js?v=97"></script>
-    <script src="./src/features/classwork.js?v=97"></script>
-    <script src="./src/features/classlist.js?v=97"></script>
-    <script src="./src/features/collections.js?v=97"></script>
-    <script src="./src/features/inbox.js?v=97"></script>
-    <script src="./src/features/zugaenge.js?v=97"></script>
-    <script src="./src/features/onedrive-sync.js?v=97"></script>
-    <script src="./src/features/signals.js?v=97"></script>
-    <script src="./src/features/push.js?v=97"></script>
-    <script src="./src/features/ai.js?v=97"></script>
-    <script src="./src/features/links.js?v=97"></script>
-    <script src="./src/features/connections.js?v=97"></script>
-    <script src="./src/features/feedback.js?v=97"></script>
-    <script src="./src/app.js?v=97"></script>
+    <script src="./data/mock-dashboard.js?v=98"></script>
+    <script src="./src/features/vault.js?v=98"></script>
+    <script src="./src/api-client.js?v=98"></script>
+    <script src="./src/modules/dashboard-manager.js?v=98"></script>
+    <script src="./src/features/grades.js?v=98"></script>
+    <script src="./src/features/webuntis.js?v=98"></script>
+    <script src="./src/features/itslearning.js?v=98"></script>
+    <script src="./src/features/nextcloud.js?v=98"></script>
+    <script src="./src/features/documents.js?v=98"></script>
+    <script src="./src/features/classwork.js?v=98"></script>
+    <script src="./src/features/classlist.js?v=98"></script>
+    <script src="./src/features/collections.js?v=98"></script>
+    <script src="./src/features/inbox.js?v=98"></script>
+    <script src="./src/features/zugaenge.js?v=98"></script>
+    <script src="./src/features/onedrive-sync.js?v=98"></script>
+    <script src="./src/features/signals.js?v=98"></script>
+    <script src="./src/features/push.js?v=98"></script>
+    <script src="./src/features/ai.js?v=98"></script>
+    <script src="./src/features/links.js?v=98"></script>
+    <script src="./src/features/connections.js?v=98"></script>
+    <script src="./src/features/feedback.js?v=98"></script>
+    <script src="./src/app.js?v=98"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.

@@ -209,9 +209,9 @@ var LehrerClasswork = (function () {
       orgaplan.checkedAt ? 'geprüft ' + esc(relTime(orgaplan.checkedAt)) : '',
     ];
     var actions =
-      (orgaplan.sourceUrl ? '<a class="secondary-link" href="' + esc(orgaplan.sourceUrl) + '" target="_blank" rel="noopener noreferrer">PDF öffnen ↗</a>' : '') +
+      (orgaplan.sourceUrl ? '<a class="secondary-link" href="' + esc(orgaplan.sourceUrl) + '" target="_blank" rel="noopener noreferrer">PDF öffnen ↗\uFE0E</a>' : '') +
       '<button class="secondary-link" type="button" data-plan-action="orgaplan-refresh">' + (_busy.orgaplan ? 'Aktualisiere …' : 'Aktualisieren') + '</button>' +
-      (window.MULTIUSER_ENABLED ? '<button class="secondary-link" type="button" data-open-connections="orgaplan">Quelle' + (isAdmin() ? ' ändern' : '') + '</button>' : '');
+      (window.MULTIUSER_ENABLED ? '<button class="secondary-link" type="button" data-open-connections="orgaplan">Quelle' + (isAdmin() ? '<span class="wide-only"> ändern</span>' : '') + '</button>' : '');
     var note = '';
     if (status === 'outdated' || status === 'error') note = esc(orgaplan.detail || orgaplan.error || '');
     else if (orgaplan.error) note = 'Letzte Prüfung fehlgeschlagen: ' + esc(orgaplan.error) + ' Angezeigt wird der zuletzt gelesene Plan.';

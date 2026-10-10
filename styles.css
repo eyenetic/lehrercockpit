@@ -6824,3 +6824,77 @@ html, body { overflow-x: clip; }
 .inbox-card .message-item { margin: 0; padding: 10px 16px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
 .inbox-card .message-item:first-child { border-top: 0; }
 .inbox-card .empty-state { padding: 12px 16px; color: var(--muted); font-size: 0.86rem; border: 0; background: transparent; }
+
+/* ── Wochenraster: einzeilige, gut lesbare Einträge ───────────────────── */
+.wk-event { justify-content: flex-start; }
+.wk-event .wk-event-title {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+  hyphens: none;
+}
+.wk-event .wk-event-room { display: block; }
+.wk-event.is-short { padding-top: 1px; padding-bottom: 1px; justify-content: center; }
+.wk-event.is-short .wk-event-room { display: none; }
+.wk-event.is-duty { flex-direction: column; align-items: stretch; gap: 0; z-index: 1; }
+.wk-event.is-duty.is-short .wk-event-title { font-size: 0.6rem; line-height: 1.1; }
+@media (max-width: 640px) {
+  .wk-event { padding: 2px 3px 2px 4px; }
+  .wk-event .wk-event-title { font-size: 0.68rem; letter-spacing: -0.01em; }
+  .wk-event .wk-event-room { font-size: 0.58rem; }
+}
+.sched-tile-controls { flex-wrap: nowrap; }
+.sched-tile-controls .segment-button { padding-inline: 12px; }
+
+/* ── Knopfreihen ohne Umbruch + „⋯“-Menü ──────────────────────────────── */
+.action-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; }
+.action-row .btn { white-space: nowrap; }
+.more-menu { position: relative; }
+.more-menu > summary { list-style: none; cursor: pointer; min-width: 34px; justify-content: center; }
+.more-menu > summary::-webkit-details-marker { display: none; }
+.more-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: grid;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+}
+.more-menu-list button {
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+}
+.more-menu-list button:hover:not(:disabled) { background: var(--panel-soft); }
+.more-menu-list button:disabled { color: var(--muted); cursor: default; }
+.more-menu-list button.is-danger { color: var(--danger); }
+.col-panel-title-block .col-panel-progress { display: inline-block; margin-top: 4px; }
+.plan-source-actions { flex-wrap: nowrap; }
+.plan-source-actions .secondary-link { white-space: nowrap; }
+@media (max-width: 640px) {
+  .wide-only { display: none; }
+  .plan-source-actions { width: 100%; }
+  .plan-source-actions .secondary-link { padding: 6px 9px; font-size: 0.78rem; }
+  .classlist-panel-head, .col-panel-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .col-check-toolbar { flex-wrap: wrap; }
+  .col-check-toolbar .col-missing-label { flex-basis: 100%; }
+}
+.narrow-only { display: none; }
+@media (max-width: 640px) {
+  .narrow-only { display: inline; }
+  .plans-tab-bar { display: flex; width: 100%; }
+  .plans-tab-btn { flex: 1 1 auto; padding: 6px 8px; }
+}

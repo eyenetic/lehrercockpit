@@ -1078,7 +1078,9 @@
     }
     renderScheduleTileControls();
     if (heuteSchedule.view === "week" && window.LehrerWebUntis && window.LehrerWebUntis.renderWeekFor) {
-      const week = window.LehrerWebUntis.renderWeekFor(heuteSchedule.weekOffset, body);
+      // At the weekend the coming week is the one that matters.
+      const weekend = [0, 6].includes(new Date().getDay());
+      const week = window.LehrerWebUntis.renderWeekFor(heuteSchedule.weekOffset + (weekend ? 1 : 0), body);
       setTileMeta("tile-schedule-meta", week.label);
       body.innerHTML = week.html;
       return;
@@ -1142,7 +1144,7 @@
       + `<button class="segment-button${week ? " active" : ""}" type="button" data-sched="week" aria-pressed="${week}">Woche</button>`
       + '</div><div class="sched-nav">'
       + `<button class="icon-button" type="button" data-sched="prev" aria-label="${week ? "Vorherige Woche" : "Vorheriger Tag"}">‹</button>`
-      + `<button class="btn btn-sm btn-secondary" type="button" data-sched="today"${atStart ? " disabled" : ""}>${week ? "Diese Woche" : "Heute"}</button>`
+      + `<button class="btn btn-sm btn-secondary" type="button" data-sched="today"${atStart ? " disabled" : ""} title="${week ? "Zur aktuellen Woche" : "Zu heute"}">Heute</button>`
       + `<button class="icon-button" type="button" data-sched="next" aria-label="${week ? "Nächste Woche" : "Nächster Tag"}">›</button>`
       + "</div>";
     if (box.dataset.bound) return;
@@ -1721,6 +1723,13 @@
   }
   window.addEventListener("lehrer:user", () => renderPageHead());
   if (window.LehrerLinks) window.LehrerLinks.onChange(() => renderHeuteZugaenge());
+  // „⋯“ menus (Klassen, Einsammlungen): one open at a time, closed by a click elsewhere or on an entry.
+  document.addEventListener("click", (event) => {
+    document.querySelectorAll("details.more-menu[open]").forEach((menu) => {
+      if (!menu.contains(event.target) || event.target.closest(".more-menu-list button")) menu.open = false;
+    });
+  });
+
   // A broken part (e.g. odd stored data) must never stop the rest of the cockpit.
   function safely(fn) {
     try { fn(); } catch (error) { console.error(error); }

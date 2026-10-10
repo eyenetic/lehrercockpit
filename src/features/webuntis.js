@@ -682,6 +682,35 @@
     return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   }
 
+  // Groups of lessons that overlap each other (directly or through a chain).
+  function _overlapClusters(events) {
+    var sorted = events.filter(function (ev) { return _eventMinutes(ev); })
+      .sort(function (a, b) { return _eventMinutes(a).start - _eventMinutes(b).start; });
+    var clusters = [];
+    var current = null;
+    var currentEnd = -1;
+    sorted.forEach(function (ev) {
+      var m = _eventMinutes(ev);
+      if (!current || m.start >= currentEnd) {
+        current = [];
+        clusters.push(current);
+        currentEnd = m.end;
+      } else {
+        currentEnd = Math.max(currentEnd, m.end);
+      }
+      current.push(ev);
+    });
+    return clusters;
+  }
+
+  // "M - Q3/Q4" → {subject: "M", group: "Q3/Q4"}: in a narrow column the class
+  // goes first, subject and room below.
+  function _lessonLabel(title) {
+    var text = String(title || '').trim();
+    var match = text.match(/^(.+?)\s+-\s+(.+)$/);
+    return match ? { subject: match[1], group: match[2] } : { subject: text, group: '' };
+  }
+
   // Place overlapping lessons side by side inside a day column.
   function _layoutTracks(events) {
     var tracks = [];
@@ -729,26 +758,32 @@
     }).join('') + '</div>';
 
     var body = columns.map(function (col) {
-      var tracks = _layoutTracks(col.events);
-      var count = tracks.length || 1;
       var blocks = '';
-      tracks.forEach(function (track, index) {
-        track.forEach(function (ev) {
-          var m = _eventMinutes(ev);
-          var start = new Date(ev.startsAt);
-          var end = ev.endsAt ? new Date(ev.endsAt) : null;
-          var duty = isSupervision(ev);
-          var cls = 'wk-event ' + getEventTimingClass(ev) + (isCancelledEvent(ev) ? ' is-cancelled' : '') + (duty ? ' is-duty' : '');
-          var title = (ev.title || '') + (ev.location ? ' · ' + ev.location : '') + ' (' + _hhmm(start) + (end ? '–' + _hhmm(end) : '') + ')'
-            + (isCancelledEvent(ev) ? ' – entfällt' : '');
-          blocks += '<div class="' + cls + '" title="' + _esc(title) + '" style="top:' + ((m.start - gridStart) * perMinute).toFixed(1) + 'px;'
-            + 'height:' + Math.max(18, (m.end - m.start) * perMinute - 2).toFixed(1) + 'px;'
-            + 'left:calc(' + (index / count * 100).toFixed(2) + '% + 1px);width:calc(' + (100 / count).toFixed(2) + '% - 2px)">'
-            + (duty
-              ? '<span class="wk-event-title">Aufsicht</span><span class="wk-event-room">' + _esc(dutyPlace(ev)) + '</span>'
-              : '<span class="wk-event-title">' + _esc(ev.title || '') + '</span>'
-                + (ev.location ? '<span class="wk-event-room">' + _esc(ev.location) + '</span>' : ''))
-            + '</div>';
+      // Only lessons that really overlap share the width – not the whole day.
+      _overlapClusters(col.events).forEach(function (cluster) {
+        var tracks = _layoutTracks(cluster);
+        var count = tracks.length || 1;
+        tracks.forEach(function (track, index) {
+          track.forEach(function (ev) {
+            var m = _eventMinutes(ev);
+            var start = new Date(ev.startsAt);
+            var end = ev.endsAt ? new Date(ev.endsAt) : null;
+            var duty = isSupervision(ev);
+            var height = Math.max(14, (m.end - m.start) * perMinute - 2);
+            var cls = 'wk-event ' + getEventTimingClass(ev) + (isCancelledEvent(ev) ? ' is-cancelled' : '') + (duty ? ' is-duty' : '')
+              + (height < 30 ? ' is-short' : '');
+            var title = (ev.title || '') + (ev.location ? ' · ' + ev.location : '') + ' (' + _hhmm(start) + (end ? '–' + _hhmm(end) : '') + ')'
+              + (isCancelledEvent(ev) ? ' – entfällt' : '');
+            var label = _lessonLabel(ev.title);
+            var main = duty ? 'Aufsicht' : (label.group || label.subject);
+            var sub = duty ? dutyPlace(ev) : [label.group ? label.subject : '', ev.location].filter(Boolean).join(' · ');
+            blocks += '<div class="' + cls + '" title="' + _esc(title) + '" style="top:' + ((m.start - gridStart) * perMinute).toFixed(1) + 'px;'
+              + 'height:' + height.toFixed(1) + 'px;'
+              + 'left:calc(' + (index / count * 100).toFixed(2) + '% + 1px);width:calc(' + (100 / count).toFixed(2) + '% - 2px)">'
+              + '<span class="wk-event-title">' + _esc(main) + '</span>'
+              + (sub ? '<span class="wk-event-room">' + _esc(sub) + '</span>' : '')
+              + '</div>';
+          });
         });
       });
       var nowLine = '';
