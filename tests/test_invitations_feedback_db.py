@@ -273,3 +273,20 @@ def test_admin_reset_link_lets_teacher_choose_new_code(app, people):
     done = _client(app).post("/api/v2/auth/reset-code", json={"token": data["token"], "new_code": "ResetCode2026"})
     assert done.status_code == 200
     assert _client(app).post("/api/v2/auth/login", json={"code": "ResetCode2026"}).status_code == 200
+
+
+def test_feedback_goes_to_admins_with_connected_dienstmail(db_url, people):
+    import psycopg
+
+    from backend import feedback
+    from backend.modules.module_registry import save_user_module_config
+
+    with psycopg.connect(db_url) as conn:
+        save_user_module_config(conn, people["admin"], "mail", {"address": "ada@example.org", "app_password": "pw"})
+        save_user_module_config(conn, people["teacher"], "mail", {"address": "tim@example.org", "app_password": "pw"})
+        conn.commit()
+        boxes = feedback.admin_mailboxes(conn)
+        conn.execute("DELETE FROM user_module_configs WHERE user_id IN (%s, %s)", (people["admin"], people["teacher"]))
+        conn.commit()
+    assert ("ada@example.org", "pw") in boxes
+    assert all(address != "tim@example.org" for address, _ in boxes)  # teachers never get it

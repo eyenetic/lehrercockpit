@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=98" />
-    <link rel="stylesheet" href="./styles.auth.css?v=98" />
+    <link rel="stylesheet" href="./styles.css?v=99" />
+    <link rel="stylesheet" href="./styles.auth.css?v=99" />
     <style>
       body.onboarding-page { align-items: flex-start; padding: 48px 16px; box-sizing: border-box; }
       .setup-card {
@@ -93,8 +93,7 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/push.js?v=98"></script>
-    <script src="./src/features/connections.js?v=98"></script>
+    <script src="./src/features/connections.js?v=99"></script>
     <script>
       (function () {
         'use strict';
@@ -104,13 +103,11 @@
         var STEPS = [
           { id: 'welcome', label: 'Start' },
           { id: 'webuntis', label: 'Stundenplan', title: 'Stundenplan verbinden',
-            lead: 'Mit dem Kalender-Abo aus WebUntis siehst du deine Stunden, Vertretungen und Entfälle – auch als Hinweis am Morgen.' },
+            lead: 'Mit dem Kalender-Abo aus WebUntis siehst du deine Stunden, Vertretungen und Entfälle.' },
           { id: 'itslearning', label: 'itslearning', title: 'itslearning verbinden',
             lead: 'Termine und Abgabefristen deiner Kurse. Das Kalender-Abo funktioniert ohne Passwort.' },
           { id: 'nextcloud', label: 'Nextcloud', title: 'Nextcloud verbinden (optional)',
             lead: 'Deine Nextcloud-Favoriten erscheinen dann unter „Links“ – jede wichtige Datei mit einem Klick.' },
-          { id: 'push', label: 'Hinweise', title: 'Hinweise aufs Handy (optional)',
-            lead: 'Schultags morgens dein Tag in drei Zeilen, sonntags die Vorschau auf die Woche – direkt als Mitteilung.' },
           { id: 'done', label: 'Fertig' },
         ];
         var PERSONAL = { webuntis: 'Stundenplan (WebUntis)', itslearning: 'itslearning', nextcloud: 'Nextcloud' };

@@ -6,6 +6,8 @@ subject, date and the read flag of the newest messages:
 
 - read-only: the mailbox is opened with EXAMINE and headers are fetched with
   BODY.PEEK, so nothing is marked as read, moved or deleted
+- one exception, admins only: a new Rückmeldung is placed into the admin's own
+  INBOX (IMAP APPEND) – nothing is sent, no SMTP, no other recipient
 - no message bodies, nothing stored – only a short in-memory cache
 - the app password is encrypted at rest like every "*password" field (crypto.py)
 """
@@ -211,3 +213,29 @@ def fetch_message(address: str, app_password: str, uid: str) -> dict[str, Any]:
             client.logout()
         except Exception:
             pass
+
+
+# ── Rückmeldung in den eigenen Posteingang legen (nur Admins) ───────────────
+def put_into_inbox(address: str, app_password: str, subject: str, text: str) -> None:
+    """Places a message into the owner's own INBOX via IMAP APPEND (unread). Nothing is sent."""
+    from email.message import EmailMessage
+
+    message = EmailMessage()
+    message["From"] = email.utils.formataddr(("Lehrercockpit", address))
+    message["To"] = address
+    message["Subject"] = subject
+    message["Date"] = email.utils.formatdate(localtime=True)
+    message["Message-ID"] = email.utils.make_msgid(domain="lehrercockpit")
+    message.set_content(text)
+    client = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT, ssl_context=tls_context(), timeout=TIMEOUT_SECONDS)
+    try:
+        client.login(address, app_password)
+        status, _ = client.append("INBOX", "", imaplib.Time2Internaldate(time.time()), message.as_bytes())
+        if status != "OK":
+            raise DienstmailError("Die Rückmeldung konnte nicht in den Posteingang gelegt werden.")
+    finally:
+        try:
+            client.logout()
+        except Exception:
+            pass
+    forget(address)  # the list on "Heute" shows it on the next load

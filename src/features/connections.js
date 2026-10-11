@@ -4,7 +4,7 @@
  *   Deine Zugänge        WebUntis, itslearning, Nextcloud (per teacher)
  *   Schulweite Quellen   Orgaplan, Klassenarbeitsplan, Schultermine, Dienstmail
  *                        (status for everyone, changeable by admins)
- *   Benachrichtigungen   Push on this device, KI-Assistent
+ *   Weiteres             KI-Assistent
  *
  * Backend: GET /api/v2/connections, PATCH /api/v2/connections/<module>,
  * /api/v2/connections/nextcloud/*, /api/v2/connections/school/*,
@@ -23,7 +23,7 @@
     { id: 'personal', title: 'Deine Zugänge' },
     { id: 'school', title: 'Schule' },
     { id: 'links', title: 'Links' },
-    { id: 'notify', title: 'Benachrichtigungen' },
+    { id: 'notify', title: 'Weiteres' },
   ];
 
   var ICONS = {
@@ -34,7 +34,6 @@
     klassenarbeitsplan: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
     termine: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
     dienstmail: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
-    push: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
     links: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
     ai: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
   };
@@ -773,95 +772,6 @@
     },
     bind: function (el) {
       if (window.LehrerLinks) window.LehrerLinks.mountManager(el.querySelector('[data-links-manager]'));
-    },
-  });
-
-  // ── Push-Nachrichten (dieses Gerät) ───────────────────────────────────────
-
-  function _pushBody(st) {
-    var prefs = st.prefs || { morning: true, weekly: true };
-    if (!st.supported) {
-      return '<p class="connection-copy">Dieser Browser unterstützt keine Push-Nachrichten.</p>';
-    }
-    if (st.iosNeedsInstall) {
-      return '<p class="connection-copy">Auf iPhone und iPad funktionieren Push-Nachrichten nur mit dem installierten Cockpit: ' +
-        'in Safari auf „Teilen“ → „Zum Home-Bildschirm“, das Cockpit von dort öffnen und hier aktivieren.</p>';
-    }
-    if (!st.serverEnabled) {
-      return '<p class="connection-copy">Push-Nachrichten sind auf dem Server noch nicht eingerichtet.</p>';
-    }
-    return '<p class="connection-copy">Das Cockpit meldet sich von selbst.</p>' +
-      '<label class="connection-check"><input type="checkbox" data-pref="morning"' + (prefs.morning ? ' checked' : '') + ' /> ' +
-      'Schultags morgens: dein Tag in drei Zeilen</label>' +
-      '<label class="connection-check"><input type="checkbox" data-pref="weekly"' + (prefs.weekly ? ' checked' : '') + ' /> ' +
-      'Sonntagabend: Vorschau auf die Woche</label>' +
-      '<div class="connection-actions">' +
-      (st.subscribed
-        ? '<button class="btn btn-secondary" type="button" data-action="push-test">Test senden</button>' +
-          '<button class="btn btn-secondary" type="button" data-action="push-off">Auf diesem Gerät ausschalten</button>'
-        : '<button class="btn btn-primary" type="button" data-action="push-on">Auf diesem Gerät aktivieren</button>') +
-      '</div>' +
-      (st.permission === 'denied'
-        ? '<p class="connection-feedback is-error">Benachrichtigungen sind in den Browser-Einstellungen blockiert.</p>' : '');
-  }
-
-  registerSection({
-    id: 'push',
-    group: 'notify',
-    title: 'Push-Nachrichten',
-    summaryAsync: function () {
-      if (!window.LehrerPush) return Promise.resolve({ state: 'off', text: 'Nicht verfügbar' });
-      return window.LehrerPush.status().then(function (st) {
-        var active = st.subscribed && st.serverEnabled;
-        return { state: active ? 'ok' : 'off', text: active ? 'An auf diesem Gerät' : 'Aus' };
-      });
-    },
-    render: function () {
-      return '<div class="connection-head"><h3>Push-Nachrichten</h3><span class="pill" data-push-pill>…</span></div>' +
-        '<div data-push-body><p class="connection-copy">Prüfe dieses Gerät …</p></div>' +
-        '<p class="connection-feedback" data-feedback></p>';
-    },
-    bind: function (el) {
-      if (!window.LehrerPush) { el.hidden = true; return; }
-      var body = el.querySelector('[data-push-body]');
-      var pillEl = el.querySelector('[data-push-pill]');
-
-      function refresh(message, kind) {
-        return window.LehrerPush.status().then(function (st) {
-          var active = st.subscribed && st.serverEnabled;
-          pillEl.className = 'pill ' + (active ? 'pill-live' : '');
-          pillEl.textContent = active ? 'aktiv' : 'aus';
-          body.innerHTML = _pushBody(st);
-          if (message) feedback(el, message, kind);
-        });
-      }
-
-      function currentPrefs() {
-        var prefs = {};
-        el.querySelectorAll('[data-pref]').forEach(function (box) { prefs[box.getAttribute('data-pref')] = box.checked; });
-        return prefs;
-      }
-
-      function run(promise, okMessage) {
-        feedback(el, 'Einen Moment …');
-        return promise
-          .then(function () { return refresh(okMessage, 'success'); })
-          .catch(function (err) { feedback(el, err.message, 'error'); });
-      }
-
-      body.addEventListener('click', function (event) {
-        var button = event.target.closest('[data-action]');
-        if (!button) return;
-        var action = button.getAttribute('data-action');
-        if (action === 'push-on') run(window.LehrerPush.enable(currentPrefs()), 'Push ist auf diesem Gerät aktiv.');
-        if (action === 'push-off') run(window.LehrerPush.disable(), 'Push ist auf diesem Gerät ausgeschaltet.');
-        if (action === 'push-test') run(window.LehrerPush.test(), 'Testnachricht verschickt.');
-      });
-      body.addEventListener('change', function (event) {
-        if (!event.target.matches('[data-pref]')) return;
-        run(window.LehrerPush.updatePrefs(currentPrefs()), 'Gespeichert.');
-      });
-      refresh();
     },
   });
 

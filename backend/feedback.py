@@ -135,37 +135,40 @@ def delete(conn, feedback_id: int) -> bool:
     return conn.execute("DELETE FROM feedback WHERE id = %s", (feedback_id,)).rowcount > 0
 
 
-def admin_emails(conn) -> list[str]:
-    rows = conn.execute(
-        "SELECT email FROM users WHERE is_admin = TRUE AND is_active = TRUE AND COALESCE(email, '') <> ''"
-    ).fetchall()
-    return [r[0] for r in rows]
+def admin_mailboxes(conn) -> list[tuple[str, str]]:
+    """(address, app password) of every active admin who connected the Dienstmail."""
+    from .dienstmail import is_configured
+    from .modules.module_registry import get_user_module_config
+
+    rows = conn.execute("SELECT id FROM users WHERE is_admin = TRUE AND is_active = TRUE").fetchall()
+    boxes = []
+    for (admin_id,) in rows:
+        config = get_user_module_config(conn, admin_id, "mail") or {}
+        if is_configured(config):
+            boxes.append((str(config["address"]), str(config["app_password"])))
+    return boxes
 
 
-def mail_admins_in_background(kind: str, first_name: str, message: str, admin_url: str) -> bool:
-    """E-mail to every admin with an address in their account (Konto). False without SMTP."""
-    from html import escape
+def mail_admins_in_background(kind: str, first_name: str, message: str, admin_url: str) -> None:
+    """Puts the Rückmeldung into each admin's own Dienstmail inbox (IMAP APPEND, nothing is sent)."""
     from threading import Thread
 
-    from . import mailer
+    from . import dienstmail
     from .db import db_connection
-
-    if not mailer.is_configured():
-        return False
 
     def run() -> None:
         try:
             with db_connection() as conn:
-                recipients = admin_emails(conn)
+                boxes = admin_mailboxes(conn)
             label = KINDS.get(kind, "Rückmeldung")
             subject = f"Lehrercockpit: {label} von {first_name}"
-            html = (f"<p><strong>{escape(label)}</strong> von {escape(first_name)}:</p>"
-                    f"<blockquote>{escape(message).replace(chr(10), '<br>')}</blockquote>"
-                    f'<p><a href="{escape(admin_url)}">In der Verwaltung ansehen und antworten</a></p>')
-            for to in recipients:
-                mailer.send_mail(to, subject, html)
+            text = f"{label} von {first_name}:\n\n{message}\n\nIn der Verwaltung ansehen und antworten:\n{admin_url}\n"
+            for address, app_password in boxes:
+                try:
+                    dienstmail.put_into_inbox(address, app_password, subject, text)
+                except Exception as exc:
+                    print(f"[feedback] Ablage im Posteingang fehlgeschlagen: {type(exc).__name__}", flush=True)
         except Exception as exc:  # never break feedback because of mail
-            print(f"[feedback] Mail an Admins fehlgeschlagen: {type(exc).__name__}", flush=True)
+            print(f"[feedback] Ablage im Posteingang fehlgeschlagen: {type(exc).__name__}", flush=True)
 
     Thread(target=run, daemon=True).start()
-    return True
