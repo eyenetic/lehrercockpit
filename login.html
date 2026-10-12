@@ -21,7 +21,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=100" />
+    <link rel="stylesheet" href="./styles.css?v=101" />
     <style>
       body.auth {
         min-height: 100vh;
@@ -171,15 +171,15 @@
           <input class="form-input" type="email" id="invite-email" autocomplete="email" />
         </label>
         <label class="auth-field">
-          <span>Dein Zugangscode</span>
+          <span>Zugangscode festlegen</span>
           <span class="auth-secret">
             <input class="form-input" type="password" id="invite-code" autocomplete="new-password" minlength="8" spellcheck="false" required />
             <button class="auth-eye" type="button" data-toggle-secret="invite-code" aria-label="Code anzeigen"></button>
           </span>
         </label>
-        <p class="auth-hint">Mindestens 8 Buchstaben oder Ziffern. Damit meldest du dich künftig an.</p>
+        <p class="auth-hint">Wie ein Passwort: mindestens 8 Buchstaben oder Ziffern. Damit meldest du dich auf jedem Gerät an – dein Browser kann ihn sich merken.</p>
         <p class="auth-message is-error" id="invite-error" role="alert" hidden></p>
-        <button class="btn btn-primary auth-submit" type="submit" id="invite-btn">Konto anlegen</button>
+        <button class="btn btn-primary auth-submit" type="submit" id="invite-btn">Konto anlegen und weiter</button>
         <p class="auth-legal">Mit dem Anlegen gelten die <button type="button" data-open-privacy>Datenschutzhinweise</button>.</p>
       </form>
 
@@ -262,7 +262,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/features/vault.js?v=100"></script>
+    <script src="./src/features/vault.js?v=101"></script>
     <script>
       (function () {
         'use strict';
@@ -389,7 +389,7 @@
             }
             var info = result.data.invitation || {};
             var who = info.inviter ? info.inviter + ' lädt dich ein' : 'Du bist eingeladen';
-            show('invite', who + (info.school_name ? ' – ' + info.school_name + '.' : '.') + ' Leg dein Konto an, das dauert eine Minute.');
+            show('invite', who + (info.school_name ? ' – ' + info.school_name + '.' : '.') + ' Leg dein Konto an – danach führt dich das Cockpit Schritt für Schritt durch die Einrichtung.');
             if (info.first_name) $('invite-first').value = info.first_name;
             if (info.last_name) $('invite-last').value = info.last_name;
             if (info.email) $('invite-email').value = info.email;

@@ -10,78 +10,109 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=100" />
-    <link rel="stylesheet" href="./styles.auth.css?v=100" />
+    <link rel="stylesheet" href="./styles.css?v=101" />
+    <link rel="stylesheet" href="./styles.auth.css?v=101" />
     <style>
-      body.onboarding-page { align-items: flex-start; padding: 48px 16px; box-sizing: border-box; }
+      body.onboarding-page { align-items: flex-start; padding: 40px 16px; box-sizing: border-box; }
       .setup-card {
         background: var(--panel);
         border: 1px solid var(--line-strong);
         border-radius: var(--radius-lg);
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
         width: 100%;
-        max-width: 620px;
+        max-width: 560px;
         margin: 0 auto;
         display: flex;
         flex-direction: column;
       }
-      .setup-head { padding: 28px 32px 0; display: flex; flex-direction: column; gap: 6px; }
-      .setup-head .eyebrow { margin: 0; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
-      .setup-head h1 { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--ink); }
-      .setup-head p { margin: 0; font-size: 0.88rem; color: var(--muted); line-height: 1.55; }
-      .setup-steps { display: flex; gap: 4px; padding: 18px 32px 0; list-style: none; margin: 0; }
-      .setup-steps li { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 0.72rem; color: var(--muted); }
-      .setup-steps li::before { content: ""; height: 4px; border-radius: 4px; background: var(--line-strong); }
-      .setup-steps li.is-done::before { background: var(--success); }
-      .setup-steps li.is-active::before { background: var(--accent); }
-      .setup-steps li.is-active { color: var(--ink); font-weight: 600; }
-      .setup-body { padding: 20px 32px 8px; min-height: 260px; }
-      .setup-body > h2 { margin: 0 0 6px; font-size: 1.05rem; color: var(--ink); }
-      .setup-body > p.lead, .setup-body p.lead { margin: 0 0 14px; font-size: 0.86rem; color: var(--muted); line-height: 1.55; }
-      .setup-body .connection-section:first-child { border-top: 0; padding-top: 4px; }
-      .setup-list { list-style: none; margin: 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-      .setup-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 0.86rem; color: var(--ink); line-height: 1.45; }
-      .setup-list li span.dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; background: var(--line-strong); }
-      .setup-list li span.dot.is-ok { background: var(--success); }
-      .setup-list li span.dot.is-warn { background: var(--warning); }
-      .setup-list li small { display: block; color: var(--muted); font-size: 0.78rem; }
-      .setup-box { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel-soft); margin-bottom: 14px; }
-      .setup-box h3 { margin: 0 0 8px; font-size: 0.8rem; color: var(--ink); }
-      .setup-box .setup-list { margin: 0; }
-      .setup-actions {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 10px;
-        padding: 16px 32px 24px;
-        border-top: 1px solid var(--line);
-        margin-top: 8px;
+      .setup-progress { display: flex; gap: 4px; padding: 22px 28px 0; }
+      .setup-progress span { flex: 1; height: 4px; border-radius: 4px; background: var(--line-strong); transition: background .2s; }
+      .setup-progress span.is-done { background: var(--success); }
+      .setup-progress span.is-active { background: var(--accent); }
+      .setup-head { padding: 18px 28px 0; display: flex; flex-direction: column; gap: 6px; }
+      .setup-head .setup-eyebrow { margin: 0; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; color: var(--accent); }
+      .setup-head h1 { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--ink); line-height: 1.25; }
+      .setup-head p { margin: 0; font-size: 0.92rem; color: var(--muted); line-height: 1.55; }
+      .setup-body { padding: 20px 28px 4px; margin: 0; color: var(--ink); font-size: 0.92rem; }
+
+      /* Numbered guide */
+      .guide { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 14px; counter-reset: guide; }
+      .guide li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; font-size: 0.92rem; line-height: 1.5; color: var(--ink); counter-increment: guide; }
+      .guide li::before {
+        content: counter(guide); width: 28px; height: 28px; border-radius: 50%;
+        display: grid; place-items: center; font-size: 0.8rem; font-weight: 600;
+        background: var(--accent-soft); color: var(--accent);
       }
+      .guide li > div { padding-top: 3px; }
+      .guide b { font-weight: 600; }
+      .guide .ui { display: inline-block; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel-soft); font-size: 0.84rem; font-weight: 500; white-space: nowrap; }
+      .guide .open-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; }
+
+      /* Paste area */
+      .paste { border: 1px solid var(--line-strong); border-radius: var(--radius-md); padding: 14px; background: var(--panel-soft); display: grid; gap: 10px; }
+      .paste label { display: grid; gap: 6px; font-size: 0.84rem; font-weight: 600; color: var(--ink); }
+      .paste-row { display: flex; gap: 8px; }
+      .paste-row .form-input { flex: 1; min-width: 0; }
+      .paste-msg:empty { display: none; }
+      .paste-msg { margin: 0; font-size: 0.84rem; line-height: 1.45; min-height: 1.2em; }
+      .paste-msg.is-error { color: var(--danger); }
+      .paste-msg.is-busy { color: var(--muted); }
+      .success {
+        display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: var(--radius-md);
+        background: color-mix(in srgb, var(--success) 10%, var(--panel)); border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
+      }
+      .success .check { width: 28px; height: 28px; border-radius: 50%; background: var(--success); color: #fff; display: grid; place-items: center; flex-shrink: 0; font-weight: 700; }
+      .success strong { display: block; color: var(--ink); font-size: 0.95rem; }
+      .success small { color: var(--muted); font-size: 0.84rem; }
+      .success button { margin-top: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 0.84rem; cursor: pointer; }
+      .trouble { margin-top: 14px; font-size: 0.86rem; color: var(--muted); }
+      .trouble summary { cursor: pointer; color: var(--ink); font-weight: 500; }
+      .trouble p { margin: 8px 0 0; line-height: 1.5; }
+
+      /* Welcome + done lists */
+      .plan { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-md); }
+      .plan li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; font-size: 0.92rem; color: var(--ink); }
+      .plan li + li { border-top: 1px solid var(--line); }
+      .plan .num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 0.78rem; font-weight: 600; background: var(--accent-soft); color: var(--accent); flex-shrink: 0; }
+      .plan .num.is-ok { background: var(--success); color: #fff; }
+      .plan .num.is-off { background: var(--panel-soft); color: var(--muted); border: 1px solid var(--line-strong); }
+      .plan .what { flex: 1; min-width: 0; }
+      .plan .what small { display: block; color: var(--muted); font-size: 0.8rem; }
+      .plan .time { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+      .tip { margin: 0 0 12px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--accent-soft); font-size: 0.86rem; line-height: 1.5; color: var(--ink); }
+      .note { margin: 0 0 8px; font-size: 0.84rem; color: var(--muted); line-height: 1.5; }
+
+      /* Nextcloud step reuses the connections section, without its own heading */
+      .nc-mount .connection-head, .nc-mount .connection-copy:first-of-type { display: none; }
+      .nc-mount .connection-section { border-top: 0; padding-top: 0; }
+      .nc-mount .connection-facts, .nc-mount .connection-optional { display: none; }
+      .nc-mount .connection-actions .btn-primary { width: 100%; justify-content: center; }
+
+      .setup-actions { display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 18px 28px 24px; margin-top: 12px; border-top: 1px solid var(--line); }
       .setup-actions .spacer { flex: 1; }
-      .setup-actions .hint { font-size: 0.78rem; color: var(--muted); }
-      .setup-feedback { font-size: 0.82rem; color: var(--danger); margin: 0 32px; min-height: 1em; }
+      .setup-actions .btn-later { border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.9rem; cursor: pointer; padding: 8px 4px; }
+      .setup-actions .btn-later:hover { color: var(--ink); }
+      .setup-actions .btn-primary { min-width: 120px; }
       @media (max-width: 560px) {
-        body.onboarding-page { padding: 16px 12px; }
-        .setup-head, .setup-steps, .setup-body, .setup-actions { padding-left: 18px; padding-right: 18px; }
-        .setup-steps li { font-size: 0; }
-        .setup-actions .hint { display: none; }
+        body.onboarding-page { padding: 12px 10px; }
+        .setup-progress, .setup-head, .setup-body, .setup-actions { padding-left: 18px; padding-right: 18px; }
+        .setup-head h1 { font-size: 1.25rem; }
       }
     </style>
   </head>
   <body class="onboarding-page">
     <main class="setup-card">
+      <div class="setup-progress" id="setup-progress" aria-hidden="true"></div>
       <div class="setup-head">
-        <p class="eyebrow">Einrichtung</p>
+        <p class="setup-eyebrow" id="setup-eyebrow">Einrichtung</p>
         <h1 id="setup-title">Willkommen im Lehrercockpit</h1>
-        <p id="setup-subtitle">In wenigen Schritten verbindest du deine Quellen. Jeder Schritt lässt sich überspringen und später unter „Verbindungen“ nachholen.</p>
+        <p id="setup-lead"></p>
       </div>
-      <ol class="setup-steps" id="setup-steps"></ol>
       <section class="setup-body" id="setup-body" aria-live="polite"></section>
-      <p class="setup-feedback" id="setup-feedback"></p>
       <div class="setup-actions">
         <button class="btn btn-secondary" type="button" id="setup-back">Zurück</button>
         <span class="spacer"></span>
-        <span class="hint" id="setup-hint"></span>
+        <button class="btn-later" type="button" id="setup-later">Später</button>
         <button class="btn btn-primary" type="button" id="setup-next">Los geht’s</button>
       </div>
     </main>
@@ -93,133 +124,308 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/connections.js?v=100"></script>
+    <script src="./src/features/connections.js?v=101"></script>
     <script>
       (function () {
         'use strict';
 
         var BACKEND = window.BACKEND_API_URL || '';
         var C = window.LehrerConnections;
-        var STEPS = [
-          { id: 'welcome', label: 'Start' },
-          { id: 'webuntis', label: 'Stundenplan', title: 'Stundenplan verbinden',
-            lead: 'Mit dem Kalender-Abo aus WebUntis siehst du deine Stunden, Vertretungen und Entfälle.' },
-          { id: 'itslearning', label: 'itslearning', title: 'itslearning verbinden',
-            lead: 'Termine und Abgabefristen deiner Kurse. Das Kalender-Abo funktioniert ohne Passwort.' },
-          { id: 'nextcloud', label: 'Nextcloud', title: 'Nextcloud verbinden (optional)',
-            lead: 'Deine Nextcloud-Favoriten erscheinen dann unter „Links“ – jede wichtige Datei mit einem Klick.' },
-          { id: 'done', label: 'Fertig' },
-        ];
-        var PERSONAL = { webuntis: 'Stundenplan (WebUntis)', itslearning: 'itslearning', nextcloud: 'Nextcloud' };
+        var DIENSTMAIL_URL = 'https://lehrkraeftemail.schule.berlin.de/?iam_sso=1';
         var current = 0;
         var status = {};
         var user = null;
+        var editing = {};       // step id → true while the teacher replaces a saved link
+        var lastNotice = {};    // step id → message from the last successful save
 
         function esc(value) { return C.esc(value); }
         function el(id) { return document.getElementById(id); }
-
-        function connected(id) {
-          var s = status[id] || {};
-          if (id === 'webuntis') return !!s.configured;
-          if (id === 'itslearning') return !!(s.calendar || s.login);
-          if (id === 'nextcloud') return !!s.connected;
-          return false;
+        function ui(label) { return '<span class="ui">' + esc(label) + '</span>'; }
+        function openLink(url, label) {
+          return url ? '<a class="btn btn-secondary btn-sm open-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + ' ↗&#xFE0E;</a>' : '';
         }
 
-        function schoolItems() {
-          if (!status.orgaplan && !status.termine && !status.klassenarbeitsplan) return null; // not loaded yet
-          var o = status.orgaplan || {};
-          var cw = status.klassenarbeitsplan || {};
-          var plan = cw.plan || {};
-          var t = status.termine || {};
-          return [
-            {
-              ok: o.status === 'ok',
-              title: 'Orgaplan',
-              text: o.status === 'ok'
-                ? 'Aktuell' + (o.school_year ? ' (Schuljahr ' + o.school_year + (o.stand ? ', Stand ' + o.stand : '') + ')' : '') + ' – wird automatisch von der Schulwebseite übernommen.'
-                : (o.detail || 'Wird eingerichtet.'),
+        // ── The steps ──────────────────────────────────────────────────────
+        var GUIDES = {
+          webuntis: {
+            label: 'Stundenplan', title: 'Dein Stundenplan',
+            lead: 'Aus WebUntis – mit Vertretungen und Entfällen, immer aktuell.',
+            time: '1 Min.',
+            steps: function (s) {
+              return [
+                'WebUntis öffnen und anmelden.' + (s.school_url ? '<br>' + openLink(s.school_url, 'WebUntis öffnen') : ''),
+                'Links auf ' + ui('Mein Stundenplan') + ' gehen. Unten neben der Legende auf ' + ui('⋯') + ' und dann ' + ui('iCal-Abo verwalten') + ' tippen.',
+                'Format ' + ui('Standard') + ' wählen, ' + ui('Link erzeugen') + ' tippen und den Link <b>kopieren</b>.',
+                'Den Link hier unten einfügen.',
+              ];
             },
-            {
-              ok: plan.state === 'ok',
-              title: 'Klassenarbeitsplan',
-              text: plan.state === 'ok' ? 'Verbunden – du siehst die kommenden Arbeiten deiner Klassen.'
-                : plan.state === 'outdated' ? 'Der hinterlegte Plan ist veraltet – die Schule muss den aktuellen Link eintragen.'
-                : cw.url ? 'Wird geladen.' : 'Noch nicht hinterlegt – du kannst die Excel-Datei später selbst hochladen.',
+            trouble: '<p>Fehlt „iCal-Abo verwalten“? Dann im WebUntis-Profil unter „Freigaben“ den Punkt „Kalender publizieren“ einschalten.</p>' +
+              '<p>Bitte nicht den Link aus der Adresszeile des Browsers nehmen – der funktioniert nur, solange du angemeldet bist.</p>',
+            fields: [{ name: 'ical_url', label: 'Link aus WebUntis', type: 'url', placeholder: 'https://…webuntis.com/WebUntis/ical…' }],
+            connected: function (s) { return !!s.configured; },
+            doneText: 'Stundenplan verbunden',
+          },
+          itslearning: {
+            label: 'itslearning', title: 'Termine aus itslearning',
+            lead: 'Abgabefristen und Termine deiner Kurse – ohne Passwort, über das Kalender-Abo.',
+            time: '1 Min.',
+            steps: function (s) {
+              return [
+                'itslearning öffnen und anmelden.' + (s.school_url ? '<br>' + openLink(s.school_url, 'itslearning öffnen') : ''),
+                'Oben auf ' + ui('Kalender') + ' gehen.',
+                'Oben rechts auf das Zahnrad ' + ui('⚙︎') + ' und dann ' + ui('Abonnieren') + ' tippen. Den angezeigten Link <b>kopieren</b>.',
+                'Den Link hier unten einfügen.',
+              ];
             },
-            { ok: !!t.ok, title: 'Schultermine', text: t.ok ? 'Kalender der Schulwebseite – Ferien, Fahrten und Konferenzen.' : 'Gerade nicht erreichbar.' },
-            { ok: true, title: 'Dienstmail', text: 'Direktlink zu deinem Postfach (Anmeldung über das Schulportal).' },
-          ];
+            trouble: '<p>Der Link beginnt meist mit „https://berlin.itslearning.com/…“ oder „webcal://“. Beides funktioniert.</p>',
+            fields: [{ name: 'calendar_url', label: 'Link aus itslearning', type: 'url', placeholder: 'https://berlin.itslearning.com/…' }],
+            connected: function (s) { return !!s.calendar; },
+            doneText: 'itslearning verbunden',
+          },
+          mail: {
+            label: 'Dienstmail', title: 'Deine Dienstmail',
+            lead: 'Die neuesten Mails auf einen Blick. Das Cockpit liest nur – es verschickt, löscht und markiert nichts.',
+            time: '2 Min.',
+            steps: function () {
+              return [
+                'Die Dienstmail im Browser öffnen und anmelden.<br>' + openLink(DIENSTMAIL_URL, 'Dienstmail öffnen'),
+                'Die ' + ui('Geräteverwaltung') + ' öffnen und ein neues <b>App-Passwort</b> erstellen. Als Name passt z. B. „Lehrercockpit“.',
+                'Das App-Passwort <b>kopieren</b> und hier unten zusammen mit deiner Adresse einfügen.',
+              ];
+            },
+            trouble: '<p>Bitte nicht dein Schulportal-Passwort eingeben, sondern das App-Passwort – genau wie beim Einrichten der Mail-App auf dem Handy.</p>' +
+              '<p>Du kannst das App-Passwort jederzeit in der Geräteverwaltung löschen. Dann liest das Cockpit nichts mehr.</p>',
+            fields: [
+              { name: 'address', label: 'Deine Dienstmail-Adresse', type: 'email', placeholder: 'vorname.nachname@…schule.berlin.de', noPaste: true },
+              { name: 'app_password', label: 'App-Passwort', type: 'password', placeholder: 'App-Passwort einfügen' },
+            ],
+            connected: function (s) { return !!s.configured; },
+            doneText: 'Dienstmail verbunden',
+          },
+          nextcloud: {
+            label: 'Nextcloud', title: 'Nextcloud-Favoriten', optional: true,
+            lead: 'Was du in Nextcloud mit ★ markierst, erreichst du im Cockpit mit einem Klick.',
+            time: '1 Min.',
+            steps: function () {
+              return [
+                'Unten auf ' + ui('Mit Nextcloud verbinden') + ' tippen – Nextcloud öffnet sich in einem neuen Tab.',
+                'Dort anmelden und ' + ui('Zugriff gewähren') + ' bestätigen.',
+                'Hierher zurückkommen – der Rest geht automatisch.',
+              ];
+            },
+            connected: function (s) { return !!s.connected; },
+            doneText: 'Nextcloud verbunden',
+          },
+        };
+
+        var STEPS = ['welcome', 'webuntis', 'itslearning', 'mail', 'done'];
+
+        function connectionSteps() { return STEPS.filter(function (id) { return GUIDES[id]; }); }
+        function sourceStatus(id) { return status[id] || {}; }
+        function isConnected(id) { return GUIDES[id].connected(sourceStatus(id)); }
+
+        // Nextcloud only when the school set its address (otherwise later under „Verbindungen“).
+        function applyOptionalSteps() {
+          var hasNextcloud = STEPS.indexOf('nextcloud') !== -1;
+          if (sourceStatus('nextcloud').suggested_server && !hasNextcloud) STEPS.splice(STEPS.length - 1, 0, 'nextcloud');
         }
 
-        function listHtml(items) {
-          if (!items) return '<p class="lead">Der Stand wird geladen …</p>';
-          return '<ul class="setup-list">' + items.map(function (item) {
-            return '<li><span class="dot ' + (item.ok ? 'is-ok' : 'is-warn') + '"></span><span><strong>' + esc(item.title) + '</strong>' +
-              '<small>' + esc(item.text) + '</small></span></li>';
-          }).join('') + '</ul>';
-        }
-
-        function renderSteps() {
-          el('setup-steps').innerHTML = STEPS.map(function (step, index) {
-            var cls = index < current ? 'is-done' : index === current ? 'is-active' : '';
-            return '<li class="' + cls + '">' + esc(step.label) + '</li>';
+        // ── Rendering ──────────────────────────────────────────────────────
+        function renderProgress() {
+          var steps = connectionSteps();
+          var id = STEPS[current];
+          var position = steps.indexOf(id);
+          el('setup-progress').innerHTML = steps.map(function (stepId, index) {
+            var cls = id === 'done' || index < position ? 'is-done' : index === position ? 'is-active' : '';
+            return '<span class="' + cls + '"></span>';
           }).join('');
+          el('setup-progress').hidden = id === 'welcome';
+        }
+
+        function setHead(eyebrow, title, lead) {
+          el('setup-eyebrow').textContent = eyebrow;
+          el('setup-title').textContent = title;
+          el('setup-lead').textContent = lead || '';
+          el('setup-lead').hidden = !lead;
+        }
+
+        function render(toTop) {
+          var id = STEPS[current];
+          renderProgress();
+          if (id === 'welcome') renderWelcome();
+          else if (id === 'done') renderDone();
+          else renderGuide(id);
+          updateFooter();
+          if (toTop) window.scrollTo(0, 0);
+        }
+
+        function renderWelcome() {
+          var name = (user && user.first_name) || '';
+          var steps = connectionSteps();
+          setHead('Einrichtung', 'Hallo' + (name ? ' ' + name : '') + '!',
+            'In ' + steps.length + ' kurzen Schritten verbindest du deine Zugänge. Danach siehst du deinen Schultag auf einer Seite.');
+          var school = [];
+          if ((status.orgaplan || {}).status === 'ok') school.push('Orgaplan');
+          if ((status.termine || {}).ok) school.push('Schultermine');
+          if (((status.klassenarbeitsplan || {}).plan || {}).state === 'ok') school.push('Klassenarbeitsplan');
+          el('setup-body').innerHTML =
+            '<ol class="plan">' + steps.map(function (stepId, index) {
+              var g = GUIDES[stepId];
+              return '<li><span class="num">' + (index + 1) + '</span><span class="what">' + esc(g.title) +
+                (g.optional ? '<small>optional</small>' : '') + '</span><span class="time">' + esc(g.time) + '</span></li>';
+            }).join('') + '</ol>' +
+            '<p class="tip"><b>Tipp:</b> Am Computer geht es am leichtesten – du kopierst dabei Links aus anderen Seiten. Jeder Schritt lässt sich überspringen und später unter „Verbindungen“ nachholen.</p>' +
+            (school.length ? '<p class="note">Schon von deiner Schule eingerichtet: ' + esc(school.join(', ')) + '. Dafür musst du nichts tun.</p>' : '');
+        }
+
+        function renderGuide(id) {
+          var g = GUIDES[id];
+          var s = sourceStatus(id);
+          var steps = connectionSteps();
+          setHead('Schritt ' + (steps.indexOf(id) + 1) + ' von ' + steps.length + (g.optional ? ' · optional' : ''), g.title, g.lead);
+          var connected = isConnected(id);
+          var guide = '<ol class="guide">' + g.steps(s).map(function (text) { return '<li><div>' + text + '</div></li>'; }).join('') + '</ol>';
+
+          if (id === 'nextcloud') {
+            el('setup-body').innerHTML = (connected ? '' : guide) + '<div class="nc-mount" id="nc-mount"></div>';
+            C.mount(el('nc-mount'), { sections: ['nextcloud'], onChanged: function () { refreshStatus().then(render); } });
+            return;
+          }
+
+          var area;
+          if (connected && !editing[id]) {
+            area = '<div class="success"><span class="check">✓</span><div><strong>' + esc(g.doneText) + '</strong>' +
+              '<small>' + esc(lastNotice[id] || (id === 'mail' && s.address ? s.address : 'Alles erledigt – weiter zum nächsten Schritt.')) + '</small><br>' +
+              '<button type="button" data-action="change">' + (id === 'mail' ? 'Anderes App-Passwort eintragen' : 'Anderen Link verwenden') + '</button></div></div>';
+          } else {
+            area = '<form class="paste" id="paste-form" novalidate>' + g.fields.map(function (f) {
+              var canPaste = !f.noPaste && navigator.clipboard && navigator.clipboard.readText;
+              var value = f.name === 'address' ? (s.address || '') : '';
+              return '<label>' + esc(f.label) + '<span class="paste-row">' +
+                '<input class="form-input" name="' + f.name + '" type="' + (f.type === 'password' ? 'password' : 'text') + '"' +
+                (f.type === 'email' ? ' inputmode="email" autocapitalize="off"' : f.type === 'url' ? ' inputmode="url" autocapitalize="off"' : '') +
+                ' autocomplete="' + (f.type === 'password' ? 'new-password' : 'off') + '" spellcheck="false" placeholder="' + esc(f.placeholder) + '" value="' + esc(value) + '" />' +
+                (canPaste ? '<button class="btn btn-secondary" type="button" data-paste="' + f.name + '">Einfügen</button>' : '') +
+                '</span></label>';
+            }).join('') + '<p class="paste-msg" id="paste-msg" role="status"></p><button type="submit" hidden></button></form>';
+          }
+          el('setup-body').innerHTML = guide + area + (g.trouble && !(connected && !editing[id]) ? '<details class="trouble"><summary>Klappt nicht?</summary>' + g.trouble + '</details>' : '');
+          bindGuide(id);
+        }
+
+        function bindGuide(id) {
+          var body = el('setup-body');
+          var change = body.querySelector('[data-action="change"]');
+          if (change) change.addEventListener('click', function () { editing[id] = true; render(); });
+          var form = el('paste-form');
+          if (!form) return;
+          form.addEventListener('submit', function (event) { event.preventDefault(); save(id); });
+          body.querySelectorAll('[data-paste]').forEach(function (button) {
+            button.addEventListener('click', function () {
+              var input = form.elements[button.getAttribute('data-paste')];
+              navigator.clipboard.readText().then(function (text) {
+                input.value = (text || '').trim();
+                afterPaste(id, input);
+              }).catch(function () {
+                input.focus();
+                message('Einfügen war nicht erlaubt – bitte ins Feld tippen und „Einfügen“ wählen.', 'error');
+              });
+            });
+          });
+          // Pasting a link is the last step: check it right away.
+          form.addEventListener('paste', function (event) {
+            var input = event.target;
+            setTimeout(function () { afterPaste(id, input); }, 0);
+          });
+          var first = form.querySelector('input:not([value]), input[value=""]') || form.querySelector('input');
+          if (first && window.matchMedia('(min-width: 700px)').matches) first.focus();
+        }
+
+        function afterPaste(id, input) {
+          var form = el('paste-form');
+          if (!form) return;
+          var empty = Array.prototype.filter.call(form.querySelectorAll('input'), function (i) { return !i.value.trim(); });
+          if (!empty.length) save(id);
+          else if (input !== empty[0]) empty[0].focus();
+        }
+
+        function message(text, kind) {
+          var msg = el('paste-msg');
+          if (!msg) return;
+          msg.textContent = text || '';
+          msg.className = 'paste-msg' + (kind ? ' is-' + kind : '');
+        }
+
+        var saving = false;
+        function save(id, thenNext) {
+          var form = el('paste-form');
+          if (!form || saving) return Promise.resolve(false);
+          var fields = {};
+          var missing = null;
+          GUIDES[id].fields.forEach(function (f) {
+            var value = form.elements[f.name].value.trim();
+            if (!value && !missing) missing = f;
+            if (f.type === 'url' && value && !/^(https?|webcal):\/\//i.test(value)) value = 'https://' + value;
+            fields[f.name] = value;
+          });
+          if (missing) {
+            message(missing.type === 'url' ? 'Bitte zuerst den Link einfügen – oder „Später“ wählen.' : 'Bitte „' + missing.label + '“ ausfüllen.', 'error');
+            form.elements[missing.name].focus();
+            return Promise.resolve(false);
+          }
+          saving = true;
+          el('setup-next').disabled = true;
+          message(id === 'mail' ? 'Melde mich bei der Dienstmail an …' : 'Prüfe den Link …', 'busy');
+          return C.api('/api/v2/connections/' + id, { method: 'PATCH', body: fields })
+            .then(function (data) {
+              status = Object.assign({}, status, data.connections || {});
+              lastNotice[id] = data.notice || '';
+              editing[id] = false;
+              saving = false;
+              el('setup-next').disabled = false;
+              if (thenNext) next(); else render();
+              return true;
+            })
+            .catch(function (err) {
+              saving = false;
+              el('setup-next').disabled = false;
+              message(err.message, 'error');
+              return false;
+            });
+        }
+
+        function renderDone() {
+          setHead('Fertig', 'Geschafft!', 'Dein Cockpit ist startklar.');
+          var steps = connectionSteps();
+          el('setup-body').innerHTML =
+            '<ul class="plan">' + steps.map(function (id) {
+              var ok = isConnected(id);
+              return '<li><span class="num ' + (ok ? 'is-ok' : 'is-off') + '">' + (ok ? '✓' : '–') + '</span><span class="what">' + esc(GUIDES[id].title) +
+                '<small>' + (ok ? 'Verbunden' : 'Übersprungen') + '</small></span>' +
+                (ok ? '' : '<button class="btn btn-secondary btn-sm" type="button" data-goto="' + id + '">Jetzt einrichten</button>') + '</li>';
+            }).join('') + '</ul>' +
+            '<p class="note">Alles lässt sich auch später unter „Verbindungen“ einrichten oder ändern.</p>' +
+            '<p class="tip"><b>Tipp fürs Handy:</b> Öffne das Cockpit in Safari, tippe auf „Teilen“ und dann auf „Zum Home-Bildschirm“. Dann startet es wie eine App.</p>' +
+            '<p class="note">Anmelden kannst du dich auf jedem Gerät mit deinem Zugangscode.</p>';
         }
 
         function updateFooter() {
-          var step = STEPS[current];
-          var next = el('setup-next');
-          var hint = el('setup-hint');
+          var id = STEPS[current];
+          var nextBtn = el('setup-next');
+          var later = el('setup-later');
           el('setup-back').hidden = current === 0;
-          hint.textContent = '';
-          var skipping = step.id !== 'welcome' && step.id !== 'done' && !connected(step.id);
-          next.className = 'btn ' + (skipping ? 'btn-secondary' : 'btn-primary');
-          if (step.id === 'welcome') next.textContent = 'Los geht’s';
-          else if (step.id === 'done') next.textContent = 'Cockpit öffnen';
-          else if (!skipping) next.textContent = 'Weiter';
-          else {
-            next.textContent = 'Überspringen';
-            hint.textContent = 'Später unter „Verbindungen“ möglich.';
-          }
+          later.hidden = id === 'welcome' || id === 'done' || isConnected(id);
+          // Nextcloud has its own "Mit Nextcloud verbinden" button: no second primary button.
+          var ownButton = id === 'nextcloud' && !isConnected(id);
+          nextBtn.hidden = ownButton;
+          later.textContent = ownButton ? 'Überspringen' : 'Später';
+          if (id === 'welcome') nextBtn.textContent = 'Los geht’s';
+          else if (id === 'done') nextBtn.textContent = 'Zum Cockpit';
+          else nextBtn.textContent = 'Weiter';
         }
 
-        function render() {
-          var step = STEPS[current];
-          var body = el('setup-body');
-          el('setup-feedback').textContent = '';
-          renderSteps();
-
-          if (step.id === 'welcome') {
-            var name = (user && (user.first_name || user.full_name)) || '';
-            el('setup-title').textContent = 'Willkommen' + (name ? ', ' + name : '') + '!';
-            body.innerHTML =
-              '<p class="lead">Das Lehrercockpit bündelt deinen Schulalltag auf einer Seite: Stundenplan, Orgaplan, Klassenarbeiten, Schultermine, itslearning und Nextcloud.</p>' +
-              '<div class="setup-box"><h3>Das hat deine Schule schon eingerichtet</h3>' + listHtml(schoolItems()) + '</div>' +
-              '<p class="lead">Jetzt fehlen nur noch deine persönlichen Zugänge – das dauert etwa drei Minuten.</p>';
-            updateFooter();
-            return;
-          }
-          el('setup-title').textContent = step.id === 'done' ? 'Alles bereit' : 'Einrichtung';
-
-          if (step.id === 'done') {
-            var items = Object.keys(PERSONAL).map(function (id) {
-              return { ok: connected(id), title: PERSONAL[id],
-                       text: connected(id) ? 'Verbunden.' : 'Nicht verbunden – jederzeit unter „Verbindungen“ nachholen.' };
-            });
-            body.innerHTML = '<p class="lead">Dein Cockpit ist startklar. Alle Quellen findest du später unter „Verbindungen“ – dort siehst du auch, wie aktuell jede Quelle ist.</p>' +
-              '<div class="setup-box"><h3>Deine Zugänge</h3>' + listHtml(items) + '</div>' +
-              '<div class="setup-box"><h3>Schulweite Quellen</h3>' + listHtml(schoolItems()) + '</div>';
-            updateFooter();
-            return;
-          }
-
-          body.innerHTML = '<h2>' + esc(step.title) + '</h2><p class="lead">' + esc(step.lead) + '</p><div id="setup-section"></div>';
-          C.mount(el('setup-section'), {
-            sections: [step.id],
-            onChanged: function () { refreshStatus().then(updateFooter); },
-          });
-          updateFooter();
+        function next() {
+          if (current < STEPS.length - 1) { current += 1; render(true); }
         }
 
         function refreshStatus(attempt) {
@@ -242,13 +448,31 @@
         }
 
         el('setup-next').addEventListener('click', function () {
-          if (STEPS[current].id === 'done') { finish(); return; }
-          current = Math.min(current + 1, STEPS.length - 1);
-          render();
+          var id = STEPS[current];
+          if (id === 'done') { finish(); return; }
+          // A filled-in field counts as "connect, then continue".
+          var form = el('paste-form');
+          if (GUIDES[id] && !isConnected(id) && form) {
+            var filled = Array.prototype.some.call(form.querySelectorAll('input'), function (i) { return i.value.trim() && i.name !== 'address'; });
+            if (filled) { save(id, true); return; }
+          }
+          if (GUIDES[id] && GUIDES[id].fields && !isConnected(id) && form && !editing[id]) {
+            message(id === 'mail' ? 'Trag Adresse und App-Passwort ein – oder wähle „Später“.' : 'Füge zuerst den Link ein – oder wähle „Später“.', 'error');
+            return;
+          }
+          editing[id] = false;
+          next();
         });
+        el('setup-body').addEventListener('click', function (event) {
+          var goto = event.target.closest('[data-goto]');
+          if (!goto) return;
+          current = STEPS.indexOf(goto.getAttribute('data-goto'));
+          render(true);
+        });
+        el('setup-later').addEventListener('click', function () { editing[STEPS[current]] = false; next(); });
         el('setup-back').addEventListener('click', function () {
           current = Math.max(current - 1, 0);
-          render();
+          render(true);
         });
 
         fetch(BACKEND + '/api/v2/auth/me', { credentials: 'include' })
@@ -263,14 +487,8 @@
           .then(function () {
             render();
             refreshStatus()
-              .then(function () {
-                var step = STEPS[current].id;
-                if (step === 'welcome' || step === 'done') render();
-                else updateFooter();
-              })
-              .catch(function () {
-                el('setup-feedback').textContent = 'Der Stand der Quellen konnte gerade nicht geladen werden – das Einrichten klappt trotzdem.';
-              });
+              .then(function () { applyOptionalSteps(); render(); })
+              .catch(function () { /* the steps work without the status */ });
           }, function () { window.location.href = './login.html'; });
       })();
     </script>
