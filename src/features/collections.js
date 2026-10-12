@@ -196,10 +196,13 @@ var LehrerCollections = (function () {
       +     '<span class="col-panel-progress" data-col-progress>' + p.done + ' von ' + p.total + ' (' + pct + '%)</span>'
       +   '</div>'
       +   '<div class="col-panel-actions action-row">'
-      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="export-col">Export</button>'
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="print-col" title="Nur diese Einsammlung – drucken oder als PDF sichern">PDF</button>'
       +     archBtn
       +     '<details class="more-menu"><summary class="btn btn-sm btn-secondary" aria-label="Weitere Aktionen">⋯</summary>'
-      +       '<div class="more-menu-list" role="menu"><button type="button" role="menuitem" class="is-danger" data-action="delete-col">Einsammlung löschen …</button></div>'
+      +       '<div class="more-menu-list" role="menu">'
+      +         '<button type="button" role="menuitem" data-action="export-col">Als CSV speichern</button>'
+      +         '<button type="button" role="menuitem" class="is-danger" data-action="delete-col">Einsammlung löschen …</button>'
+      +       '</div>'
       +     '</details>'
       +   '</div>'
       + '</div>'
@@ -373,6 +376,34 @@ var LehrerCollections = (function () {
     URL.revokeObjectURL(url);
   }
 
+  /** PDF of this one collection: per class a table with ✓ and note. */
+  function _printCol(colId) {
+    var col = _data[colId];
+    if (!col || !window.LehrerClasslist || !window.LehrerClasslist.printDocument) return;
+    var students = _getStudentsForCollection(col);
+    var p = _progress(col);
+    var today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    var multi = col.classIds.length > 1;
+    var tables = col.classIds.map(function (cid) {
+      var rows = students.filter(function (s) { return s.classId === cid; }).map(function (s, n) {
+        var c = col.checks && col.checks[cid + '|' + s.id] || {};
+        return '<tr><td class="nr">' + (n + 1) + '</td><td class="name">' + _esc(s.lastName) + (s.firstName ? ', ' + _esc(s.firstName) : '') + '</td>'
+          + '<td class="mark">' + (c.done ? '✓' : '') + '</td><td>' + _esc(c.note || '') + '</td></tr>';
+      }).join('');
+      if (!rows) return '';
+      return (multi ? '<h2>Klasse ' + _esc(cid) + '</h2>' : '')
+        + '<table><thead><tr><th class="nr"></th><th class="name">Name</th><th class="mark">Abgegeben</th><th>Notiz</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }).join('');
+    var meta = [_typeLabel(col.type).replace(/^[^A-Za-zÄÖÜäöü]+/, ''), 'Klasse ' + col.classIds.join(', ')];
+    if (col.dueDate) meta.push('Fällig: ' + _formatDate(col.dueDate));
+    meta.push(p.done + ' von ' + p.total + ' abgegeben', 'Stand ' + today);
+    window.LehrerClasslist.printDocument(col.title,
+      '<h1>' + _esc(col.title) + '</h1><p class="meta">' + _esc(meta.join(' · ')) + '</p>'
+      + (col.note ? '<p class="meta">' + _esc(col.note) + '</p>' : '')
+      + (tables || '<p>Keine Schüler:innen in dieser Einsammlung.</p>'),
+      { css: 'tr{height:6.5mm}td.name{width:1%}' });
+  }
+
   function _updateSidebarProgress(colId) {
     var btn = _container.querySelector('[data-col-id="' + colId + '"]');
     if (!btn) return;
@@ -407,6 +438,7 @@ var LehrerCollections = (function () {
       if (act === 'unarchive')    { _archiveCol(_activeId, false); return; }
       if (act === 'delete-col')   { _deleteCol(_activeId); return; }
       if (act === 'export-col')   { _exportCol(_activeId); return; }
+      if (act === 'print-col')    { _printCol(_activeId); return; }
       if (act === 'mark-all')     { _markAll(_activeId, true); return; }
       if (act === 'clear-all')    { _markAll(_activeId, false); return; }
     });
@@ -429,13 +461,7 @@ var LehrerCollections = (function () {
   // ── Public ────────────────────────────────────────────────────────────────
   function init(container) { _container = container; _load(); render(); }
 
-  /** Active collections that include a class (for the printable class overview). */
-  function forClass(classId) {
-    _load();
-    return _sortedCollections().filter(function (c) { return !c.archived && c.classIds.indexOf(classId) !== -1; });
-  }
-
-  return { init: init, render: render, forClass: forClass };
+  return { init: init, render: render };
 })();
 
 if (typeof window !== 'undefined') window.LehrerCollections = LehrerCollections;

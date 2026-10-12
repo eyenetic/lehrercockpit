@@ -6898,3 +6898,9 @@ html, body { overflow-x: clip; }
   .plans-tab-bar { display: flex; width: 100%; }
   .plans-tab-btn { flex: 1 1 auto; padding: 6px 8px; }
 }
+
+/* PDF-Liste (Klassen): Überschrift + Spaltenzahl */
+.classlist-print-modal { width: min(400px, 95vw); }
+.classlist-print-form { display: grid; gap: 14px; padding: 16px 20px 20px; }
+.classlist-print-form .form-label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-muted, inherit); }
+.classlist-print-form input[type="number"] { width: 7em; }

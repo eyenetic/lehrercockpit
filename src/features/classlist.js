@@ -255,7 +255,7 @@ var LehrerClasslist = (function () {
       +   '</div>'
       +   '<div class="classlist-panel-actions action-row">'
       +     '<button class="btn btn-sm btn-secondary" type="button" data-action="import">Importieren</button>'
-      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="print-overview"' + (count ? '' : ' disabled') + ' title="Alle Einsammlungen der Klasse als Tabelle – drucken oder als PDF sichern">PDF-Übersicht</button>'
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="print-list"' + (count ? '' : ' disabled') + ' title="Namensliste mit leeren Spalten – drucken oder als PDF sichern">PDF-Liste</button>'
       +     '<details class="more-menu"><summary class="btn btn-sm btn-secondary" aria-label="Weitere Aktionen">⋯</summary>'
       +       '<div class="more-menu-list" role="menu">'
       +         '<button type="button" role="menuitem" data-action="export-csv"' + (count ? '' : ' disabled') + '>Als CSV speichern</button>'
@@ -569,7 +569,7 @@ var LehrerClasslist = (function () {
       if (act === 'add-class') { _showAddClassDialog(); return; }
       if (act === 'import') { _showImportModal(_activeClass); return; }
       if (act === 'export-csv') { _exportCSV(_activeClass); return; }
-      if (act === 'print-overview') { _printOverview(_activeClass); return; }
+      if (act === 'print-list') { _showPrintListDialog(_activeClass); return; }
       if (act === 'delete-class') { _deleteClass(_activeClass); return; }
 
       var row = action.closest('[data-student-id]');
@@ -578,50 +578,83 @@ var LehrerClasslist = (function () {
     });
   }
 
-  // ── Printable overview: students × collections ───────────────────────────
+  // ── Printing ──────────────────────────────────────────────────────────────
   // Built in a new window and printed there ("Als PDF sichern" in the print
   // dialog). Names never leave the device.
-  function _printOverview(classId) {
-    var students = _sortedStudents(classId);
-    var collections = window.LehrerCollections && window.LehrerCollections.forClass
-      ? window.LehrerCollections.forClass(classId) : [];
+  function printDocument(title, bodyHtml, options) {
+    options = options || {};
     var win = window.open('', '_blank');
-    if (!win) { alert('Bitte Pop-ups für das Cockpit erlauben, um die Übersicht zu öffnen.'); return; }
-    var today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    var dateLabel = function (iso) {
-      return iso ? new Date(iso + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '';
-    };
-    var check = function (col, student) {
-      var c = col.checks && col.checks[classId + '|' + student.id];
-      if (!c) return '';
-      return (c.done ? '✓' : '') + (c.note ? '<small>' + _esc(c.note) + '</small>' : '');
-    };
-    var head = '<tr><th class="name">Name</th>' + collections.map(function (col) {
-      return '<th>' + _esc(col.title) + (col.dueDate ? '<small>bis ' + _esc(dateLabel(col.dueDate)) + '</small>' : '') + '</th>';
-    }).join('') + '</tr>';
-    var body = students.map(function (s, i) {
-      return '<tr><td class="name">' + (i + 1) + '. ' + _esc(s.lastName) + (s.firstName ? ', ' + _esc(s.firstName) : '') + '</td>'
-        + collections.map(function (col) { return '<td>' + check(col, s) + '</td>'; }).join('') + '</tr>';
-    }).join('');
-    var foot = '<tr><td class="name">Erledigt</td>' + collections.map(function (col) {
-      var done = students.filter(function (s) { var c = col.checks && col.checks[classId + '|' + s.id]; return c && c.done; }).length;
-      return '<td>' + done + ' / ' + students.length + '</td>';
-    }).join('') + '</tr>';
-    var table = collections.length
-      ? '<table><thead>' + head + '</thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table>'
-      : '<p>Für diese Klasse gibt es noch keine offenen Einsammlungen.</p>';
+    if (!win) { alert('Bitte Pop-ups für das Cockpit erlauben, um die PDF zu öffnen.'); return; }
     win.document.write('<!doctype html><html lang="de"><head><meta charset="utf-8">'
-      + '<title>Klasse ' + _esc(classId) + ' – Einsammlungen</title><style>'
+      + '<title>' + _esc(title) + '</title><style>'
       + 'body{font:12px/1.4 -apple-system,"Segoe UI",Roboto,sans-serif;color:#111;margin:24px}'
-      + 'h1{font-size:18px;margin:0 0 2px}p.meta{margin:0 0 14px;color:#555}'
-      + 'table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:4px 6px;text-align:center;vertical-align:top}'
-      + 'th{background:#f1f3f5;font-weight:600}th small,td small{display:block;font-weight:400;color:#555;font-size:10px}'
-      + '.name{text-align:left;white-space:nowrap}tfoot td{font-weight:600;background:#f8f9fa}'
-      + '@page{size:A4 landscape;margin:12mm}@media print{body{margin:0}}'
-      + '</style></head><body><h1>Klasse ' + _esc(classId) + ' – Einsammlungen</h1>'
-      + '<p class="meta">Stand ' + today + ' · ' + students.length + ' Schüler:innen</p>' + table
+      + 'h1{font-size:18px;margin:0 0 2px}h2{font-size:14px;margin:16px 0 6px}p.meta{margin:0 0 14px;color:#555}'
+      + 'table{border-collapse:collapse;width:100%;page-break-inside:auto}tr{page-break-inside:avoid}'
+      + 'th,td{border:1px solid #999;padding:3px 6px;text-align:left;vertical-align:middle}'
+      + 'th{background:#f1f3f5;font-weight:600}td.nr{width:2.2em;text-align:right;color:#555}'
+      + '.name{white-space:nowrap}td.mark{text-align:center;width:6em}'
+      + '@page{size:A4 ' + (options.landscape ? 'landscape' : 'portrait') + ';margin:12mm}@media print{body{margin:0}}'
+      + (options.css || '')
+      + '</style></head><body>' + bodyHtml
       + '<script>window.onload=function(){window.print();};<\/script></body></html>');
     win.document.close();
+  }
+
+  var PRINT_COLUMNS_KEY = 'lc.printColumns';
+
+  function _showPrintListDialog(classId) {
+    var saved = 6;
+    try { saved = parseInt(localStorage.getItem(PRINT_COLUMNS_KEY), 10) || 6; } catch (e) { /* private mode */ }
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal classlist-print-modal" role="dialog" aria-label="PDF-Liste">'
+      + '<div class="modal-header"><span class="modal-title">PDF-Liste · Klasse ' + _esc(classId) + '</span>'
+      +   '<button class="modal-close" type="button" data-close>✕</button></div>'
+      + '<form class="classlist-print-form" data-print-form>'
+      +   '<label class="form-label">Überschrift (optional)'
+      +     '<input class="form-input" name="title" placeholder="z. B. Hausaufgaben 2. Halbjahr" maxlength="80" /></label>'
+      +   '<label class="form-label">Anzahl leerer Spalten'
+      +     '<input class="form-input" name="columns" type="number" min="1" max="25" inputmode="numeric" value="' + saved + '" required /></label>'
+      +   '<div class="classlist-import-footer">'
+      +     '<button class="btn btn-secondary" type="button" data-close>Abbrechen</button>'
+      +     '<button class="btn btn-primary" type="submit">PDF erstellen</button>'
+      +   '</div>'
+      + '</form></div>';
+    document.body.appendChild(overlay);
+    var close = function () { _removeOverlay(overlay); };
+    overlay.addEventListener('click', function (e) { if (e.target === overlay || e.target.closest('[data-close]')) close(); });
+    var form = overlay.querySelector('[data-print-form]');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var columns = Math.max(1, Math.min(25, parseInt(form.elements.columns.value, 10) || 1));
+      try { localStorage.setItem(PRINT_COLUMNS_KEY, String(columns)); } catch (err) { /* private mode */ }
+      close();
+      _printEmptyList(classId, columns, form.elements.title.value.trim());
+    });
+    form.elements.columns.select();
+  }
+
+  function _removeOverlay(el) { if (el && el.parentNode) el.parentNode.removeChild(el); }
+
+  /** Class list with numbered names and empty columns to fill in by hand. */
+  function _printEmptyList(classId, columns, heading) {
+    var students = _sortedStudents(classId);
+    var landscape = columns > 8;
+    // fit one page: A4 minus margins and heading, split across header + rows
+    var usable = (landscape ? 186 : 273) - 22;
+    var rowMm = Math.max(5.5, Math.min(9, Math.floor(usable / (students.length + 1) * 10) / 10));
+    var empty = '';
+    for (var i = 0; i < columns; i++) empty += '<td></td>';
+    var headCells = '';
+    for (var j = 0; j < columns; j++) headCells += '<th></th>';
+    var rows = students.map(function (s, n) {
+      return '<tr><td class="nr">' + (n + 1) + '</td><td class="name">' + _esc(s.lastName) + (s.firstName ? ', ' + _esc(s.firstName) : '') + '</td>' + empty + '</tr>';
+    }).join('');
+    var title = 'Klasse ' + classId + (heading ? ' – ' + heading : '');
+    printDocument(title,
+      '<h1>' + _esc(title) + '</h1>'
+      + '<table><thead><tr><th class="nr"></th><th class="name">Name</th>' + headCells + '</tr></thead><tbody>' + rows + '</tbody></table>',
+      { landscape: landscape, css: 'tr{height:' + rowMm + 'mm}td.name{width:1%}' });
   }
 
   // ── Escape helper ─────────────────────────────────────────────────────────
@@ -651,6 +684,7 @@ var LehrerClasslist = (function () {
     render: render,
     getClassLists: getClassLists,
     getStudentsForClass: getStudentsForClass,
+    printDocument: printDocument,
   };
 })();
 
