@@ -2791,6 +2791,46 @@
     showClassTab(saved);
   }
 
+  // Posteingang am Handy: Dienstmail und itslearning als Reiter statt untereinander.
+  const INBOX_TAB_KEY = "lc.inboxTab";
+
+  function showInboxTab(tab) {
+    const columns = document.getElementById("inbox-columns");
+    if (!columns) return;
+    columns.dataset.active = tab;
+    document.querySelectorAll(".inbox-tab-btn").forEach((btn) => {
+      const active = btn.dataset.inboxTab === tab;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+  }
+
+  function initInboxTabs() {
+    document.querySelectorAll(".inbox-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        showInboxTab(btn.dataset.inboxTab);
+        try { localStorage.setItem(INBOX_TAB_KEY, btn.dataset.inboxTab); } catch (_e) { /* private mode */ }
+      });
+    });
+    let saved = "mail";
+    try { saved = localStorage.getItem(INBOX_TAB_KEY) === "its" ? "its" : "mail"; } catch (_e) { /* private mode */ }
+    showInboxTab(saved);
+  }
+
+  /** Tab bar only when both cards exist; counts of unread / new per tab. */
+  function updateInboxTabs(mailUnread, itsNew) {
+    const bar = document.getElementById("inbox-tab-bar");
+    const mailBlock = document.getElementById("dienstmail-block");
+    if (!bar) return;
+    bar.hidden = !mailBlock || mailBlock.hidden;
+    [["mail", mailUnread], ["its", itsNew]].forEach(([tab, count]) => {
+      const badge = bar.querySelector(`[data-inbox-count="${tab}"]`);
+      if (!badge) return;
+      badge.textContent = count > 99 ? "99+" : String(count);
+      badge.hidden = !count;
+    });
+  }
+
   function initPlansTabs() {
     const buttons = document.querySelectorAll(".plans-tab-btn");
     buttons.forEach((btn) => {
@@ -2931,6 +2971,7 @@
 
     initPlansTabs();
     initClassTabs();
+    initInboxTabs();
     const afterRefresh = () => {
       if (!window.MULTIUSER_ENABLED) loadClassworkCache();  // local single-user mode only
       loadGradebook();
@@ -3111,7 +3152,9 @@
   function renderNavSignals() {
     const data = getData();
     const isNew = (message) => (window.LehrerInbox ? window.LehrerInbox.isNewMessage(message) : message.unread);
-    const unreadCount = (data.messages || []).filter(isNew).length + unreadMails(data).length;
+    const itsNew = (data.messages || []).filter(isNew).length;
+    const unreadCount = itsNew + unreadMails(data).length;
+    updateInboxTabs(unreadMails(data).length, itsNew);
     elements.navLinks.forEach((button) => {
       const target = button.dataset.sectionTarget || "";
       let count = button.querySelector(".nav-count");

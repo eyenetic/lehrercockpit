@@ -6904,3 +6904,26 @@ html, body { overflow-x: clip; }
 .classlist-print-form { display: grid; gap: 14px; padding: 16px 20px 20px; }
 .classlist-print-form .form-label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-muted, inherit); }
 .classlist-print-form input[type="number"] { width: 7em; }
+
+/* Posteingang am Handy: Reiter Dienstmail | itslearning (ab 1100 px nebeneinander) */
+.inbox-tab-bar { grid-column: 1 / -1; margin-bottom: 0; }
+.inbox-tab-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px 12px; border: none; border-radius: calc(var(--radius-md) - 2px);
+  background: transparent; color: var(--muted); font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.inbox-tab-btn.is-active { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.inbox-tab-count {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
+  background: var(--accent); color: #fff; font-size: 0.7rem; font-weight: 600; line-height: 18px; text-align: center;
+}
+.inbox-tab-count[hidden] { display: none; }
+@media (max-width: 1099px) {
+  .inbox-columns[data-active="mail"] > .inbox-card--its,
+  .inbox-columns[data-active="its"] > .inbox-card--mail { display: none; }
+}
+@media (min-width: 1100px) {
+  .inbox-tab-bar { display: none; }
+}
+.inbox-tab-bar[hidden] { display: none; }

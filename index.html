@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=101" />
+    <link rel="stylesheet" href="./styles.css?v=102" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -258,7 +258,11 @@
         </section>
 
         <section class="content-grid single-grid" data-view-section="inbox">
-          <div class="inbox-columns">
+          <div class="plans-tab-bar inbox-tab-bar" role="tablist" id="inbox-tab-bar" hidden>
+            <button class="inbox-tab-btn is-active" role="tab" aria-selected="true" aria-controls="dienstmail-block" data-inbox-tab="mail">Dienstmail <span class="inbox-tab-count" data-inbox-count="mail" hidden></span></button>
+            <button class="inbox-tab-btn" role="tab" aria-selected="false" aria-controls="itslearning-block" data-inbox-tab="its">itslearning <span class="inbox-tab-count" data-inbox-count="its" hidden></span></button>
+          </div>
+          <div class="inbox-columns" id="inbox-columns" data-active="mail">
             <article class="card inbox-card inbox-card--mail" id="dienstmail-block" aria-labelledby="dienstmail-title" hidden>
               <header class="inbox-card-head">
                 <a class="inbox-card-title" id="dienstmail-title-link" href="https://lehrkraeftemail.schule.berlin.de/?iam_sso=1" target="_blank" rel="noopener noreferrer" title="Dienstmail öffnen">
@@ -550,27 +554,27 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=101"></script>
-    <script src="./src/features/vault.js?v=101"></script>
-    <script src="./src/api-client.js?v=101"></script>
-    <script src="./src/modules/dashboard-manager.js?v=101"></script>
-    <script src="./src/features/grades.js?v=101"></script>
-    <script src="./src/features/webuntis.js?v=101"></script>
-    <script src="./src/features/itslearning.js?v=101"></script>
-    <script src="./src/features/nextcloud.js?v=101"></script>
-    <script src="./src/features/documents.js?v=101"></script>
-    <script src="./src/features/classwork.js?v=101"></script>
-    <script src="./src/features/classlist.js?v=101"></script>
-    <script src="./src/features/collections.js?v=101"></script>
-    <script src="./src/features/inbox.js?v=101"></script>
-    <script src="./src/features/zugaenge.js?v=101"></script>
-    <script src="./src/features/onedrive-sync.js?v=101"></script>
-    <script src="./src/features/signals.js?v=101"></script>
-    <script src="./src/features/ai.js?v=101"></script>
-    <script src="./src/features/links.js?v=101"></script>
-    <script src="./src/features/connections.js?v=101"></script>
-    <script src="./src/features/feedback.js?v=101"></script>
-    <script src="./src/app.js?v=101"></script>
+    <script src="./data/mock-dashboard.js?v=102"></script>
+    <script src="./src/features/vault.js?v=102"></script>
+    <script src="./src/api-client.js?v=102"></script>
+    <script src="./src/modules/dashboard-manager.js?v=102"></script>
+    <script src="./src/features/grades.js?v=102"></script>
+    <script src="./src/features/webuntis.js?v=102"></script>
+    <script src="./src/features/itslearning.js?v=102"></script>
+    <script src="./src/features/nextcloud.js?v=102"></script>
+    <script src="./src/features/documents.js?v=102"></script>
+    <script src="./src/features/classwork.js?v=102"></script>
+    <script src="./src/features/classlist.js?v=102"></script>
+    <script src="./src/features/collections.js?v=102"></script>
+    <script src="./src/features/inbox.js?v=102"></script>
+    <script src="./src/features/zugaenge.js?v=102"></script>
+    <script src="./src/features/onedrive-sync.js?v=102"></script>
+    <script src="./src/features/signals.js?v=102"></script>
+    <script src="./src/features/ai.js?v=102"></script>
+    <script src="./src/features/links.js?v=102"></script>
+    <script src="./src/features/connections.js?v=102"></script>
+    <script src="./src/features/feedback.js?v=102"></script>
+    <script src="./src/app.js?v=102"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.
