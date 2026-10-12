@@ -6927,3 +6927,21 @@ html, body { overflow-x: clip; }
   .inbox-tab-bar { display: none; }
 }
 .inbox-tab-bar[hidden] { display: none; }
+
+/* Installierte App: Herunterziehen zum Aktualisieren, Hinweis auf neue Version */
+.pull-refresh {
+  position: fixed; top: calc(env(safe-area-inset-top, 0px) - 34px); left: 50%; z-index: 300;
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  color: var(--muted); transform: translate(-50%, 0); pointer-events: none;
+}
+.pull-refresh-icon { font-size: 18px; line-height: 1; }
+.pull-refresh.is-ready { color: var(--accent); }
+.pull-refresh.is-running { transform: translate(-50%, 60px); color: var(--accent); transition: transform .2s; }
+.pull-refresh.is-running .pull-refresh-icon { animation: pull-refresh-spin .8s linear infinite; }
+@keyframes pull-refresh-spin { to { transform: rotate(360deg); } }
+.app-update-banner {
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); z-index: 300; transform: translateX(-50%);
+  padding: 10px 16px; border: 0; border-radius: 999px; background: var(--accent); color: #fff;
+  font: inherit; font-size: 0.9rem; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.2); cursor: pointer; white-space: nowrap;
+}

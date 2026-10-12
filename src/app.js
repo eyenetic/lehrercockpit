@@ -2065,10 +2065,121 @@
     return "Ich antworte hier nur auf Basis der Cockpit-Daten: Stundenplan, Dokumente, Dienstmail, itslearning und aktuelle Hinweise.";
   }
 
+  // ── SECTION: App-Updates (installierte App) ─────────────────────────────────
+  // Als Home-Bildschirm-App gibt es weder Neuladen-Knopf noch Herunterziehen,
+  // und iOS setzt die App beim Öffnen nur fort, statt sie neu zu laden. Deshalb
+  // erkennt das Cockpit eine neue Version selbst (Nummer hinter app.js?v= in
+  // index.html) und lädt sich dann neu.
+  const LOADED_VERSION = ((document.querySelector('script[src*="app.js?v="]') || {}).src || "").replace(/^.*[?&]v=(\d+).*$/, "$1");
+  const VERSION_CHECK_MIN_MS = 60 * 1000;
+  let lastVersionCheck = Date.now();
+
+  async function newerVersionAvailable() {
+    if (!/^\d+$/.test(LOADED_VERSION)) return false;
+    lastVersionCheck = Date.now();
+    try {
+      const resp = await fetch(`./index.html?check=${Date.now()}`, { cache: "no-store", credentials: "same-origin" });
+      if (!resp.ok) return false;
+      const latest = ((await resp.text()).match(/app\.js\?v=(\d+)/) || [])[1];
+      return !!latest && latest !== LOADED_VERSION;
+    } catch (_e) {
+      return false;  // offline – try again later
+    }
+  }
+
+  /** Something the teacher is typing into would be lost by a reload. */
+  function busyWithInput() {
+    const active = document.activeElement;
+    if (active && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) && active.value) return true;
+    return !!document.querySelector(".modal-overlay:not([hidden]) textarea, .modal-overlay:not([hidden]) input[type='text']");
+  }
+
+  function showUpdateBanner() {
+    if (document.getElementById("app-update-banner")) return;
+    const banner = document.createElement("button");
+    banner.type = "button";
+    banner.id = "app-update-banner";
+    banner.className = "app-update-banner";
+    banner.textContent = "Neue Version – tippen zum Laden";
+    banner.addEventListener("click", () => window.location.reload());
+    document.body.appendChild(banner);
+  }
+
+  /** Reloads when a newer version is online. True when the page is about to reload. */
+  async function updateAppIfNewer({ quiet = false } = {}) {
+    if (!(await newerVersionAvailable())) return false;
+    if (quiet && busyWithInput()) { showUpdateBanner(); return false; }
+    window.location.reload();
+    return true;
+  }
+
+  function isInstalledApp() {
+    return window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  }
+
+  /** Pull down at the top of the page to refresh – only in the installed app (browsers do this themselves). */
+  function initPullToRefresh() {
+    if (!isInstalledApp() || !("ontouchstart" in window)) return;
+    const indicator = document.createElement("div");
+    indicator.className = "pull-refresh";
+    indicator.setAttribute("aria-hidden", "true");
+    indicator.innerHTML = '<span class="pull-refresh-icon">↻</span>';
+    document.body.appendChild(indicator);
+    const THRESHOLD = 70;
+    let startY = null;
+    let distance = 0;
+    let running = false;
+
+    const reset = () => {
+      startY = null;
+      distance = 0;
+      indicator.style.transform = "";
+      indicator.classList.remove("is-ready");
+    };
+    document.addEventListener("touchstart", (event) => {
+      if (running || window.scrollY > 0 || event.touches.length !== 1) return;
+      if (event.target.closest(".modal-overlay, dialog, #mobile-more-sheet")) return;
+      startY = event.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener("touchmove", (event) => {
+      if (startY === null) return;
+      distance = event.touches[0].clientY - startY;
+      if (distance <= 0 || window.scrollY > 0) { reset(); return; }
+      const shift = Math.min(distance / 2, THRESHOLD);
+      indicator.style.transform = `translate(-50%, ${shift}px) rotate(${shift * 4}deg)`;
+      indicator.classList.toggle("is-ready", distance > THRESHOLD * 1.4);
+    }, { passive: true });
+    document.addEventListener("touchend", async () => {
+      if (startY === null) return;
+      const pulled = distance > THRESHOLD * 1.4;
+      reset();
+      if (!pulled) return;
+      running = true;
+      indicator.classList.add("is-running");
+      try {
+        if (!(await updateAppIfNewer())) await refreshDashboard(true);
+      } finally {
+        running = false;
+        indicator.classList.remove("is-running");
+      }
+    });
+  }
+
+  function initAppUpdates() {
+    // Coming back to the app (iOS resumes instead of reloading): check for a new version.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastVersionCheck < VERSION_CHECK_MIN_MS) return;
+      updateAppIfNewer({ quiet: true });
+    });
+    initPullToRefresh();
+  }
+
   // ── SECTION: Event registration ──────────────────────────────────────────────
 
   function registerEvents() {
     elements.briefingButton.addEventListener("click", async () => {
+      if (await updateAppIfNewer()) return;
       await refreshDashboard(true);
     });
 
@@ -2972,6 +3083,7 @@
     initPlansTabs();
     initClassTabs();
     initInboxTabs();
+    initAppUpdates();
     const afterRefresh = () => {
       if (!window.MULTIUSER_ENABLED) loadClassworkCache();  // local single-user mode only
       loadGradebook();
