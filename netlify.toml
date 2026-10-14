@@ -45,12 +45,19 @@
 [[headers]]
   for = "/styles.css"
   [headers.values]
-    Cache-Control = "no-store"
+    # Every page loads these with ?v=<version> (bumped on each deploy): cache for good.
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
   for = "/src/*"
   [headers.values]
-    Cache-Control = "no-store"
+    # Every page loads these with ?v=<version> (bumped on each deploy): cache for good.
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/styles.auth.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
   for = "/manifest.json"

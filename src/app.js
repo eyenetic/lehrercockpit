@@ -26,6 +26,7 @@
   // NEXTCLOUD_LAST_OPENED_KEY moved to src/features/nextcloud.js (LehrerNextcloud extraction)
   const EXPANDED_PANELS_KEY = "lehrerCockpit.expandedPanels";
   const DASHBOARD_CACHE_KEY = "lc.dashboardCache";
+  const LAST_USER_KEY = "lc.lastUserId";
   // Official direct mailbox link (login via the Schulportal).
   const DIENSTMAIL_DEFAULT_URL = "https://lehrkraeftemail.schule.berlin.de/?iam_sso=1";
   const DASHBOARD_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // shown at once, then refreshed
@@ -252,9 +253,15 @@
   // ── SECTION: API / data loading ─────────────────────────────────────────────
 
   function saveDashboardCache(data) {
+    // The data may arrive before the login check: store it once its owner is known.
+    if (window.MULTIUSER_ENABLED && !window.CURRENT_USER) {
+      whenUserKnown().then(() => saveDashboardCache(data));
+      return;
+    }
     try {
       const userId = window.CURRENT_USER ? window.CURRENT_USER.id : null;
       localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ data, ts: Date.now(), userId }));
+      if (userId !== null) localStorage.setItem(LAST_USER_KEY, String(userId));
     } catch (_) {}
   }
 
@@ -265,8 +272,16 @@
       const parsed = JSON.parse(raw);
       if (!parsed || !parsed.data) return null;
       if (Date.now() - parsed.ts > maxAgeMs) return null;
-      // Only ever show a teacher their own last state.
-      if (window.MULTIUSER_ENABLED && (!window.CURRENT_USER || parsed.userId !== window.CURRENT_USER.id)) return null;
+      // Only ever show a teacher their own last state. Before the login check
+      // answers (the server may still be waking up), the last teacher signed in
+      // on this device counts – login.html forgets them, logout wipes everything.
+      if (window.MULTIUSER_ENABLED) {
+        let owner = window.CURRENT_USER ? window.CURRENT_USER.id : null;
+        if (owner === null) {
+          try { owner = Number(localStorage.getItem(LAST_USER_KEY)) || null; } catch (_) { owner = null; }
+        }
+        if (owner === null || parsed.userId !== owner) return null;
+      }
       return parsed.data;
     } catch (_) { return null; }
   }
@@ -1721,7 +1736,10 @@
   if (todayWideQuery.addEventListener) {
     todayWideQuery.addEventListener("change", () => renderTodayModuleLayout());
   }
-  window.addEventListener("lehrer:user", () => renderPageHead());
+  window.addEventListener("lehrer:user", () => {
+    try { localStorage.setItem(LAST_USER_KEY, String(window.CURRENT_USER.id)); } catch (_) { /* private mode */ }
+    renderPageHead();
+  });
   if (window.LehrerLinks) window.LehrerLinks.onChange(() => renderHeuteZugaenge());
   // „⋯“ menus (Klassen, Einsammlungen): one open at a time, closed by a click elsewhere or on an entry.
   document.addEventListener("click", (event) => {
@@ -2460,15 +2478,18 @@
     // Stale-while-revalidate: show the last state as soon as the user is known
     // (auth check, ~0.1 s), then replace it with fresh data from the network.
     if (!forceRefresh && !state.data) {
-      whenUserKnown().then(() => {
-        if (state.data) return;  // fresh data was faster
+      const showCache = () => {
+        if (state.data) return true;  // fresh data was faster
         const cached = loadDashboardCache();
-        if (!cached) return;
+        if (!cached) return false;
         state.data = cached;
         state.showingCache = true;
         renderAll();
         applyAppTitle();
-      });
+        return true;
+      };
+      // Right away (the last state of this device's teacher), else once the login check answered.
+      if (!showCache()) whenUserKnown().then(showCache);
     }
     if (elements.heroNote && (forceRefresh || !state.data)) {
       elements.heroNote.textContent = "Stand wird aktualisiert …";

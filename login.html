@@ -21,7 +21,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=103" />
+    <link rel="stylesheet" href="./styles.css?v=104" />
     <style>
       body.auth {
         min-height: 100vh;
@@ -262,10 +262,13 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/features/vault.js?v=103"></script>
+    <script src="./src/features/vault.js?v=104"></script>
     <script>
       (function () {
         'use strict';
+        // Whoever signs in next is not necessarily the last teacher on this device:
+        // index.html then waits for the login check before showing a cached state.
+        try { localStorage.removeItem('lc.lastUserId'); } catch (e) {}
         var API = window.BACKEND_API_URL || '';
         var $ = function (id) { return document.getElementById(id); };
 
