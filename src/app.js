@@ -793,6 +793,8 @@
     if (topbarTitle) topbarTitle.textContent = active === "overview" ? "Heute" : (SECTION_TITLES[active] || "Lehrercockpit");
     // Each area has its own calm colour (styles.css: body[data-section]); the head shows its icon.
     document.body.dataset.section = active;
+    const breakChip = document.getElementById("break-chip");
+    if (breakChip) breakChip.classList.toggle("is-offpage", active !== "overview");
     const icon = document.getElementById("page-head-icon");
     const navIcon = document.querySelector(`.sidebar-nav [data-section-target="${active}"] svg`);
     if (icon) icon.innerHTML = navIcon ? navIcon.outerHTML : "";
@@ -1062,6 +1064,8 @@
     renderInboxTile(data);
     safely(() => renderNextUp(data));
     safely(() => renderImportant(data));
+    safely(() => renderWeekAhead(data));
+    safely(() => renderBreakChip(data));
   }
 
   // ── „Als Nächstes“: die aktuelle/nächste Stunde groß oben auf Heute ──────────
@@ -1207,6 +1211,155 @@
     }
     box.hidden = !cards.length;
     box.innerHTML = cards.slice(0, 3).join("");
+  }
+
+  // ── Ferien-Countdown und Schuljahr ───────────────────────────────────────────
+  const SY = () => window.LehrerSchoolYear;
+  const shortDate = (d) => d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(",", "");
+
+  /** Free days the school calendar adds (e.g. „Studientag – unterrichtsfrei“). */
+  function syncExtraBreaks(data) {
+    if (!SY()) return;
+    const events = (data.schoolCalendar && data.schoolCalendar.events) || [];
+    SY().setExtraBreaks(events
+      .filter((e) => e.all_day && /ferien|unterrichtsfrei|schulfrei/i.test(e.title || ""))
+      .map((e) => ({ name: e.title, start: String(e.start).slice(0, 10), end: String(e.end || e.start).slice(0, 10) })));
+  }
+
+  function renderBreakChip(data) {
+    const chip = document.getElementById("break-chip");
+    if (!chip || !SY()) return;
+    syncExtraBreaks(data);
+    const now = new Date();
+    const today = startOfDay(now);
+    const current = SY().breakOn(today);
+    let text = "";
+    if (current && !current.holiday) {
+      const end = SY().fromIso(current.end);
+      text = `${current.name} · bis ${shortDate(end)}`;
+    } else {
+      const next = SY().nextBreak(today);
+      if (next) {
+        // today still counts until early afternoon
+        const from = now.getHours() < 14 ? today : SY().addDays(today, 1);
+        const days = SY().schoolDaysBetween(from, SY().fromIso(next.start));
+        const startDay = SY().fromIso(next.start);
+        text = days === 0
+          ? `${next.name} ab ${startDay.toLocaleDateString("de-DE", { weekday: "long" })}`
+          : `Noch ${days} ${days === 1 ? "Schultag" : "Schultage"} bis zu den ${next.name}`;
+      }
+    }
+    chip.hidden = !text;
+    chip.innerHTML = text ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 21H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M22 10.5V9a7 7 0 0 0-7-7"/></svg><span>${escapeHtml(text)}</span>` : "";
+  }
+
+  function openSchoolYear() {
+    const modal = document.getElementById("schoolyear-modal");
+    const body = document.getElementById("schoolyear-body");
+    if (!modal || !body || !SY()) return;
+    const today = startOfDay(new Date());
+    const year = SY().schoolYear(today);
+    document.getElementById("schoolyear-title").textContent = `Schuljahr ${year.label}`;
+    if (!year.known) {
+      body.innerHTML = '<p class="schoolyear-note">Die Ferien für dieses Schuljahr sind noch nicht hinterlegt.</p>';
+      modal.hidden = false;
+      return;
+    }
+    const start = SY().fromIso(year.start);
+    const summer = year.breaks.find((b) => /sommer/i.test(b.name));
+    const end = summer ? SY().fromIso(summer.start) : SY().fromIso(year.end);
+    const total = SY().schoolDaysBetween(start, end);
+    const done = Math.min(total, SY().schoolDaysBetween(start, today));
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const todayIso = SY().iso(today);
+    const rows = year.breaks.map((b) => {
+      const s = SY().fromIso(b.start);
+      const e = SY().fromIso(b.end);
+      const range = b.start === b.end ? shortDate(s) : `${shortDate(s)} – ${shortDate(e)}`;
+      let status;
+      if (b.end < todayIso) status = '<span class="sy-status is-past">vorbei</span>';
+      else if (b.start <= todayIso) status = '<span class="sy-status is-now">jetzt</span>';
+      else {
+        const n = SY().schoolDaysBetween(today, s);
+        status = `<span class="sy-status">in ${n} ${n === 1 ? "Schultag" : "Schultagen"}</span>`;
+      }
+      return `<li class="${b.end < todayIso ? "is-past" : ""}"><span class="sy-name">${escapeHtml(b.name)}</span><span class="sy-range">${range}</span>${status}</li>`;
+    }).join("");
+    body.innerHTML = `<div class="sy-progress"><div class="sy-bar"><span style="width:${pct}%"></span></div>
+        <p>${done} von ${total} Schultagen bis zu den Sommerferien · ${pct} %</p></div>
+      <ul class="sy-list">${rows}</ul>
+      <p class="schoolyear-note">Quelle: Ferienkalender der Kultusministerkonferenz; Feiertage in Berlin werden mitgezählt.</p>`;
+    modal.hidden = false;
+  }
+
+  // ── „Deine Woche“: am Wochenende die kommende Woche im Überblick ─────────────
+  function renderWeekAhead(data) {
+    const box = document.getElementById("weekahead");
+    if (!box || !SY()) return;
+    const now = new Date();
+    const dow = now.getDay();
+    const show = dow === 6 || dow === 0 || (dow === 5 && now.getHours() >= 14);
+    if (!state.data || !show) { box.hidden = true; return; }
+    syncExtraBreaks(data);
+    const monday = startOfDay(now);
+    monday.setDate(monday.getDate() + ((8 - monday.getDay()) % 7 || 7));
+    const days = [0, 1, 2, 3, 4].map((i) => SY().addDays(monday, i));
+    const friday = days[4];
+    const kw = isoWeekNumber(monday);
+    const range = `${monday.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}–${friday.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}`;
+    const breaks = days.map((d) => SY().breakOn(d));
+    box.hidden = false;
+    if (breaks.every(Boolean)) {
+      const names = [...new Set(breaks.map((b) => b.name))].join(", ");
+      box.innerHTML = `<header class="wa-head"><h2 id="weekahead-title">Deine Woche</h2><span class="wa-meta">KW ${kw} · ${range}</span></header>
+        <p class="wa-free">Nächste Woche ist schulfrei: <b>${escapeHtml(names)}</b>. Erhol dich gut!</p>`;
+      return;
+    }
+    const events = (data.webuntisCenter?.events || []).filter((e) => e.startsAt && !e.cancelled);
+    const classwork = data.planDigest?.classwork || {};
+    const allClasses = (classwork.classes || []).filter(Boolean);
+    const selected = getSelectedClassworkClasses(allClasses, classwork.defaultClass || "");
+    const filtered = selected.length && selected.length < allClasses.length;
+    const exams = (classwork.entries || []).filter((e) => e.isoDate && (!filtered || selected.includes(e.classLabel)));
+    const calendar = (data.schoolCalendar && data.schoolCalendar.events) || [];
+    const orgaplan = isModuleVisible("orgaplan") ? (data.planDigest?.orgaplan?.upcoming || []) : [];
+    const todos = ((data.itslearningCalendar || {}).events || []).filter((e) => e.kind === "todo");
+    let totalLessons = 0;
+    let totalDuties = 0;
+    let totalExams = 0;
+    const cols = days.map((day, i) => {
+      const dayIso = localIso(day);
+      const head = `<span class="wa-day">${day.toLocaleDateString("de-DE", { weekday: "short" }).replace(".", "")}</span><span class="wa-date">${day.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}</span>`;
+      if (breaks[i]) {
+        return `<li class="wa-col is-free">${head}<span class="wa-free-tag">${escapeHtml(breaks[i].name)}</span></li>`;
+      }
+      const dayEvents = events.filter((e) => localIso(new Date(e.startsAt)) === dayIso).sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+      const lessons = dayEvents.filter((e) => !isSupervision(e));
+      const duties = dayEvents.length - lessons.length;
+      totalLessons += lessons.length;
+      totalDuties += duties;
+      const items = [];
+      exams.filter((e) => e.isoDate === dayIso).forEach((e) => { totalExams += 1; items.push(`<li class="wa-item is-exam">KA ${escapeHtml(e.classLabel || "")}</li>`); });
+      calendar.filter((e) => String(e.start).slice(0, 10) <= dayIso && String(e.end || e.start).slice(0, 10) >= dayIso)
+        .forEach((e) => items.push(`<li class="wa-item is-event">${e.time_label ? `${escapeHtml(e.time_label.slice(0, 5))} ` : ""}${escapeHtml(e.title)}</li>`));
+      orgaplan.filter((e) => e.isoDate === dayIso).forEach((e) => {
+        const part = orgaplanParts(e)[0];
+        if (part && part.text) items.push(`<li class="wa-item is-org">${escapeHtml(part.text)}</li>`);
+      });
+      todos.filter((e) => String(e.start).slice(0, 10) === dayIso).slice(0, 2)
+        .forEach((e) => items.push(`<li class="wa-item is-todo">Abgabe: ${escapeHtml(e.title)}</li>`));
+      const span = lessons.length
+        ? `${hhmm(new Date(lessons[0].startsAt))}–${hhmm(new Date(lessons[lessons.length - 1].endsAt))}` : "";
+      return `<li class="wa-col">${head}
+        <span class="wa-lessons">${lessons.length ? `<b>${lessons.length}</b> ${lessons.length === 1 ? "Stunde" : "Stunden"}` : "keine Stunden"}</span>
+        ${span ? `<span class="wa-span">${span}</span>` : ""}
+        ${duties ? `<span class="wa-duty">${duties} ${duties === 1 ? "Aufsicht" : "Aufsichten"}</span>` : ""}
+        ${items.length ? `<ul class="wa-items">${items.join("")}</ul>` : ""}</li>`;
+    }).join("");
+    const summary = [`${totalLessons} Stunden`, totalDuties ? `${totalDuties} ${totalDuties === 1 ? "Aufsicht" : "Aufsichten"}` : "",
+      totalExams ? `${totalExams} ${totalExams === 1 ? "Klassenarbeit" : "Klassenarbeiten"}` : ""].filter(Boolean).join(" · ");
+    box.innerHTML = `<header class="wa-head"><h2 id="weekahead-title">Deine Woche</h2><span class="wa-meta">KW ${kw} · ${range}</span><span class="wa-sum">${summary}</span></header>
+      <ol class="wa-grid">${cols}</ol>`;
   }
 
   function goToSection(sectionId) {
@@ -2391,6 +2544,11 @@
       if (!target || event.target !== target) return;
       event.preventDefault();
       target.click();
+    });
+
+    document.getElementById("break-chip")?.addEventListener("click", openSchoolYear);
+    document.getElementById("schoolyear-modal")?.addEventListener("click", (event) => {
+      if (event.target.id === "schoolyear-modal" || event.target.closest("[data-schoolyear-close]")) event.currentTarget.hidden = true;
     });
 
     // „Als Nächstes“ → Sitzplan der Klasse, „Heute wichtig“ → Einsammlung

@@ -7248,3 +7248,62 @@ html, body { overflow-x: clip; }
 
 /* Fokus sichtbar in der Bereichsfarbe */
 .app-main :focus-visible { outline-color: var(--tone); }
+
+/* ── Ferien-Countdown und Schuljahr ───────────────────────────────────────── */
+.break-chip {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 4px 10px 4px 8px;
+  border-radius: 999px; border: 1px solid color-mix(in srgb, var(--tone-grades) 25%, var(--line));
+  background: color-mix(in srgb, var(--tone-grades) 9%, var(--panel)); color: var(--tone-grades);
+  font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+.break-chip svg { width: 15px; height: 15px; }
+.break-chip:hover { background: color-mix(in srgb, var(--tone-grades) 15%, var(--panel)); }
+.break-chip[hidden], .break-chip.is-offpage { display: none; }
+.schoolyear-modal { width: min(460px, 95vw); }
+.schoolyear-body { padding: 4px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+.sy-progress p { margin: 6px 0 0; font-size: 0.84rem; color: var(--muted); }
+.sy-bar { height: 8px; border-radius: 999px; background: var(--panel-soft); overflow: hidden; }
+.sy-bar span { display: block; height: 100%; border-radius: 999px; background: var(--tone-grades); }
+.sy-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sy-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.sy-list li.is-past { opacity: .55; }
+.sy-name { font-weight: 600; font-size: 0.92rem; }
+.sy-range { grid-column: 1; font-size: 0.82rem; color: var(--muted); }
+.sy-status { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 0.78rem; font-weight: 600; color: var(--tone-grades); white-space: nowrap; }
+.sy-status.is-now { padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--tone-grades) 14%, transparent); }
+.sy-status.is-past { color: var(--muted); font-weight: 500; }
+.schoolyear-note { margin: 0; font-size: 0.78rem; color: var(--muted); }
+
+/* ── Deine Woche ──────────────────────────────────────────────────────────── */
+.weekahead { margin-bottom: 16px; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow-soft); }
+.wa-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 12px; }
+.wa-head h2 { margin: 0; font-size: 1.05rem; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+.wa-head h2::before { content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--tone-today); }
+.wa-meta { font-size: 0.84rem; color: var(--muted); }
+.wa-sum { margin-left: auto; font-size: 0.84rem; font-weight: 600; color: var(--ink-2, var(--ink)); }
+.wa-free { margin: 0; font-size: 0.95rem; }
+.wa-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.wa-col { display: flex; flex-direction: column; gap: 4px; padding: 10px 10px 12px; border-radius: 12px; background: var(--panel-soft); min-width: 0; }
+.wa-col.is-free { background: color-mix(in srgb, var(--tone-grades) 9%, var(--panel-soft)); }
+.wa-day { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.wa-date { font-size: 0.95rem; font-weight: 650; margin-bottom: 4px; }
+.wa-lessons { font-size: 0.85rem; }
+.wa-span, .wa-duty { font-size: 0.78rem; color: var(--muted); }
+.wa-duty { color: #9a6a00; }
+:root[data-theme="dark"] .wa-duty { color: #e8c45a; }
+.wa-free-tag { font-size: 0.82rem; font-weight: 600; color: var(--tone-grades); }
+.wa-items { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wa-item { font-size: 0.76rem; line-height: 1.3; padding: 3px 7px; border-radius: 6px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.wa-item.is-exam { background: color-mix(in srgb, var(--tone-plans) 15%, transparent); color: var(--tone-plans); font-weight: 650; }
+.wa-item.is-event { background: color-mix(in srgb, var(--tone-today) 10%, transparent); color: var(--ink); }
+.wa-item.is-org { background: color-mix(in srgb, var(--tone-mail) 11%, transparent); color: var(--ink); }
+.wa-item.is-todo { background: color-mix(in srgb, var(--tone-classes) 11%, transparent); color: var(--ink); }
+@media (max-width: 768px) {
+  .wa-grid { grid-template-columns: 1fr; }
+  .wa-col { display: grid; grid-template-columns: 52px 1fr; column-gap: 10px; align-items: baseline; }
+  .wa-col > .wa-day { grid-column: 1; }
+  .wa-col > .wa-date { grid-column: 1; grid-row: 2; font-size: 0.85rem; margin: 0; }
+  .wa-col > :not(.wa-day):not(.wa-date) { grid-column: 2; }
+  .wa-col > .wa-lessons { grid-row: 1; }
+  .wa-sum { margin-left: 0; width: 100%; }
+}

@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=110" />
+    <link rel="stylesheet" href="./styles.css?v=111" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -176,6 +176,7 @@
           <div class="page-head-text">
             <h1 class="page-title" id="today-weekday">Heute</h1>
             <p class="page-subtitle" id="today-date-display"></p>
+            <button class="break-chip" id="break-chip" type="button" hidden aria-haspopup="dialog"></button>
           </div>
           <div class="page-head-actions">
             <span class="page-stand" id="hero-note">Lade …</span>
@@ -192,6 +193,7 @@
           <div id="source-attention" class="attention-list" hidden></div>
           <section class="nextup" id="nextup" aria-label="Als Nächstes" hidden></section>
           <section class="important" id="important" aria-label="Heute wichtig" hidden></section>
+          <section class="weekahead" id="weekahead" aria-labelledby="weekahead-title" hidden></section>
           <nav class="quicklinks" id="heute-zugaenge-container" data-today-module="access" aria-label="Zugänge"></nav>
 
           <div class="today-board">
@@ -477,6 +479,17 @@
       </div>
     </div>
 
+    <!-- Schuljahr: Ferien im Überblick -->
+    <div id="schoolyear-modal" class="modal-overlay" hidden>
+      <div class="modal schoolyear-modal" role="dialog" aria-modal="true" aria-labelledby="schoolyear-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="schoolyear-title">Schuljahr</h2>
+          <button class="modal-close" type="button" data-schoolyear-close aria-label="Schließen">✕</button>
+        </div>
+        <div id="schoolyear-body" class="schoolyear-body"></div>
+      </div>
+    </div>
+
     <!-- Verbindungen -->
     <div id="connections-modal" class="modal-overlay" hidden>
       <div class="modal connections-modal" role="dialog" aria-modal="true" aria-labelledby="connections-title">
@@ -592,28 +605,29 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=110"></script>
-    <script src="./src/features/vault.js?v=110"></script>
-    <script src="./src/api-client.js?v=110"></script>
-    <script src="./src/modules/dashboard-manager.js?v=110"></script>
-    <script src="./src/features/grades.js?v=110"></script>
-    <script src="./src/features/webuntis.js?v=110"></script>
-    <script src="./src/features/itslearning.js?v=110"></script>
-    <script src="./src/features/nextcloud.js?v=110"></script>
-    <script src="./src/features/documents.js?v=110"></script>
-    <script src="./src/features/classwork.js?v=110"></script>
-    <script src="./src/features/classlist.js?v=110"></script>
-    <script src="./src/features/collections.js?v=110"></script>
-    <script src="./src/features/seating.js?v=110"></script>
-    <script src="./src/features/inbox.js?v=110"></script>
-    <script src="./src/features/zugaenge.js?v=110"></script>
-    <script src="./src/features/onedrive-sync.js?v=110"></script>
-    <script src="./src/features/signals.js?v=110"></script>
-    <script src="./src/features/ai.js?v=110"></script>
-    <script src="./src/features/links.js?v=110"></script>
-    <script src="./src/features/connections.js?v=110"></script>
-    <script src="./src/features/feedback.js?v=110"></script>
-    <script src="./src/app.js?v=110"></script>
+    <script src="./data/mock-dashboard.js?v=111"></script>
+    <script src="./src/features/vault.js?v=111"></script>
+    <script src="./src/api-client.js?v=111"></script>
+    <script src="./src/modules/dashboard-manager.js?v=111"></script>
+    <script src="./src/features/grades.js?v=111"></script>
+    <script src="./src/features/webuntis.js?v=111"></script>
+    <script src="./src/features/itslearning.js?v=111"></script>
+    <script src="./src/features/nextcloud.js?v=111"></script>
+    <script src="./src/features/documents.js?v=111"></script>
+    <script src="./src/features/classwork.js?v=111"></script>
+    <script src="./src/features/classlist.js?v=111"></script>
+    <script src="./src/features/collections.js?v=111"></script>
+    <script src="./src/features/seating.js?v=111"></script>
+    <script src="./src/features/schoolyear.js?v=111"></script>
+    <script src="./src/features/inbox.js?v=111"></script>
+    <script src="./src/features/zugaenge.js?v=111"></script>
+    <script src="./src/features/onedrive-sync.js?v=111"></script>
+    <script src="./src/features/signals.js?v=111"></script>
+    <script src="./src/features/ai.js?v=111"></script>
+    <script src="./src/features/links.js?v=111"></script>
+    <script src="./src/features/connections.js?v=111"></script>
+    <script src="./src/features/feedback.js?v=111"></script>
+    <script src="./src/app.js?v=111"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.
