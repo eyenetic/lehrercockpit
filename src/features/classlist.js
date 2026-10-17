@@ -26,6 +26,7 @@ var LehrerClasslist = (function () {
   var _data = {};          // { classId: { id, students: [{id, lastName, firstName}] } }
   var _activeClass = null; // currently selected class id
   var _importPreview = null; // pending import rows before confirmation
+  var _importOrder = 'last-first'; // how "Anna Müller" vs "Müller Anna" is read
 
   // ── Persistence ──────────────────────────────────────────────────────────
   function _load() {
@@ -84,31 +85,45 @@ var LehrerClasslist = (function () {
 
   // ── CSV / Excel Parsing ───────────────────────────────────────────────────
   /**
-   * Parse CSV text → array of { lastName, firstName }
-   * Supports: "Nachname,Vorname" or "Nachname Vorname" or just "Name"
+   * Splits one name into { lastName, firstName }.
+   * order: 'last-first' ("Müller Anna Lena") or 'first-last' ("Anna Lena Müller").
+   * Tabs, ";" and "," separate columns ("Müller<TAB>Anna", "Müller, Anna");
+   * leading numbers ("1.", "12)") are dropped.
    */
-  function _parseCSV(text) {
-    var lines = text.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
-    var result = [];
-    // detect delimiter
-    var delim = lines[0] && lines[0].includes(';') ? ';' : ',';
-
-    lines.forEach(function (line, idx) {
-      // skip header if first line looks like it
-      if (idx === 0 && /nachname|vorname|name|schüler/i.test(line)) return;
-
-      var parts = line.split(delim).map(function (p) { return p.trim().replace(/^"|"$/g, ''); });
+  function _splitName(text, order) {
+    var line = String(text || '').replace(/\u00a0/g, ' ').trim().replace(/^\d+[.)]?\s+/, '');
+    var parts = null;
+    if (line.indexOf('\t') !== -1) parts = line.split('\t');
+    else if (line.indexOf(';') !== -1) parts = line.split(';');
+    else if (line.indexOf(',') !== -1) parts = line.split(',');
+    if (parts) {
+      parts = parts.map(function (p) { return p.trim().replace(/^"|"$/g, '').trim(); }).filter(Boolean);
+      if (parts.length > 2 && /^\d+$/.test(parts[0])) parts.shift();  // "Nr<TAB>Nachname<TAB>Vorname"
       if (parts.length >= 2) {
-        result.push({ lastName: parts[0], firstName: parts[1] });
-      } else if (parts.length === 1 && parts[0]) {
-        // single column: "Nachname Vorname" → split on last space
-        var space = parts[0].lastIndexOf(' ');
-        if (space > 0) {
-          result.push({ lastName: parts[0].slice(0, space), firstName: parts[0].slice(space + 1) });
-        } else {
-          result.push({ lastName: parts[0], firstName: '' });
-        }
+        return order === 'first-last'
+          ? { lastName: parts[1], firstName: parts[0] }
+          : { lastName: parts[0], firstName: parts[1] };
       }
+      line = parts[0] || '';
+    }
+    var words = line.split(/\s+/).filter(Boolean);
+    if (words.length < 2) return { lastName: words[0] || '', firstName: '' };
+    return order === 'first-last'
+      ? { lastName: words[words.length - 1], firstName: words.slice(0, -1).join(' ') }
+      : { lastName: words[0], firstName: words.slice(1).join(' ') };
+  }
+
+  /**
+   * Parse pasted text or CSV → array of { lastName, firstName }.
+   * Every line is read on its own (a list may mix "Müller, Anna" and table rows).
+   */
+  function _parseCSV(text, order) {
+    var lines = String(text || '').split(/\r?\n/).filter(function (l) { return l.trim(); });
+    var result = [];
+    lines.forEach(function (line, idx) {
+      if (idx === 0 && /nachname|vorname|schüler|^\s*name\s*$/i.test(line)) return;  // header row
+      var name = _splitName(line, order);
+      if (name.lastName || name.firstName) result.push(name);
     });
     return result;
   }
@@ -258,6 +273,7 @@ var LehrerClasslist = (function () {
       +     '<button class="btn btn-sm btn-secondary" type="button" data-action="print-list"' + (count ? '' : ' disabled') + ' title="Namensliste mit leeren Spalten – drucken oder als PDF sichern">PDF-Liste</button>'
       +     '<details class="more-menu"><summary class="btn btn-sm btn-secondary" aria-label="Weitere Aktionen">⋯</summary>'
       +       '<div class="more-menu-list" role="menu">'
+      +         (_needsSplit(classId).length ? '<button type="button" role="menuitem" data-action="fix-names">Vor- und Nachnamen trennen …</button>' : '')
       +         '<button type="button" role="menuitem" data-action="export-csv"' + (count ? '' : ' disabled') + '>Als CSV speichern</button>'
       +         '<button type="button" role="menuitem" class="is-danger" data-action="delete-class">Klasse löschen …</button>'
       +       '</div>'
@@ -305,6 +321,7 @@ var LehrerClasslist = (function () {
           '<div id="classlist-import-preview" class="classlist-import-preview" style="display:none">',
             '<div class="classlist-import-preview-head">',
               '<span id="classlist-preview-count"></span>',
+              '<button class="btn btn-sm btn-secondary" type="button" data-action="swap-order" title="Vor- und Nachname vertauschen">Vor-/Nachname tauschen</button>',
               '<label class="classlist-import-class-label">Klasse:',
                 '<input id="classlist-import-class-input" class="classlist-import-class-input" type="text" placeholder="z.B. 8a" />',
               '</label>',
@@ -342,7 +359,7 @@ var LehrerClasslist = (function () {
       if (fileInput.files[0]) _handleImportFile(fileInput.files[0], overlay);
     });
     overlay.querySelector('#classlist-paste').addEventListener('input', function (e) {
-      _showImportRows(overlay, _parseCSV(e.target.value), null);
+      _showImportRows(overlay, _parseCSV(e.target.value, _importOrder), null);
     });
 
     // Close
@@ -351,6 +368,18 @@ var LehrerClasslist = (function () {
       if (!action) return;
       if (action.dataset.action === 'close-import') { _closeImportModal(overlay); }
       if (action.dataset.action === 'confirm-import') { _confirmImport(overlay); }
+      if (action.dataset.action === 'swap-order') {
+        _importOrder = _importOrder === 'first-last' ? 'last-first' : 'first-last';
+        var pasted = overlay.querySelector('#classlist-paste').value;
+        if (pasted.trim()) _showImportRows(overlay, _parseCSV(pasted, _importOrder), null);
+        else if (_importPreview) {
+          // Excel/CSV file: swap what was read
+          _showImportRows(overlay, _importPreview.map(function (r) {
+            if (!r.firstName) return _splitName(r.lastName, _importOrder);
+            return { lastName: r.firstName, firstName: r.lastName };
+          }), null);
+        }
+      }
     });
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay) _closeImportModal(overlay);
@@ -371,9 +400,12 @@ var LehrerClasslist = (function () {
     if (detectedClass && !classInput.value) classInput.value = detectedClass;
     _importPreview = rows.filter(function (r) { return r.lastName || r.firstName; });
     previewCount.textContent = _importPreview.length + (_importPreview.length === 1 ? ' Person gefunden' : ' Personen gefunden');
-    previewList.innerHTML = _importPreview.slice(0, 8).map(function (r) {
-      return '<li>' + _esc(r.lastName) + (r.firstName ? ', ' + _esc(r.firstName) : '') + '</li>';
-    }).join('') + (_importPreview.length > 8 ? '<li class="classlist-preview-more">… und ' + (_importPreview.length - 8) + ' weitere</li>' : '');
+    var noFirst = _importPreview.filter(function (r) { return !r.firstName; }).length;
+    previewList.innerHTML = '<li class="classlist-preview-legend"><span>Vorname</span><span>Nachname</span></li>' +
+      _importPreview.slice(0, 8).map(function (r) {
+        return '<li class="classlist-preview-row"><b>' + (_esc(r.firstName) || '<em>fehlt</em>') + '</b><span>' + _esc(r.lastName) + '</span></li>';
+      }).join('') + (_importPreview.length > 8 ? '<li class="classlist-preview-more">… und ' + (_importPreview.length - 8) + ' weitere</li>' : '') +
+      (noFirst ? '<li class="classlist-preview-warn">' + noFirst + ' ohne Vornamen – stimmt die Reihenfolge? Sonst „Vor-/Nachname tauschen“.</li>' : '');
     preview.style.display = _importPreview.length ? '' : 'none';
     confirmBtn.disabled = _importPreview.length === 0;
   }
@@ -398,7 +430,7 @@ var LehrerClasslist = (function () {
     } else {
       var reader = new FileReader();
       reader.onload = function (e) {
-        var rows = _parseCSV(e.target.result);
+        var rows = _parseCSV(e.target.result, _importOrder);
         _showRows(rows, null);
       };
       reader.readAsText(file, 'UTF-8');
@@ -570,11 +602,65 @@ var LehrerClasslist = (function () {
       if (act === 'import') { _showImportModal(_activeClass); return; }
       if (act === 'export-csv') { _exportCSV(_activeClass); return; }
       if (act === 'print-list') { _showPrintListDialog(_activeClass); return; }
+      if (act === 'fix-names') { _showFixNamesDialog(_activeClass); return; }
       if (act === 'delete-class') { _deleteClass(_activeClass); return; }
 
       var row = action.closest('[data-student-id]');
       if (act === 'edit-student' && row) { _showEditStudentDialog(_activeClass, row.dataset.studentId); return; }
       if (act === 'delete-student' && row) { _deleteStudent(_activeClass, row.dataset.studentId); return; }
+    });
+  }
+
+  // ── Vor- und Nachnamen nachträglich trennen ───────────────────────────────
+  // Older imports put a whole "Müller<TAB>Anna" or "Anna Müller" into lastName.
+  function _needsSplit(classId) {
+    var cls = _data[classId];
+    if (!cls) return [];
+    return cls.students.filter(function (st) { return !st.firstName && /[\s,;]/.test((st.lastName || '').trim()); });
+  }
+
+  function _showFixNamesDialog(classId) {
+    var affected = _needsSplit(classId);
+    if (!affected.length) return;
+    var order = /\t|,|;/.test(affected[0].lastName) ? 'last-first' : 'first-last';
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    document.body.appendChild(overlay);
+    var close = function () { _removeOverlay(overlay); };
+
+    function draw() {
+      var rows = affected.map(function (st) { return _splitName(st.lastName, order); });
+      overlay.innerHTML = '<div class="modal classlist-print-modal classlist-fix-modal" role="dialog" aria-label="Namen trennen">'
+        + '<div class="modal-header"><span class="modal-title">Vor- und Nachnamen trennen</span>'
+        +   '<button class="modal-close" type="button" data-close>✕</button></div>'
+        + '<div class="classlist-print-form">'
+        +   '<p class="classlist-import-hint">Bei ' + affected.length + ' Namen in ' + _esc(classId) + ' steht alles im Nachnamen. So würden sie getrennt – stimmt die Reihenfolge nicht, tauschen.</p>'
+        +   '<ul class="classlist-preview-list"><li class="classlist-preview-legend"><span>Vorname</span><span>Nachname</span></li>'
+        +     rows.slice(0, 10).map(function (r) {
+                return '<li class="classlist-preview-row"><b>' + (_esc(r.firstName) || '<em>fehlt</em>') + '</b><span>' + _esc(r.lastName) + '</span></li>';
+              }).join('')
+        +     (rows.length > 10 ? '<li class="classlist-preview-more">… und ' + (rows.length - 10) + ' weitere</li>' : '')
+        +   '</ul>'
+        +   '<div class="classlist-import-footer">'
+        +     '<button class="btn btn-secondary" type="button" data-swap>Vor-/Nachname tauschen</button>'
+        +     '<button class="btn btn-primary" type="button" data-apply>Übernehmen</button>'
+        +   '</div>'
+        + '</div></div>';
+    }
+    draw();
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay || e.target.closest('[data-close]')) { close(); return; }
+      if (e.target.closest('[data-swap]')) { order = order === 'first-last' ? 'last-first' : 'first-last'; draw(); return; }
+      if (e.target.closest('[data-apply]')) {
+        affected.forEach(function (st) {
+          var name = _splitName(st.lastName, order);
+          st.lastName = name.lastName;   // the id stays: seating plans and collections keep their entries
+          st.firstName = name.firstName;
+        });
+        _save();
+        close();
+        render();
+      }
     });
   }
 

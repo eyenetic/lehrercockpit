@@ -83,7 +83,11 @@ var LehrerSeating = (function () {
         var i = parseInt(index, 10);
         if (i >= 0 && i < cells.length && cells[i] && p.seats[index]) seats[i] = String(p.seats[index]);
       });
-      _plans[classId] = { rows: rows, cols: cols, cells: cells, seats: seats, front: p.front === 'bottom' ? 'bottom' : 'top', updatedAt: p.updatedAt || null };
+      // Teacher's view (board at the bottom) unless the teacher chose the class's view.
+      var front = p.frontSet && p.front === 'top' ? 'top' : 'bottom';
+      _plans[classId] = { rows: rows, cols: cols, cells: cells, seats: seats, front: front, frontSet: !!p.frontSet,
+                          validFrom: typeof p.validFrom === 'string' ? p.validFrom : '', room: typeof p.room === 'string' ? p.room : '',
+                          updatedAt: p.updatedAt || null };
     });
   }
 
@@ -106,7 +110,7 @@ var LehrerSeating = (function () {
   function _plan(classId) {
     if (!_plans[classId]) {
       var t = TEMPLATES.rows.build(_students(classId).length);
-      _plans[classId] = { rows: t.rows, cols: t.cols, cells: t.cells, seats: {}, front: 'top', updatedAt: null };
+      _plans[classId] = { rows: t.rows, cols: t.cols, cells: t.cells, seats: {}, front: 'bottom', frontSet: false, validFrom: '', room: '', updatedAt: null };
     }
     var plan = _plans[classId];
     // students removed from the class list leave their seat
@@ -116,19 +120,20 @@ var LehrerSeating = (function () {
     return plan;
   }
 
-  /** "Anna M." – first names repeat in classes, so add the initial; "Anna Mü." if that repeats too. */
+  /** Just the first name; only when it repeats in the class "Anna M." (or "Anna Mü." if that repeats too). */
   function _labels(students) {
     var labels = {};
     students.forEach(function (s) {
       var first = s.firstName || s.lastName || '?';
       var sameFirst = students.filter(function (o) { return (o.firstName || o.lastName) === first; });
-      var len = 1;
-      if (sameFirst.length > 1) {
-        while (len < (s.lastName || '').length && sameFirst.some(function (o) {
-          return o !== s && (o.lastName || '').slice(0, len) === (s.lastName || '').slice(0, len);
+      var initial = '';
+      if (sameFirst.length > 1 && s.firstName && s.lastName) {
+        var len = 1;
+        while (len < s.lastName.length && sameFirst.some(function (o) {
+          return o !== s && (o.lastName || '').slice(0, len) === s.lastName.slice(0, len);
         })) len++;
+        initial = s.lastName.slice(0, len) + '.';
       }
-      var initial = s.lastName && s.firstName ? s.lastName.slice(0, len) + '.' : '';
       labels[s.id] = { first: first, initial: initial, short: first + (initial ? ' ' + initial : ''),
                        full: (s.firstName ? s.firstName + ' ' : '') + (s.lastName || '') };
     });
@@ -345,37 +350,113 @@ var LehrerSeating = (function () {
     _save();
   }
 
+  function _todayIso() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function _deDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    return m ? m[3] + '.' + m[2] + '.' + m[1] : '';
+  }
+
+  /** "Gültig ab" and room before printing – remembered per class. */
+  function _showPrintDialog() {
+    var plan = _plan(_activeClass);
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal classlist-print-modal" role="dialog" aria-label="Sitzplan als PDF">' +
+      '<div class="modal-header"><span class="modal-title">Sitzplan ' + _esc(_activeClass) + ' als PDF</span>' +
+        '<button class="modal-close" type="button" data-close>✕</button></div>' +
+      '<form class="classlist-print-form" data-seat-print-form>' +
+        '<label class="form-label">Gültig ab<input class="form-input" name="validFrom" type="date" value="' + _esc(plan.validFrom || _todayIso()) + '" required /></label>' +
+        '<label class="form-label">Raum (optional)<input class="form-input" name="room" maxlength="30" placeholder="z. B. 220" value="' + _esc(plan.room) + '" /></label>' +
+        '<div class="classlist-import-footer">' +
+          '<button class="btn btn-secondary" type="button" data-close>Abbrechen</button>' +
+          '<button class="btn btn-primary" type="submit">PDF erstellen</button>' +
+        '</div>' +
+      '</form></div>';
+    document.body.appendChild(overlay);
+    var close = function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+    overlay.addEventListener('click', function (e) { if (e.target === overlay || e.target.closest('[data-close]')) close(); });
+    var form = overlay.querySelector('[data-seat-print-form]');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      plan.validFrom = form.elements.validFrom.value || _todayIso();
+      plan.room = form.elements.room.value.trim();
+      _save();
+      close();
+      _print();
+    });
+  }
+
+  /** A4 landscape: heading, "gültig ab", the room as the teacher (or the class) sees it. */
   function _print() {
     var plan = _plan(_activeClass);
     var students = _students(_activeClass);
     var labels = _labels(students);
+    var byId = {};
+    students.forEach(function (s) { byId[s.id] = s; });
     if (!window.LehrerClasslist || !window.LehrerClasslist.printDocument) return;
-    // Teacher's view: the whole room turned by 180° (last row first, right to left).
+
+    // Only the area with seats is printed; the teacher's view turns the room by 180°.
     var turned = plan.front === 'bottom';
-    var rows = [];
-    for (var rr = 0; rr < plan.rows; rr++) {
-      var r = turned ? plan.rows - 1 - rr : rr;
-      var cells = [];
-      for (var cc = 0; cc < plan.cols; cc++) {
-        var c = turned ? plan.cols - 1 - cc : cc;
-        var index = r * plan.cols + c;
-        var sid = plan.seats[index];
-        cells.push(!plan.cells[index] ? '<td class="gap"></td>'
-          : '<td class="seat">' + (sid && labels[sid] ? _esc(labels[sid].full) : '') + '</td>');
+    var usedRows = [], usedCols = [];
+    for (var r0 = 0; r0 < plan.rows; r0++) {
+      for (var c0 = 0; c0 < plan.cols; c0++) {
+        if (plan.cells[r0 * plan.cols + c0]) { usedRows[r0] = true; usedCols[c0] = true; }
       }
-      rows.push('<tr>' + cells.join('') + '</tr>');
     }
-    var board = '<div class="board">Tafel</div>';
-    var today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    var table = '<table class="plan">' + rows.join('') + '</table>';
-    window.LehrerClasslist.printDocument('Sitzplan ' + _activeClass,
-      '<h1>Sitzplan Klasse ' + _esc(_activeClass) + '</h1><p class="meta">Stand ' + today + '</p>' +
-      (plan.front === 'top' ? board + table : table + board),
-      { landscape: plan.cols > 6,
-        css: '.board{margin:10px auto;width:40%;text-align:center;border:2px solid #333;border-radius:4px;padding:4px;font-weight:600}' +
-             'table.plan{table-layout:fixed;border-collapse:separate;border-spacing:6px}' +
-             'table.plan td{height:16mm;text-align:center;vertical-align:middle;font-size:11px;border-radius:4px}' +
-             'td.seat{border:1px solid #666}td.gap{border:0}' });
+    var rowIdx = [], colIdx = [];
+    for (var r1 = 0; r1 < plan.rows; r1++) if (usedRows[r1] || (r1 > 0 && r1 < plan.rows - 1)) rowIdx.push(r1);
+    for (var c1 = 0; c1 < plan.cols; c1++) if (usedCols[c1] || (c1 > 0 && c1 < plan.cols - 1)) colIdx.push(c1);
+    if (turned) { rowIdx.reverse(); colIdx.reverse(); }
+    var seatRows = rowIdx.filter(function (r) { return usedRows[r]; }).length || 1;
+    // A4 landscape 297×210 mm, 12 mm margins, ~40 mm for heading, board and footer
+    var seatH = Math.max(11, Math.min(26, Math.floor((210 - 24 - 46) / (seatRows + (rowIdx.length - seatRows) * 0.35))));
+
+    var grid = rowIdx.map(function (r) {
+      var seatRow = !!usedRows[r];
+      return '<tr class="' + (seatRow ? '' : 'aisle') + '">' + colIdx.map(function (c) {
+        var index = r * plan.cols + c;
+        if (!plan.cells[index]) return '<td class="gap' + (usedCols[c] ? '' : ' col-aisle') + '"></td>';
+        var st = byId[plan.seats[index]];
+        if (!st) return '<td class="seat empty"></td>';
+        var label = labels[st.id];
+        return '<td class="seat"><span class="first">' + _esc(label.first) + (label.initial ? ' ' + _esc(label.initial) : '') + '</span>' +
+          '<span class="last">' + _esc(st.lastName && st.firstName ? st.lastName : '') + '</span></td>';
+      }).join('') + '</tr>';
+    }).join('');
+
+    var placed = Object.keys(plan.seats).length;
+    var meta = ['Klasse ' + _activeClass];
+    if (plan.room) meta.push('Raum ' + plan.room);
+    meta.push(placed + ' Schüler:innen');
+    var board = '<div class="board"><span>Tafel</span></div>';
+    var title = 'Sitzplan ' + _activeClass;
+    window.LehrerClasslist.printDocument(title,
+      '<header class="head"><div><h1>Sitzplan</h1><p class="sub">' + _esc(meta.join(' · ')) + '</p></div>' +
+        '<div class="valid"><span>gültig ab</span><b>' + _esc(_deDate(plan.validFrom) || _deDate(_todayIso())) + '</b></div></header>' +
+      (turned ? '' : board) +
+      '<table class="room">' + grid + '</table>' +
+      (turned ? board : '') +
+      '<footer class="foot">' + (turned ? 'Ansicht vom Pult aus' : 'Ansicht von der Klasse aus') + ' · erstellt am ' + _esc(_deDate(_todayIso())) + '</footer>',
+      { landscape: true,
+        css: 'body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:#1d1d1b}' +
+          '.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:8px;border-bottom:2px solid #1d1d1b;margin-bottom:10px}' +
+          '.head h1{font-size:22px;margin:0;letter-spacing:-0.01em}.sub{margin:3px 0 0;color:#555;font-size:12px}' +
+          '.valid{text-align:right;line-height:1.2}.valid span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#666}.valid b{font-size:15px}' +
+          'table.room{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:5px;margin:0 auto}' +
+          'table.room td{height:' + seatH + 'mm;padding:2px 3px;text-align:center;vertical-align:middle;border:0}' +
+          'table.room tr.aisle td{height:' + Math.max(3, Math.round(seatH * 0.35)) + 'mm}' +
+          'td.col-aisle{width:4mm}' +
+          'td.seat{border:1.2px solid #444 !important;border-radius:6px;background:#fff}' +
+          'td.seat.empty{border:1px dashed #aaa !important}' +
+          'td.seat .first{display:block;font-size:13px;font-weight:700}td.seat .last{display:block;font-size:9px;color:#666;margin-top:1px}' +
+          '.board{display:flex;justify-content:center;margin:8px 0}' +
+          '.board span{display:block;width:45%;text-align:center;padding:5px 0;border-radius:4px;background:#1d1d1b;color:#fff;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+          '.foot{margin-top:8px;font-size:9px;color:#888;text-align:right}' +
+          '@page{size:A4 landscape;margin:12mm}' });
   }
 
   // ── Ereignisse ────────────────────────────────────────────────────────────
@@ -402,10 +483,10 @@ var LehrerSeating = (function () {
         var act = action.getAttribute('data-seat-action');
         var plan = _plan(_activeClass);
         if (act === 'shuffle') _shuffle();
-        if (act === 'print') { _print(); return; }
+        if (act === 'print') { _showPrintDialog(); return; }
         if (act === 'edit') { _editing = true; _selected = null; }
         if (act === 'done') _editing = false;
-        if (act === 'flip') { plan.front = plan.front === 'top' ? 'bottom' : 'top'; _save(); }
+        if (act === 'flip') { plan.front = plan.front === 'top' ? 'bottom' : 'top'; plan.frontSet = true; _save(); }
         if (act === 'clear' && window.confirm('Alle Plätze in ' + _activeClass + ' leeren?')) { plan.seats = {}; _save(); }
         if (act === 'rows+') _resize(1, 0);
         if (act === 'rows-') _resize(-1, 0);

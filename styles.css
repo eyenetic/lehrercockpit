@@ -7004,3 +7004,12 @@ html, body { overflow-x: clip; }
   .seat-grid { gap: 4px; }
   .seat-cell { min-height: 44px; font-size: 0.74rem; padding: 3px 2px; }
 }
+
+/* Import-Vorschau: Vorname | Nachname */
+.classlist-preview-legend, .classlist-preview-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.classlist-preview-legend { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.classlist-preview-row em { color: var(--danger); font-weight: 500; }
+.classlist-preview-warn { color: var(--warning); font-weight: 500; }
+.classlist-import-preview-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.classlist-fix-modal { width: min(460px, 95vw); }
+.classlist-fix-modal .classlist-preview-list { max-height: 50vh; overflow-y: auto; }
