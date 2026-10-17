@@ -10,10 +10,17 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=109" />
-    <link rel="stylesheet" href="./styles.auth.css?v=109" />
+    <link rel="stylesheet" href="./styles.css?v=110" />
+    <link rel="stylesheet" href="./styles.auth.css?v=110" />
     <style>
-      body.onboarding-page { align-items: flex-start; padding: 40px 16px; box-sizing: border-box; }
+      body.onboarding-page {
+        align-items: flex-start; padding: 40px 16px; box-sizing: border-box;
+        background:
+          radial-gradient(700px 380px at 30% -140px, color-mix(in srgb, var(--tone-today) 13%, transparent), transparent 70%),
+          radial-gradient(640px 360px at 75% -160px, color-mix(in srgb, var(--tone-classes) 10%, transparent), transparent 70%),
+          var(--bg);
+      }
+      .setup-card { --step: var(--accent); }
       .setup-card {
         background: var(--panel);
         border: 1px solid var(--line-strong);
@@ -28,9 +35,9 @@
       .setup-progress { display: flex; gap: 4px; padding: 22px 28px 0; }
       .setup-progress span { flex: 1; height: 4px; border-radius: 4px; background: var(--line-strong); transition: background .2s; }
       .setup-progress span.is-done { background: var(--success); }
-      .setup-progress span.is-active { background: var(--accent); }
+      .setup-progress span.is-active { background: var(--step); }
       .setup-head { padding: 18px 28px 0; display: flex; flex-direction: column; gap: 6px; }
-      .setup-head .setup-eyebrow { margin: 0; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; color: var(--accent); }
+      .setup-head .setup-eyebrow { margin: 0; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; color: var(--step); }
       .setup-head h1 { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--ink); line-height: 1.25; }
       .setup-head p { margin: 0; font-size: 0.92rem; color: var(--muted); line-height: 1.55; }
       .setup-body { padding: 20px 28px 4px; margin: 0; color: var(--ink); font-size: 0.92rem; }
@@ -41,12 +48,12 @@
       .guide li::before {
         content: counter(guide); width: 28px; height: 28px; border-radius: 50%;
         display: grid; place-items: center; font-size: 0.8rem; font-weight: 600;
-        background: var(--accent-soft); color: var(--accent);
+        background: color-mix(in srgb, var(--step) 13%, transparent); color: var(--step);
       }
       .guide li > div { padding-top: 3px; }
       .guide b { font-weight: 600; }
       .guide .ui { display: inline-block; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel-soft); font-size: 0.84rem; font-weight: 500; white-space: nowrap; }
-      .guide .open-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; }
+      .guide .open-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--step); border-color: color-mix(in srgb, var(--step) 35%, var(--line-strong)); }
 
       /* Paste area */
       .paste { border: 1px solid var(--line-strong); border-radius: var(--radius-md); padding: 14px; background: var(--panel-soft); display: grid; gap: 10px; }
@@ -73,7 +80,7 @@
       .plan { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-md); }
       .plan li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; font-size: 0.92rem; color: var(--ink); }
       .plan li + li { border-top: 1px solid var(--line); }
-      .plan .num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 0.78rem; font-weight: 600; background: var(--accent-soft); color: var(--accent); flex-shrink: 0; }
+      .plan .num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 0.78rem; font-weight: 600; background: color-mix(in srgb, var(--num, var(--accent)) 13%, transparent); color: var(--num, var(--accent)); flex-shrink: 0; }
       .plan .num.is-ok { background: var(--success); color: #fff; }
       .plan .num.is-off { background: var(--panel-soft); color: var(--muted); border: 1px solid var(--line-strong); }
       .plan .what { flex: 1; min-width: 0; }
@@ -124,7 +131,7 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/connections.js?v=109"></script>
+    <script src="./src/features/connections.js?v=110"></script>
     <script>
       (function () {
         'use strict';
@@ -148,6 +155,7 @@
         // ── The steps ──────────────────────────────────────────────────────
         var GUIDES = {
           webuntis: {
+            tone: 'var(--tone-today)',
             label: 'Stundenplan', title: 'Dein Stundenplan',
             lead: 'Aus WebUntis – mit Vertretungen und Entfällen, immer aktuell.',
             time: '1 Min.',
@@ -166,6 +174,7 @@
             doneText: 'Stundenplan verbunden',
           },
           itslearning: {
+            tone: 'var(--tone-plans)',
             label: 'itslearning', title: 'Termine aus itslearning',
             lead: 'Abgabefristen und Termine deiner Kurse – ohne Passwort, über das Kalender-Abo.',
             time: '1 Min.',
@@ -183,6 +192,7 @@
             doneText: 'itslearning verbunden',
           },
           mail: {
+            tone: 'var(--tone-mail)',
             label: 'Dienstmail', title: 'Deine Dienstmail',
             lead: 'Die neuesten Mails auf einen Blick. Das Cockpit liest nur – es verschickt, löscht und markiert nichts.',
             time: '2 Min.',
@@ -203,6 +213,7 @@
             doneText: 'Dienstmail verbunden',
           },
           nextcloud: {
+            tone: 'var(--tone-links)',
             label: 'Nextcloud', title: 'Nextcloud-Favoriten', optional: true,
             lead: 'Was du in Nextcloud mit ★ markierst, erreichst du im Cockpit mit einem Klick.',
             time: '1 Min.',
@@ -251,6 +262,7 @@
 
         function render(toTop) {
           var id = STEPS[current];
+          document.querySelector('.setup-card').style.setProperty('--step', GUIDES[id] ? GUIDES[id].tone : 'var(--accent)');
           renderProgress();
           if (id === 'welcome') renderWelcome();
           else if (id === 'done') renderDone();
@@ -271,7 +283,7 @@
           el('setup-body').innerHTML =
             '<ol class="plan">' + steps.map(function (stepId, index) {
               var g = GUIDES[stepId];
-              return '<li><span class="num">' + (index + 1) + '</span><span class="what">' + esc(g.title) +
+              return '<li><span class="num" style="--num: ' + g.tone + '">' + (index + 1) + '</span><span class="what">' + esc(g.title) +
                 (g.optional ? '<small>optional</small>' : '') + '</span><span class="time">' + esc(g.time) + '</span></li>';
             }).join('') + '</ol>' +
             '<p class="tip"><b>Tipp:</b> Am Computer geht es am leichtesten – du kopierst dabei Links aus anderen Seiten. Jeder Schritt lässt sich überspringen und später unter „Verbindungen“ nachholen.</p>' +
@@ -283,6 +295,7 @@
           var s = sourceStatus(id);
           var steps = connectionSteps();
           setHead('Schritt ' + (steps.indexOf(id) + 1) + ' von ' + steps.length + (g.optional ? ' · optional' : ''), g.title, g.lead);
+          document.querySelector('.setup-card').style.setProperty('--step', g.tone);
           var connected = isConnected(id);
           var guide = '<ol class="guide">' + g.steps(s).map(function (text) { return '<li><div>' + text + '</div></li>'; }).join('') + '</ol>';
 

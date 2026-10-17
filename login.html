@@ -21,7 +21,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=109" />
+    <link rel="stylesheet" href="./styles.css?v=110" />
     <style>
       body.auth {
         min-height: 100vh;
@@ -31,7 +31,8 @@
         flex-direction: column;
         align-items: center;
         background:
-          radial-gradient(900px 420px at 50% -120px, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+          radial-gradient(700px 380px at 30% -140px, color-mix(in srgb, var(--tone-today, var(--accent)) 13%, transparent), transparent 70%),
+          radial-gradient(640px 360px at 75% -160px, color-mix(in srgb, var(--tone-classes, var(--accent)) 10%, transparent), transparent 70%),
           var(--bg);
       }
       .auth-main {
@@ -262,7 +263,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/features/vault.js?v=109"></script>
+    <script src="./src/features/vault.js?v=110"></script>
     <script>
       (function () {
         'use strict';

@@ -7064,12 +7064,6 @@ html, body { overflow-x: clip; }
   --tone-grades: #5cc98a;
   --tone-links: #8fb3d6;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --tone-today: #7c9cff; --tone-mail: #3cc2b2; --tone-plans: #f0a052;
-    --tone-classes: #a891ff; --tone-grades: #5cc98a; --tone-links: #8fb3d6;
-  }
-}
 [data-section-target="overview"], body[data-section="overview"] { --tone: var(--tone-today); }
 [data-section-target="inbox"], body[data-section="inbox"] { --tone: var(--tone-mail); }
 [data-section-target="documents"], body[data-section="documents"] { --tone: var(--tone-plans); }
@@ -7219,3 +7213,38 @@ html, body { overflow-x: clip; }
 .more-sheet-tile svg { width: 20px; height: 20px; color: var(--tone); }
 .more-sheet-tile[data-tone="grades"] { --tone: var(--tone-grades); }
 .more-sheet-tile[data-tone="links"] { --tone: var(--tone-links); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Design 2026.3 — die Bereichsfarbe trägt durch die ganze Seite
+   Im hellen Design übernehmen Hauptknöpfe, Reiter, Links und Hervorhebungen
+   die Farbe des Bereichs (Posteingang petrol, Klassen violett …). Im dunklen
+   Design bleibt das Blau für Knöpfe (weiße Schrift auf hellen Pastelltönen
+   wäre schlecht lesbar); Reiter und Symbole zeigen die Bereichsfarbe.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="light"] body[data-section] .app-main,
+:root[data-theme="light"] body[data-section] > .modal-overlay {
+  --accent: var(--tone);
+  --accent-strong: color-mix(in srgb, var(--tone) 82%, #000);
+  --accent-soft: color-mix(in srgb, var(--tone) 10%, transparent);
+}
+
+/* Reiter: aktiver Reiter in der Bereichsfarbe */
+.plans-tab-btn.is-active, .class-tab-btn.is-active, .inbox-tab-btn.is-active {
+  color: var(--tone); font-weight: 650;
+}
+.plans-tab-bar { border: 1px solid var(--line); }
+
+/* Karten in den Bereichen: klarere Köpfe */
+.app-main .card { border-radius: 14px; }
+.app-main .card > h2:not(.sr-only), .app-main .card-head h2, .app-main .links-card h2 { letter-spacing: -0.01em; }
+
+/* Leere Zustände: ruhig, mittig, mit Bereichsfarbe */
+.classlist-empty-icon { color: var(--tone); opacity: .85; }
+.tile-empty, .classlist-empty-hint { color: var(--muted); }
+
+/* Fortschritt in Einsammlungen in der Erfolgsfarbe, Kopf ruhig */
+.col-progress-full { background: var(--panel-soft); border-radius: 999px; overflow: hidden; }
+.col-progress-full-fill { background: var(--success); }
+
+/* Fokus sichtbar in der Bereichsfarbe */
+.app-main :focus-visible { outline-color: var(--tone); }
