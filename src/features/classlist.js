@@ -273,7 +273,7 @@ var LehrerClasslist = (function () {
       +     '<button class="btn btn-sm btn-secondary" type="button" data-action="print-list"' + (count ? '' : ' disabled') + ' title="Namensliste mit leeren Spalten – drucken oder als PDF sichern">PDF-Liste</button>'
       +     '<details class="more-menu"><summary class="btn btn-sm btn-secondary" aria-label="Weitere Aktionen">⋯</summary>'
       +       '<div class="more-menu-list" role="menu">'
-      +         (_needsSplit(classId).length ? '<button type="button" role="menuitem" data-action="fix-names">Vor- und Nachnamen trennen …</button>' : '')
+      +         (count ? '<button type="button" role="menuitem" data-action="fix-names">Vor- und Nachnamen bearbeiten …</button>' : '')
       +         '<button type="button" role="menuitem" data-action="export-csv"' + (count ? '' : ' disabled') + '>Als CSV speichern</button>'
       +         '<button type="button" role="menuitem" class="is-danger" data-action="delete-class">Klasse löschen …</button>'
       +       '</div>'
@@ -287,6 +287,10 @@ var LehrerClasslist = (function () {
       + '</form>'
       + '<p class="classlist-add-hint">Enter fügt hinzu – danach gleich den nächsten Namen tippen. Mehrere auf einmal: „Importieren“.</p>'
       + '<p class="classlist-add-feedback" data-add-feedback role="status"></p>'
+      + (_needsSplit(classId).length
+          ? '<div class="seat-banner is-warn"><span>Bei ' + _needsSplit(classId).length + ' Namen steht alles im Nachnamen.</span>'
+            + '<button class="btn btn-sm btn-secondary" type="button" data-action="fix-names">Namen trennen</button></div>'
+          : '')
       + '<ul class="classlist-student-list">' + (rows || '<li class="classlist-empty-hint">Noch keine Schüler:innen – oben eintragen oder „Importieren“ nutzen.</li>') + '</ul>'
       + '</div>';
   }
@@ -619,49 +623,104 @@ var LehrerClasslist = (function () {
     return cls.students.filter(function (st) { return !st.firstName && /[\s,;]/.test((st.lastName || '').trim()); });
   }
 
-  function _showFixNamesDialog(classId) {
-    var affected = _needsSplit(classId);
-    if (!affected.length) return;
-    var order = /\t|,|;/.test(affected[0].lastName) ? 'last-first' : 'first-last';
+  /**
+   * „Vor- und Nachnamen bearbeiten“: every word of a name is a chip – tap it to
+   * switch between Vorname and Nachname. Names without a first name come first,
+   * pre-split by the chosen reading order („Müller Anna“ or „Anna Müller“).
+   */
+  function _showFixNamesDialog(classId, onDone) {
+    var cls = _data[classId];
+    if (!cls || !cls.students.length) return;
+    var broken = _needsSplit(classId);
+    var order = broken.length && !/\t|,|;/.test(broken[0].lastName) ? 'first-last' : 'last-first';
+    var rows = _sortedStudents(classId).map(function (st) {
+      return { st: st, auto: !st.firstName, tokens: [] };
+    }).sort(function (x, y) { return (y.auto ? 1 : 0) - (x.auto ? 1 : 0); });
+
+    function assign(row) {
+      if (!row.auto) {
+        row.tokens = _words(row.st.firstName).map(function (w) { return { w: w, f: true }; })
+          .concat(_words(row.st.lastName).map(function (w) { return { w: w, f: false }; }));
+        return;
+      }
+      var name = _splitName(row.st.lastName, order);
+      var first = _words(name.firstName), last = _words(name.lastName);
+      // keep the words in the order they were typed
+      var all = _words(row.st.lastName);
+      row.tokens = all.map(function (w) {
+        var i = first.indexOf(w);
+        if (i !== -1 && last.indexOf(w) === -1) { first.splice(i, 1); return { w: w, f: true }; }
+        var j = last.indexOf(w);
+        if (j !== -1) last.splice(j, 1);
+        return { w: w, f: false };
+      });
+    }
+    rows.forEach(assign);
+
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     document.body.appendChild(overlay);
     var close = function () { _removeOverlay(overlay); };
 
     function draw() {
-      var rows = affected.map(function (st) { return _splitName(st.lastName, order); });
-      overlay.innerHTML = '<div class="modal classlist-print-modal classlist-fix-modal" role="dialog" aria-label="Namen trennen">'
-        + '<div class="modal-header"><span class="modal-title">Vor- und Nachnamen trennen</span>'
+      var list = overlay.querySelector('.name-chip-list');
+      var scroll = list ? list.scrollTop : 0;
+      overlay.innerHTML = '<div class="modal classlist-print-modal classlist-fix-modal" role="dialog" aria-label="Vor- und Nachnamen">'
+        + '<div class="modal-header"><span class="modal-title">Vor- und Nachnamen · ' + _esc(classId) + '</span>'
         +   '<button class="modal-close" type="button" data-close>✕</button></div>'
         + '<div class="classlist-print-form">'
-        +   '<p class="classlist-import-hint">Bei ' + affected.length + ' Namen in ' + _esc(classId) + ' steht alles im Nachnamen. So würden sie getrennt – stimmt die Reihenfolge nicht, tauschen.</p>'
-        +   '<ul class="classlist-preview-list"><li class="classlist-preview-legend"><span>Vorname</span><span>Nachname</span></li>'
-        +     rows.slice(0, 10).map(function (r) {
-                return '<li class="classlist-preview-row"><b>' + (_esc(r.firstName) || '<em>fehlt</em>') + '</b><span>' + _esc(r.lastName) + '</span></li>';
-              }).join('')
-        +     (rows.length > 10 ? '<li class="classlist-preview-more">… und ' + (rows.length - 10) + ' weitere</li>' : '')
-        +   '</ul>'
+        +   '<p class="classlist-import-hint">Tippe auf ein Wort, um es zum <b class="name-key is-first">Vornamen</b> oder <b class="name-key">Nachnamen</b> zu machen.'
+        +   (broken.length ? ' ' + broken.length + ' Namen ohne Vornamen stehen oben.' : '') + '</p>'
+        +   '<ul class="name-chip-list">' + rows.map(function (row, r) {
+              var noFirst = !row.tokens.some(function (t) { return t.f; });
+              return '<li class="name-chip-row' + (row.auto ? ' is-auto' : '') + '">' + row.tokens.map(function (t, i) {
+                return '<button type="button" class="name-chip' + (t.f ? ' is-first' : '') + '" data-row="' + r + '" data-tok="' + i + '" aria-pressed="' + (t.f ? 'true' : 'false') + '">' + _esc(t.w) + '</button>';
+              }).join('') + (noFirst ? '<span class="name-chip-warn">kein Vorname</span>' : '') + '</li>';
+            }).join('') + '</ul>'
         +   '<div class="classlist-import-footer">'
-        +     '<button class="btn btn-secondary" type="button" data-swap>Vor-/Nachname tauschen</button>'
+        +     (broken.length ? '<button class="btn btn-secondary" type="button" data-swap>Reihenfolge tauschen</button>' : '')
         +     '<button class="btn btn-primary" type="button" data-apply>Übernehmen</button>'
         +   '</div>'
         + '</div></div>';
+      var next = overlay.querySelector('.name-chip-list');
+      if (next) next.scrollTop = scroll;
     }
     draw();
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay || e.target.closest('[data-close]')) { close(); return; }
-      if (e.target.closest('[data-swap]')) { order = order === 'first-last' ? 'last-first' : 'first-last'; draw(); return; }
+      var chip = e.target.closest('[data-tok]');
+      if (chip) {
+        var row = rows[parseInt(chip.dataset.row, 10)];
+        var tok = row.tokens[parseInt(chip.dataset.tok, 10)];
+        tok.f = !tok.f;
+        row.touched = true;
+        draw();
+        return;
+      }
+      if (e.target.closest('[data-swap]')) {
+        order = order === 'first-last' ? 'last-first' : 'first-last';
+        rows.forEach(function (row) { if (row.auto && !row.touched) assign(row); });
+        draw();
+        return;
+      }
       if (e.target.closest('[data-apply]')) {
-        affected.forEach(function (st) {
-          var name = _splitName(st.lastName, order);
-          st.lastName = name.lastName;   // the id stays: seating plans and collections keep their entries
-          st.firstName = name.firstName;
+        rows.forEach(function (row) {
+          var first = row.tokens.filter(function (t) { return t.f; }).map(function (t) { return t.w; }).join(' ');
+          var last = row.tokens.filter(function (t) { return !t.f; }).map(function (t) { return t.w; }).join(' ');
+          if (!first && !last) return;
+          row.st.firstName = first;   // the id stays: seating plans and collections keep their entries
+          row.st.lastName = last;
         });
         _save();
         close();
         render();
+        if (typeof onDone === 'function') onDone();
       }
     });
+  }
+
+  function _words(text) {
+    return String(text || '').split(/[\s,;]+/).map(function (w) { return w.trim(); }).filter(Boolean);
   }
 
   // ── Printing ──────────────────────────────────────────────────────────────
@@ -771,6 +830,7 @@ var LehrerClasslist = (function () {
     getClassLists: getClassLists,
     getStudentsForClass: getStudentsForClass,
     printDocument: printDocument,
+    editNames: function (classId, onDone) { _load(); _showFixNamesDialog(classId, onDone); },
   };
 })();
 

@@ -28,37 +28,47 @@ var LehrerSeating = (function () {
   var _editing = false;
   var _selected = null;   // { kind: 'student'|'seat', id } – picked, waiting for a target
 
-  // ── Vorlagen ───────────────────────────────────────────────────────────────
-  // 1 = Platz, 0 = Lücke. Each builder returns { rows, cols, cells }.
-  var TEMPLATES = {
-    rows: {
-      label: 'Reihen (Zweiertische)',
-      build: function (n) {
-        // pairs of seats with an aisle between them, as many rows as needed
-        var pairs = 3, cols = pairs * 3 - 1;
-        var rows = Math.max(3, Math.ceil(n / (pairs * 2)));
-        return _grid(rows, cols, function (r, c) { return (c + 1) % 3 !== 0; });
-      },
-    },
-    groups: {
-      label: 'Gruppentische (4er)',
-      build: function (n) {
-        // 2×2 tables, three per band, an empty row and column between them
-        var tables = Math.max(4, Math.ceil(n / 4));
-        var perBand = 3, bands = Math.ceil(tables / perBand);
-        return _grid(bands * 3 - 1, perBand * 3 - 1, function (r, c) { return (r + 1) % 3 !== 0 && (c + 1) % 3 !== 0; });
-      },
-    },
-    u: {
-      label: 'U-Form',
-      build: function (n) {
-        // seats along left, back and right; open towards the board
-        var cols = Math.max(6, Math.min(MAX_COLS, Math.ceil(n / 3) + 1));
-        var rows = Math.max(4, Math.min(MAX_ROWS, Math.ceil((n - cols) / 2) + 1));
-        return _grid(rows, cols, function (r, c) { return c === 0 || c === cols - 1 || r === rows - 1; });
-      },
-    },
-  };
+  // ── Raum aufbauen ─────────────────────────────────────────────────────────
+  // 1 = Platz, 0 = Lücke. Built from what the teacher enters in „Raum einrichten“.
+  var KINDS = { rows: 'Reihen', groups: 'Gruppentische', u: 'U-Form' };
+
+  function _defaultSetup(n) {
+    return { kind: 'rows', rows: Math.max(3, Math.ceil(n / 6)), perRow: 6, desk: 2, tables: Math.max(4, Math.ceil(n / 4)), perTable: 4,
+             side: Math.max(3, Math.ceil((n - 6) / 2)), back: 6 };
+  }
+
+  function _clamp(v, lo, hi, fallback) {
+    var n = parseInt(v, 10);
+    return isNaN(n) ? fallback : Math.max(lo, Math.min(hi, n));
+  }
+
+  function _buildRoom(o) {
+    if (o.kind === 'groups') {
+      // tables of 2×2 (4) or 2×3 (6), three per band, an empty row and column between them
+      var tw = o.perTable === 6 ? 3 : 2, perBand = 3;
+      var bands = Math.ceil(o.tables / perBand);
+      var cols = Math.min(perBand, o.tables) * (tw + 1) - 1;
+      return _grid(Math.min(MAX_ROWS, bands * 3 - 1), Math.min(MAX_COLS, cols), function (r, c) {
+        if ((r + 1) % 3 === 0 || (c + 1) % (tw + 1) === 0) return false;
+        var table = Math.floor(r / 3) * perBand + Math.floor(c / (tw + 1));
+        return table < o.tables;
+      });
+    }
+    if (o.kind === 'u') {
+      // seats along the left, the back and the right; open towards the board
+      var width = Math.min(MAX_COLS, Math.max(3, o.back));
+      var depth = Math.min(MAX_ROWS - 1, o.side);
+      return _grid(depth + 1, width, function (r, c) { return r === depth || c === 0 || c === width - 1; });
+    }
+    // rows: desks of 1–4 seats, one aisle between desks
+    var desk = Math.max(1, Math.min(4, o.desk));
+    var desks = Math.ceil(o.perRow / desk);
+    var colsR = Math.min(MAX_COLS, o.perRow + desks - 1);
+    return _grid(Math.min(MAX_ROWS, o.rows), colsR, function (r, c) {
+      if ((c + 1) % (desk + 1) === 0) return false;
+      return c - Math.floor(c / (desk + 1)) < o.perRow;
+    });
+  }
 
   function _grid(rows, cols, isSeat) {
     var cells = [];
@@ -87,6 +97,8 @@ var LehrerSeating = (function () {
       var front = p.frontSet && p.front === 'top' ? 'top' : 'bottom';
       _plans[classId] = { rows: rows, cols: cols, cells: cells, seats: seats, front: front, frontSet: !!p.frontSet,
                           validFrom: typeof p.validFrom === 'string' ? p.validFrom : '', room: typeof p.room === 'string' ? p.room : '',
+                          heading: typeof p.heading === 'string' ? p.heading : '', subject: typeof p.subject === 'string' ? p.subject : '',
+                          teacher: typeof p.teacher === 'string' ? p.teacher : '', setup: p.setup && typeof p.setup === 'object' ? p.setup : null,
                           updatedAt: p.updatedAt || null };
     });
   }
@@ -109,7 +121,7 @@ var LehrerSeating = (function () {
 
   function _plan(classId) {
     if (!_plans[classId]) {
-      var t = TEMPLATES.rows.build(_students(classId).length);
+      var t = _buildRoom(_defaultSetup(_students(classId).length));
       _plans[classId] = { rows: t.rows, cols: t.cols, cells: t.cells, seats: {}, front: 'bottom', frontSet: false, validFrom: '', room: '', updatedAt: null };
     }
     var plan = _plans[classId];
@@ -179,6 +191,7 @@ var LehrerSeating = (function () {
     var placedIds = {};
     Object.keys(plan.seats).forEach(function (i) { placedIds[plan.seats[i]] = true; });
     var unplaced = students.filter(function (s) { return !placedIds[s.id]; });
+    var missingFirst = students.filter(function (s) { return !s.firstName; }).length;
 
     if (!students.length) {
       return '<div class="seat-empty"><h3>Klasse ' + _esc(classId) + ' hat noch keine Namen</h3>' +
@@ -216,10 +229,6 @@ var LehrerSeating = (function () {
           (label.initial ? '<span class="seat-initial">' + _esc(label.initial) + '</span>' : '') + '</span>' : '<span class="seat-free" aria-hidden="true">+</span>') + '</div>';
     }).join('');
 
-    var templateOptions = Object.keys(TEMPLATES).map(function (key) {
-      return '<button type="button" role="menuitem" data-template="' + key + '">' + _esc(TEMPLATES[key].label) + '</button>';
-    }).join('');
-
     var hint;
     if (_editing) hint = 'Tippe auf Felder, um Plätze hinzuzufügen oder zu entfernen.';
     else if (_selected) {
@@ -228,7 +237,7 @@ var LehrerSeating = (function () {
       hint = (picked ? picked + ': ' : '') + 'jetzt auf einen Platz tippen' +
         (_selected.kind === 'seat' ? ' – oder unten auf „Ohne Platz“, um ihn frei zu machen.' : '.');
     }
-    else if (seatCount < students.length) hint = 'Es fehlen ' + (students.length - seatCount) + ' Plätze – über „Tische“ hinzufügen.';
+    else if (seatCount < students.length) hint = 'Es fehlen ' + (students.length - seatCount) + ' Plätze – unter „Raum einrichten“ mehr anlegen.';
     else hint = 'Name antippen oder ziehen, dann auf einen Platz. Besetzten Platz antippen zum Tauschen.';
 
     return '<div class="seat-panel">' +
@@ -244,7 +253,7 @@ var LehrerSeating = (function () {
             '<div class="more-menu-list" role="menu">' +
               (_editing ? '' : '<button type="button" role="menuitem" data-seat-action="edit">Tische bearbeiten</button>') +
               '<button type="button" role="menuitem" data-seat-action="flip">' + (plan.front === 'top' ? 'Aus Sicht der Lehrkraft (Tafel unten)' : 'Aus Sicht der Klasse (Tafel oben)') + '</button>' +
-              '<div class="more-menu-label">Neue Anordnung</div>' + templateOptions +
+              '<button type="button" role="menuitem" data-seat-action="setup">Raum einrichten …</button>' +
               '<button type="button" role="menuitem" class="is-danger" data-seat-action="clear">Alle Plätze leeren</button>' +
             '</div></details>' +
         '</div>' +
@@ -255,6 +264,12 @@ var LehrerSeating = (function () {
             '<span>Spalten</span><button class="btn btn-sm btn-secondary" type="button" data-seat-action="cols-">−</button><b>' + plan.cols + '</b><button class="btn btn-sm btn-secondary" type="button" data-seat-action="cols+">+</button>' +
           '</div>'
         : '') +
+      (!plan.setup && !_editing
+        ? '<div class="seat-banner"><span>Wie ist dein Raum aufgebaut? Reihen und Plätze pro Reihe kannst du selbst festlegen.</span>' +
+          '<button class="btn btn-sm btn-primary" type="button" data-seat-action="setup">Raum einrichten</button></div>' : '') +
+      (missingFirst && !_editing
+        ? '<div class="seat-banner is-warn"><span>Bei ' + missingFirst + ' Namen fehlt der Vorname – im Sitzplan steht dann der ganze Name.</span>' +
+          '<button class="btn btn-sm btn-secondary" type="button" data-seat-action="names">Namen trennen</button></div>' : '') +
       '<p class="seat-hint" role="status">' + _esc(hint) + '</p>' +
       '<div class="seat-room' + (plan.front === 'bottom' ? ' is-teacher-view' : '') + '">' +
         (plan.front === 'top' ? board : '') +
@@ -315,15 +330,83 @@ var LehrerSeating = (function () {
     _save();
   }
 
-  function _applyTemplate(key) {
+  /** „Raum einrichten“: arrangement, rows and seats per row (or tables / U sides). */
+  function _showSetupDialog() {
     var plan = _plan(_activeClass);
-    if (Object.keys(plan.seats).length && !window.confirm('Neue Anordnung „' + TEMPLATES[key].label + '“? Alle stehen danach wieder ohne Platz.')) return;
-    var t = TEMPLATES[key].build(_students(_activeClass).length);
-    plan.rows = Math.min(MAX_ROWS, t.rows);
-    plan.cols = Math.min(MAX_COLS, t.cols);
-    plan.cells = t.cells.slice(0, plan.rows * plan.cols);
-    plan.seats = {};
-    _save();
+    var n = _students(_activeClass).length;
+    var o = Object.assign(_defaultSetup(n), plan.setup || {});
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    document.body.appendChild(overlay);
+    var close = function () { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+
+    function field(name, label, value, min, max) {
+      return '<label class="form-label seat-setup-field">' + label +
+        '<span class="seat-stepper"><button class="btn btn-secondary btn-sm" type="button" data-step="' + name + ':-1" aria-label="weniger">−</button>' +
+        '<input class="form-input" name="' + name + '" type="number" inputmode="numeric" min="' + min + '" max="' + max + '" value="' + value + '" />' +
+        '<button class="btn btn-secondary btn-sm" type="button" data-step="' + name + ':1" aria-label="mehr">+</button></span></label>';
+    }
+    function seatsOf(x) { return _buildRoom(x).cells.filter(Boolean).length; }
+    function draw() {
+      var fields;
+      if (o.kind === 'groups') fields = field('tables', 'Anzahl Gruppentische', o.tables, 1, 12) +
+        '<label class="form-label">Plätze pro Tisch<span class="seg">' + [4, 6].map(function (v) {
+          return '<button type="button" class="seg-btn' + (o.perTable === v ? ' is-active' : '') + '" data-pertable="' + v + '">' + v + '</button>'; }).join('') + '</span></label>';
+      else if (o.kind === 'u') fields = field('side', 'Plätze je Seite (links und rechts)', o.side, 1, MAX_ROWS - 1) + field('back', 'Plätze hinten', o.back, 3, MAX_COLS);
+      else fields = field('rows', 'Anzahl Reihen', o.rows, 1, MAX_ROWS) + field('perRow', 'Plätze pro Reihe', o.perRow, 1, 10) +
+        '<label class="form-label">Tische für<span class="seg">' + [1, 2, 3, 4].map(function (v) {
+          return '<button type="button" class="seg-btn' + (o.desk === v ? ' is-active' : '') + '" data-desk="' + v + '">' + (v === 1 ? 'Einzeln' : v + ' Plätze') + '</button>'; }).join('') + '</span></label>';
+      var seats = seatsOf(o);
+      overlay.innerHTML = '<div class="modal classlist-print-modal seat-setup-modal" role="dialog" aria-label="Raum einrichten">' +
+        '<div class="modal-header"><span class="modal-title">Raum einrichten · ' + _esc(_activeClass) + '</span>' +
+          '<button class="modal-close" type="button" data-close>✕</button></div>' +
+        '<form class="classlist-print-form" data-setup-form>' +
+          '<span class="seg seg-wide">' + Object.keys(KINDS).map(function (k) {
+            return '<button type="button" class="seg-btn' + (o.kind === k ? ' is-active' : '') + '" data-kind="' + k + '">' + KINDS[k] + '</button>'; }).join('') + '</span>' +
+          fields +
+          '<p class="seat-setup-sum' + (seats < n ? ' is-short' : '') + '">' + seats + ' Plätze für ' + n + ' Schüler:innen' +
+            (seats < n ? ' – es fehlen ' + (n - seats) : '') + '</p>' +
+          (Object.keys(plan.seats).length ? '<p class="seat-hint">Danach stehen alle wieder ohne Platz – „Zufällig“ verteilt sie neu.</p>' : '') +
+          '<div class="classlist-import-footer"><button class="btn btn-secondary" type="button" data-close>Abbrechen</button>' +
+          '<button class="btn btn-primary" type="submit">Übernehmen</button></div>' +
+        '</form></div>';
+    }
+    function readInputs() {
+      var form = overlay.querySelector('[data-setup-form]');
+      if (!form) return;
+      ['rows', 'perRow', 'tables', 'side', 'back'].forEach(function (name) {
+        var input = form.elements[name];
+        if (input) o[name] = _clamp(input.value, parseInt(input.min, 10), parseInt(input.max, 10), o[name]);
+      });
+    }
+    draw();
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay || e.target.closest('[data-close]')) { close(); return; }
+      var t = e.target.closest('[data-kind], [data-desk], [data-pertable], [data-step]');
+      if (!t) return;
+      readInputs();
+      if (t.dataset.kind) o.kind = t.dataset.kind;
+      if (t.dataset.desk) o.desk = parseInt(t.dataset.desk, 10);
+      if (t.dataset.pertable) o.perTable = parseInt(t.dataset.pertable, 10);
+      if (t.dataset.step) {
+        var parts = t.dataset.step.split(':');
+        var input = overlay.querySelector('[name="' + parts[0] + '"]');
+        o[parts[0]] = _clamp(o[parts[0]] + parseInt(parts[1], 10), parseInt(input.min, 10), parseInt(input.max, 10), o[parts[0]]);
+      }
+      draw();
+    });
+    overlay.addEventListener('change', function () { readInputs(); draw(); });
+    overlay.addEventListener('submit', function (e) {
+      e.preventDefault();
+      readInputs();
+      var room = _buildRoom(o);
+      plan.rows = room.rows; plan.cols = room.cols; plan.cells = room.cells; plan.seats = {};
+      plan.setup = o;
+      _selected = null;
+      _save();
+      close();
+      render();
+    });
   }
 
   function _resize(dRows, dCols) {
@@ -360,7 +443,12 @@ var LehrerSeating = (function () {
     return m ? m[3] + '.' + m[2] + '.' + m[1] : '';
   }
 
-  /** "Gültig ab" and room before printing – remembered per class. */
+  function _userName() {
+    var u = window.CURRENT_USER || {};
+    return u.full_name || [u.first_name, u.last_name].filter(Boolean).join(' ');
+  }
+
+  /** Heading, subject, room, teacher and "gültig ab" before printing – remembered per class. */
   function _showPrintDialog() {
     var plan = _plan(_activeClass);
     var overlay = document.createElement('div');
@@ -369,8 +457,15 @@ var LehrerSeating = (function () {
       '<div class="modal-header"><span class="modal-title">Sitzplan ' + _esc(_activeClass) + ' als PDF</span>' +
         '<button class="modal-close" type="button" data-close>✕</button></div>' +
       '<form class="classlist-print-form" data-seat-print-form>' +
-        '<label class="form-label">Gültig ab<input class="form-input" name="validFrom" type="date" value="' + _esc(plan.validFrom || _todayIso()) + '" required /></label>' +
-        '<label class="form-label">Raum (optional)<input class="form-input" name="room" maxlength="30" placeholder="z. B. 220" value="' + _esc(plan.room) + '" /></label>' +
+        '<label class="form-label">Klasse<input class="form-input" name="heading" maxlength="40" value="' + _esc(plan.heading || ('Klasse ' + _activeClass)) + '" /></label>' +
+        '<div class="seat-form-row">' +
+          '<label class="form-label">Fach (optional)<input class="form-input" name="subject" maxlength="40" placeholder="z. B. Mathematik" value="' + _esc(plan.subject) + '" /></label>' +
+          '<label class="form-label">Raum (optional)<input class="form-input" name="room" maxlength="30" placeholder="z. B. 220" value="' + _esc(plan.room) + '" /></label>' +
+        '</div>' +
+        '<div class="seat-form-row">' +
+          '<label class="form-label">Lehrkraft (optional)<input class="form-input" name="teacher" maxlength="60" value="' + _esc(plan.teacher || _userName()) + '" /></label>' +
+          '<label class="form-label">Gültig ab<input class="form-input" name="validFrom" type="date" value="' + _esc(plan.validFrom || _todayIso()) + '" required /></label>' +
+        '</div>' +
         '<div class="classlist-import-footer">' +
           '<button class="btn btn-secondary" type="button" data-close>Abbrechen</button>' +
           '<button class="btn btn-primary" type="submit">PDF erstellen</button>' +
@@ -384,6 +479,9 @@ var LehrerSeating = (function () {
       e.preventDefault();
       plan.validFrom = form.elements.validFrom.value || _todayIso();
       plan.room = form.elements.room.value.trim();
+      plan.heading = form.elements.heading.value.trim();
+      plan.subject = form.elements.subject.value.trim();
+      plan.teacher = form.elements.teacher.value.trim();
       _save();
       close();
       _print();
@@ -429,13 +527,16 @@ var LehrerSeating = (function () {
     }).join('');
 
     var placed = Object.keys(plan.seats).length;
-    var meta = ['Klasse ' + _activeClass];
+    var heading = plan.heading || ('Klasse ' + _activeClass);
+    var meta = [];
+    if (plan.subject) meta.push(plan.subject);
     if (plan.room) meta.push('Raum ' + plan.room);
+    if (plan.teacher) meta.push(plan.teacher);
     meta.push(placed + ' Schüler:innen');
     var board = '<div class="board"><span>Tafel</span></div>';
-    var title = 'Sitzplan ' + _activeClass;
+    var title = 'Sitzplan ' + heading;
     window.LehrerClasslist.printDocument(title,
-      '<header class="head"><div><h1>Sitzplan</h1><p class="sub">' + _esc(meta.join(' · ')) + '</p></div>' +
+      '<header class="head"><div><p class="kicker">Sitzplan</p><h1>' + _esc(heading) + '</h1><p class="sub">' + _esc(meta.join(' · ')) + '</p></div>' +
         '<div class="valid"><span>gültig ab</span><b>' + _esc(_deDate(plan.validFrom) || _deDate(_todayIso())) + '</b></div></header>' +
       (turned ? '' : board) +
       '<table class="room">' + grid + '</table>' +
@@ -444,7 +545,8 @@ var LehrerSeating = (function () {
       { landscape: true,
         css: 'body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:#1d1d1b}' +
           '.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:8px;border-bottom:2px solid #1d1d1b;margin-bottom:10px}' +
-          '.head h1{font-size:22px;margin:0;letter-spacing:-0.01em}.sub{margin:3px 0 0;color:#555;font-size:12px}' +
+          '.kicker{margin:0 0 2px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#666}' +
+          '.head h1{font-size:24px;margin:0;letter-spacing:-0.01em}.sub{margin:3px 0 0;color:#555;font-size:12px}' +
           '.valid{text-align:right;line-height:1.2}.valid span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#666}.valid b{font-size:15px}' +
           'table.room{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:5px;margin:0 auto}' +
           'table.room td{height:' + seatH + 'mm;padding:2px 3px;text-align:center;vertical-align:middle;border:0}' +
@@ -474,13 +576,16 @@ var LehrerSeating = (function () {
         render();
         return;
       }
-      var action = e.target.closest('[data-seat-action], [data-template]');
+      var action = e.target.closest('[data-seat-action]');
       if (action) {
         var menu = action.closest('details');
         if (menu) menu.open = false;
-        var template = action.getAttribute('data-template');
-        if (template) { _selected = null; _applyTemplate(template); render(); return; }
         var act = action.getAttribute('data-seat-action');
+        if (act === 'setup') { _showSetupDialog(); return; }
+        if (act === 'names') {
+          if (window.LehrerClasslist && window.LehrerClasslist.editNames) window.LehrerClasslist.editNames(_activeClass, render);
+          return;
+        }
         var plan = _plan(_activeClass);
         if (act === 'shuffle') _shuffle();
         if (act === 'print') { _showPrintDialog(); return; }
@@ -573,7 +678,22 @@ var LehrerSeating = (function () {
     render();
   }
 
-  return { init: init, render: render };
+  /** For „Heute“: does this class have a plan with people seated? */
+  function hasPlan(classId) {
+    _load();
+    var plan = _plans[String(classId || '').toLowerCase()];
+    return !!plan && Object.keys(plan.seats).length > 0;
+  }
+
+  /** Select a class here (the caller switches to Klassen → Sitzplan). */
+  function select(classId) {
+    _activeClass = String(classId || '').toLowerCase();
+    try { localStorage.setItem(CLASS_KEY, _activeClass); } catch (e) { /* private mode */ }
+    _selected = null;
+    _editing = false;
+  }
+
+  return { init: init, render: render, hasPlan: hasPlan, select: select };
 })();
 
 if (typeof window !== 'undefined') window.LehrerSeating = LehrerSeating;
