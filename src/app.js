@@ -1758,6 +1758,7 @@
     state.classworkSelectedClasses = loadStoredClassworkClasses();
     safely(() => window.LehrerClasslist && window.LehrerClasslist.render());
     safely(() => window.LehrerCollections && window.LehrerCollections.render());
+    safely(() => window.LehrerSeating && window.LehrerSeating.render());
     safely(() => window.LehrerLinks && window.LehrerLinks.reloadLocal());
     if (state.data) renderAll();
   });
@@ -2911,6 +2912,7 @@
     });
     if (tab === "collections" && window.LehrerCollections) window.LehrerCollections.render();
     if (tab === "list" && window.LehrerClasslist) window.LehrerClasslist.render();
+    if (tab === "seating" && window.LehrerSeating) window.LehrerSeating.render();
     try { localStorage.setItem(CLASS_TAB_KEY, tab); } catch (_e) { /* private mode */ }
   }
 
@@ -2919,7 +2921,10 @@
       btn.addEventListener("click", () => showClassTab(btn.dataset.classTab));
     });
     let saved = "list";
-    try { saved = localStorage.getItem(CLASS_TAB_KEY) === "collections" ? "collections" : "list"; } catch (_e) { /* private mode */ }
+    try {
+      const stored = localStorage.getItem(CLASS_TAB_KEY);
+      saved = stored === "collections" || stored === "seating" ? stored : "list";
+    } catch (_e) { /* private mode */ }
     showClassTab(saved);
   }
 
@@ -3082,6 +3087,10 @@
     if (window.LehrerCollections) {
       var collectionsRoot = document.getElementById('collections-root');
       if (collectionsRoot) safely(() => window.LehrerCollections.init(collectionsRoot));
+    }
+    if (window.LehrerSeating) {
+      const seatingRoot = document.getElementById("seating-root");
+      if (seatingRoot) safely(() => window.LehrerSeating.init(seatingRoot));
     }
 
     if (window.LehrerConnections) {

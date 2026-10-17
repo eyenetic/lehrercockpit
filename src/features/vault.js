@@ -26,6 +26,7 @@
   var SYNCED_KEYS = [
     'lehrerCockpit.classLists',
     'lehrerCockpit.collections',
+    'lehrerCockpit.seatingPlans',
     'lehrerCockpit.links',
     'lehrerCockpit.classwork.selectedClasses',
     'lehrerCockpit.todayLayout.local',
@@ -141,7 +142,7 @@
   }
 
   function hasLocalData() {
-    return ['lehrerCockpit.classLists', 'lehrerCockpit.collections', 'lehrerCockpit.links'].some(function (key) {
+    return ['lehrerCockpit.classLists', 'lehrerCockpit.collections', 'lehrerCockpit.seatingPlans', 'lehrerCockpit.links'].some(function (key) {
       var value = get(key);
       return value && value !== '{}' && value !== '[]';
     });

@@ -6945,3 +6945,62 @@ html, body { overflow-x: clip; }
   padding: 10px 16px; border: 0; border-radius: 999px; background: var(--accent); color: #fff;
   font: inherit; font-size: 0.9rem; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.2); cursor: pointer; white-space: nowrap;
 }
+
+/* ── Sitzplan ─────────────────────────────────────────────────────────────── */
+.seat-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-bottom: 20px; }
+.seat-panel > :not(.classlist-panel-head) { margin-inline: 20px; }
+.seat-hint { margin: 0; font-size: 0.84rem; color: var(--muted); }
+.seat-room {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel-soft);
+}
+.seat-board {
+  align-self: center; width: min(60%, 320px); padding: 6px 0; text-align: center;
+  border-radius: 6px; background: var(--ink); color: var(--panel); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em;
+}
+.seat-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.seat-grid { display: grid; gap: 6px; min-width: min-content; }
+.seat-cell {
+  min-height: 48px; border-radius: 8px; display: grid; place-items: center; padding: 4px;
+  font-size: 0.8rem; line-height: 1.2; text-align: center; user-select: none; -webkit-user-select: none;
+}
+.seat-cell.is-gap { background: transparent; }
+.seat-cell.is-gap.is-thin { min-height: 10px; }
+.seat-cell.is-gap.is-editable { border: 1px dashed var(--line-strong); cursor: pointer; }
+.seat-cell.is-seat { background: var(--panel); border: 1px solid var(--line-strong); cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
+.seat-cell.is-seat:hover { border-color: var(--accent); }
+.seat-cell.is-taken { border-color: color-mix(in srgb, var(--accent) 35%, var(--line-strong)); background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+.seat-cell.is-selected, .seat-chip.is-selected { outline: 2px solid var(--accent); outline-offset: 1px; box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent); transform: translateY(-1px); }
+.seat-cell.is-drop { border-color: var(--accent); background: var(--accent-soft); }
+.seat-cell.is-editable.is-seat { border-style: solid; background: var(--panel); }
+.seat-name { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; color: var(--ink); }
+.seat-first { font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat-initial { font-size: 0.72rem; color: var(--muted); }
+.seat-cell { min-width: 0; overflow: hidden; }
+.seat-free { color: var(--line-strong); font-size: 1.1rem; }
+.seat-pool { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.seat-pool.is-drop { border-color: var(--accent); background: var(--accent-soft); }
+.seat-pool h3 { margin: 0 0 10px; font-size: 0.86rem; display: flex; gap: 8px; align-items: center; }
+.seat-pool h3 span { font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); }
+.seat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.seat-chip {
+  padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel);
+  font: inherit; font-size: 0.82rem; font-weight: 500; color: var(--ink); cursor: grab;
+}
+.seat-chip:hover { border-color: var(--accent); }
+.seat-pool-done { margin: 0; font-size: 0.84rem; color: var(--success); }
+.seat-edit-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.84rem; color: var(--muted); }
+.seat-edit-bar b { min-width: 1.6em; text-align: center; color: var(--ink); }
+.seat-edit-bar span + button { margin-left: 2px; }
+.seat-edit-bar b + span { margin-left: 12px; }
+.seat-empty { padding: 32px 20px; text-align: center; color: var(--muted); }
+.seat-empty h3 { margin: 0 0 6px; color: var(--ink); font-size: 1rem; }
+.seat-empty p { margin: 0 auto; max-width: 420px; font-size: 0.88rem; line-height: 1.5; }
+.more-menu-label { padding: 8px 12px 4px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--line); margin-top: 4px; }
+@media (max-width: 640px) {
+  .seat-panel > :not(.classlist-panel-head) { margin-inline: 8px; }
+  .seat-room { padding: 8px 6px; }
+  .seat-first { font-size: 0.7rem; letter-spacing: -0.01em; }
+  .seat-grid { gap: 4px; }
+  .seat-cell { min-height: 44px; font-size: 0.74rem; padding: 3px 2px; }
+}
