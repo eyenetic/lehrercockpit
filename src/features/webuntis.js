@@ -1112,6 +1112,7 @@
 
   window.LehrerWebUntis = {
     init: init,
+    lessonLabel:              _lessonLabel,
     // Core render functions
     renderWebUntisControls:   renderWebUntisControls,
     renderWebUntisPicker:     renderWebUntisPicker,

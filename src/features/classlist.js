@@ -297,7 +297,7 @@ var LehrerClasslist = (function () {
 
   function _buildEmptyState() {
     return '<div class="classlist-empty-state">'
-      + '<div class="classlist-empty-icon">📋</div>'
+      + '<div class="classlist-empty-icon"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>'
       + '<h2>Noch keine Klassen</h2>'
       + '<p>Lege eine neue Klasse an oder importiere eine Schülerliste als CSV oder Excel-Datei.</p>'
       + '<button class="btn btn-primary" type="button" data-action="add-class">Erste Klasse anlegen</button>'
@@ -318,7 +318,7 @@ var LehrerClasslist = (function () {
           '<p class="classlist-import-hint">Namen einfügen (eine Person pro Zeile, z. B. „Müller, Anna“) oder eine CSV-/Excel-Datei wählen.</p>',
           '<textarea id="classlist-paste" class="form-input classlist-paste" rows="5" placeholder="Müller, Anna&#10;Schmidt, Ben"></textarea>',
           '<label class="classlist-upload-area" for="classlist-file-input">',
-            '<span class="classlist-upload-icon">📂</span>',
+            '<span class="classlist-upload-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg></span>',
             '<span>Datei auswählen oder hierher ziehen</span>',
             '<input type="file" id="classlist-file-input" accept=".csv,.xlsx,.xls" style="display:none">',
           '</label>',

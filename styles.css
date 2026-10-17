@@ -6612,7 +6612,7 @@ html, body { overflow-x: clip; }
   .gr-card .gr-reached {
     order: 3;
     position: sticky;
-    top: calc(52px + env(safe-area-inset-top, 0px) + 8px);
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
     z-index: 6;
     margin: 0 0 12px;
     padding: 10px 14px;
@@ -7040,3 +7040,182 @@ html, body { overflow-x: clip; }
 .name-key.is-first { background: var(--accent); border-color: var(--accent); color: #fff; }
 .seat-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 420px) { .seat-form-row { grid-template-columns: 1fr; } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Design 2026.2 — Farbe mit Bedeutung, „Als Nächstes“, Handy-Leiste
+   Jeder Bereich hat eine ruhige Eigenfarbe (Symbol, Seitenkopf, aktive
+   Navigation); Flächen bleiben neutral. Kräftige Farbe nur in der
+   „Als Nächstes“-Karte – sie soll als Erstes ins Auge fallen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --tone-today: #2856d6;
+  --tone-mail: #0d7d72;
+  --tone-plans: #b45a0c;
+  --tone-classes: #6a4bd0;
+  --tone-grades: #1f7f47;
+  --tone-links: #43698c;
+  --tone: var(--tone-today);
+}
+:root[data-theme="dark"] {
+  --tone-today: #7c9cff;
+  --tone-mail: #3cc2b2;
+  --tone-plans: #f0a052;
+  --tone-classes: #a891ff;
+  --tone-grades: #5cc98a;
+  --tone-links: #8fb3d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tone-today: #7c9cff; --tone-mail: #3cc2b2; --tone-plans: #f0a052;
+    --tone-classes: #a891ff; --tone-grades: #5cc98a; --tone-links: #8fb3d6;
+  }
+}
+[data-section-target="overview"], body[data-section="overview"] { --tone: var(--tone-today); }
+[data-section-target="inbox"], body[data-section="inbox"] { --tone: var(--tone-mail); }
+[data-section-target="documents"], body[data-section="documents"] { --tone: var(--tone-plans); }
+[data-section-target="classlist"], body[data-section="classlist"] { --tone: var(--tone-classes); }
+[data-section-target="grades"], body[data-section="grades"] { --tone: var(--tone-grades); }
+[data-section-target="links"], body[data-section="links"] { --tone: var(--tone-links); }
+
+/* Navigation: tinted icons, active row in the area's colour */
+.sidebar-nav .nav-icon { color: var(--tone); opacity: 0.85; }
+.sidebar-nav .nav-link.active {
+  background: color-mix(in srgb, var(--tone) 11%, var(--panel));
+  border-color: color-mix(in srgb, var(--tone) 22%, transparent);
+  box-shadow: none;
+  font-weight: 600;
+}
+.sidebar-nav .nav-link.active .nav-icon { color: var(--tone); opacity: 1; }
+
+/* Seitenkopf mit Bereichssymbol */
+.page-head { align-items: center; }
+.page-head-icon {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--tone) 12%, var(--panel)); color: var(--tone);
+  border: 1px solid color-mix(in srgb, var(--tone) 18%, transparent);
+}
+.page-head-icon:empty { display: none; }
+.page-head-icon svg { width: 21px; height: 21px; }
+.page-head-text { flex: 1; min-width: 0; }
+.page-title { font-weight: 700; }
+
+/* Kacheln auf Heute: kleiner Farbpunkt je Quelle */
+.tile[data-today-module="schedule"] { --tone: var(--tone-today); }
+.tile[data-today-module="school"], .tile[data-today-module="classwork"] { --tone: var(--tone-plans); }
+.tile[data-today-module="inbox"] { --tone: var(--tone-mail); }
+.tile[data-today-module="ai"] { --tone: var(--tone-grades); }
+.tile .tile-head h2 { display: inline-flex; align-items: center; gap: 8px; }
+.tile .tile-head h2::before {
+  content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--tone); flex-shrink: 0;
+}
+
+/* ── Als Nächstes ─────────────────────────────────────────────────────────── */
+.nextup {
+  display: flex; flex-wrap: wrap; overflow: hidden; border-radius: 18px; margin-bottom: 14px;
+  background: var(--tone-today); color: #fff;
+  background-image: radial-gradient(120% 140% at 0% 0%, rgba(255,255,255,.14) 0%, rgba(255,255,255,0) 55%);
+  box-shadow: 0 18px 40px -22px color-mix(in srgb, var(--tone-today) 80%, transparent);
+}
+:root[data-theme="dark"] .nextup { background-color: #2d4fbf; }
+.nextup.is-done { background-color: #1f7f47; box-shadow: 0 18px 40px -22px rgba(31,127,71,.6); }
+.nextup-main { flex: 3 1 320px; padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.nextup-side { flex: 2 1 240px; padding: 22px 26px; background: rgba(0,0,0,.13); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.nextup-kicker { margin: 0; font-size: 0.74rem; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255,255,255,.8); }
+.nextup-title { margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+.nextup-group { font-size: 2.6rem; font-weight: 750; letter-spacing: -0.035em; line-height: 1; }
+.nextup-subject { font-size: 1.3rem; font-weight: 600; }
+.nextup.is-done .nextup-title { font-size: 1.6rem; font-weight: 700; }
+.nextup-meta { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 0.95rem; color: rgba(255,255,255,.92); }
+.nextup-action {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; margin-top: 4px;
+  border: 0; border-radius: 10px; padding: 9px 12px; cursor: pointer;
+  background: rgba(255,255,255,.16); color: #fff; font: inherit; font-size: 0.88rem; font-weight: 600;
+}
+.nextup-action:hover { background: rgba(255,255,255,.24); }
+.nextup-action svg { width: 16px; height: 16px; }
+.nextup-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.92rem; }
+.nextup-list li { display: flex; gap: 12px; min-width: 0; }
+.nextup-list li > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nextup-list li.is-cancelled { opacity: .65; text-decoration: line-through; }
+.nextup-time { font-family: "Geist Mono", ui-monospace, monospace; font-size: 0.82rem; color: rgba(255,255,255,.75); width: 42px; flex-shrink: 0; padding-top: 1px; }
+.nextup-empty { margin: 0; font-size: 0.9rem; color: rgba(255,255,255,.8); }
+.nextup-progress { margin-top: auto; display: flex; gap: 4px; padding-top: 4px; }
+.nextup-progress span { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,.28); }
+.nextup-progress span.is-done { background: #fff; }
+.nextup-foot { margin: 0; font-size: 0.8rem; color: rgba(255,255,255,.78); }
+.nextup.is-loading { background: var(--panel); border: 1px solid var(--line); box-shadow: none; }
+.nextup.is-loading .nextup-main { gap: 12px; }
+
+/* Ladeplatzhalter */
+.sk { display: block; border-radius: 6px; background: linear-gradient(90deg, var(--panel-soft) 0%, var(--panel-hover, #ececea) 50%, var(--panel-soft) 100%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+.sk-line { height: 12px; }
+.sk-big { height: 34px; width: 200px; }
+
+/* ── Heute wichtig ────────────────────────────────────────────────────────── */
+.important { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.imp-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; min-width: 0;
+  padding: 13px 15px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel);
+  box-shadow: var(--shadow-soft); font: inherit; color: var(--ink); cursor: pointer; transition: border-color .15s, transform .15s;
+}
+.imp-card:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.imp-tag { font-size: 0.72rem; font-weight: 650; padding: 2px 8px; border-radius: 6px; }
+.imp-tag.tone-warn { background: color-mix(in srgb, var(--tone-plans) 14%, transparent); color: var(--tone-plans); }
+.imp-tag.tone-accent { background: color-mix(in srgb, var(--tone-classes) 13%, transparent); color: var(--tone-classes); }
+.imp-tag.tone-inbox { background: color-mix(in srgb, var(--tone-mail) 13%, transparent); color: var(--tone-mail); }
+.imp-title { font-size: 0.98rem; font-weight: 650; }
+.imp-more { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+.imp-sub { font-size: 0.82rem; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-progress { display: flex; align-items: center; gap: 10px; width: 100%; }
+.imp-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--panel-soft); overflow: hidden; }
+.imp-bar span { display: block; height: 100%; border-radius: 3px; background: var(--success); }
+
+/* ── Handy: Leiste unten statt Menü-Knopf ─────────────────────────────────── */
+.mobile-tabbar { display: none; }
+@media (max-width: 768px) {
+  .burger-btn { visibility: hidden; }
+  .mobile-tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 160;
+    padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    border-top: 1px solid var(--line);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  }
+  .tab-link {
+    flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    min-height: 48px; padding: 6px 0 2px; border: 0; background: none; cursor: pointer;
+    color: var(--muted); font: inherit; font-size: 0.68rem; font-weight: 550;
+  }
+  .tab-link svg { width: 23px; height: 23px; }
+  .tab-link.active { color: var(--tone); }
+  #tabbar-more { --tone: var(--tone-links); }
+  .tab-link .nav-count {
+    position: absolute; top: 2px; left: calc(50% + 6px); margin: 0;
+    min-width: 17px; height: 17px; line-height: 17px; padding: 0 5px; font-size: 0.65rem;
+  }
+  .app-main {
+    padding-top: calc(20px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  /* the tab bar carries navigation and „Mehr“; the big page title names the area */
+  .mobile-topbar { display: none !important; }
+  .nextup-list li:nth-child(n+3) { display: none; }
+  .nextup-main, .nextup-side { padding: 18px 18px; }
+  .nextup-group { font-size: 2.2rem; }
+  .nextup-side { gap: 8px; }
+  .important { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(170px, 72%); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 2px; scrollbar-width: none; }
+  .important::-webkit-scrollbar { display: none; }
+  .imp-card { scroll-snap-align: start; }
+  .page-head-icon { width: 34px; height: 34px; border-radius: 9px; }
+  .page-head-icon svg { width: 18px; height: 18px; }
+}
+
+/* Menü-Blatt: Notenrechner und Links als Kacheln */
+.more-sheet-sections { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 12px; }
+.more-sheet-tile {
+  display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; font-size: 0.92rem; font-weight: 600;
+}
+.more-sheet-tile svg { width: 20px; height: 20px; color: var(--tone); }
+.more-sheet-tile[data-tone="grades"] { --tone: var(--tone-grades); }
+.more-sheet-tile[data-tone="links"] { --tone: var(--tone-links); }

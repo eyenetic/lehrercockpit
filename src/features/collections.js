@@ -20,10 +20,10 @@ var LehrerCollections = (function () {
 
   var STORAGE_KEY  = 'lehrerCockpit.collections';
   var TYPES = [
-    { value: 'signature', label: '✍️  Unterschrift' },
-    { value: 'money',     label: '💰 Geld' },
-    { value: 'document',  label: '📄 Dokument' },
-    { value: 'other',     label: '📦 Sonstiges' },
+    { value: 'signature', label: 'Unterschrift' },
+    { value: 'money',     label: 'Geld' },
+    { value: 'document',  label: 'Dokument' },
+    { value: 'other',     label: 'Sonstiges' },
   ];
 
   var _container   = null;
@@ -218,7 +218,7 @@ var LehrerCollections = (function () {
 
   function _buildEmpty() {
     return '<div class="classlist-empty-state">'
-      + '<div class="classlist-empty-icon">📥</div>'
+      + '<div class="classlist-empty-icon"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>'
       + '<h2>Noch keine Einsammlungen</h2>'
       + '<p>Erstelle eine neue Einsammlung – Schüler werden automatisch aus den Klassenlisten geladen.</p>'
       + '<button class="btn btn-primary" type="button" data-action="new-col">Erste Einsammlung erstellen</button>'
@@ -228,7 +228,7 @@ var LehrerCollections = (function () {
   function _missingLabel(col) {
     var students = _getStudentsForCollection(col);
     var missing = students.filter(function(s){ return !(col.checks && col.checks[s.classId+'|'+s.id] && col.checks[s.classId+'|'+s.id].done); });
-    if (!missing.length) return '✅ Alle abgegeben!';
+    if (!missing.length) return '✓ Alle abgegeben';
     return 'Noch ausstehend: ' + missing.slice(0,5).map(function(s){ return s.lastName; }).join(', ') + (missing.length > 5 ? ' +' + (missing.length-5) : '');
   }
 
@@ -461,7 +461,21 @@ var LehrerCollections = (function () {
   // ── Public ────────────────────────────────────────────────────────────────
   function init(container) { _container = container; _load(); render(); }
 
-  return { init: init, render: render };
+  /** Open collections with progress, nearest due date first (for „Heute wichtig“). */
+  function summary() {
+    _load();
+    return _sortedCollections().filter(function (c) { return !c.archived; }).map(function (c) {
+      var p = _progress(c);
+      return { id: c.id, title: c.title, classIds: c.classIds.slice(), dueDate: c.dueDate || '', done: p.done, total: p.total };
+    }).filter(function (c) { return c.total > 0 && c.done < c.total; }).sort(function (a, b) {
+      return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+    });
+  }
+
+  /** Show this collection when the tab is opened next. */
+  function select(id) { _activeId = id; }
+
+  return { init: init, render: render, summary: summary, select: select };
 })();
 
 if (typeof window !== 'undefined') window.LehrerCollections = LehrerCollections;

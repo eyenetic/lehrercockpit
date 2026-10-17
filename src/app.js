@@ -791,6 +791,12 @@
     }
     const topbarTitle = document.getElementById("mobile-topbar-title");
     if (topbarTitle) topbarTitle.textContent = active === "overview" ? "Heute" : (SECTION_TITLES[active] || "Lehrercockpit");
+    // Each area has its own calm colour (styles.css: body[data-section]); the head shows its icon.
+    document.body.dataset.section = active;
+    const icon = document.getElementById("page-head-icon");
+    const navIcon = document.querySelector(`.sidebar-nav [data-section-target="${active}"] svg`);
+    if (icon) icon.innerHTML = navIcon ? navIcon.outerHTML : "";
+    document.getElementById("tabbar-more")?.classList.toggle("active", active === "grades" || active === "links");
   }
 
   function renderSectionFocus() {
@@ -1047,12 +1053,166 @@
         const el = document.getElementById(id);
         if (el && !el.innerHTML.trim()) el.innerHTML = '<div class="tile-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>';
       });
+      safely(() => renderNextUp(data));
       return;
     }
     renderScheduleTile(data);
     renderSchoolTile(data);
     renderClassworkTile(data);
     renderInboxTile(data);
+    safely(() => renderNextUp(data));
+    safely(() => renderImportant(data));
+  }
+
+  // ── „Als Nächstes“: die aktuelle/nächste Stunde groß oben auf Heute ──────────
+  function hhmm(date) {
+    return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function lessonParts(event) {
+    if (isSupervision(event)) {
+      return { main: "Aufsicht", sub: event.location || "", room: "", duty: true };
+    }
+    const label = window.LehrerWebUntis && window.LehrerWebUntis.lessonLabel
+      ? window.LehrerWebUntis.lessonLabel(event.title) : { subject: event.title || "", group: "" };
+    return { main: label.group || label.subject, sub: label.group ? label.subject : "", room: event.location || "", duty: false };
+  }
+
+  /** Merge a lesson with the next one when they form a double lesson (same title, ≤ 10 min apart). */
+  function withDoubles(events) {
+    const out = [];
+    events.forEach((event) => {
+      const prev = out[out.length - 1];
+      const start = new Date(event.startsAt);
+      if (prev && !prev.cancelled && !event.cancelled && prev.title === event.title && prev.location === event.location
+          && start - new Date(prev.endsAt) <= 10 * 60000 && start >= new Date(prev.endsAt)) {
+        prev.endsAt = event.endsAt;
+        prev.double = true;
+        return;
+      }
+      out.push({ ...event });
+    });
+    return out;
+  }
+
+  function renderNextUp(data) {
+    const box = document.getElementById("nextup");
+    if (!box) return;
+    if (!state.data) {
+      box.hidden = false;
+      box.className = "nextup is-loading";
+      box.innerHTML = '<div class="nextup-main"><span class="sk sk-line" style="width:140px"></span><span class="sk sk-big"></span><span class="sk sk-line" style="width:180px"></span></div>';
+      return;
+    }
+    if (!isWebUntisConnected(data) || personalSourceProblems(data).webuntis) { box.hidden = true; return; }
+    const { events: raw, previewLabel } = todayLessons(data);
+    const events = withDoubles(raw);
+    const now = new Date();
+    const live = events.filter((e) => !e.cancelled);
+    // count real lessons (a double lesson is two)
+    const lessons = raw.filter((e) => !e.cancelled && !isSupervision(e));
+    let main = null;
+    let kicker = "";
+    if (previewLabel) {
+      main = live[0] || null;
+      kicker = `Nächster Schultag · ${previewLabel}`;
+    } else {
+      main = live.find((e) => new Date(e.startsAt) <= now && new Date(e.endsAt) > now) || null;
+      if (main) {
+        kicker = `Jetzt · bis ${hhmm(new Date(main.endsAt))}`;
+      } else {
+        main = live.find((e) => new Date(e.startsAt) > now) || null;
+        if (main) {
+          const mins = Math.round((new Date(main.startsAt) - now) / 60000);
+          kicker = mins <= 90 ? `Als Nächstes · in ${Math.max(1, mins)} Min.` : `Als Nächstes · um ${hhmm(new Date(main.startsAt))}`;
+        }
+      }
+    }
+    box.className = "nextup";
+    if (!main) {
+      if (!lessons.length) { box.hidden = true; return; }
+      // all lessons of the day are over
+      box.hidden = false;
+      box.classList.add("is-done");
+      box.innerHTML = `<div class="nextup-main"><p class="nextup-kicker">Für heute geschafft</p>`
+        + `<p class="nextup-title">${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"} gehalten</p>`
+        + `<p class="nextup-meta">Schönen Feierabend!</p></div>`;
+      return;
+    }
+    const parts = lessonParts(main);
+    const start = new Date(main.startsAt);
+    const end = new Date(main.endsAt);
+    const after = events.filter((e) => new Date(e.startsAt) >= end && e !== main).slice(0, 3);
+    const doneCount = previewLabel ? 0 : lessons.filter((e) => new Date(e.endsAt) <= now).length;
+    const lastEnd = lessons.length ? new Date(lessons[lessons.length - 1].endsAt) : null;
+    const seatingClass = !parts.duty && parts.main && window.LehrerSeating && window.LehrerSeating.hasPlan(parts.main) ? parts.main : "";
+    box.hidden = false;
+    box.innerHTML = `<div class="nextup-main">
+        <p class="nextup-kicker">${escapeHtml(kicker)}</p>
+        <p class="nextup-title"><span class="nextup-group">${escapeHtml(parts.main)}</span>${parts.sub ? `<span class="nextup-subject">${escapeHtml(parts.sub)}</span>` : ""}</p>
+        <p class="nextup-meta">${parts.room ? `<span>Raum <b>${escapeHtml(parts.room)}</b></span>` : parts.duty && parts.sub ? `<span>${escapeHtml(parts.sub)}</span>` : ""}<span>${hhmm(start)} – ${hhmm(end)}${main.double ? " · Doppelstunde" : ""}</span></p>
+        ${seatingClass ? `<button class="nextup-action" type="button" data-hero-seating="${escapeHtml(seatingClass)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Sitzplan ${escapeHtml(seatingClass)}<span aria-hidden="true">→</span></button>` : ""}
+      </div>
+      <div class="nextup-side">
+        <p class="nextup-kicker">Danach</p>
+        ${after.length ? `<ul class="nextup-list">${after.map((e) => {
+          const p = lessonParts(e);
+          return `<li${e.cancelled ? ' class="is-cancelled"' : ""}><span class="nextup-time">${hhmm(new Date(e.startsAt))}</span><span><b>${escapeHtml(p.main)}</b>${p.sub || p.room ? ` · ${escapeHtml([p.sub, p.room].filter(Boolean).join(" · "))}` : ""}${e.cancelled ? " · entfällt" : ""}</span></li>`;
+        }).join("")}</ul>` : '<p class="nextup-empty">Danach nichts mehr im Plan.</p>'}
+        ${lessons.length ? `<div class="nextup-progress" role="img" aria-label="${doneCount} von ${lessons.length} Stunden">${lessons.map((e, i) => `<span class="${i < doneCount ? "is-done" : ""}"></span>`).join("")}</div>
+        <p class="nextup-foot">${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"}${lastEnd ? ` · Schluss ${hhmm(lastEnd)}` : ""}</p>` : ""}
+      </div>`;
+  }
+
+  // ── „Heute wichtig“: höchstens drei Dinge, die heute zählen ──────────────────
+  function renderImportant(data) {
+    const box = document.getElementById("important");
+    if (!box) return;
+    if (!state.data) { box.hidden = true; return; }
+    const cards = [];
+    // Klassenarbeit heute / am nächsten Schultag (deine Klassen)
+    const classwork = data.planDigest?.classwork || {};
+    const allClasses = (classwork.classes || []).filter(Boolean);
+    const selected = getSelectedClassworkClasses(allClasses, classwork.defaultClass || "");
+    const filtered = selected.length && selected.length < allClasses.length;
+    const soon = localIso(_nextSchoolDay(new Date()));
+    const exams = (classwork.entries || [])
+      .filter((e) => e.isoDate && e.isoDate >= localIso(new Date()) && e.isoDate <= soon)
+      .filter((e) => !filtered || selected.includes(e.classLabel))
+      .sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+    if (exams.length) {
+      const first = exams[0];
+      cards.push(`<button class="imp-card" type="button" data-briefing-target="documents" data-plans-tab="klassenarbeitsplan">
+        <span class="imp-tag tone-warn">${escapeHtml(dayLabel(first.isoDate))}</span>
+        <span class="imp-title">Klassenarbeit ${escapeHtml(first.classLabel || "")}${exams.length > 1 ? ` <span class="imp-more">+${exams.length - 1}</span>` : ""}</span>
+        <span class="imp-sub">${escapeHtml(first.summary || first.title || "")}</span></button>`);
+    }
+    // Einsammlung mit dem nächsten Termin
+    const open = window.LehrerCollections && window.LehrerCollections.summary ? window.LehrerCollections.summary() : [];
+    if (open.length) {
+      const c = open[0];
+      const pct = Math.round((c.done / c.total) * 100);
+      cards.push(`<button class="imp-card" type="button" data-hero-collection="${escapeHtml(c.id)}">
+        <span class="imp-tag tone-accent">${c.dueDate ? `Einsammlung · ${escapeHtml(dayLabel(c.dueDate))}` : "Einsammlung"}</span>
+        <span class="imp-title">${escapeHtml(c.title)}</span>
+        <span class="imp-progress"><span class="imp-bar"><span style="width:${pct}%"></span></span><span class="imp-sub">${c.done} von ${c.total}</span></span></button>`);
+    }
+    // Ungelesene Dienstmails
+    const unread = unreadMails(data).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+    if (unread.length) {
+      cards.push(`<button class="imp-card" type="button" data-briefing-target="inbox">
+        <span class="imp-tag tone-inbox">Dienstmail</span>
+        <span class="imp-title">${unread.length} ungelesen</span>
+        <span class="imp-sub">${escapeHtml(unread[0].from || "")}: ${escapeHtml(unread[0].subject || "")}</span></button>`);
+    }
+    box.hidden = !cards.length;
+    box.innerHTML = cards.slice(0, 3).join("");
+  }
+
+  function goToSection(sectionId) {
+    state.activeSection = sectionId;
+    renderSectionFocus();
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   // Problems with personal calendar links (wrong link, needs login, gone …),
@@ -1350,7 +1510,7 @@
     if (entry.error) return `<p class="mail-error">${escapeHtml(entry.error)}</p>${link}`;
     const text = entry.text ? `<div class="mail-text">${escapeHtml(entry.text)}</div>` : '<p class="mail-loading">Diese Mail enthält keinen lesbaren Text.</p>';
     const attachments = entry.attachments && entry.attachments.length
-      ? `<p class="mail-attachments">📎 ${entry.attachments.map(escapeHtml).join(", ")}</p>` : "";
+      ? `<p class="mail-attachments">Anhang: ${entry.attachments.map(escapeHtml).join(", ")}</p>` : "";
     const more = entry.truncated ? '<p class="mail-loading">… gekürzt – die ganze Mail im Webmail.</p>' : "";
     return text + more + attachments + link;
   }
@@ -1575,7 +1735,7 @@
     if (!upperText) return "";
     if (!/klausur|klaus|prüf|pruef|abitur|\blk\b|\bgk\b|\bkla\b/i.test(upperText)) return "";
     return '<div class="today-oberstufe-banner">'
-      + '<span class="ts-banner-icon" aria-hidden="true">🎓</span>'
+      + '<span class="ts-banner-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg></span>'
       + '<span><strong>Oberstufe heute:</strong> ' + escapeHtml(upperText)
       + ' <span class="ts-banner-hint">· laut Orgaplan, ohne Kurszuordnung</span></span>'
       + '</div>';
@@ -2231,6 +2391,17 @@
       if (!target || event.target !== target) return;
       event.preventDefault();
       target.click();
+    });
+
+    // „Als Nächstes“ → Sitzplan der Klasse, „Heute wichtig“ → Einsammlung
+    document.getElementById("today-overview-grid")?.addEventListener("click", (event) => {
+      const seating = event.target.closest("[data-hero-seating]");
+      const collection = event.target.closest("[data-hero-collection]");
+      if (!seating && !collection) return;
+      if (seating && window.LehrerSeating) window.LehrerSeating.select(seating.dataset.heroSeating);
+      if (collection && window.LehrerCollections) window.LehrerCollections.select(collection.dataset.heroCollection);
+      goToSection("classlist");
+      showClassTab(seating ? "seating" : "collections");
     });
 
     elements.navLinks.forEach((button) => {
@@ -2989,6 +3160,7 @@
     normalizeLocalWebUntisState();
     applyTheme();
     registerEvents();
+    safely(() => renderNextUp(getData()));  // placeholder until the data is there
     window.addEventListener("dashboard-layout-changed", () => {
       if (state.data) {
         renderAll();
@@ -3114,6 +3286,10 @@
     initClassTabs();
     initInboxTabs();
     initAppUpdates();
+    // „in 12 Min.“ stays true without reloading the data
+    window.setInterval(() => {
+      if (state.data && (state.activeSection || "overview") === "overview") safely(() => renderNextUp(getData()));
+    }, 60 * 1000);
     const afterRefresh = () => {
       if (!window.MULTIUSER_ENABLED) loadClassworkCache();  // local single-user mode only
       loadGradebook();
@@ -3338,7 +3514,7 @@
     } catch (err) {
       setUploadStatus(`Upload fehlgeschlagen: ${err.message}`, "error");
     } finally {
-      if (labelText) labelText.textContent = "📂 Hochladen";
+      if (labelText) labelText.textContent = "Hochladen";
       if (elements.classworkUploadLabel) elements.classworkUploadLabel.style.opacity = "1";
     }
   }
