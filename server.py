@@ -328,12 +328,12 @@ class LehrerCockpitHandler(SimpleHTTPRequestHandler):
                 or getattr(current_nextcloud, "workspace_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/")
             )
             q1q2_url = (
-                str(payload.get("q1q2Url", getattr(current_nextcloud, "q1q2_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901"))).strip()
-                or getattr(current_nextcloud, "q1q2_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901")
+                str(payload.get("q1q2Url", getattr(current_nextcloud, "q1q2_url", ""))).strip()
+                or getattr(current_nextcloud, "q1q2_url", "")
             )
             q3q4_url = (
-                str(payload.get("q3q4Url", getattr(current_nextcloud, "q3q4_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900"))).strip()
-                or getattr(current_nextcloud, "q3q4_url", "https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900")
+                str(payload.get("q3q4Url", getattr(current_nextcloud, "q3q4_url", ""))).strip()
+                or getattr(current_nextcloud, "q3q4_url", "")
             )
             link_1_label = str(payload.get("link1Label", getattr(current_nextcloud, "link_1_label", ""))).strip()
             link_1_url = str(payload.get("link1Url", getattr(current_nextcloud, "link_1_url", ""))).strip()

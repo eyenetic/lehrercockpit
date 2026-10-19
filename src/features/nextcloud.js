@@ -143,8 +143,8 @@
     var source = (data.sources || []).find(function (item) { return item.id === 'nextcloud'; });
     var connection = (data.localConnections && data.localConnections.nextcloud) || {};
     var workspaceUrl = connection.workspaceUrl || connection.baseUrl || 'https://nextcloud-g2.b-sz-heos.logoip.de/index.php/apps/files/';
-    var q1q2Url = connection.q1q2Url || 'https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008901';
-    var q3q4Url = connection.q3q4Url || 'https://nextcloud-g2.b-sz-heos.logoip.de/index.php/f/4008900';
+    var q1q2Url = connection.q1q2Url || '';
+    var q3q4Url = connection.q3q4Url || '';
     var workspaceLinks = Array.isArray(connection.workspaceLinks) ? connection.workspaceLinks : [];
     var lastOpened = loadNextcloudLastOpened();
 
