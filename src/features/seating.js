@@ -99,6 +99,7 @@ var LehrerSeating = (function () {
                           validFrom: typeof p.validFrom === 'string' ? p.validFrom : '', room: typeof p.room === 'string' ? p.room : '',
                           heading: typeof p.heading === 'string' ? p.heading : '', subject: typeof p.subject === 'string' ? p.subject : '',
                           teacher: typeof p.teacher === 'string' ? p.teacher : '', setup: p.setup && typeof p.setup === 'object' ? p.setup : null,
+                          showLast: p.showLast === true,
                           updatedAt: p.updatedAt || null };
     });
   }
@@ -466,6 +467,8 @@ var LehrerSeating = (function () {
           '<label class="form-label">Lehrkraft (optional)<input class="form-input" name="teacher" maxlength="60" value="' + _esc(plan.teacher || _userName()) + '" /></label>' +
           '<label class="form-label">Gültig ab<input class="form-input" name="validFrom" type="date" value="' + _esc(plan.validFrom || _todayIso()) + '" required /></label>' +
         '</div>' +
+        '<label class="connection-check seat-print-check"><input type="checkbox" name="showLast"' + (plan.showLast ? ' checked' : '') + ' /> Nachnamen klein unter dem Vornamen zeigen</label>' +
+        '<p class="seat-print-msg" data-print-msg role="status"></p>' +
         '<div class="classlist-import-footer">' +
           '<button class="btn btn-secondary" type="button" data-close>Abbrechen</button>' +
           '<button class="btn btn-primary" type="submit">PDF erstellen</button>' +
@@ -482,83 +485,172 @@ var LehrerSeating = (function () {
       plan.heading = form.elements.heading.value.trim();
       plan.subject = form.elements.subject.value.trim();
       plan.teacher = form.elements.teacher.value.trim();
+      plan.showLast = form.elements.showLast.checked;
       _save();
-      close();
-      _print();
+      var button = form.querySelector('[type="submit"]');
+      button.disabled = true;
+      button.textContent = 'Erstelle PDF …';
+      _print().then(close, function () {
+        button.disabled = false;
+        button.textContent = 'PDF erstellen';
+        form.querySelector('[data-print-msg]').textContent = 'Das PDF konnte nicht erstellt werden – bitte Internetverbindung prüfen und noch einmal versuchen.';
+      });
     });
   }
 
-  /** A4 landscape: heading, "gültig ab", the room as the teacher (or the class) sees it. */
+  // ── PDF ─────────────────────────────────────────────────────────────────
+  // A real PDF file (jsPDF) instead of the browser's print dialog: Safari ignores
+  // „Querformat“ there. Loaded only when needed.
+  var JSPDF_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  var _jspdfLoading = null;
+  function _loadJsPdf() {
+    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+    if (!_jspdfLoading) {
+      _jspdfLoading = new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = JSPDF_SRC;
+        script.onload = function () { resolve(window.jspdf.jsPDF); };
+        script.onerror = function () { _jspdfLoading = null; reject(new Error('jsPDF')); };
+        document.head.appendChild(script);
+      });
+    }
+    return _jspdfLoading;
+  }
+
+  /** Largest font size (pt) ≤ max at which text fits into width (mm); shortened with „…“ if even min is too wide. */
+  function _fit(doc, text, width, max, min) {
+    var size = max;
+    doc.setFontSize(size);
+    while (size > min && doc.getTextWidth(text) > width) { size -= 0.5; doc.setFontSize(size); }
+    var out = text;
+    while (out.length > 2 && doc.getTextWidth(out) > width) out = out.slice(0, -2) + '…';
+    return { size: size, text: out };
+  }
+
+  /** A4 landscape: heading, „gültig ab“, the room as the teacher (or the class) sees it. */
   function _print() {
     var plan = _plan(_activeClass);
     var students = _students(_activeClass);
     var labels = _labels(students);
     var byId = {};
-    students.forEach(function (s) { byId[s.id] = s; });
-    if (!window.LehrerClasslist || !window.LehrerClasslist.printDocument) return;
+    students.forEach(function (st) { byId[st.id] = st; });
+    return _loadJsPdf().then(function (JsPDF) {
+      var doc = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      var W = 297, H = 210, M = 14;
+      var ink = [29, 29, 27], muted = [110, 110, 104], line = [205, 205, 200];
+      var heading = plan.heading || ('Klasse ' + _activeClass);
+      var meta = [plan.subject, plan.room ? 'Raum ' + plan.room : '', plan.teacher].filter(Boolean).join('  ·  ');
+      var turned = plan.front === 'bottom';
 
-    // Only the area with seats is printed; the teacher's view turns the room by 180°.
-    var turned = plan.front === 'bottom';
-    var usedRows = [], usedCols = [];
-    for (var r0 = 0; r0 < plan.rows; r0++) {
-      for (var c0 = 0; c0 < plan.cols; c0++) {
-        if (plan.cells[r0 * plan.cols + c0]) { usedRows[r0] = true; usedCols[c0] = true; }
+      // Kopf
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(muted[0], muted[1], muted[2]);
+      doc.setFontSize(8.5);
+      doc.text('SITZPLAN', M, M + 3);
+      doc.setTextColor(ink[0], ink[1], ink[2]);
+      doc.setFontSize(22);
+      doc.text(heading, M, M + 12);
+      if (meta) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10.5);
+        doc.setTextColor(muted[0], muted[1], muted[2]);
+        doc.text(meta, M, M + 19);
       }
-    }
-    var rowIdx = [], colIdx = [];
-    for (var r1 = 0; r1 < plan.rows; r1++) if (usedRows[r1] || (r1 > 0 && r1 < plan.rows - 1)) rowIdx.push(r1);
-    for (var c1 = 0; c1 < plan.cols; c1++) if (usedCols[c1] || (c1 > 0 && c1 < plan.cols - 1)) colIdx.push(c1);
-    if (turned) { rowIdx.reverse(); colIdx.reverse(); }
-    var seatRows = rowIdx.filter(function (r) { return usedRows[r]; }).length || 1;
-    // A4 landscape 297×210 mm, 12 mm margins, ~40 mm for heading, board and footer
-    var seatH = Math.max(11, Math.min(26, Math.floor((210 - 24 - 46) / (seatRows + (rowIdx.length - seatRows) * 0.35))));
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(muted[0], muted[1], muted[2]);
+      doc.text('gültig ab', W - M, M + 3, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.setTextColor(ink[0], ink[1], ink[2]);
+      doc.text(_deDate(plan.validFrom) || _deDate(_todayIso()), W - M, M + 11, { align: 'right' });
+      doc.setDrawColor(ink[0], ink[1], ink[2]);
+      doc.setLineWidth(0.6);
+      doc.line(M, M + 24, W - M, M + 24);
 
-    var grid = rowIdx.map(function (r) {
-      var seatRow = !!usedRows[r];
-      return '<tr class="' + (seatRow ? '' : 'aisle') + '">' + colIdx.map(function (c) {
-        var index = r * plan.cols + c;
-        if (!plan.cells[index]) return '<td class="gap' + (usedCols[c] ? '' : ' col-aisle') + '"></td>';
-        var st = byId[plan.seats[index]];
-        if (!st) return '<td class="seat empty"></td>';
-        var label = labels[st.id];
-        return '<td class="seat"><span class="first">' + _esc(label.first) + (label.initial ? ' ' + _esc(label.initial) : '') + '</span>' +
-          '<span class="last">' + _esc(st.lastName && st.firstName ? st.lastName : '') + '</span></td>';
-      }).join('') + '</tr>';
-    }).join('');
+      // Raum: only rows/columns with seats; aisles stay narrow; teacher's view turns it by 180°
+      var usedRow = [], usedCol = [];
+      for (var r0 = 0; r0 < plan.rows; r0++) for (var c0 = 0; c0 < plan.cols; c0++) {
+        if (plan.cells[r0 * plan.cols + c0]) { usedRow[r0] = true; usedCol[c0] = true; }
+      }
+      var rowIdx = [], colIdx = [];
+      var firstR = usedRow.indexOf(true), lastR = usedRow.lastIndexOf(true);
+      var firstC = usedCol.indexOf(true), lastC = usedCol.lastIndexOf(true);
+      for (var r1 = firstR; r1 <= lastR; r1++) rowIdx.push(r1);
+      for (var c1 = firstC; c1 <= lastC; c1++) colIdx.push(c1);
+      if (turned) { rowIdx.reverse(); colIdx.reverse(); }
+      var boardH = 7, boardGap = 5;
+      var top = M + 30 + (turned ? 0 : boardH + boardGap);
+      var bottom = H - M - 6 - (turned ? boardH + boardGap : 0);
+      var gap = 2.5;
+      var colW = colIdx.map(function (c) { return usedCol[c] ? 1 : 0.22; });
+      var rowW = rowIdx.map(function (r) { return usedRow[r] ? 1 : 0.3; });
+      var sumC = colW.reduce(function (a, b) { return a + b; }, 0) || 1;
+      var sumR = rowW.reduce(function (a, b) { return a + b; }, 0) || 1;
+      var unitW = Math.min(46, (W - 2 * M - gap * (colIdx.length - 1)) / sumC);
+      var unitH = Math.min(24, (bottom - top - gap * (rowIdx.length - 1)) / sumR);
+      var gridW = unitW * sumC + gap * (colIdx.length - 1);
+      var gridH = unitH * sumR + gap * (rowIdx.length - 1);
+      var x0 = (W - gridW) / 2;
+      var y0 = top + (bottom - top - gridH) / 2;
 
-    var placed = Object.keys(plan.seats).length;
-    var heading = plan.heading || ('Klasse ' + _activeClass);
-    var meta = [];
-    if (plan.subject) meta.push(plan.subject);
-    if (plan.room) meta.push('Raum ' + plan.room);
-    if (plan.teacher) meta.push(plan.teacher);
-    meta.push(placed + ' Schüler:innen');
-    var board = '<div class="board"><span>Tafel</span></div>';
-    var title = 'Sitzplan ' + heading;
-    window.LehrerClasslist.printDocument(title,
-      '<header class="head"><div><p class="kicker">Sitzplan</p><h1>' + _esc(heading) + '</h1><p class="sub">' + _esc(meta.join(' · ')) + '</p></div>' +
-        '<div class="valid"><span>gültig ab</span><b>' + _esc(_deDate(plan.validFrom) || _deDate(_todayIso())) + '</b></div></header>' +
-      (turned ? '' : board) +
-      '<table class="room">' + grid + '</table>' +
-      (turned ? board : '') +
-      '<footer class="foot">' + (turned ? 'Ansicht vom Pult aus' : 'Ansicht von der Klasse aus') + ' · erstellt am ' + _esc(_deDate(_todayIso())) + '</footer>',
-      { landscape: true,
-        css: 'body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,sans-serif;color:#1d1d1b}' +
-          '.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:8px;border-bottom:2px solid #1d1d1b;margin-bottom:10px}' +
-          '.kicker{margin:0 0 2px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#666}' +
-          '.head h1{font-size:24px;margin:0;letter-spacing:-0.01em}.sub{margin:3px 0 0;color:#555;font-size:12px}' +
-          '.valid{text-align:right;line-height:1.2}.valid span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#666}.valid b{font-size:15px}' +
-          'table.room{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:5px;margin:0 auto}' +
-          'table.room td{height:' + seatH + 'mm;padding:2px 3px;text-align:center;vertical-align:middle;border:0}' +
-          'table.room tr.aisle td{height:' + Math.max(3, Math.round(seatH * 0.35)) + 'mm}' +
-          'td.col-aisle{width:4mm}' +
-          'td.seat{border:1.2px solid #444 !important;border-radius:6px;background:#fff}' +
-          'td.seat.empty{border:1px dashed #aaa !important}' +
-          'td.seat .first{display:block;font-size:13px;font-weight:700}td.seat .last{display:block;font-size:9px;color:#666;margin-top:1px}' +
-          '.board{display:flex;justify-content:center;margin:8px 0}' +
-          '.board span{display:block;width:45%;text-align:center;padding:5px 0;border-radius:4px;background:#1d1d1b;color:#fff;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-          '.foot{margin-top:8px;font-size:9px;color:#888;text-align:right}' +
-          '@page{size:A4 landscape;margin:12mm}' });
+      var y = y0;
+      rowIdx.forEach(function (r, ri) {
+        var h = unitH * rowW[ri];
+        var x = x0;
+        colIdx.forEach(function (c, ci) {
+          var w = unitW * colW[ci];
+          var index = r * plan.cols + c;
+          if (plan.cells[index]) {
+            var st = byId[plan.seats[index]];
+            doc.setLineWidth(st ? 0.45 : 0.3);
+            doc.setDrawColor(st ? 80 : line[0], st ? 80 : line[1], st ? 78 : line[2]);
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+            if (st) {
+              var label = labels[st.id];
+              var name = label.first + (label.initial ? ' ' + label.initial : '');
+              var last = plan.showLast && st.firstName && st.lastName ? st.lastName : '';
+              doc.setFont('helvetica', 'bold');
+              doc.setTextColor(ink[0], ink[1], ink[2]);
+              var maxPt = Math.min(17, h * 2.83 * (last ? 0.4 : 0.5));
+              var fit = _fit(doc, name, w - 3, maxPt, 7);
+              doc.setFontSize(fit.size);
+              doc.text(fit.text, x + w / 2, y + h / 2 - (last ? 1.8 : 0), { align: 'center', baseline: 'middle' });
+              if (last) {
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(muted[0], muted[1], muted[2]);
+                var fitLast = _fit(doc, last, w - 3, Math.min(9, fit.size * 0.62), 6);
+                doc.setFontSize(fitLast.size);
+                doc.text(fitLast.text, x + w / 2, y + h / 2 + fit.size * 0.2 + 1.2, { align: 'center', baseline: 'middle' });
+              }
+            }
+          }
+          x += w + gap;
+        });
+        y += h + gap;
+      });
+
+      // Tafel
+      var boardW = Math.min(gridW, 120);
+      var by = turned ? y0 + gridH + boardGap : top - boardGap - boardH;
+      doc.setFillColor(ink[0], ink[1], ink[2]);
+      doc.roundedRect((W - boardW) / 2, by, boardW, boardH, 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text('TAFEL', W / 2, by + boardH / 2, { align: 'center', baseline: 'middle' });
+
+      // Fuß
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(muted[0], muted[1], muted[2]);
+      var placed = Object.keys(plan.seats).length;
+      doc.text((turned ? 'Ansicht vom Pult aus' : 'Ansicht von der Klasse aus') + '  ·  ' + placed + ' Schüler:innen', M, H - 8);
+      doc.text('erstellt am ' + _deDate(_todayIso()), W - M, H - 8, { align: 'right' });
+
+      doc.save('Sitzplan ' + heading.replace(/[\\/:*?"<>|]/g, '-') + '.pdf');
+    });
   }
 
   // ── Ereignisse ────────────────────────────────────────────────────────────

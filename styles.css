@@ -7343,3 +7343,11 @@ html, body { overflow-x: clip; }
 .col-tile-classes { font-size: 0.76rem; color: var(--muted); }
 .tile-more { margin: 6px 0 0; font-size: 0.8rem; color: var(--muted); }
 .weekahead.is-layout-hidden, .nextup.is-layout-hidden { display: none !important; }
+
+/* Sitzplan: Namen größer, PDF-Dialog */
+.seat-first { font-size: 0.92rem; }
+.seat-cell { min-height: 52px; }
+.seat-print-check { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; }
+.seat-print-msg:empty { display: none; }
+.seat-print-msg { margin: 0; font-size: 0.84rem; color: var(--danger); }
+@media (max-width: 640px) { .seat-first { font-size: 0.76rem; } .seat-cell { min-height: 46px; } }
