@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=112" />
-    <link rel="stylesheet" href="./styles.admin.css?v=112" />
+    <link rel="stylesheet" href="./styles.css?v=113" />
+    <link rel="stylesheet" href="./styles.admin.css?v=113" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -543,6 +543,24 @@
         .admin-topbar { padding: 0.6rem 0.9rem; }
         .admin-tab-icon { display: none; }
       }
+      /* Handy: nichts darf breiter als der Bildschirm werden (sonst zoomt das iPhone heraus
+         und das Scrollen hakt). Die Reiter scrollen waagerecht, Tabellen in ihrer Karte. */
+      .admin-shell { grid-template-columns: minmax(0, 1fr); }
+      .admin-topbar, .admin-body, .admin-section, .admin-card { min-width: 0; max-width: 100%; box-sizing: border-box; }
+      @media (max-width: 640px) {
+        .admin-body { padding: 1rem 0.75rem 2rem; }
+        .admin-card { padding: 14px; }
+        .admin-card-header { flex-wrap: wrap; }
+        .admin-card-header .header-actions { width: 100%; }
+        .admin-card-header .header-actions .btn { flex: 1 1 auto; justify-content: center; }
+        .admin-table-wrap, .admin-card:has(> .admin-table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .admin-table th, .admin-table td { padding: 8px 6px; }
+        .admin-topbar-actions { margin-left: auto; }
+        .admin-topbar-actions .btn { padding-inline: 10px; }
+        .form-row { grid-template-columns: minmax(0, 1fr) !important; }
+        .form-field, .form-field input, .form-field select, .form-field textarea { min-width: 0; max-width: 100%; box-sizing: border-box; }
+        .admin-card:has(.user-table), .admin-card:has(table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      }
     </style>
   </head>
   <body class="admin-page">
@@ -857,7 +875,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=112"></script>
+    <script src="./src/api-client.js?v=113"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';

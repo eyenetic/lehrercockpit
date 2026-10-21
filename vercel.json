@@ -7,37 +7,91 @@
     {
       "source": "/",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
       ]
     },
     {
       "source": "/data/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     },
     {
       "source": "/index.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
       ]
     },
     {
       "source": "/login.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
       ]
     },
     {
       "source": "/onboarding.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
       ]
     },
     {
       "source": "/admin.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/src/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/styles.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/styles.auth.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/styles.admin.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     }
   ]

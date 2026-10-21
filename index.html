@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=112" />
+    <link rel="stylesheet" href="./styles.css?v=113" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -176,7 +176,6 @@
           <div class="page-head-text">
             <h1 class="page-title" id="today-weekday">Heute</h1>
             <p class="page-subtitle" id="today-date-display"></p>
-            <button class="break-chip" id="break-chip" type="button" hidden aria-haspopup="dialog"></button>
           </div>
           <div class="page-head-actions">
             <span class="page-stand" id="hero-note">Lade …</span>
@@ -191,9 +190,8 @@
 
         <section class="today layout-pending" id="today-overview-grid" data-view-section="overview" aria-label="Heute">
           <div id="source-attention" class="attention-list" hidden></div>
-          <section class="nextup" id="nextup" aria-label="Als Nächstes" hidden></section>
-          <section class="important" id="important" aria-label="Heute wichtig" hidden></section>
-          <section class="weekahead" id="weekahead" aria-labelledby="weekahead-title" hidden></section>
+          <section class="nextup" id="nextup" data-today-module="nextup" aria-label="Als Nächstes" hidden></section>
+          <section class="weekahead" id="weekahead" data-today-module="week" aria-labelledby="weekahead-title" hidden></section>
           <nav class="quicklinks" id="heute-zugaenge-container" data-today-module="access" aria-label="Zugänge"></nav>
 
           <div class="today-board">
@@ -225,6 +223,24 @@
               <button class="tile-link" type="button" data-briefing-target="documents" data-plans-tab="klassenarbeitsplan">Alle</button>
             </header>
             <div id="today-classwork-body" class="tile-body"></div>
+          </article>
+
+          <article class="tile" data-today-module="breaks" data-col="side" aria-labelledby="tile-breaks-title">
+            <header class="tile-head">
+              <h2 id="tile-breaks-title">Ferien</h2>
+              <span class="tile-meta" id="tile-breaks-meta"></span>
+              <button class="tile-link" type="button" data-open-schoolyear>Schuljahr</button>
+            </header>
+            <div id="today-breaks-body" class="tile-body"></div>
+          </article>
+
+          <article class="tile" data-today-module="collections" data-col="side" aria-labelledby="tile-collections-title">
+            <header class="tile-head">
+              <h2 id="tile-collections-title">Einsammlungen</h2>
+              <span class="tile-meta" id="tile-collections-meta"></span>
+              <button class="tile-link" type="button" data-open-collections>Alle</button>
+            </header>
+            <div id="today-collections-body" class="tile-body"></div>
           </article>
 
           <article class="tile" data-today-module="inbox" data-col="main" aria-labelledby="tile-inbox-title">
@@ -605,29 +621,29 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=112"></script>
-    <script src="./src/features/vault.js?v=112"></script>
-    <script src="./src/api-client.js?v=112"></script>
-    <script src="./src/modules/dashboard-manager.js?v=112"></script>
-    <script src="./src/features/grades.js?v=112"></script>
-    <script src="./src/features/webuntis.js?v=112"></script>
-    <script src="./src/features/itslearning.js?v=112"></script>
-    <script src="./src/features/nextcloud.js?v=112"></script>
-    <script src="./src/features/documents.js?v=112"></script>
-    <script src="./src/features/classwork.js?v=112"></script>
-    <script src="./src/features/classlist.js?v=112"></script>
-    <script src="./src/features/collections.js?v=112"></script>
-    <script src="./src/features/seating.js?v=112"></script>
-    <script src="./src/features/schoolyear.js?v=112"></script>
-    <script src="./src/features/inbox.js?v=112"></script>
-    <script src="./src/features/zugaenge.js?v=112"></script>
-    <script src="./src/features/onedrive-sync.js?v=112"></script>
-    <script src="./src/features/signals.js?v=112"></script>
-    <script src="./src/features/ai.js?v=112"></script>
-    <script src="./src/features/links.js?v=112"></script>
-    <script src="./src/features/connections.js?v=112"></script>
-    <script src="./src/features/feedback.js?v=112"></script>
-    <script src="./src/app.js?v=112"></script>
+    <script src="./data/mock-dashboard.js?v=113"></script>
+    <script src="./src/features/vault.js?v=113"></script>
+    <script src="./src/api-client.js?v=113"></script>
+    <script src="./src/modules/dashboard-manager.js?v=113"></script>
+    <script src="./src/features/grades.js?v=113"></script>
+    <script src="./src/features/webuntis.js?v=113"></script>
+    <script src="./src/features/itslearning.js?v=113"></script>
+    <script src="./src/features/nextcloud.js?v=113"></script>
+    <script src="./src/features/documents.js?v=113"></script>
+    <script src="./src/features/classwork.js?v=113"></script>
+    <script src="./src/features/classlist.js?v=113"></script>
+    <script src="./src/features/collections.js?v=113"></script>
+    <script src="./src/features/seating.js?v=113"></script>
+    <script src="./src/features/schoolyear.js?v=113"></script>
+    <script src="./src/features/inbox.js?v=113"></script>
+    <script src="./src/features/zugaenge.js?v=113"></script>
+    <script src="./src/features/onedrive-sync.js?v=113"></script>
+    <script src="./src/features/signals.js?v=113"></script>
+    <script src="./src/features/ai.js?v=113"></script>
+    <script src="./src/features/links.js?v=113"></script>
+    <script src="./src/features/connections.js?v=113"></script>
+    <script src="./src/features/feedback.js?v=113"></script>
+    <script src="./src/app.js?v=113"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.

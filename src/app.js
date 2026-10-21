@@ -793,8 +793,6 @@
     if (topbarTitle) topbarTitle.textContent = active === "overview" ? "Heute" : (SECTION_TITLES[active] || "Lehrercockpit");
     // Each area has its own calm colour (styles.css: body[data-section]); the head shows its icon.
     document.body.dataset.section = active;
-    const breakChip = document.getElementById("break-chip");
-    if (breakChip) breakChip.classList.toggle("is-offpage", active !== "overview");
     const icon = document.getElementById("page-head-icon");
     const navIcon = document.querySelector(`.sidebar-nav [data-section-target="${active}"] svg`);
     if (icon) icon.innerHTML = navIcon ? navIcon.outerHTML : "";
@@ -1063,9 +1061,9 @@
     renderClassworkTile(data);
     renderInboxTile(data);
     safely(() => renderNextUp(data));
-    safely(() => renderImportant(data));
     safely(() => renderWeekAhead(data));
-    safely(() => renderBreakChip(data));
+    safely(() => renderBreaksTile(data));
+    safely(() => renderCollectionsTile());
   }
 
   // ── „Als Nächstes“: die aktuelle/nächste Stunde groß oben auf Heute ──────────
@@ -1168,51 +1166,6 @@
       </div>`;
   }
 
-  // ── „Heute wichtig“: höchstens drei Dinge, die heute zählen ──────────────────
-  function renderImportant(data) {
-    const box = document.getElementById("important");
-    if (!box) return;
-    if (!state.data) { box.hidden = true; return; }
-    const cards = [];
-    // Klassenarbeit heute / am nächsten Schultag (deine Klassen)
-    const classwork = data.planDigest?.classwork || {};
-    const allClasses = (classwork.classes || []).filter(Boolean);
-    const selected = getSelectedClassworkClasses(allClasses, classwork.defaultClass || "");
-    const filtered = selected.length && selected.length < allClasses.length;
-    const soon = localIso(_nextSchoolDay(new Date()));
-    const exams = (classwork.entries || [])
-      .filter((e) => e.isoDate && e.isoDate >= localIso(new Date()) && e.isoDate <= soon)
-      .filter((e) => !filtered || selected.includes(e.classLabel))
-      .sort((a, b) => a.isoDate.localeCompare(b.isoDate));
-    if (exams.length) {
-      const first = exams[0];
-      cards.push(`<button class="imp-card" type="button" data-briefing-target="documents" data-plans-tab="klassenarbeitsplan">
-        <span class="imp-tag tone-warn">${escapeHtml(dayLabel(first.isoDate))}</span>
-        <span class="imp-title">Klassenarbeit ${escapeHtml(first.classLabel || "")}${exams.length > 1 ? ` <span class="imp-more">+${exams.length - 1}</span>` : ""}</span>
-        <span class="imp-sub">${escapeHtml(first.summary || first.title || "")}</span></button>`);
-    }
-    // Einsammlung mit dem nächsten Termin
-    const open = window.LehrerCollections && window.LehrerCollections.summary ? window.LehrerCollections.summary() : [];
-    if (open.length) {
-      const c = open[0];
-      const pct = Math.round((c.done / c.total) * 100);
-      cards.push(`<button class="imp-card" type="button" data-hero-collection="${escapeHtml(c.id)}">
-        <span class="imp-tag tone-accent">${c.dueDate ? `Einsammlung · ${escapeHtml(dayLabel(c.dueDate))}` : "Einsammlung"}</span>
-        <span class="imp-title">${escapeHtml(c.title)}</span>
-        <span class="imp-progress"><span class="imp-bar"><span style="width:${pct}%"></span></span><span class="imp-sub">${c.done} von ${c.total}</span></span></button>`);
-    }
-    // Ungelesene Dienstmails
-    const unread = unreadMails(data).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-    if (unread.length) {
-      cards.push(`<button class="imp-card" type="button" data-briefing-target="inbox">
-        <span class="imp-tag tone-inbox">Dienstmail</span>
-        <span class="imp-title">${unread.length} ungelesen</span>
-        <span class="imp-sub">${escapeHtml(unread[0].from || "")}: ${escapeHtml(unread[0].subject || "")}</span></button>`);
-    }
-    box.hidden = !cards.length;
-    box.innerHTML = cards.slice(0, 3).join("");
-  }
-
   // ── Ferien-Countdown und Schuljahr ───────────────────────────────────────────
   const SY = () => window.LehrerSchoolYear;
   const shortDate = (d) => d.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(",", "");
@@ -1226,31 +1179,84 @@
       .map((e) => ({ name: e.title, start: String(e.start).slice(0, 10), end: String(e.end || e.start).slice(0, 10) })));
   }
 
-  function renderBreakChip(data) {
-    const chip = document.getElementById("break-chip");
-    if (!chip || !SY()) return;
+  /** „7 Wochen“, „8 Wochen, 3 Tage“ – calendar time until a date. */
+  function weeksUntil(from, to) {
+    const days = Math.round((startOfDay(to) - startOfDay(from)) / 86400000);
+    if (days <= 0) return "";
+    const weeks = Math.floor(days / 7);
+    const rest = days % 7;
+    if (!weeks) return `${rest} ${rest === 1 ? "Tag" : "Tage"}`;
+    return `${weeks} ${weeks === 1 ? "Woche" : "Wochen"}${rest ? `, ${rest} ${rest === 1 ? "Tag" : "Tage"}` : ""}`;
+  }
+
+  function renderBreaksTile(data) {
+    const body = document.getElementById("today-breaks-body");
+    if (!body || !SY()) return;
     syncExtraBreaks(data);
     const now = new Date();
     const today = startOfDay(now);
+    const year = SY().schoolYear(today);
+    setTileMeta("tile-breaks-meta", year.known ? `Schuljahr ${year.label}` : "");
     const current = SY().breakOn(today);
-    let text = "";
+    const next = SY().nextBreak(today);
+    let lead = "";
     if (current && !current.holiday) {
       const end = SY().fromIso(current.end);
-      text = `${current.name} · bis ${shortDate(end)}`;
-    } else {
-      const next = SY().nextBreak(today);
-      if (next) {
-        // today still counts until early afternoon
-        const from = now.getHours() < 14 ? today : SY().addDays(today, 1);
-        const days = SY().schoolDaysBetween(from, SY().fromIso(next.start));
-        const startDay = SY().fromIso(next.start);
-        text = days === 0
-          ? `${next.name} ab ${startDay.toLocaleDateString("de-DE", { weekday: "long" })}`
-          : `Noch ${days} ${days === 1 ? "Schultag" : "Schultage"} bis zu den ${next.name}`;
-      }
+      let back = SY().addDays(end, 1);
+      for (let i = 0; i < 14 && !SY().isSchoolDay(back); i++) back = SY().addDays(back, 1);
+      lead = `<div class="brk-now"><span class="brk-name">${escapeHtml(current.name)}</span>
+        <span class="brk-count">jetzt · bis ${escapeHtml(shortDate(end))}</span>
+        <span class="brk-sub">Schule wieder ab ${escapeHtml(shortDate(back))}</span></div>`;
+    } else if (next) {
+      const start = SY().fromIso(next.start);
+      const from = now.getHours() < 14 ? today : SY().addDays(today, 1);
+      const days = SY().schoolDaysBetween(from, start);
+      lead = `<div class="brk-now"><span class="brk-name">${escapeHtml(next.name)}</span>
+        <span class="brk-count"><b>${days}</b> ${days === 1 ? "Schultag" : "Schultage"} · ${escapeHtml(weeksUntil(today, start))}</span>
+        <span class="brk-sub">ab ${escapeHtml(shortDate(start))}</span></div>`;
     }
-    chip.hidden = !text;
-    chip.innerHTML = text ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 21H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M22 10.5V9a7 7 0 0 0-7-7"/></svg><span>${escapeHtml(text)}</span>` : "";
+    if (!lead) {
+      body.innerHTML = tileEmpty("Die Ferien für dieses Schuljahr sind noch nicht hinterlegt.");
+      return;
+    }
+    // school year progress up to the summer holidays
+    let progress = "";
+    if (year.known) {
+      const summer = year.breaks.find((b) => /sommer/i.test(b.name));
+      const end = summer ? SY().fromIso(summer.start) : SY().fromIso(year.end);
+      const total = SY().schoolDaysBetween(SY().fromIso(year.start), end);
+      const done = Math.min(total, SY().schoolDaysBetween(SY().fromIso(year.start), today));
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      progress = `<div class="brk-progress" role="img" aria-label="${pct} % des Schuljahres"><span style="width:${pct}%"></span></div>
+        <p class="brk-progress-label">${pct} % des Schuljahres geschafft</p>`;
+    }
+    const todayIso = SY().iso(today);
+    const shown = current && !current.holiday ? null : next;  // the break named above is not listed again
+    const later = year.breaks.filter((b) => b.start > todayIso && b !== shown && b.end > b.start).slice(0, 2);
+    body.innerHTML = lead + progress + (later.length ? `<ul class="brk-list">${later.map((b) => {
+      const s = SY().fromIso(b.start);
+      return `<li><span>${escapeHtml(b.name)}</span><span class="brk-when">${escapeHtml(shortDate(s))} · in ${escapeHtml(weeksUntil(today, s))}</span></li>`;
+    }).join("")}</ul>` : "");
+  }
+
+  function renderCollectionsTile() {
+    const body = document.getElementById("today-collections-body");
+    if (!body) return;
+    const open = window.LehrerCollections && window.LehrerCollections.summary ? window.LehrerCollections.summary() : [];
+    setTileMeta("tile-collections-meta", open.length ? `${open.length} offen` : "");
+    if (!open.length) {
+      body.innerHTML = tileEmpty("Keine offenen Einsammlungen.",
+        '<button class="btn btn-secondary btn-sm" type="button" data-open-collections>Einsammlung anlegen</button>');
+      return;
+    }
+    body.innerHTML = `<ul class="col-tile-list">${open.slice(0, 4).map((c) => {
+      const pct = Math.round((c.done / c.total) * 100);
+      const due = !c.dueDate ? "" : c.dueDate < localIso(new Date()) ? "überfällig" : dayLabel(c.dueDate);
+      return `<li><button type="button" class="col-tile-row" data-hero-collection="${escapeHtml(c.id)}">
+        <span class="col-tile-top"><span class="col-tile-title">${escapeHtml(c.title)}</span>${due ? `<span class="col-tile-due">${escapeHtml(due)}</span>` : ""}</span>
+        <span class="col-tile-bar"><span class="imp-bar"><span style="width:${pct}%"></span></span><span class="col-tile-count">${c.done}/${c.total}</span></span>
+        <span class="col-tile-classes">${escapeHtml(c.classIds.join(", "))}</span></button></li>`;
+    }).join("")}</ul>${open.length > 4 ? `<p class="tile-more">+ ${open.length - 4} weitere</p>` : ""}`;
   }
 
   function openSchoolYear() {
@@ -1982,7 +1988,9 @@
     return "";
   }
 
-  const TODAY_LAYOUT_IDS = ["schedule", "school", "classwork", "inbox", "ai", "access"];
+  const TODAY_LAYOUT_IDS = ["nextup", "week", "schedule", "school", "classwork", "breaks", "collections", "inbox", "ai", "access"];
+  // Shown full width above the two columns, not moved into them.
+  const TODAY_ABOVE_BOARD = ["access", "nextup", "week"];
 
   function getDefaultTodayLayout() {
     return {
@@ -2037,7 +2045,7 @@
       const modules = TODAY_TILE_MODULES[id] || [];
       const allowed = !modules.length || !isLayoutReady() || isAnyModuleVisible(modules);
       tile.classList.toggle("is-layout-hidden", layout.visibility[id] === false || !allowed);
-      if (id === "access") return; // quick links stay above the board
+      if (TODAY_ABOVE_BOARD.includes(id)) return; // quick links, „Als Nächstes“, „Deine Woche“ stay above the board
       const column = wide && tile.dataset.col === "side" ? side : main;
       if (tile.parentElement !== column) column.appendChild(tile);
       else column.appendChild(tile); // keep layout order inside the column
@@ -2546,7 +2554,10 @@
       target.click();
     });
 
-    document.getElementById("break-chip")?.addEventListener("click", openSchoolYear);
+    document.getElementById("today-overview-grid")?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-open-schoolyear]")) { openSchoolYear(); return; }
+      if (event.target.closest("[data-open-collections]")) { goToSection("classlist"); showClassTab("collections"); }
+    });
     document.getElementById("schoolyear-modal")?.addEventListener("click", (event) => {
       if (event.target.id === "schoolyear-modal" || event.target.closest("[data-schoolyear-close]")) event.currentTarget.hidden = true;
     });
@@ -3008,9 +3019,13 @@
 
   function getHeuteLayoutItems() {
     var labels = {
+      nextup: "Als Nächstes",
+      week: "Deine Woche (am Wochenende)",
       schedule: "Stundenplan",
       school: "Heute an der Schule",
       classwork: "Klassenarbeiten",
+      breaks: "Ferien",
+      collections: "Einsammlungen",
       inbox: "Posteingang",
       ai: "KI-Zusammenfassung",
       access: "Zugänge (Schnellzugriff)",

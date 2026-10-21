@@ -46,9 +46,13 @@
     // Tiles on "Heute" (order + visibility, stored per device). Keep in sync with
     // TODAY_LAYOUT_IDS in src/app.js.
     var TODAY_LAYOUT_DEFINITION = [
+      { id: 'nextup', label: 'Als Nächstes', mandatory: false },
+      { id: 'week', label: 'Deine Woche (am Wochenende)', mandatory: false },
       { id: 'schedule', label: 'Stundenplan', mandatory: false },
       { id: 'school', label: 'Heute an der Schule', mandatory: false },
       { id: 'classwork', label: 'Klassenarbeiten', mandatory: false },
+      { id: 'breaks', label: 'Ferien', mandatory: false },
+      { id: 'collections', label: 'Einsammlungen', mandatory: false },
       { id: 'inbox', label: 'Posteingang', mandatory: false },
       { id: 'ai', label: 'KI-Zusammenfassung', mandatory: false },
       { id: 'access', label: 'Zugänge', mandatory: false }

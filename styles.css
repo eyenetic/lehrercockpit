@@ -7307,3 +7307,39 @@ html, body { overflow-x: clip; }
   .wa-col > .wa-lessons { grid-row: 1; }
   .wa-sum { margin-left: 0; width: 100%; }
 }
+
+/* Stufen-Farben unabhängig von der Bereichsfarbe: Allgemein blau, Mittelstufe orange, Oberstufe grün */
+:root { --level-general: #2856d6; }
+:root[data-theme="dark"] { --level-general: #7c9cff; }
+:root .tile-tag-general, :root[data-theme="dark"] .tile-tag-general {
+  background: color-mix(in srgb, var(--level-general) 13%, var(--panel)); color: var(--level-general);
+}
+#orgaplan-level-filter .filter-button[data-orgaplan-level="all"] { --level: var(--level-general); }
+.orgaplan-label--allgemein { color: var(--level-general) !important; background: color-mix(in srgb, var(--level-general) 12%, transparent) !important; }
+
+/* Heute: Kacheln „Ferien“ und „Einsammlungen“ */
+.tile[data-today-module="breaks"] { --tone: var(--tone-grades); }
+.tile[data-today-module="collections"] { --tone: var(--tone-classes); }
+.brk-now { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.brk-name { font-size: 1rem; font-weight: 650; }
+.brk-count { font-size: 0.92rem; color: var(--ink); }
+.brk-count b { font-size: 1.15rem; color: var(--tone-grades); }
+.brk-sub { font-size: 0.8rem; color: var(--muted); }
+.brk-progress { height: 6px; border-radius: 999px; background: var(--panel-soft); overflow: hidden; }
+.brk-progress span { display: block; height: 100%; border-radius: 999px; background: var(--tone-grades); }
+.brk-progress-label { margin: 4px 0 0; font-size: 0.76rem; color: var(--muted); }
+.brk-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; }
+.brk-list li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 0.86rem; }
+.brk-when { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.col-tile-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.col-tile-list li + li { border-top: 1px solid var(--line); }
+.col-tile-row { width: 100%; display: flex; flex-direction: column; gap: 4px; padding: 8px 2px; border: 0; background: none; text-align: left; font: inherit; color: var(--ink); cursor: pointer; border-radius: 8px; }
+.col-tile-row:hover { background: var(--panel-soft); }
+.col-tile-top { display: flex; align-items: baseline; gap: 8px; }
+.col-tile-title { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-tile-due { font-size: 0.75rem; font-weight: 600; color: var(--tone-classes); white-space: nowrap; }
+.col-tile-bar { display: flex; align-items: center; gap: 10px; }
+.col-tile-count { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.col-tile-classes { font-size: 0.76rem; color: var(--muted); }
+.tile-more { margin: 6px 0 0; font-size: 0.8rem; color: var(--muted); }
+.weekahead.is-layout-hidden, .nextup.is-layout-hidden { display: none !important; }
