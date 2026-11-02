@@ -21,7 +21,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=114" />
+    <link rel="stylesheet" href="./styles.css?v=115" />
     <style>
       body.auth {
         min-height: 100vh;
@@ -178,7 +178,7 @@
             <button class="auth-eye" type="button" data-toggle-secret="invite-code" aria-label="Code anzeigen"></button>
           </span>
         </label>
-        <p class="auth-hint">Wie ein Passwort: mindestens 8 Buchstaben oder Ziffern. Damit meldest du dich auf jedem Gerät an – dein Browser kann ihn sich merken.</p>
+        <p class="auth-hint">Wie ein Passwort: mindestens 8 Zeichen. Damit meldest du dich auf jedem Gerät an – dein Browser kann ihn sich merken.</p>
         <p class="auth-message is-error" id="invite-error" role="alert" hidden></p>
         <button class="btn btn-primary auth-submit" type="submit" id="invite-btn">Konto anlegen und weiter</button>
         <p class="auth-legal">Mit dem Anlegen gelten die <button type="button" data-open-privacy>Datenschutzhinweise</button>.</p>
@@ -187,6 +187,9 @@
       <!-- Einladung ungültig -->
       <div class="auth-form" id="invite-invalid" data-view="invite-invalid" hidden>
         <p class="auth-message is-error" id="invite-invalid-text"></p>
+        <p class="auth-hint invite-invalid-help"><b>Schon ein Konto angelegt</b>, z. B. am Handy? Dann melde dich einfach mit deinem Zugangscode an – der Einladungslink wird dafür nicht mehr gebraucht.</p>
+        <button class="btn btn-primary auth-submit" type="button" data-show="login">Mit Zugangscode anmelden</button>
+        <p class="auth-hint invite-invalid-help">Noch kein Konto? Bitte die Person, die dich eingeladen hat, um einen neuen Link – oder frag den Zugang hier an.</p>
         <button class="btn btn-secondary auth-submit" type="button" data-show="register">Zugang anfragen</button>
       </div>
 
@@ -208,7 +211,7 @@
             <button class="auth-eye" type="button" data-toggle-secret="new-code-input" aria-label="Code anzeigen"></button>
           </span>
         </label>
-        <p class="auth-hint">Mindestens 8 Buchstaben oder Ziffern.</p>
+        <p class="auth-hint">Mindestens 8 Zeichen.</p>
         <p class="auth-message is-error" id="reset-error" role="alert" hidden></p>
         <p class="auth-message is-success" id="reset-success" hidden></p>
         <button class="btn btn-primary auth-submit" type="submit" id="reset-btn">Code speichern</button>
@@ -263,7 +266,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/features/vault.js?v=114"></script>
+    <script src="./src/features/vault.js?v=115"></script>
     <script>
       (function () {
         'use strict';
@@ -384,6 +387,21 @@
 
         function startInvite() {
           show('invite', 'Einladung wird geprüft …');
+          // Already signed in on this device (link opened a second time): straight to the cockpit.
+          fetch(API + '/api/v2/auth/me', { credentials: 'include' })
+            .then(function (resp) { return resp.ok ? resp.json() : null; })
+            .catch(function () { return null; })
+            .then(function (me) {
+              if (me && me.ok) {
+                try { sessionStorage.removeItem('lc.invite'); } catch (e) {}
+                afterLogin(me.user);
+                return;
+              }
+              checkInvite();
+            });
+        }
+
+        function checkInvite() {
           post('/api/v2/auth/invitation', { token: inviteToken }).then(function (result) {
             if (!result.ok) {
               try { sessionStorage.removeItem('lc.invite'); } catch (e) {}
@@ -412,7 +430,6 @@
           var code = $('invite-code').value.trim();
           if (!first || !last) { message(error, 'Bitte gib Vor- und Nachnamen ein.'); return; }
           if (code.length < 8) { message(error, 'Der Code braucht mindestens 8 Zeichen.'); return; }
-          if (!/^[A-Za-z0-9ÄÖÜäöüß]+$/.test(code)) { message(error, 'Bitte nur Buchstaben und Ziffern verwenden.'); return; }
           $('invite-username').value = first + ' ' + last;
           message(error, '');
           busy($('invite-btn'), 'Lege Konto an …');
@@ -497,7 +514,6 @@
           var code = $('new-code-input').value.trim();
           var error = $('reset-error');
           if (code.length < 8) { message(error, 'Der Code braucht mindestens 8 Zeichen.'); return; }
-          if (!/^[A-Za-z0-9ÄÖÜäöüß]+$/.test(code)) { message(error, 'Bitte nur Buchstaben und Ziffern verwenden.'); return; }
           message(error, '');
           busy($('reset-btn'), 'Speichere …');
           post('/api/v2/auth/reset-code', { token: resetToken, new_code: code }).then(function (result) {

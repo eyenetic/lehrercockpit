@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=114" />
-    <link rel="stylesheet" href="./styles.admin.css?v=114" />
+    <link rel="stylesheet" href="./styles.css?v=115" />
+    <link rel="stylesheet" href="./styles.admin.css?v=115" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -546,6 +546,10 @@
       /* Handy: nichts darf breiter als der Bildschirm werden (sonst zoomt das iPhone heraus
          und das Scrollen hakt). Die Reiter scrollen waagerecht, Tabellen in ihrer Karte. */
       .admin-shell { grid-template-columns: minmax(0, 1fr); }
+      .setup-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+      .setup-chip { font-size: 0.72rem; padding: 2px 7px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); border: 1px dashed var(--line-strong); white-space: nowrap; }
+      .setup-chip.is-ok { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); font-weight: 600; }
+      .user-table .user-note { display: block; }
       .admin-topbar, .admin-body, .admin-section, .admin-card { min-width: 0; max-width: 100%; box-sizing: border-box; }
       @media (max-width: 640px) {
         .admin-body { padding: 1rem 0.75rem 2rem; }
@@ -875,7 +879,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=114"></script>
+    <script src="./src/api-client.js?v=115"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1200,8 +1204,15 @@
             return;
           }
           let html = '<table class="user-table"><thead><tr>'
-            + '<th>Name</th><th>Status</th><th class="th-actions">Aktionen</th>'
+            + '<th>Name</th><th>Eingerichtet</th><th>Status</th><th class="th-actions">Aktionen</th>'
             + '</tr></thead><tbody>';
+          // Who has connected what – so you can help colleagues who got stuck.
+          const SOURCES = [['webuntis', 'Stundenplan'], ['itslearning', 'itslearning'], ['mail', 'Dienstmail']];
+          function seenText(iso) {
+            if (!iso) return 'noch nie angemeldet';
+            const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+            return days < 1 ? 'heute aktiv' : days === 1 ? 'gestern aktiv' : 'vor ' + days + ' Tagen aktiv';
+          }
 
           users.forEach(function (u) {
             // Phase 13: show admin badge based on is_admin flag (+ role compat)
@@ -1214,7 +1225,13 @@
             html += '<tr>'
               + '<td><span class="user-name">' + esc(u.full_name || (u.first_name + ' ' + u.last_name)) + '</span>'
               + (isAdminUser ? ' <span class="badge badge-admin">Admin</span>' : '')
-              + (u.has_access_code ? '' : '<span class="user-note">noch kein Code</span>') + '</td>'
+              + (u.has_access_code ? '' : '<span class="user-note">noch kein Code</span>')
+              + '<span class="user-note">' + esc(seenText(u.last_seen)) + '</span></td>'
+              + '<td><div class="setup-chips">' + SOURCES.map(function (src) {
+                  const ok = (u.connected || []).indexOf(src[0]) !== -1;
+                  return '<span class="setup-chip' + (ok ? ' is-ok' : '') + '" title="' + src[1] + (ok ? ' verbunden' : ' noch nicht verbunden') + '">'
+                    + (ok ? '✓ ' : '') + src[1] + '</span>';
+                }).join('') + '</div></td>'
               + '<td>' + statusBadge + '</td>'
               + '<td><div class="actions-cell">'
               + '<button class="btn btn-sm" type="button" data-action="check-links"' + ids + ' title="WebUntis- und itslearning-Link dieser Lehrkraft testen">Links prüfen</button>'

@@ -25,14 +25,17 @@ LOOKUP_TAG_HEX = 4  # 16 bits: narrows the login lookup, reveals next to nothing
 
 # Self-chosen codes (invitation, change, reset)
 MIN_CHOSEN_LENGTH = 8
+MAX_CHOSEN_LENGTH = 128
 
 
 def chosen_code_problem(code: str) -> "str | None":
     """Why a self-chosen access code is not acceptable, or None."""
+    # Any characters: password managers (e.g. the iPhone's „starkes Passwort“)
+    # suggest codes with dashes – rejecting them made colleagues give up.
     if len(code) < MIN_CHOSEN_LENGTH:
         return f"Der Code braucht mindestens {MIN_CHOSEN_LENGTH} Zeichen."
-    if not code.isalnum():
-        return "Der Code darf nur Buchstaben und Ziffern enthalten."
+    if len(code) > MAX_CHOSEN_LENGTH:
+        return f"Der Code darf höchstens {MAX_CHOSEN_LENGTH} Zeichen haben."
     return None
 
 

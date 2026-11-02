@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 invitation_public_bp = Blueprint("invitation_public", __name__)
 invitation_admin_bp = Blueprint("invitation_admin", __name__)
 
-EXPIRED = "Dieser Einladungslink ist abgelaufen oder wurde schon benutzt. Bitte frag nach einem neuen Link."
+EXPIRED = "Dieser Einladungslink ist abgelaufen oder wurde schon benutzt."
 
 
 def frontend_base() -> str:

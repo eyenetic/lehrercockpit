@@ -176,3 +176,12 @@ def test_get_code_prefix_empty_string_returns_empty():
 
 def test_get_code_prefix_none_returns_empty():
     assert get_code_prefix(None) == ""
+
+
+def test_chosen_code_allows_any_characters():
+    """Passwort-Manager schlagen Codes mit Bindestrichen vor – die müssen gehen."""
+    from backend.auth.access_code import chosen_code_problem
+    assert chosen_code_problem("abcd-EFGH-1234") is None
+    assert chosen_code_problem("Schule!2026") is None
+    assert chosen_code_problem("kurz-1") is not None
+    assert chosen_code_problem("x" * 129) is not None

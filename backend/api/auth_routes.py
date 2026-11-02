@@ -135,7 +135,7 @@ def change_my_code():
 
     Body: {"current_code": "...", "new_code": "..."}
     Der aktuelle Code wird geprüft (eine offen gelassene Sitzung reicht nicht).
-    Regeln: mind. 8 Zeichen, nur Buchstaben und Ziffern, von keinem anderen Konto benutzt.
+    Regeln: mind. 8 Zeichen (beliebige Zeichen), von keinem anderen Konto benutzt.
     Andere Sitzungen des Kontos werden abgemeldet.
     """
     from backend.auth.access_code import verify_code

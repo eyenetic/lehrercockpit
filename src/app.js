@@ -1060,10 +1060,36 @@
     renderSchoolTile(data);
     renderClassworkTile(data);
     renderInboxTile(data);
+    safely(() => renderSetupReminder(data));
     safely(() => renderNextUp(data));
     safely(() => renderWeekAhead(data));
     safely(() => renderBreaksTile(data));
     safely(() => renderCollectionsTile());
+  }
+
+  // ── „Einrichtung fortsetzen“: wer Schritte übersprungen hat, wird freundlich erinnert ──
+  const SETUP_DISMISS_KEY = "lc.setupReminderHidden";
+
+  function renderSetupReminder(data) {
+    const box = document.getElementById("setup-reminder");
+    if (!box) return;
+    let hidden = false;
+    try { hidden = localStorage.getItem(SETUP_DISMISS_KEY) === "1"; } catch (_e) { /* private mode */ }
+    if (!window.MULTIUSER_ENABLED || !state.data || hidden) { box.hidden = true; return; }
+    const missing = [];
+    if (!isWebUntisConnected(data)) missing.push("Stundenplan");
+    if (!data.itslearningCalendar) missing.push("itslearning");
+    if (!data.dienstmail) missing.push("Dienstmail");
+    if (!missing.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = `<div class="setup-rem-text"><b>Dein Cockpit kann noch mehr.</b>
+        <span>Noch nicht verbunden: ${escapeHtml(missing.join(" · "))}. Jeder Schritt dauert etwa eine Minute.</span></div>
+      <div class="setup-rem-actions"><a class="btn btn-primary btn-sm" href="./onboarding.html?weiter">Jetzt einrichten</a>
+        <button class="btn-later-inline" type="button" data-setup-dismiss>Nicht mehr anzeigen</button></div>`;
+    box.querySelector("[data-setup-dismiss]").addEventListener("click", () => {
+      try { localStorage.setItem(SETUP_DISMISS_KEY, "1"); } catch (_e) { /* private mode */ }
+      box.hidden = true;
+    });
   }
 
   // ── „Als Nächstes“: die aktuelle/nächste Stunde groß oben auf Heute ──────────

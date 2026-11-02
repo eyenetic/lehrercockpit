@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=114" />
-    <link rel="stylesheet" href="./styles.auth.css?v=114" />
+    <link rel="stylesheet" href="./styles.css?v=115" />
+    <link rel="stylesheet" href="./styles.auth.css?v=115" />
     <style>
       body.onboarding-page {
         align-items: flex-start; padding: 40px 16px; box-sizing: border-box;
@@ -61,6 +61,11 @@
       .paste-row { display: flex; gap: 8px; }
       .paste-row .form-input { flex: 1; min-width: 0; }
       .paste-msg:empty { display: none; }
+      .stuck { margin-top: 12px; padding: 12px 14px; border-radius: var(--radius-md); background: color-mix(in srgb, var(--step) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--step) 25%, var(--line)); display: grid; gap: 8px; }
+      .stuck-title { margin: 0; font-size: 0.9rem; font-weight: 650; }
+      .stuck-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .stuck-actions:empty { display: none; }
+      .stuck-note { margin: 0; font-size: 0.8rem; color: var(--muted); line-height: 1.45; }
       .paste-msg { margin: 0; font-size: 0.84rem; line-height: 1.45; min-height: 1.2em; }
       .paste-msg.is-error { color: var(--danger); }
       .paste-msg.is-busy { color: var(--muted); }
@@ -131,7 +136,7 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/connections.js?v=114"></script>
+    <script src="./src/features/connections.js?v=115"></script>
     <script>
       (function () {
         'use strict';
@@ -286,7 +291,7 @@
               return '<li><span class="num" style="--num: ' + g.tone + '">' + (index + 1) + '</span><span class="what">' + esc(g.title) +
                 (g.optional ? '<small>optional</small>' : '') + '</span><span class="time">' + esc(g.time) + '</span></li>';
             }).join('') + '</ol>' +
-            '<p class="tip"><b>Tipp:</b> Am Computer geht es am leichtesten – du kopierst dabei Links aus anderen Seiten. Jeder Schritt lässt sich überspringen und später unter „Verbindungen“ nachholen.</p>' +
+            '<p class="tip"><b>Alles ist freiwillig.</b> Dein Cockpit funktioniert sofort – jeder Schritt lässt sich überspringen und jederzeit später nachholen. Am Computer geht es am leichtesten.</p>' +
             (school.length ? '<p class="note">Schon von deiner Schule eingerichtet: ' + esc(school.join(', ')) + '. Dafür musst du nichts tun.</p>' : '');
         }
 
@@ -322,12 +327,21 @@
                 '</span></label>';
             }).join('') + '<p class="paste-msg" id="paste-msg" role="status"></p><button type="submit" hidden></button></form>';
           }
-          el('setup-body').innerHTML = guide + area + (g.trouble && !(connected && !editing[id]) ? '<details class="trouble"><summary>Klappt nicht?</summary>' + g.trouble + '</details>' : '');
+          el('setup-body').innerHTML = guide + area + (!(connected && !editing[id]) ? '<details class="trouble"><summary>Klappt nicht?</summary>' + (g.trouble || '') +
+            '<p><button class="btn btn-secondary btn-sm" type="button" data-help-now>Hilfe holen</button></p></details>' : '');
           bindGuide(id);
         }
 
         function bindGuide(id) {
           var body = el('setup-body');
+          var helpNow = body.querySelector('[data-help-now]');
+          if (helpNow) helpNow.addEventListener('click', function () {
+            var holder = document.createElement('div');
+            holder.className = 'stuck';
+            holder.innerHTML = '<div class="stuck-actions"></div><p class="stuck-note">Einen Moment …</p>';
+            helpNow.parentNode.replaceWith(holder);
+            askForHelp(id, '', holder);
+          });
           var change = body.querySelector('[data-action="change"]');
           if (change) change.addEventListener('click', function () { editing[id] = true; render(); });
           var form = el('paste-form');
@@ -360,6 +374,54 @@
           var empty = Array.prototype.filter.call(form.querySelectorAll('input'), function (i) { return !i.value.trim(); });
           if (!empty.length) save(id);
           else if (input !== empty[0]) empty[0].focus();
+        }
+
+        // A link that does not work must never end the setup: three clear ways on.
+        function showStuck(id, errorText) {
+          var form = el('paste-form');
+          if (!form || el('stuck')) return;
+          var box = document.createElement('div');
+          box.className = 'stuck';
+          box.id = 'stuck';
+          box.innerHTML = '<p class="stuck-title">Hängst du hier fest? Kein Problem.</p>' +
+            '<div class="stuck-actions">' +
+              '<button class="btn btn-secondary btn-sm" type="button" data-stuck="retry">Nochmal einfügen</button>' +
+              '<button class="btn btn-secondary btn-sm" type="button" data-stuck="later">Später einrichten</button>' +
+              '<button class="btn btn-primary btn-sm" type="button" data-stuck="help">Hilfe holen</button>' +
+            '</div>' +
+            '<p class="stuck-note">„Hilfe holen“ sagt der Person Bescheid, die dich eingeladen hat – sie meldet sich bei dir. Dein Cockpit funktioniert auch ohne diesen Schritt.</p>';
+          form.parentNode.insertBefore(box, form.nextSibling);
+          box.addEventListener('click', function (event) {
+            var action = event.target.closest('[data-stuck]');
+            if (!action) return;
+            var what = action.getAttribute('data-stuck');
+            if (what === 'retry') {
+              var input = form.querySelector('input[type="text"], input[type="password"]');
+              form.querySelectorAll('input').forEach(function (i) { if (i.name !== 'address') i.value = ''; });
+              message('', '');
+              box.remove();
+              if (input) input.focus();
+            }
+            if (what === 'later') { editing[id] = false; next(); }
+            if (what === 'help') askForHelp(id, errorText, box);
+          });
+        }
+
+        function askForHelp(id, errorText, box) {
+          var g = GUIDES[id] || {};
+          box.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+          C.api('/api/v2/feedback', { method: 'POST', body: {
+            kind: 'frage',
+            // never the pasted link itself – it carries a personal token
+            message: 'Einrichtung: Ich komme bei „' + (g.title || id) + '“ nicht weiter.' + (errorText ? '\nMeldung im Cockpit: ' + errorText : ''),
+            context: { section: 'einrichtung-' + id },
+          } }).then(function () {
+            box.innerHTML = '<p class="stuck-title">Nachricht ist angekommen.</p>' +
+              '<p class="stuck-note">Du bekommst Hilfe. Mach ruhig mit „Später“ weiter – den Schritt kannst du jederzeit unter „Verbindungen“ nachholen.</p>';
+          }, function () {
+            box.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+            box.querySelector('.stuck-note').textContent = 'Das Senden hat nicht geklappt. Sag der Person, die dich eingeladen hat, einfach direkt Bescheid.';
+          });
         }
 
         function message(text, kind) {
@@ -403,6 +465,7 @@
               saving = false;
               el('setup-next').disabled = false;
               message(err.message, 'error');
+              showStuck(id, err.message);
               return false;
             });
         }
@@ -427,11 +490,11 @@
           var nextBtn = el('setup-next');
           var later = el('setup-later');
           el('setup-back').hidden = current === 0;
-          later.hidden = id === 'welcome' || id === 'done' || isConnected(id);
+          later.hidden = id === 'done' || (id !== 'welcome' && isConnected(id));
           // Nextcloud has its own "Mit Nextcloud verbinden" button: no second primary button.
           var ownButton = id === 'nextcloud' && !isConnected(id);
           nextBtn.hidden = ownButton;
-          later.textContent = ownButton ? 'Überspringen' : 'Später';
+          later.textContent = id === 'welcome' ? 'Erst mal umsehen' : (ownButton ? 'Überspringen' : 'Später');
           if (id === 'welcome') nextBtn.textContent = 'Los geht’s';
           else if (id === 'done') nextBtn.textContent = 'Zum Cockpit';
           else nextBtn.textContent = 'Weiter';
@@ -482,7 +545,11 @@
           current = STEPS.indexOf(goto.getAttribute('data-goto'));
           render(true);
         });
-        el('setup-later').addEventListener('click', function () { editing[STEPS[current]] = false; next(); });
+        el('setup-later').addEventListener('click', function () {
+          if (STEPS[current] === 'welcome') { finish(); return; }  // straight into the cockpit
+          editing[STEPS[current]] = false;
+          next();
+        });
         el('setup-back').addEventListener('click', function () {
           current = Math.max(current - 1, 0);
           render(true);
@@ -500,7 +567,15 @@
           .then(function () {
             render();
             refreshStatus()
-              .then(function () { applyOptionalSteps(); render(); })
+              .then(function () {
+                applyOptionalSteps();
+                // „Jetzt einrichten“ from Heute: straight to the first step still open
+                if (/[?&]weiter\b/.test(window.location.search)) {
+                  var open = STEPS.findIndex(function (id) { return GUIDES[id] && !isConnected(id); });
+                  if (open > 0) current = open;
+                }
+                render();
+              })
               .catch(function () { /* the steps work without the status */ });
           }, function () { window.location.href = './login.html'; });
       })();

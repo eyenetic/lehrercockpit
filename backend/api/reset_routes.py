@@ -167,7 +167,7 @@ def reset_code():
     """Setzt neuen Code anhand eines gültigen Tokens.
 
     Body: { "token": "...", "new_code": "..." }
-    Regeln: mind. 8 Zeichen, nur Buchstaben und Ziffern.
+    Regeln: mind. 8 Zeichen (beliebige Zeichen).
     """
     body = request.get_json(silent=True) or {}
     token    = (body.get("token") or "").strip()
@@ -175,10 +175,10 @@ def reset_code():
 
     if not token:
         return error("Token fehlt.", 400)
-    if not new_code or len(new_code) < 8:
-        return error("Der Code muss mindestens 8 Zeichen haben.", 422)
-    if not new_code.isalnum():
-        return error("Der Code darf nur Buchstaben und Ziffern enthalten.", 422)
+    from backend.auth.access_code import chosen_code_problem
+    problem = chosen_code_problem(new_code)
+    if problem:
+        return error(problem, 422)
 
     try:
         with db_connection() as conn:

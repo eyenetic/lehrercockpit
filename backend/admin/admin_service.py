@@ -350,7 +350,9 @@ def get_user_overview(conn) -> List[Dict[str, Any]]:
             u.updated_at,
             COUNT(um.id) FILTER (WHERE um.is_configured = TRUE) AS module_count,
             (uac.user_id IS NOT NULL) AS has_access_code,
-            u.is_admin
+            u.is_admin,
+            ARRAY_REMOVE(ARRAY_AGG(DISTINCT um.module_id) FILTER (WHERE um.is_configured = TRUE), NULL) AS connected,
+            (SELECT MAX(s.last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen
         FROM users u
         LEFT JOIN user_modules um ON um.user_id = u.id
         LEFT JOIN user_access_codes uac ON uac.user_id = u.id
@@ -375,5 +377,8 @@ def get_user_overview(conn) -> List[Dict[str, Any]]:
             "updated_at": row[6].isoformat(),
             "module_count": row[7],
             "has_access_code": row[8],
+            # set-up status, so the admin sees who might need a hand
+            "connected": sorted(row[10] or []),
+            "last_seen": row[11].isoformat() if row[11] else None,
         })
     return result

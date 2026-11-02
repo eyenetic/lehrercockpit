@@ -7351,3 +7351,14 @@ html, body { overflow-x: clip; }
 .seat-print-msg:empty { display: none; }
 .seat-print-msg { margin: 0; font-size: 0.84rem; color: var(--danger); }
 @media (max-width: 640px) { .seat-first { font-size: 0.76rem; } .seat-cell { min-height: 46px; } }
+
+/* Heute: „Einrichtung fortsetzen“ */
+.setup-card-heute { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 14px; padding: 14px 16px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--tone-today) 25%, var(--line)); background: color-mix(in srgb, var(--tone-today) 7%, var(--panel)); }
+.setup-card-heute[hidden] { display: none; }
+.setup-rem-text { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; font-size: 0.9rem; }
+.setup-rem-text span { color: var(--muted); font-size: 0.84rem; }
+.setup-rem-actions { display: flex; align-items: center; gap: 10px; }
+.btn-later-inline { border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.84rem; cursor: pointer; padding: 6px 2px; }
+.btn-later-inline:hover { color: var(--ink); }
+.invite-invalid-help { margin: 4px 0 0; }

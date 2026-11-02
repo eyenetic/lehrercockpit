@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=114" />
+    <link rel="stylesheet" href="./styles.css?v=115" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -190,6 +190,7 @@
 
         <section class="today layout-pending" id="today-overview-grid" data-view-section="overview" aria-label="Heute">
           <div id="source-attention" class="attention-list" hidden></div>
+          <section class="setup-card-heute" id="setup-reminder" aria-label="Einrichtung fortsetzen" hidden></section>
           <section class="nextup" id="nextup" data-today-module="nextup" aria-label="Als Nächstes" hidden></section>
           <section class="weekahead" id="weekahead" data-today-module="week" aria-labelledby="weekahead-title" hidden></section>
           <nav class="quicklinks" id="heute-zugaenge-container" data-today-module="access" aria-label="Zugänge"></nav>
@@ -560,7 +561,7 @@
           <input type="password" id="current-code-input" class="form-input" autocomplete="current-password" required spellcheck="false" />
           <label class="field-label" for="change-code-input">Neuer Code</label>
           <input type="password" id="change-code-input" class="form-input" autocomplete="new-password" minlength="8" required spellcheck="false" />
-          <p class="field-hint">Mindestens 8 Buchstaben oder Ziffern. Andere Geräte werden danach abgemeldet.</p>
+          <p class="field-hint">Mindestens 8 Zeichen. Andere Geräte werden danach abgemeldet.</p>
           <div id="change-code-feedback" class="connection-feedback is-error" role="alert"></div>
           <div class="modal-actions">
             <button type="submit" class="btn btn-primary" id="change-code-submit">Code ändern</button>
@@ -621,29 +622,29 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=114"></script>
-    <script src="./src/features/vault.js?v=114"></script>
-    <script src="./src/api-client.js?v=114"></script>
-    <script src="./src/modules/dashboard-manager.js?v=114"></script>
-    <script src="./src/features/grades.js?v=114"></script>
-    <script src="./src/features/webuntis.js?v=114"></script>
-    <script src="./src/features/itslearning.js?v=114"></script>
-    <script src="./src/features/nextcloud.js?v=114"></script>
-    <script src="./src/features/documents.js?v=114"></script>
-    <script src="./src/features/classwork.js?v=114"></script>
-    <script src="./src/features/classlist.js?v=114"></script>
-    <script src="./src/features/collections.js?v=114"></script>
-    <script src="./src/features/seating.js?v=114"></script>
-    <script src="./src/features/schoolyear.js?v=114"></script>
-    <script src="./src/features/inbox.js?v=114"></script>
-    <script src="./src/features/zugaenge.js?v=114"></script>
-    <script src="./src/features/onedrive-sync.js?v=114"></script>
-    <script src="./src/features/signals.js?v=114"></script>
-    <script src="./src/features/ai.js?v=114"></script>
-    <script src="./src/features/links.js?v=114"></script>
-    <script src="./src/features/connections.js?v=114"></script>
-    <script src="./src/features/feedback.js?v=114"></script>
-    <script src="./src/app.js?v=114"></script>
+    <script src="./data/mock-dashboard.js?v=115"></script>
+    <script src="./src/features/vault.js?v=115"></script>
+    <script src="./src/api-client.js?v=115"></script>
+    <script src="./src/modules/dashboard-manager.js?v=115"></script>
+    <script src="./src/features/grades.js?v=115"></script>
+    <script src="./src/features/webuntis.js?v=115"></script>
+    <script src="./src/features/itslearning.js?v=115"></script>
+    <script src="./src/features/nextcloud.js?v=115"></script>
+    <script src="./src/features/documents.js?v=115"></script>
+    <script src="./src/features/classwork.js?v=115"></script>
+    <script src="./src/features/classlist.js?v=115"></script>
+    <script src="./src/features/collections.js?v=115"></script>
+    <script src="./src/features/seating.js?v=115"></script>
+    <script src="./src/features/schoolyear.js?v=115"></script>
+    <script src="./src/features/inbox.js?v=115"></script>
+    <script src="./src/features/zugaenge.js?v=115"></script>
+    <script src="./src/features/onedrive-sync.js?v=115"></script>
+    <script src="./src/features/signals.js?v=115"></script>
+    <script src="./src/features/ai.js?v=115"></script>
+    <script src="./src/features/links.js?v=115"></script>
+    <script src="./src/features/connections.js?v=115"></script>
+    <script src="./src/features/feedback.js?v=115"></script>
+    <script src="./src/app.js?v=115"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.
