@@ -192,7 +192,7 @@ def load_settings() -> AppSettings:
         base_url=os.getenv("ITSLEARNING_BASE_URL", "").strip(),
         username=os.getenv("ITSLEARNING_USERNAME", "").strip(),
         password=os.getenv("ITSLEARNING_PASSWORD", "").strip(),
-        max_updates=_env_int("ITSLEARNING_MAX_UPDATES", 6),
+        max_updates=_env_int("ITSLEARNING_MAX_UPDATES", 20),
     )
     nextcloud_settings = NextcloudSettings(
         base_url=os.getenv("NEXTCLOUD_BASE_URL", "https://nextcloud-g2.b-sz-heos.logoip.de").strip(),

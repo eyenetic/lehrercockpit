@@ -53,7 +53,7 @@ def build_itslearning_payload(config: dict | None, now: datetime, *, force: bool
             base_url=base_url,
             username=username,
             password=password,
-            max_updates=int(config.get("max_updates", 6)),
+            max_updates=int(config.get("max_updates", 20)),
         )
         data = dataclasses.asdict(fetch_itslearning_sync(settings, now))
     else:

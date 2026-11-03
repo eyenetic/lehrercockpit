@@ -273,7 +273,7 @@ var LehrerInbox = (function () {
       list.innerHTML = '<div class="empty-state">' + esc(calendar.error || 'Kalender konnte nicht geladen werden.') + '</div>';
       return;
     }
-    var events = (calendar.events || []).slice(0, 12);
+    var events = (calendar.events || []).slice(0, 40);
     if (!events.length) {
       list.innerHTML = '<div class="empty-state">Keine Termine oder Abgaben in den nächsten drei Wochen.</div>';
       return;
