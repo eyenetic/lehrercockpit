@@ -51,11 +51,63 @@ var LehrerAttachments = (function () {
     return root.textContent.trim() ? '<div class="rich-detail">' + root.innerHTML + '</div>' : '';
   }
 
+  // itslearning's feed flattens tables and lists into one line ("Klasse Fach Kollege 7a … 7b …",
+  // "… geplant: 10a: … 10b: …"). Where class names (7a, 10b) mark the rows, rebuild them.
+  var CLASS_RE = /(^|\s)(\d{1,2}[a-z])(?=:|\s)/g;
+  function structuredHtml(text) {
+    if (/\n/.test(text)) return '';
+    var starts = [];
+    var m;
+    CLASS_RE.lastIndex = 0;
+    while ((m = CLASS_RE.exec(text))) starts.push(m.index + m[1].length);
+    if (starts.length < 3) return '';
+    var head = text.slice(0, starts[0]).trim();
+    var rows = starts.map(function (start, i) { return text.slice(start, starts[i + 1]).trim(); });
+    var headWords = head.split(/\s+/);
+
+    // table: a short header of column names, then one row per class
+    if (head && headWords.length >= 2 && headWords.length <= 5 && !/[.:,!?]/.test(head)
+        && rows.every(function (r) { return r.length <= 40; })) {
+      var tail = headWords.length - 2; // single-word columns at the end (e.g. Kollege)
+      return '<table><thead><tr>' + headWords.map(function (w) { return '<th>' + esc(w) + '</th>'; }).join('') + '</tr></thead><tbody>'
+        + rows.map(function (r) {
+          var words = r.split(/\s+/);
+          var cells = [words[0]];
+          var end = words.slice(1);
+          var last = tail > 0 && end.length > tail ? end.splice(end.length - tail, tail) : [];
+          cells.push(end.join(' '));
+          cells = cells.concat(last);
+          while (cells.length < headWords.length) cells.push('');
+          return '<tr>' + cells.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table>';
+    }
+
+    // list: "10a: … 10b: …" inside a text; what follows the last item becomes its own paragraph
+    if (!rows.every(function (r) { return /^\d{1,2}[a-z]:/.test(r); })) return '';
+    var outro = '';
+    var lastRow = rows[rows.length - 1];
+    var cut = lastRow.search(/\)\s+(?=[A-ZÄÖÜ])/);
+    if (cut > 0) { outro = lastRow.slice(cut + 1).trim(); rows[rows.length - 1] = lastRow.slice(0, cut + 1); }
+    function para(t) {
+      return t ? '<p>' + esc(t)
+        .replace(/^(Liebe[^,]{0,40},)\s*/, '$1<br>')
+        .replace(/\s+((?:VG|LG|Viele Grüße|Liebe Grüße|Beste Grüße)\b)/, '<br>$1') + '</p>' : '';
+    }
+    return para(head)
+      + '<ul>' + rows.map(function (r) {
+        var i = r.indexOf(':');
+        return '<li><strong>' + esc(r.slice(0, i)) + '</strong> ' + esc(r.slice(i + 1).trim()) + '</li>';
+      }).join('') + '</ul>'
+      + para(outro);
+  }
+
   /** Plain description, or the formatted one when the source sends it (htmlDetail). */
   function detailHtml(detail, htmlDetail) {
     var rich = htmlDetail ? richHtml(htmlDetail) : '';
     if (rich) return '<details class="calendar-item-detail" open><summary>Beschreibung</summary>' + rich + '</details>';
     var text = String(detail || '').trim();
+    var structured = structuredHtml(text);
+    if (structured) return '<details class="calendar-item-detail" open><summary>Beschreibung</summary><div class="rich-detail">' + structured + '</div></details>';
     if (!text) return '';
     var html = esc(text).replace(/https?:\/\/[^\s<]+/g, function (url) {
       return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + (url.length > 48 ? url.slice(0, 45) + '…' : url) + '</a>';
