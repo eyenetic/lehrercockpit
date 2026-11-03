@@ -199,10 +199,38 @@ def _build_classwork_digest(url: str, local_path: str, now: datetime) -> dict[st
 MAX_CLASSWORK_ENTRIES = 1500
 
 
+_FONT_FAMILY = re.compile(rb'<family val="(\d+)"\s*/>')
+
+
+def _repair_styles(data: bytes) -> bytes:
+    """Drop font-family values openpyxl rejects (> 14); some programs write them, Excel ignores them."""
+    import zipfile
+
+    source = zipfile.ZipFile(BytesIO(data))
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as target:
+        for info in source.infolist():
+            content = source.read(info.filename)
+            if info.filename == "xl/styles.xml":
+                content = _FONT_FAMILY.sub(lambda m: b"" if int(m.group(1)) > 14 else m.group(0), content)
+            target.writestr(info, content)
+    return out.getvalue()
+
+
+def load_workbook_lenient(data: bytes, **kwargs: Any):
+    """openpyxl's load_workbook, retried once with small style errors repaired."""
+    try:
+        return load_workbook(BytesIO(data), **kwargs)
+    except ValueError as exc:
+        if "stylesheet" not in str(exc):
+            raise
+        return load_workbook(BytesIO(_repair_styles(data)), **kwargs)
+
+
 def _read_classwork_workbook(data: bytes, now: datetime, *, detail: str, source_url: str) -> dict[str, Any]:
     """All entries of the plan. Filtering by date happens when the plan is shown,
     so a stored plan never keeps last week's view (see classwork_sync.plan_view)."""
-    workbook = load_workbook(BytesIO(data), read_only=True, data_only=True)
+    workbook = load_workbook_lenient(data, read_only=True, data_only=True)
     school_year = now.year if now.month >= 8 else now.year - 1
     all_entries: list[dict[str, Any]] = []
 

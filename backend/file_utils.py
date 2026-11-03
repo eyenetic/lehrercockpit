@@ -71,9 +71,12 @@ def parse_classwork_xlsx(file_bytes: bytes) -> dict:
         pass
 
     try:
-        from openpyxl import load_workbook as _load_wb
-        wb = _load_wb(_BytesIO(file_bytes), read_only=True, data_only=True)
-    except Exception:
+        from .plan_digest import load_workbook_lenient
+        wb = load_workbook_lenient(file_bytes, read_only=True, data_only=True)
+    except Exception as exc:
+        if file_bytes[:2] == b"PK":
+            # an Excel file that cannot be read – never guess it as CSV (that would empty the plan)
+            raise ValueError("Die Excel-Datei konnte nicht gelesen werden.") from exc
         # CSV fallback
         import csv as _csv
         text = file_bytes.decode("utf-8", errors="replace")

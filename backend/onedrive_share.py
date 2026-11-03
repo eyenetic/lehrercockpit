@@ -98,7 +98,8 @@ def _request_json(request: Request) -> dict[str, Any]:
             raise OneDriveError("OneDrive findet zu diesem Link keine freigegebene Datei. " + SHARING_HINT) from exc
         raise OneDriveError(f"OneDrive antwortet mit HTTP {exc.code}.") from exc
     except (OSError, HTTPException) as exc:
-        raise OneDriveError("OneDrive ist nicht erreichbar.") from exc
+        reason = getattr(exc, "reason", None) or exc
+        raise OneDriveError(f"OneDrive ist nicht erreichbar ({str(reason)[:80] or type(exc).__name__}).") from exc
 
 
 def get_token() -> str:
