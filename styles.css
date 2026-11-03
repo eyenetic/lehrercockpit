@@ -7383,3 +7383,14 @@ html, body { overflow-x: clip; }
 .attach-image.is-broken .attach-fallback { display: inline-flex; }
 .attach-image-link { display: block; }
 .attach-image.is-broken .attach-image-link { display: none; }
+
+/* „Als Nächstes“: Schulwoche Mo–Fr und Ferien-Countdown statt Stundenpunkte */
+.nextup-week { margin-top: auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; padding-top: 6px; }
+.wk-cell { display: flex; flex-direction: column; gap: 4px; }
+.wk-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.25); overflow: hidden; }
+.wk-bar > span { display: block; height: 100%; background: #fff; border-radius: 3px; }
+.wk-name { font-size: 0.68rem; font-weight: 600; color: rgba(255,255,255,.7); text-align: center; letter-spacing: .03em; }
+.wk-cell.is-today .wk-name { color: #fff; }
+.wk-cell.is-today .wk-bar { box-shadow: 0 0 0 1.5px rgba(255,255,255,.75); }
+.wk-cell.is-free .wk-bar { background: transparent; border: 1px dashed rgba(255,255,255,.45); box-sizing: border-box; }
+.nextup-break { color: rgba(255,255,255,.9); font-weight: 600; }

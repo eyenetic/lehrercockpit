@@ -1133,9 +1133,15 @@
       return;
     }
     if (!isWebUntisConnected(data) || personalSourceProblems(data).webuntis) { box.hidden = true; return; }
-    const { events: raw, previewLabel } = todayLessons(data);
-    const events = withDoubles(raw);
+    let { events: raw, previewLabel } = todayLessons(data);
     const now = new Date();
+    // Today's lessons are over (before the usual switch at 15:00): show the next school day right away.
+    const todayLive = raw.filter((e) => !e.cancelled);
+    if (!previewLabel && todayLive.length && todayLive.every((e) => new Date(e.endsAt) <= now)) {
+      const next = nextSchoolDayLessons(data, now);
+      if (next.events.length) { raw = next.events; previewLabel = next.label; }
+    }
+    const events = withDoubles(raw);
     const live = events.filter((e) => !e.cancelled);
     // count real lessons (a double lesson is two)
     const lessons = raw.filter((e) => !e.cancelled && !isSupervision(e));
@@ -1143,7 +1149,9 @@
     let kicker = "";
     if (previewLabel) {
       main = live[0] || null;
-      kicker = `Nächster Schultag · ${previewLabel}`;
+      const first = main ? startOfDay(new Date(main.startsAt)) : null;
+      const tomorrow = startOfDay(new Date(now.getTime() + 86400000));
+      kicker = first && first.getTime() === tomorrow.getTime() ? "Morgen zuerst" : `Nächster Schultag · ${previewLabel}`;
     } else {
       main = live.find((e) => new Date(e.startsAt) <= now && new Date(e.endsAt) > now) || null;
       if (main) {
@@ -1157,16 +1165,7 @@
       }
     }
     box.className = "nextup";
-    if (!main) {
-      if (!lessons.length) { box.hidden = true; return; }
-      // all lessons of the day are over
-      box.hidden = false;
-      box.classList.add("is-done");
-      box.innerHTML = `<div class="nextup-main"><p class="nextup-kicker">Für heute geschafft</p>`
-        + `<p class="nextup-title">${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"} gehalten</p>`
-        + `<p class="nextup-meta">Schönen Feierabend!</p></div>`;
-      return;
-    }
+    if (!main) { box.hidden = true; return; }
     const parts = lessonParts(main);
     const start = new Date(main.startsAt);
     const end = new Date(main.endsAt);
@@ -1187,9 +1186,59 @@
           const p = lessonParts(e);
           return `<li${e.cancelled ? ' class="is-cancelled"' : ""}><span class="nextup-time">${hhmm(new Date(e.startsAt))}</span><span><b>${escapeHtml(p.main)}</b>${p.sub || p.room ? ` · ${escapeHtml([p.sub, p.room].filter(Boolean).join(" · "))}` : ""}${e.cancelled ? " · entfällt" : ""}</span></li>`;
         }).join("")}</ul>` : '<p class="nextup-empty">Danach nichts mehr im Plan.</p>'}
-        ${lessons.length ? `<div class="nextup-progress" role="img" aria-label="${doneCount} von ${lessons.length} Stunden">${lessons.map((e, i) => `<span class="${i < doneCount ? "is-done" : ""}"></span>`).join("")}</div>
-        <p class="nextup-foot">${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"}${lastEnd ? ` · Schluss ${hhmm(lastEnd)}` : ""}</p>` : ""}
+        ${lessons.length ? `<p class="nextup-foot">${previewLabel ? "" : "Heute "}${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"}${lastEnd ? ` · Schluss ${hhmm(lastEnd)}` : ""}</p>` : ""}
+        ${weekStripHtml(data, now, previewLabel ? null : (lessons.length ? doneCount / lessons.length : 0))}
       </div>`;
+  }
+
+  /** Lessons of the next school day after today (holidays have no lessons, so they are skipped). */
+  function nextSchoolDayLessons(data, now) {
+    const all = (data.webuntisCenter?.events || []).filter((e) => e.startsAt);
+    let day = _nextSchoolDay(now);
+    for (let i = 0; i < 14; i++) {
+      const end = new Date(day);
+      end.setDate(end.getDate() + 1);
+      const found = all.filter((e) => { const s = new Date(e.startsAt); return s >= day && s < end; })
+        .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+      if (found.length) return { events: found, label: day.toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" }) };
+      day = _nextSchoolDay(day);
+    }
+    return { events: [], label: "" };
+  }
+
+  /**
+   * Mo–Fr of this week (at the weekend: the coming one): past days filled, today by
+   * its lessons, free days dashed – plus how many school days until the next holidays.
+   */
+  function weekStripHtml(data, now, todayShare) {
+    if (!SY()) return "";
+    syncExtraBreaks(data);
+    const today = startOfDay(now);
+    const monday = new Date(today);
+    const dow = today.getDay();
+    monday.setDate(monday.getDate() + (dow === 0 ? 1 : dow === 6 ? 2 : 1 - dow));
+    const names = ["Mo", "Di", "Mi", "Do", "Fr"];
+    const cells = names.map((name, i) => {
+      const day = SY().addDays(monday, i);
+      const free = SY().breakOn(day);
+      let fill = 0;
+      if (day < today) fill = 1;
+      else if (day.getTime() === today.getTime()) fill = todayShare == null ? 1 : todayShare;
+      const cls = free ? "is-free" : day.getTime() === today.getTime() ? "is-today" : "";
+      return `<span class="wk-cell ${cls}" title="${escapeHtml(free ? free.name : name)}"><span class="wk-bar"><span style="width:${free ? 0 : Math.round(fill * 100)}%"></span></span><span class="wk-name">${name}</span></span>`;
+    }).join("");
+    let line = "";
+    const current = SY().breakOn(today);
+    const next = SY().nextBreak(today);
+    if (current && !current.holiday) line = `${current.name} bis ${shortDate(SY().fromIso(current.end))}`;
+    else if (next) {
+      const from = now.getHours() < 14 ? today : SY().addDays(today, 1);
+      const n = SY().schoolDaysBetween(from, SY().fromIso(next.start));
+      line = n === 0 ? `${next.name} ab ${SY().fromIso(next.start).toLocaleDateString("de-DE", { weekday: "long" })}`
+        : `Noch ${n} ${n === 1 ? "Schultag" : "Schultage"} bis zu den ${next.name}`;
+    }
+    return `<div class="nextup-week" role="img" aria-label="Schulwoche${line ? ` – ${escapeHtml(line)}` : ""}">${cells}</div>`
+      + (line ? `<p class="nextup-foot nextup-break">${escapeHtml(line)}</p>` : "");
   }
 
   // ── Ferien-Countdown und Schuljahr ───────────────────────────────────────────
