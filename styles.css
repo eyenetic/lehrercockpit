@@ -7374,3 +7374,10 @@ html, body { overflow-x: clip; }
 .calendar-attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .attach-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink); font-size: 0.8rem; font-weight: 500; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attach-chip:hover { border-color: var(--accent); color: var(--accent); }
+.calendar-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.attach-image { display: block; max-width: min(100%, 360px); border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--panel-soft); }
+.attach-image img { display: block; width: 100%; height: auto; max-height: 320px; object-fit: contain; }
+.attach-fallback { display: none; }
+.attach-image.is-broken { border: 0; background: none; border-radius: 0; }
+.attach-image.is-broken img { display: none; }
+.attach-image.is-broken .attach-fallback { display: inline-flex; }

@@ -62,6 +62,7 @@ def _serialize(entry, today: date) -> dict[str, Any]:
         "location": entry.location or None,
         "description": (entry.description or "")[:500] or None,
         "url": entry.url or None,
+        "attachments": list(entry.attachments or [])[:8],
         "running": start.date() < today,  # multi-day event that started before today
     }
 

@@ -245,32 +245,6 @@ var LehrerInbox = (function () {
     return time;
   }
 
-  /** Description of an itslearning entry: plain text, web links clickable, long text folded. */
-  function _detailHtml(detail) {
-    var text = String(detail || '').trim();
-    if (!text) return '';
-    var html = esc(text).replace(/https?:\/\/[^\s<]+/g, function (url) {
-      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + (url.length > 48 ? url.slice(0, 45) + '…' : url) + '</a>';
-    }).replace(/\n/g, '<br>');
-    return text.length > 160 || text.split('\n').length > 3
-      ? '<details class="calendar-item-detail"><summary>Beschreibung</summary><p>' + html + '</p></details>'
-      : '<p class="calendar-item-note">' + html + '</p>';
-  }
-
-  /** Attachments (ATTACH links): they open in itslearning, where the teacher is signed in. */
-  function _attachmentsHtml(list) {
-    if (!list || !list.length) return '';
-    return '<div class="calendar-attachments">' + list.map(function (a) {
-      if (!/^https?:\/\//i.test(a.url || '')) return '';
-      var image = /^image\//i.test(a.type || '') || /\.(png|jpe?g|gif|webp|heic)$/i.test(a.name || '');
-      return '<a class="attach-chip" href="' + esc(a.url) + '" target="_blank" rel="noopener noreferrer" title="Öffnet in itslearning">'
-        + '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-        + (image ? '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>'
-                 : '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>')
-        + '</svg>' + esc(a.name || 'Anhang') + '</a>';
-    }).join('') + '</div>';
-  }
-
   /**
    * Upcoming dates and deadlines from the itslearning calendar subscription.
    * Hidden when no calendar is connected.
@@ -306,8 +280,7 @@ var LehrerInbox = (function () {
         + '<span>' + esc(_timeLabel(event, start)) + '</span></div>'
         + '<div class="calendar-item-body"><p class="calendar-item-title">' + title + '</p>'
         + (event.location ? '<p class="message-snippet">' + esc(event.location) + '</p>' : '')
-        + _detailHtml(event.detail)
-        + _attachmentsHtml(event.attachments)
+        + (window.LehrerAttachments ? window.LehrerAttachments.detailHtml(event.detail) + window.LehrerAttachments.attachmentsHtml(event.attachments) : '')
         + '</div></article>';
     }).join('');
   }
