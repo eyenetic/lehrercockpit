@@ -11,6 +11,7 @@ Sync state lives in the persistence store under "classwork-sync":
 """
 from __future__ import annotations
 
+import logging
 import re
 import threading
 from datetime import date, datetime, timedelta, timezone
@@ -21,6 +22,8 @@ from .classwork_cache import load_cache, save_cache
 from .ical_utils import BERLIN
 from .onedrive_share import OneDriveBlocked, OneDriveError, download, is_onedrive_link, resolve
 from .persistence import store
+
+log = logging.getLogger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 CACHE_PATH = DATA_DIR / "classwork-cache.json"
@@ -70,7 +73,12 @@ def store_plan(file_bytes: bytes, *, source: str, uploaded_by: str = "",
     from .file_utils import parse_classwork_xlsx
 
     now = now or _now()
-    result = parse_classwork_xlsx(file_bytes)
+    try:
+        result = parse_classwork_xlsx(file_bytes)
+    except ValueError:
+        raise
+    except Exception as exc:  # broken or unexpected file (zip, openpyxl errors …)
+        raise ValueError("Die Datei konnte nicht als Klassenarbeitsplan gelesen werden.") from exc
     previous = load_cache(CACHE_PATH)
     local = now.astimezone(BERLIN)
     result.update({
@@ -224,6 +232,11 @@ def sync_from_server(url: str, now: datetime | None = None) -> str:
         return "blocked"
     except (OneDriveError, ValueError) as exc:
         _record(state, url=url, now=now, result="error", via="server", error=str(exc))
+        return "error"
+    except Exception as exc:  # keep the promise above: the caller then lets the browser try
+        log.exception("Klassenarbeitsplan: Abruf über den Server fehlgeschlagen")
+        _record(state, url=url, now=now, result="error", via="server",
+                error=f"Unerwarteter Fehler beim Abruf ({type(exc).__name__}).")
         return "error"
 
 

@@ -127,3 +127,15 @@ def test_fetch_returns_the_plan_as_shown_today(client):
     assert body["result"] == "unchanged"
     assert [e["title"] for e in body["data"]["entries"]] == ["KA"]
     assert body["data"]["planStatus"]["state"] == "ok"
+
+
+def test_fetch_never_fails_with_500_on_unexpected_errors(client, tmp_path):
+    import backend.classwork_sync as cs
+    with _as(_user()), patch.object(routes, "_classwork_url", return_value=URL), \
+            patch.object(cs, "STATE_PATH", tmp_path / "classwork-sync.json"), \
+            patch.object(cs, "resolve", side_effect=TimeoutError("timed out")):
+        response = client.post("/api/v2/modules/klassenarbeitsplan/fetch", json={})
+    body = response.get_json()
+    assert response.status_code == 200
+    assert body["result"] == "error"
+    assert body["sync"]["needs_browser"] is True

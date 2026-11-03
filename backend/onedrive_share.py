@@ -26,6 +26,7 @@ import re
 import threading
 import time as _time
 from typing import Any
+from http.client import HTTPException
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -96,7 +97,7 @@ def _request_json(request: Request) -> dict[str, Any]:
         if exc.code in (400, 404):
             raise OneDriveError("OneDrive findet zu diesem Link keine freigegebene Datei. " + SHARING_HINT) from exc
         raise OneDriveError(f"OneDrive antwortet mit HTTP {exc.code}.") from exc
-    except OSError as exc:
+    except (OSError, HTTPException) as exc:
         raise OneDriveError("OneDrive ist nicht erreichbar.") from exc
 
 
@@ -235,7 +236,7 @@ def download(url: str) -> tuple[bytes, dict[str, Any]]:
         if exc.code in (401, 403, 429):
             raise OneDriveBlocked(f"Microsoft verweigert den Download (HTTP {exc.code}).") from exc
         raise OneDriveError(f"Download fehlgeschlagen (HTTP {exc.code}).") from exc
-    except OSError as exc:
+    except (OSError, HTTPException) as exc:
         raise OneDriveError("Download von OneDrive fehlgeschlagen.") from exc
     if len(data) > MAX_BYTES:
         raise OneDriveError("Die Datei ist zu groß (max. 15 MB).")
