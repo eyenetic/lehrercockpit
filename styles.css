@@ -7381,3 +7381,5 @@ html, body { overflow-x: clip; }
 .attach-image.is-broken { border: 0; background: none; border-radius: 0; }
 .attach-image.is-broken img { display: none; }
 .attach-image.is-broken .attach-fallback { display: inline-flex; }
+.attach-image-link { display: block; }
+.attach-image.is-broken .attach-image-link { display: none; }

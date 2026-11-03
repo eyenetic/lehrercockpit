@@ -37,3 +37,5 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(vault_bp, url_prefix="/api/v2/vault")
     from backend.api.dienstmail_routes import dienstmail_bp
     app.register_blueprint(dienstmail_bp, url_prefix="/api/v2/dienstmail")
+    from backend.api.itslearning_routes import itslearning_bp
+    app.register_blueprint(itslearning_bp, url_prefix="/api/v2/itslearning")

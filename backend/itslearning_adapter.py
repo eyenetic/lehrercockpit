@@ -11,6 +11,9 @@ import re
 from typing import Any
 from urllib.parse import urlencode, urljoin
 import http.cookiejar
+from urllib.parse import urlparse
+import time
+import threading
 from urllib.error import URLError
 from urllib.request import HTTPCookieProcessor, HTTPSHandler, Request, build_opener
 
@@ -133,6 +136,78 @@ def fetch_itslearning_sync(settings: ItslearningSettings, now: datetime) -> Itsl
 
 def _fetch_updates_with_retry(settings: ItslearningSettings, now: datetime) -> list[dict[str, Any]]:
     return _fetch_updates(settings, now)
+
+
+def _login(settings: ItslearningSettings):
+    """An opener with a signed-in itslearning session (native login)."""
+    opener = _build_opener()
+    login_html = _read_text(opener, settings.base_url)
+    form_state = _extract_login_form_state(login_html)
+    payload = {
+        "__EVENTTARGET": "__Page",
+        "__EVENTARGUMENT": "NativeLoginButtonClicked",
+        "__VIEWSTATE": form_state.get("__VIEWSTATE", ""),
+        "__VIEWSTATEGENERATOR": form_state.get("__VIEWSTATEGENERATOR", ""),
+        "__EVENTVALIDATION": form_state.get("__EVENTVALIDATION", ""),
+        "ctl00$ContentPlaceHolder1$Username": settings.username,
+        "ctl00$ContentPlaceHolder1$Password": settings.password,
+        "ctl00$ContentPlaceHolder1$ChromebookApp": "false",
+        "ctl00$ContentPlaceHolder1$showNativeLoginValueField": "true",
+    }
+    if _looks_like_login_page(_post_form(opener, settings.base_url, payload)):
+        raise RuntimeError("Anmeldung wurde nicht bestaetigt")
+    return opener
+
+
+# Signed-in sessions per teacher for attachments (a page often shows several pictures).
+_SESSION_SECONDS = 600
+_sessions: dict[str, tuple[float, Any]] = {}
+_sessions_lock = threading.Lock()
+
+# What may be passed through to the browser: pictures inline, documents as downloads.
+ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+_INLINE_TYPES = ("image/png", "image/jpeg", "image/gif", "image/webp")
+_DOWNLOAD_TYPES = ("application/pdf", "application/msword", "application/vnd.", "application/zip",
+                   "text/plain", "audio/", "video/")
+
+
+def attachment_host_allowed(url: str, base_url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    base_host = (urlparse(base_url).hostname or "").lower()
+    return urlparse(url).scheme == "https" and bool(host) and (host == base_host or host.endswith(".itslearning.com"))
+
+
+def fetch_attachment(settings: ItslearningSettings, url: str) -> tuple[bytes, str, bool]:
+    """(content, content type, inline) of an attachment, fetched with the teacher's own itslearning login."""
+    if not attachment_host_allowed(url, settings.base_url):
+        raise ValueError("Kein itslearning-Anhang.")
+    key = f"{settings.base_url}|{settings.username}"
+    with _sessions_lock:
+        hit = _sessions.get(key)
+    opener = hit[1] if hit and time.monotonic() - hit[0] < _SESSION_SECONDS else None
+    for attempt in range(2):
+        if opener is None:
+            opener = _login(settings)
+            with _sessions_lock:
+                _sessions[key] = (time.monotonic(), opener)
+        request = Request(url, headers={"User-Agent": "LehrerCockpit/1.0", "Accept": "image/*,application/pdf,*/*;q=0.5"})
+        with opener.open(request, timeout=20) as response:
+            ctype = (response.headers.get_content_type() or "application/octet-stream").lower()
+            content = response.read(ATTACHMENT_MAX_BYTES + 1)
+        if len(content) > ATTACHMENT_MAX_BYTES:
+            raise ValueError("Der Anhang ist zu groß.")
+        if ctype == "text/html":
+            # session ran out (login page) – sign in once more
+            opener = None
+            if attempt == 0:
+                continue
+            raise ValueError("itslearning hat den Anhang nicht herausgegeben.")
+        if ctype in _INLINE_TYPES:
+            return content, ctype, True
+        if ctype.startswith(_DOWNLOAD_TYPES):
+            return content, ctype, False
+        return content, "application/octet-stream", False
+    raise ValueError("itslearning hat den Anhang nicht herausgegeben.")
 
 
 def _fetch_updates(settings: ItslearningSettings, now: datetime) -> list[dict[str, Any]]:

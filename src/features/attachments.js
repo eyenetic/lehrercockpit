@@ -39,19 +39,28 @@ var LehrerAttachments = (function () {
       + (image ? ICON_IMAGE : ICON_FILE) + '</svg>' + esc(a.name || 'Anhang') + '</a>';
   }
 
-  function attachmentsHtml(list) {
+  /** options.viaServer: fetch through the cockpit server with the teacher's itslearning login. */
+  function attachmentsHtml(list, options) {
     if (!list || !list.length) return '';
+    var viaServer = options && options.viaServer;
+    function src(url) {
+      return viaServer ? (window.BACKEND_API_URL || '') + '/api/v2/itslearning/attachment?url=' + encodeURIComponent(url) : url;
+    }
     var images = '';
     var files = '';
     list.forEach(function (a) {
       if (!/^https?:\/\//i.test(a.url || '')) return;
+      var original = a;
+      var served = { url: src(a.url), name: a.name, type: a.type };
       var image = /^image\//i.test(a.type || '') || /\.(png|jpe?g|gif|webp)$/i.test(a.name || '');
       if (image) {
-        images += '<a class="attach-image" href="' + esc(a.url) + '" target="_blank" rel="noopener noreferrer" title="' + esc(a.name || 'Bild') + ' – groß ansehen">'
-          + '<img class="attach-img" src="' + esc(a.url) + '" alt="' + esc(a.name || 'Bild') + '" loading="lazy" referrerpolicy="no-referrer" />'
-          + '<span class="attach-fallback">' + chip(a, true).replace(/^<a /, '<span ').replace(/<\/a>$/, '</span>') + '</span></a>';
+        // the picture itself; if it does not load, the button opens the original in the source
+        images += '<span class="attach-image">'
+          + '<a class="attach-image-link" href="' + esc(served.url) + '" target="_blank" rel="noopener noreferrer" title="' + esc(a.name || 'Bild') + ' – groß ansehen">'
+          + '<img class="attach-img" src="' + esc(served.url) + '" alt="' + esc(a.name || 'Bild') + '" loading="lazy"' + (viaServer ? '' : ' referrerpolicy="no-referrer"') + ' /></a>'
+          + '<span class="attach-fallback">' + chip(original, true) + '</span></span>';
       } else {
-        files += chip(a, false);
+        files += chip(served, false);
       }
     });
     return (images ? '<div class="calendar-images">' + images + '</div>' : '')
