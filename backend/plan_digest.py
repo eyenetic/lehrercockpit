@@ -311,16 +311,60 @@ def _entries_dates_across(rows: list[list[Any]], context, school_year) -> list[d
     header_index, header_dates = _best_row(rows, lambda value: _cell_date(value, context, school_year))
     if header_index is None or len(header_dates) < 2:
         return []
+    body = rows[header_index + 1:]
+    type_column = _type_column(body)
     entries = []
-    for row in rows[header_index + 1:]:
+    current_class = ""
+    for row in body:
         class_label = next((label for label in (_normalize_class_label(v) for v in row[:2]) if label), "")
-        if not class_label:
+        row_type = _normalize_cell(row[type_column]) if type_column is not None and type_column < len(row) else ""
+        if class_label:
+            current_class = class_label
+        elif row_type and current_class:
+            class_label = current_class  # second row of a class ("LEK" under "KA"), class cell left empty
+        else:
+            current_class = ""
             continue
         for column, entry_date in header_dates.items():
             raw_value = _normalize_cell(row[column] if column < len(row) else None)
-            if raw_value and _is_relevant_classwork_cell(raw_value):
+            if not raw_value:
+                continue
+            if row_type:
+                entries.append({**_make_entry(class_label, entry_date, raw_value),
+                                "kind": _kind_in_typed_row(raw_value, row_type)})
+            elif _is_relevant_classwork_cell(raw_value):
                 entries.append(_make_entry(class_label, entry_date, raw_value))
     return entries
+
+
+_ROW_TYPES = {"KA", "LEK", "KLA", "KLAUSUR", "VERA", "TEST"}
+
+
+def _type_column(rows: list[list[Any]]) -> int | None:
+    """A column ("Art") that says per row what kind of entries follow: KA, LEK …"""
+    for column in range(3):
+        hits = sum(1 for r in rows if column < len(r) and _normalize_cell(r[column]).upper() in _ROW_TYPES)
+        if hits >= 2:
+            return column
+    return None
+
+
+_EVENT_WORDS = re.compile(
+    r"stunde|\bBO\b|exkursion|hospitation|laufbahn|fahrt|praktikum|projekt|ausflug|wandertag|theater|museum|"
+    r"sportfest|bibo|wege nach|graffiti|tape art|winterzauber|italien|frankreich|england|spanien|polen",
+    re.IGNORECASE)
+
+
+def _kind_in_typed_row(value: str, row_type: str) -> str:
+    """Kind of a cell in a "KA"/"LEK" row: the row's kind ("1. D Friedrich", "Ethik Mü"),
+    unless the text names something else ("BO", "Exkursion PB", "Klassenfahrt")."""
+    named = _classwork_kind(re.sub(r"\b(KA|KLA|LEK)(\d)", r"\1 \2", value, flags=re.IGNORECASE))
+    if named != "Eintrag":
+        return named
+    if _EVENT_WORDS.search(value) or len(value.split()) >= 5:
+        return "Termin"
+    row_kind = _classwork_kind(row_type)
+    return row_kind if row_kind != "Eintrag" else "Termin"
 
 
 def _entries_dates_down(rows: list[list[Any]], context, school_year) -> list[dict[str, Any]]:

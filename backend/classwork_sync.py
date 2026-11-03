@@ -32,6 +32,8 @@ STATE_PATH = DATA_DIR / "classwork-sync.json"
 SERVER_INTERVAL = timedelta(hours=1)
 # Browsers step in when the server could not confirm the plan for this long.
 BROWSER_AFTER = timedelta(hours=3)
+# Raise when the plan reader changes: an unchanged file is then read once more.
+PARSER_VERSION = 2
 
 _sync_lock = threading.Lock()
 _sync_running = False
@@ -86,6 +88,7 @@ def store_plan(file_bytes: bytes, *, source: str, uploaded_by: str = "",
         "updatedAt": local.strftime("%d.%m.%Y um %H:%M"),
         "uploadSource": source,
         "uploadedBy": uploaded_by,
+        "parserVersion": PARSER_VERSION,
         "hasChanges": bool(previous.get("dataHash")) and previous.get("dataHash") != result.get("dataHash"),
     })
     if meta:
@@ -219,6 +222,7 @@ def sync_from_server(url: str, now: datetime | None = None) -> str:
             and meta.get("etag")
             and meta["etag"] == state.get("etag")
             and cached.get("status") == "ok"
+            and cached.get("parserVersion") == PARSER_VERSION
         )
         if unchanged:
             _record(state, url=url, now=now, result="unchanged", via="server", meta=meta)
@@ -284,9 +288,11 @@ def sync_info(url: str, now: datetime | None = None) -> dict[str, Any]:
     last_success = _parse_time(state.get("last_success"))
     stale = last_success is None or now - last_success > BROWSER_AFTER
     server_failed = state.get("last_result") in ("blocked", "error")
+    # an eTag lets the browser skip the download – only while the stored plan was read by this version
+    current = load_cache(CACHE_PATH).get("parserVersion") == PARSER_VERSION
     return {
         "onedrive": True,
-        "etag": state.get("etag", ""),
+        "etag": state.get("etag", "") if current else "",
         "name": state.get("name", ""),
         "modified": state.get("modified", ""),
         "last_attempt": state.get("last_attempt"),
@@ -294,5 +300,5 @@ def sync_info(url: str, now: datetime | None = None) -> dict[str, Any]:
         "last_result": state.get("last_result"),
         "last_error": state.get("last_error"),
         "via": state.get("via"),
-        "needs_browser": bool(stale and server_failed),
+        "needs_browser": bool((stale or not current) and server_failed),
     }

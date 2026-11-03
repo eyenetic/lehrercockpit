@@ -50,7 +50,7 @@ def test_server_sync_downloads_and_stores_plan(mem):
 
 
 def test_unchanged_etag_skips_download(mem):
-    mem.data["classwork-cache"] = {"status": "ok", "structuredRows": [1]}
+    mem.data["classwork-cache"] = {"status": "ok", "structuredRows": [1], "parserVersion": cs.PARSER_VERSION}
     mem.data["classwork-sync"] = {"source_url": URL, "etag": "e1"}
     with patch.object(cs, "resolve", return_value=dict(META)), patch.object(cs, "download") as download:
         assert cs.sync_from_server(URL, NOW) == "unchanged"
@@ -58,7 +58,20 @@ def test_unchanged_etag_skips_download(mem):
     assert mem.data["classwork-sync"]["last_success"] == NOW.isoformat()
 
 
+def test_plan_read_by_an_older_parser_is_read_again(mem):
+    mem.data["classwork-cache"] = {"status": "ok", "structuredRows": [1], "parserVersion": cs.PARSER_VERSION - 1}
+    mem.data["classwork-sync"] = {"source_url": URL, "etag": "e1", "last_result": "error"}
+    assert cs.sync_info(URL, NOW)["etag"] == ""  # the browser must send the file, not just confirm
+    assert cs.sync_info(URL, NOW)["needs_browser"] is True
+    with patch.object(cs, "resolve", return_value=dict(META)), \
+            patch.object(cs, "download", return_value=(b"plan-v1", {k: v for k, v in META.items() if k != "download_url"})), \
+            patch("backend.file_utils.parse_classwork_xlsx", side_effect=_parsed):
+        assert cs.sync_from_server(URL, NOW) == "ok"
+    assert mem.data["classwork-cache"]["parserVersion"] == cs.PARSER_VERSION
+
+
 def test_blocked_server_asks_browsers_once_stale(mem):
+    mem.data["classwork-cache"] = {"status": "ok", "parserVersion": cs.PARSER_VERSION}
     with patch.object(cs, "resolve", side_effect=OneDriveBlocked("HTTP 403")):
         assert cs.sync_from_server(URL, NOW) == "blocked"
     info = cs.sync_info(URL, NOW)
