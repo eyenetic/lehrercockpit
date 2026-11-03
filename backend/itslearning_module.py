@@ -139,5 +139,6 @@ def _event_dict(entry: CalendarEntry) -> dict[str, Any]:
         "allDay": entry.all_day,
         "location": entry.location,
         "url": entry.url,
-        "detail": entry.description[:280],
+        "detail": entry.description[:1200],
+        "attachments": list(entry.attachments or [])[:8],
     }

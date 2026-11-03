@@ -7,8 +7,9 @@ are not expanded; recurring series only yield their first occurrence.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
+from urllib.parse import unquote
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -38,6 +39,7 @@ class CalendarEntry:
     description: str
     url: str
     status: str
+    attachments: list = field(default_factory=list)  # [{"url", "name", "type"}] from ATTACH (links only)
 
 
 def fetch_calendar_text(url: str, *, timeout: int = 12, max_bytes: int = 5_000_000) -> str:
@@ -55,28 +57,50 @@ def parse_calendar(text: str) -> list[CalendarEntry]:
     entries: list[CalendarEntry] = []
     component: str | None = None
     props: dict[str, tuple[str, dict[str, str]]] = {}
+    attachments: list[dict[str, str]] = []
 
     for line in _unfold(text):
         upper = line.upper()
         if upper in ("BEGIN:VEVENT", "BEGIN:VTODO"):
             component = "event" if upper.endswith("VEVENT") else "todo"
             props = {}
+            attachments = []
             continue
         if upper in ("END:VEVENT", "END:VTODO"):
             if component is not None:
                 entry = _build_entry(component, props)
                 if entry is not None:
+                    entry.attachments = attachments[:8]
                     entries.append(entry)
             component = None
             continue
         if component is None:
             continue
         name, params, value = _split_property(line)
+        if name == "ATTACH":  # may repeat; only links are kept (inline binary data is skipped)
+            link = _attachment(value, params)
+            if link:
+                attachments.append(link)
+            continue
         if name and name not in props:  # first occurrence wins
             props[name] = (value, params)
 
     entries.sort(key=lambda entry: entry.start)
     return entries
+
+
+def _attachment(value: str, params: dict[str, str]) -> dict[str, str] | None:
+    """An ATTACH property as {url, name, type}, or None for inline data or non-web links."""
+    if params.get("ENCODING", "").upper() == "BASE64" or params.get("VALUE", "").upper() == "BINARY":
+        return None
+    url = value.strip()
+    if not url.lower().startswith(("https://", "http://")):
+        return None
+    name = params.get("FILENAME") or params.get("X-FILENAME") or params.get("X-ORACLE-FILENAME") or ""
+    if not name:
+        tail = url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]
+        name = unquote(tail) if "." in tail else "Anhang"
+    return {"url": url, "name": name[:120], "type": params.get("FMTTYPE", "")[:60]}
 
 
 def entries_between(entries: list[CalendarEntry], start: datetime, end: datetime) -> list[CalendarEntry]:
