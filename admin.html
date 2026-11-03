@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=115" />
-    <link rel="stylesheet" href="./styles.admin.css?v=115" />
+    <link rel="stylesheet" href="./styles.css?v=116" />
+    <link rel="stylesheet" href="./styles.admin.css?v=116" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -879,7 +879,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=115"></script>
+    <script src="./src/api-client.js?v=116"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1910,7 +1910,7 @@
 
         function contextLine(context) {
           var parts = [];
-          var labels = { overview: 'Heute', schedule: 'Stundenplan', inbox: 'Posteingang', documents: 'Pläne', grades: 'Notenrechner', classlist: 'Klassen', collections: 'Einsammlungen' };
+          var labels = { overview: 'Heute', schedule: 'Stundenplan', inbox: 'Posteingang', documents: 'Termine', grades: 'Notenrechner', classlist: 'Klassen', collections: 'Einsammlungen' };
           if (context.section) parts.push('Bereich: ' + (labels[context.section] || context.section));
           if (context.viewport) parts.push(context.viewport);
           if (context.browser) {

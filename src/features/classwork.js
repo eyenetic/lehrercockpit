@@ -1,5 +1,5 @@
 /**
- * src/features/classwork.js — "Pläne": Orgaplan, Klassenarbeitsplan, Schultermine
+ * src/features/classwork.js — "Termine": Orgaplan, Klassenarbeitsplan, Schultermine
  *
  * Each plan shows a source bar first (file, stand, last check, where it comes
  * from) so a stale source is visible at once, then the entries from today on.

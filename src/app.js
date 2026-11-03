@@ -765,7 +765,7 @@
   const SECTION_TITLES = {
     schedule: "Stundenplan",
     inbox: "Posteingang",
-    documents: "Pläne",
+    documents: "Termine",
     links: "Links",
     grades: "Notenrechner",
     classlist: "Klassen",
@@ -1726,11 +1726,6 @@
       return;
     }
     const rows = [];
-    const soon = addDaysIso(3);
-    ((data.itslearningCalendar || {}).events || [])
-      .filter((event) => event.kind === "todo" && String(event.start).slice(0, 10) <= soon)
-      .slice(0, 2)
-      .forEach((event) => rows.push({ when: dayLabel(event.start), title: event.title, tag: "Abgabe", tagCls: "tile-tag-warn" }));
     unreadMails(data).sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""))).slice(0, 3).forEach((mail) => rows.push({
       title: mail.subject,
       titleHtml: `<a href="${escapeHtml(data.dienstmail.webmail_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(mail.subject)}</a>`,
@@ -1746,12 +1741,6 @@
       sub: message.sender,
       tag: "itslearning",
     }));
-    if (rows.length < 4) {
-      ((data.itslearningCalendar || {}).events || [])
-        .filter((event) => event.kind !== "todo" && String(event.start).slice(0, 10) <= addDaysIso(7))
-        .slice(0, 4 - rows.length)
-        .forEach((event) => rows.push({ when: dayLabel(event.start), title: event.title, tag: "Termin", tagCls: "tile-tag-event" }));
-    }
 
     const newCount = messages.length + unreadMails(data).length;
     setTileMeta("tile-inbox-meta", newCount ? `${newCount} neu` : "");
@@ -2167,8 +2156,14 @@
     if (itsLink) itsLink.href = base.itslearning_base_url || "https://berlin.itslearning.com";
 
     const itslearning = isConnected(data, "itslearning");
+    // The itslearning calendar lives under „Termine“; here only its messages (optional login).
+    const itsLogin = itslearning && data.itslearningMode && data.itslearningMode !== "calendar";
+    const itsCard = document.getElementById("itslearning-block");
+    const showItsCard = !window.MULTIUSER_ENABLED || !state.data || itsLogin;
+    if (itsCard) itsCard.hidden = !showItsCard;
+    document.getElementById("inbox-columns")?.classList.toggle("is-single", !showItsCard);
     const emptyPanel = document.getElementById("inbox-empty");
-    if (emptyPanel) emptyPanel.hidden = !window.MULTIUSER_ENABLED || !state.data || itslearning;
+    if (emptyPanel) emptyPanel.hidden = true;
     // Messages need the optional login; with the calendar subscription only, the part is left out.
     const messagesPart = document.getElementById("inbox-section");
     const itsMessages = getRelevantInboxMessages(data).filter((m) => m.channel === "itslearning");
@@ -3328,8 +3323,10 @@
   function updateInboxTabs(mailUnread, itsNew) {
     const bar = document.getElementById("inbox-tab-bar");
     const mailBlock = document.getElementById("dienstmail-block");
+    const itsBlock = document.getElementById("itslearning-block");
     if (!bar) return;
-    bar.hidden = !mailBlock || mailBlock.hidden;
+    bar.hidden = !mailBlock || mailBlock.hidden || !itsBlock || itsBlock.hidden;
+    if (itsBlock && itsBlock.hidden) showInboxTab("mail");
     [["mail", mailUnread], ["its", itsNew]].forEach(([tab, count]) => {
       const badge = bar.querySelector(`[data-inbox-count="${tab}"]`);
       if (!badge) return;

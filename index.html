@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=115" />
+    <link rel="stylesheet" href="./styles.css?v=116" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -74,7 +74,7 @@
       </button>
       <button class="tab-link" type="button" data-section-target="documents">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-        <span class="tab-label">Pläne</span>
+        <span class="tab-label">Termine</span>
       </button>
       <button class="tab-link" type="button" data-section-target="classlist">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -114,7 +114,7 @@
           </button>
           <button class="nav-link" type="button" data-section-target="documents">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-            <span class="nav-label">Pläne</span>
+            <span class="nav-label">Termine</span>
           </button>
           <button class="nav-link" type="button" data-section-target="links">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
@@ -327,16 +327,12 @@
                 </a>
               </header>
               <div id="inbox-empty" class="inbox-card-empty" hidden>
-                <p>Verbinde das Kalender-Abo von itslearning – dann siehst du hier Termine und Abgaben deiner Kurse.</p>
+                <p>Termine und Abgaben aus itslearning stehen unter „Termine“. Nachrichten aus itslearning kannst du optional per Login dazuholen.</p>
                 <button class="btn btn-primary btn-sm" type="button" data-open-connections="itslearning">itslearning verbinden</button>
               </div>
               <div id="inbox-section" class="inbox-part">
                 <h3 class="inbox-part-title">Nachrichten</h3>
                 <div id="message-list-itslearning" class="stack-list" data-expand-panel="inbox"></div>
-              </div>
-              <div id="itslearning-calendar-block" class="inbox-part" hidden>
-                <h3 class="inbox-part-title">Termine &amp; Abgaben</h3>
-                <div id="itslearning-calendar-list" class="calendar-list"></div>
               </div>
             </article>
           </div>
@@ -350,7 +346,7 @@
         </section>
         <section class="content-grid single-grid" data-view-section="documents">
           <article class="card tone-documents" id="documents-section" aria-labelledby="docs-title">
-            <h2 class="sr-only" id="docs-title">Pläne</h2>
+            <h2 class="sr-only" id="docs-title">Termine</h2>
             <div class="plans-tabs">
               <div class="plans-tab-bar" role="tablist">
                 <button class="plans-tab-btn is-active" role="tab" aria-selected="true"
@@ -358,7 +354,9 @@
                 <button class="plans-tab-btn" role="tab" aria-selected="false"
                   aria-controls="plans-block-klassenarbeitsplan" data-plans-tab="klassenarbeitsplan"><span class="wide-only">Klassenarbeitsplan</span><span class="narrow-only">Klassenarbeiten</span></button>
                 <button class="plans-tab-btn" role="tab" aria-selected="false"
-                  aria-controls="plans-block-termine" data-plans-tab="termine"><span class="wide-only">Schultermine</span><span class="narrow-only">Termine</span></button>
+                  aria-controls="plans-block-termine" data-plans-tab="termine"><span class="wide-only">Schultermine</span><span class="narrow-only">Schule</span></button>
+                <button class="plans-tab-btn" role="tab" aria-selected="false"
+                  aria-controls="plans-block-itslearning" data-plans-tab="itslearning">itslearning</button>
               </div>
 
               <!-- Orgaplan -->
@@ -408,6 +406,13 @@
               <div class="plans-block" id="plans-block-termine" role="tabpanel" hidden>
                 <div id="termine-source-bar" class="plan-source-bar"></div>
                 <div id="school-calendar-list" class="calendar-list"></div>
+              </div>
+
+              <!-- itslearning: Termine und Abgaben aus dem Kalender-Abo -->
+              <div class="plans-block" id="plans-block-itslearning" role="tabpanel" hidden>
+                <div id="itslearning-calendar-block">
+                  <div id="itslearning-calendar-list" class="calendar-list"></div>
+                </div>
               </div>
             </div>
 
@@ -622,29 +627,29 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=115"></script>
-    <script src="./src/features/vault.js?v=115"></script>
-    <script src="./src/api-client.js?v=115"></script>
-    <script src="./src/modules/dashboard-manager.js?v=115"></script>
-    <script src="./src/features/grades.js?v=115"></script>
-    <script src="./src/features/webuntis.js?v=115"></script>
-    <script src="./src/features/itslearning.js?v=115"></script>
-    <script src="./src/features/nextcloud.js?v=115"></script>
-    <script src="./src/features/documents.js?v=115"></script>
-    <script src="./src/features/classwork.js?v=115"></script>
-    <script src="./src/features/classlist.js?v=115"></script>
-    <script src="./src/features/collections.js?v=115"></script>
-    <script src="./src/features/seating.js?v=115"></script>
-    <script src="./src/features/schoolyear.js?v=115"></script>
-    <script src="./src/features/inbox.js?v=115"></script>
-    <script src="./src/features/zugaenge.js?v=115"></script>
-    <script src="./src/features/onedrive-sync.js?v=115"></script>
-    <script src="./src/features/signals.js?v=115"></script>
-    <script src="./src/features/ai.js?v=115"></script>
-    <script src="./src/features/links.js?v=115"></script>
-    <script src="./src/features/connections.js?v=115"></script>
-    <script src="./src/features/feedback.js?v=115"></script>
-    <script src="./src/app.js?v=115"></script>
+    <script src="./data/mock-dashboard.js?v=116"></script>
+    <script src="./src/features/vault.js?v=116"></script>
+    <script src="./src/api-client.js?v=116"></script>
+    <script src="./src/modules/dashboard-manager.js?v=116"></script>
+    <script src="./src/features/grades.js?v=116"></script>
+    <script src="./src/features/webuntis.js?v=116"></script>
+    <script src="./src/features/itslearning.js?v=116"></script>
+    <script src="./src/features/nextcloud.js?v=116"></script>
+    <script src="./src/features/documents.js?v=116"></script>
+    <script src="./src/features/classwork.js?v=116"></script>
+    <script src="./src/features/classlist.js?v=116"></script>
+    <script src="./src/features/collections.js?v=116"></script>
+    <script src="./src/features/seating.js?v=116"></script>
+    <script src="./src/features/schoolyear.js?v=116"></script>
+    <script src="./src/features/inbox.js?v=116"></script>
+    <script src="./src/features/zugaenge.js?v=116"></script>
+    <script src="./src/features/onedrive-sync.js?v=116"></script>
+    <script src="./src/features/signals.js?v=116"></script>
+    <script src="./src/features/ai.js?v=116"></script>
+    <script src="./src/features/links.js?v=116"></script>
+    <script src="./src/features/connections.js?v=116"></script>
+    <script src="./src/features/feedback.js?v=116"></script>
+    <script src="./src/app.js?v=116"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.

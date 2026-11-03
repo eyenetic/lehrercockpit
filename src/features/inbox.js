@@ -254,8 +254,12 @@ var LehrerInbox = (function () {
     var list = document.getElementById('itslearning-calendar-list');
     if (!block || !list || !_getData) return;
     var calendar = _getData().itslearningCalendar;
-    if (!calendar) { block.hidden = true; return; }
     block.hidden = false;
+    if (!calendar) {
+      list.innerHTML = '<div class="empty-state">Verbinde das Kalender-Abo von itslearning – dann stehen hier die Termine und Abgaben deiner Kurse.'
+        + '<p><button class="btn btn-primary btn-sm" type="button" data-open-connections="itslearning">itslearning verbinden</button></p></div>';
+      return;
+    }
     if (!calendar.ok) {
       list.innerHTML = '<div class="empty-state">' + esc(calendar.error || 'Kalender konnte nicht geladen werden.') + '</div>';
       return;

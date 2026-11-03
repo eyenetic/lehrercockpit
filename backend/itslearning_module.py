@@ -1,7 +1,7 @@
 """itslearning module data for the v2 API.
 
 Two independent sources, both optional:
-- calendar subscription (iCal link from itslearning → Kalender → Abonnieren):
+- calendar subscription (iCal link from itslearning → Kalender → ⋯ → iCal-Feed):
   official, needs no password, delivers dates and deadlines.
 - update feed via the stored login (HTML scraping, see itslearning_adapter).
 """
@@ -96,7 +96,7 @@ def fetch_itslearning_calendar(url: str, now: datetime, *, force: bool = False) 
     except Exception as exc:  # network, HTTP or parse errors
         from urllib.error import HTTPError
         if isinstance(exc, HTTPError) and exc.code in (401, 403, 404):
-            message = "Der itslearning-Kalenderlink funktioniert nicht mehr – bitte in itslearning neu kopieren (Kalender → Abonnieren)."
+            message = "Der itslearning-Kalenderlink funktioniert nicht mehr – bitte in itslearning neu kopieren (Kalender → ⋯ → iCal-Feed)."
         elif isinstance(exc, ValueError):
             message = "Der itslearning-Link liefert keinen Kalender – bitte den Abo-Link aus dem itslearning-Kalender eintragen."
         else:

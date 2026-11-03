@@ -231,7 +231,7 @@
         (s.school_url
           ? '<li>' + extLink(s.school_url, 'itslearning öffnen') + ' und dort zum <strong>Kalender</strong> gehen.</li>'
           : '<li>In itslearning den <strong>Kalender</strong> öffnen.</li>') +
-        '<li>Oben rechts auf das Zahnrad → „Abonnieren“.</li>' +
+        '<li>Oben rechts auf die drei Punkte ⋯ → „iCal-Feed“.</li>' +
         '<li>Den angezeigten Link kopieren und hier einfügen.</li></ol>' +
         '<p>Der Link wird verschlüsselt gespeichert.</p></details>' +
         '<div class="connection-actions">' +
@@ -650,7 +650,7 @@
           ? 'Wird stündlich von OneDrive geholt – Änderungen erscheinen von selbst.'
           : cw.url
             ? 'Wird vom hinterlegten Link geladen.'
-            : 'Noch kein Link hinterlegt. Bis dahin lässt sich die Excel-Datei unter „Pläne“ hochladen.') + '</p>' +
+            : 'Noch kein Link hinterlegt. Bis dahin lässt sich die Excel-Datei unter „Termine“ hochladen.') + '</p>' +
         facts([
           ['Datei', plan.fileName ? esc(plan.fileName) + (plan.folder ? ' <span class="connection-muted">(Ordner „' + esc(plan.folder) + '“)</span>' : '') : ''],
           ['Schuljahr', plan.schoolYear ? esc(plan.schoolYear) : ''],

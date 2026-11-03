@@ -276,7 +276,7 @@ def check_feed(url: str, *, source: str = "", timeout: int = 10) -> dict:
 
     hints = {
         "webuntis": "In WebUntis: „Mein Stundenplan“ → ⋯ neben der Legende → „iCal-Abo verwalten“ → Format „Standard“ → „Link erzeugen“ und diesen Link kopieren.",
-        "itslearning": "In itslearning: Kalender öffnen → Zahnrad bzw. „Abonnieren“ → den angezeigten Link kopieren.",
+        "itslearning": "In itslearning: Kalender öffnen → oben rechts die drei Punkte ⋯ → „iCal-Feed“ → den angezeigten Link kopieren.",
     }
     hint = hints.get(source, "")
     try:
