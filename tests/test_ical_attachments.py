@@ -28,3 +28,10 @@ def test_attachments_are_links_with_names():
 def test_entries_without_attachments_have_an_empty_list():
     feed = FEED.replace("ATTACH", "X-IGNORED")
     assert parse_calendar(feed)[0].attachments == []
+
+
+def test_formatted_description_is_kept():
+    feed = FEED.replace("SUMMARY:Abgabe Referat",
+                        "SUMMARY:Abgabe Referat\r\nX-ALT-DESC;FMTTYPE=text/html:<table><tr><td>7a</td></tr></table>")
+    assert parse_calendar(feed)[0].description_html == "<table><tr><td>7a</td></tr></table>"
+    assert parse_calendar(FEED)[0].description_html == ""

@@ -19,7 +19,42 @@ var LehrerAttachments = (function () {
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  function detailHtml(detail) {
+  // Formatted descriptions (tables, lists, bold …) from the source – only plain formatting
+  // survives: no scripts, styles, images or event handlers; links only to http(s).
+  var ALLOWED = { TABLE: 1, THEAD: 1, TBODY: 1, TR: 1, TD: 1, TH: 1, P: 1, BR: 1, B: 1, STRONG: 1, I: 1, EM: 1, U: 1,
+                  UL: 1, OL: 1, LI: 1, A: 1, SPAN: 1, DIV: 1, H1: 1, H2: 1, H3: 1, H4: 1 };
+  function richHtml(html) {
+    if (typeof DOMParser === 'undefined') return '';
+    var doc = new DOMParser().parseFromString('<div>' + String(html || '') + '</div>', 'text/html');
+    function clean(node) {
+      Array.prototype.slice.call(node.childNodes).forEach(function (child) {
+        if (child.nodeType === 3) return;                       // text
+        if (child.nodeType !== 1 || !ALLOWED[child.tagName]) {  // anything else: keep only its text
+          if (child.nodeType === 1 && !/^(SCRIPT|STYLE|TITLE|HEAD|META|LINK|IFRAME|OBJECT|IMG|SVG)$/.test(child.tagName)) {
+            clean(child);
+            while (child.firstChild) node.insertBefore(child.firstChild, child);
+          }
+          node.removeChild(child);
+          return;
+        }
+        Array.prototype.slice.call(child.attributes).forEach(function (attr) {
+          var keep = (child.tagName === 'A' && attr.name === 'href' && /^https?:\/\//i.test(attr.value))
+            || ((child.tagName === 'TD' || child.tagName === 'TH') && (attr.name === 'colspan' || attr.name === 'rowspan'));
+          if (!keep) child.removeAttribute(attr.name);
+        });
+        if (child.tagName === 'A') { child.setAttribute('target', '_blank'); child.setAttribute('rel', 'noopener noreferrer'); }
+        clean(child);
+      });
+    }
+    var root = doc.body.firstChild;
+    clean(root);
+    return root.textContent.trim() ? '<div class="rich-detail">' + root.innerHTML + '</div>' : '';
+  }
+
+  /** Plain description, or the formatted one when the source sends it (htmlDetail). */
+  function detailHtml(detail, htmlDetail) {
+    var rich = htmlDetail ? richHtml(htmlDetail) : '';
+    if (rich) return '<details class="calendar-item-detail" open><summary>Beschreibung</summary>' + rich + '</details>';
     var text = String(detail || '').trim();
     if (!text) return '';
     var html = esc(text).replace(/https?:\/\/[^\s<]+/g, function (url) {

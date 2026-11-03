@@ -40,6 +40,7 @@ class CalendarEntry:
     url: str
     status: str
     attachments: list = field(default_factory=list)  # [{"url", "name", "type"}] from ATTACH (links only)
+    description_html: str = ""  # X-ALT-DESC;FMTTYPE=text/html – formatted text (tables …), sanitised in the browser
 
 
 def fetch_calendar_text(url: str, *, timeout: int = 12, max_bytes: int = 5_000_000) -> str:
@@ -274,7 +275,16 @@ def _build_entry(kind: str, props: dict[str, tuple[str, dict[str, str]]]) -> Cal
         description=text("DESCRIPTION"),
         url=text("URL"),
         status=(text("STATUS") or "CONFIRMED").upper(),
+        description_html=_html_description(props),
     )
+
+
+def _html_description(props: dict[str, tuple[str, dict[str, str]]]) -> str:
+    """The formatted description some feeds send next to the plain one (Outlook style)."""
+    value, params = props.get("X-ALT-DESC", ("", {}))
+    if not value or "html" not in params.get("FMTTYPE", "").lower():
+        return ""
+    return _unescape(value)[:20000]
 
 
 def berlin_today(now: datetime | None = None) -> date:

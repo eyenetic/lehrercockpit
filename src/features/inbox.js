@@ -272,6 +272,7 @@ var LehrerInbox = (function () {
     var today = new Date();
     // With the stored itslearning login the server fetches attachments as the teacher.
     var viaServer = !!_getData().itslearningMode && _getData().itslearningMode !== 'calendar';
+    var itsBase = ((_getData().base || {}).itslearning_base_url) || 'https://berlin.itslearning.com';
     list.innerHTML = events.map(function (event) {
       var start = new Date(event.start);
       var title = event.url
@@ -282,7 +283,8 @@ var LehrerInbox = (function () {
         + '<span>' + esc(_timeLabel(event, start)) + '</span></div>'
         + '<div class="calendar-item-body"><p class="calendar-item-title">' + title + '</p>'
         + (event.location ? '<p class="message-snippet">' + esc(event.location) + '</p>' : '')
-        + (window.LehrerAttachments ? window.LehrerAttachments.detailHtml(event.detail) + window.LehrerAttachments.attachmentsHtml(event.attachments, { viaServer: viaServer }) : '')
+        + (window.LehrerAttachments ? window.LehrerAttachments.detailHtml(event.detail, event.detailHtml) + window.LehrerAttachments.attachmentsHtml(event.attachments, { viaServer: viaServer }) : '')
+        + '<p class="calendar-item-open"><a class="secondary-link" href="' + esc(event.url || itsBase) + '" target="_blank" rel="noopener noreferrer">In itslearning öffnen ↗\uFE0E</a></p>'
         + '</div></article>';
     }).join('');
   }

@@ -608,7 +608,7 @@ var LehrerClasswork = (function () {
         + '<span>' + esc(event.all_day ? (running ? 'läuft' : 'ganztägig') : (event.time_label || '')) + '</span></div>'
         + '<div class="calendar-item-body"><p class="calendar-item-title">' + title + newMark('termine', event.start, event.title) + '</p>'
         + (event.location ? '<p class="message-snippet">' + esc(event.location) + '</p>' : '')
-        + (window.LehrerAttachments ? window.LehrerAttachments.detailHtml(event.description) + window.LehrerAttachments.attachmentsHtml(event.attachments) : '')
+        + (window.LehrerAttachments ? window.LehrerAttachments.detailHtml(event.description, event.description_html) + window.LehrerAttachments.attachmentsHtml(event.attachments) : '')
         + '</div></article>';
     }).join('');
   }

@@ -140,5 +140,6 @@ def _event_dict(entry: CalendarEntry) -> dict[str, Any]:
         "location": entry.location,
         "url": entry.url,
         "detail": entry.description[:1200],
+        "detailHtml": entry.description_html,
         "attachments": list(entry.attachments or [])[:8],
     }
