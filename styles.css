@@ -7400,3 +7400,22 @@ html, body { overflow-x: clip; }
 .rich-detail p { margin: 4px 0; }
 .rich-detail ul, .rich-detail ol { margin: 4px 0; padding-left: 20px; }
 .calendar-item-open { margin: 8px 0 0; font-size: 0.82rem; }
+
+/* ── Suche (⌘K) ────────────────────────────────────────────────────────────── */
+.search-overlay { align-items: flex-start; padding-top: min(12vh, 110px); }
+.search-panel { width: min(640px, calc(100vw - 24px)); max-height: min(70vh, 620px); display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 16px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: var(--shadow-pop); }
+.search-field { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); color: var(--muted); }
+.search-field input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 1.05rem; color: var(--ink); }
+.search-field input::-webkit-search-cancel-button { display: none; }
+.search-esc { font: inherit; font-size: 0.7rem; padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line-strong); color: var(--muted); }
+.search-results { overflow-y: auto; padding: 6px 8px 10px; }
+.search-hint { margin: 14px 10px; font-size: 0.88rem; color: var(--muted); }
+.search-group { padding: 4px 0; }
+.search-group-title { margin: 8px 10px 4px; font-size: 0.7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.search-hit { width: 100%; display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 10px; border: 0; border-radius: 10px; background: none; font: inherit; color: var(--ink); cursor: pointer; }
+.search-hit:hover, .search-hit.is-active { background: var(--accent-soft); }
+.search-hit-title { font-size: 0.92rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-hit-sub { font-size: 0.78rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-hit mark { background: color-mix(in srgb, var(--warning) 28%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+@media (max-width: 640px) { .search-overlay { padding-top: 12px; } .search-esc { display: none; } }

@@ -3531,6 +3531,31 @@
     initClassTabs();
     initInboxTabs();
     initAppUpdates();
+    if (window.LehrerSearch) {
+      window.LehrerSearch.init({
+        getData,
+        orgaplanParts,
+        lessonParts,
+        inboxMessages: getRelevantInboxMessages,
+        // jump to where a search hit lives
+        go(action) {
+          if (action.schoolyear) { goToSection("overview"); openSchoolYear(); return; }
+          if (action.classTab) {
+            if (action.classId && window.LehrerClasslist && window.LehrerClasslist.select) window.LehrerClasslist.select(action.classId);
+            if (action.collection && window.LehrerCollections) window.LehrerCollections.select(action.collection);
+            goToSection("classlist");
+            showClassTab(action.classTab);
+            return;
+          }
+          goToSection(action.section || "overview");
+          if (action.tab) document.querySelector(`.plans-tab-btn[data-plans-tab="${action.tab}"]`)?.click();
+          if (action.mail) {
+            if (openMailId !== action.mail) toggleMail(action.mail);
+            setTimeout(() => document.querySelector(`[data-mail-id="${CSS.escape(action.mail)}"]`)?.scrollIntoView({ block: "center" }), 50);
+          }
+        },
+      });
+    }
     // „in 12 Min.“ stays true without reloading the data
     window.setInterval(() => {
       if (state.data && (state.activeSection || "overview") === "overview") safely(() => renderNextUp(getData()));

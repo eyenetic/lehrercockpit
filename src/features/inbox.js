@@ -255,6 +255,15 @@ var LehrerInbox = (function () {
     if (!block || !list || !_getData) return;
     var calendar = _getData().itslearningCalendar;
     block.hidden = false;
+    // one link to itslearning at the top, like the other sources
+    var bar = document.getElementById('itslearning-source-bar');
+    if (bar) {
+      var base = ((_getData().base || {}).itslearning_base_url) || 'https://berlin.itslearning.com';
+      var okCal = calendar && calendar.ok !== false;
+      bar.innerHTML = '<div class="plan-source-main"><span class="pill ' + (calendar ? (okCal ? 'pill-live' : 'pill-danger') : '') + '">' + (calendar ? (okCal ? 'aktuell' : 'Fehler') : 'aus') + '</span>'
+        + '<span class="plan-source-text"><strong>Kalender aus itslearning</strong>' + (calendar ? ' <span aria-hidden="true">·</span> Termine und Abgaben der nächsten drei Wochen' : '') + '</span></div>'
+        + '<div class="plan-source-actions"><a class="secondary-link" href="' + esc(base) + '" target="_blank" rel="noopener noreferrer">itslearning öffnen ↗\uFE0E</a></div>';
+    }
     if (!calendar) {
       list.innerHTML = '<div class="empty-state">Verbinde das Kalender-Abo von itslearning – dann stehen hier die Termine und Abgaben deiner Kurse.'
         + '<p><button class="btn btn-primary btn-sm" type="button" data-open-connections="itslearning">itslearning verbinden</button></p></div>';
@@ -272,7 +281,6 @@ var LehrerInbox = (function () {
     var today = new Date();
     // With the stored itslearning login the server fetches attachments as the teacher.
     var viaServer = !!_getData().itslearningMode && _getData().itslearningMode !== 'calendar';
-    var itsBase = ((_getData().base || {}).itslearning_base_url) || 'https://berlin.itslearning.com';
     list.innerHTML = events.map(function (event) {
       var start = new Date(event.start);
       var title = event.url
@@ -284,7 +292,6 @@ var LehrerInbox = (function () {
         + '<div class="calendar-item-body"><p class="calendar-item-title">' + title + '</p>'
         + (event.location ? '<p class="message-snippet">' + esc(event.location) + '</p>' : '')
         + (window.LehrerAttachments ? window.LehrerAttachments.detailHtml(event.detail, event.detailHtml) + window.LehrerAttachments.attachmentsHtml(event.attachments, { viaServer: viaServer }) : '')
-        + '<p class="calendar-item-open"><a class="secondary-link" href="' + esc(event.url || itsBase) + '" target="_blank" rel="noopener noreferrer">In itslearning öffnen ↗\uFE0E</a></p>'
         + '</div></article>';
     }).join('');
   }

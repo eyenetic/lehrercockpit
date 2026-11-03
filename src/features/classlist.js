@@ -831,6 +831,7 @@ var LehrerClasslist = (function () {
     getStudentsForClass: getStudentsForClass,
     printDocument: printDocument,
     editNames: function (classId, onDone) { _load(); _showFixNamesDialog(classId, onDone); },
+    select: function (classId) { _activeClass = classId; },
   };
 })();
 
