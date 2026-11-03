@@ -1705,7 +1705,7 @@
                 <span class="mail-subject"><span class="mail-subject-text">${escapeHtml(m.subject)}</span>${m.unread ? '<span class="mail-dot" aria-label="ungelesen"></span>' : ""}</span>
               </span>
             </button>
-            <div class="mail-body" ${openMailId === m.id ? "" : "hidden"}>${openMailId === m.id ? mailBodyHtml(m.id, mail.webmail_url) : ""}</div>
+            <div class="mail-body" ${openMailId === m.id ? "" : "hidden"}>${openMailId === m.id ? mailBodyHtml(m, mail.webmail_url) : ""}</div>
           </div>`).join("")
       : tileEmpty("Der Posteingang ist leer.");
     if (!list.dataset.bound) {
@@ -1737,8 +1737,21 @@
   let openMailId = null;
   const mailBodies = {};
 
-  function mailBodyHtml(id, webmailUrl) {
-    const entry = mailBodies[id];
+  // Replies are written in the teacher's own mail program (mailto:) – the cockpit never sends mail itself.
+  function mailReplyHref(m, entry) {
+    const subject = /^(aw|re):/i.test(m.subject || "") ? m.subject : `AW: ${m.subject || ""}`;
+    let body = "";
+    if (entry && entry.text) {
+      const when = m.date ? new Date(m.date).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "";
+      // keep the link short enough for every mail program
+      const text = entry.text.length > 1500 ? `${entry.text.slice(0, 1500)} …` : entry.text;
+      body = `\n\n${when ? `Am ${when} schrieb ` : ""}${m.from}:\n${text.split("\n").map((line) => `> ${line}`).join("\n")}`;
+    }
+    return `mailto:${String(m.from_address || "").replace(/[^\w.@+-]/g, "")}?subject=${encodeURIComponent(subject)}${body ? `&body=${encodeURIComponent(body)}` : ""}`;
+  }
+
+  function mailBodyHtml(m, webmailUrl) {
+    const entry = mailBodies[m.id];
     const link = `<a class="mail-open" href="${escapeHtml(webmailUrl)}" target="_blank" rel="noopener noreferrer">Im Webmail öffnen ↗</a>`;
     if (!entry || entry.loading) return '<p class="mail-loading">Lade die Mail …</p>';
     if (entry.error) return `<p class="mail-error">${escapeHtml(entry.error)}</p>${link}`;
@@ -1746,7 +1759,9 @@
     const attachments = entry.attachments && entry.attachments.length
       ? `<p class="mail-attachments">Anhang: ${entry.attachments.map(escapeHtml).join(", ")}</p>` : "";
     const more = entry.truncated ? '<p class="mail-loading">… gekürzt – die ganze Mail im Webmail.</p>' : "";
-    return text + more + attachments + link;
+    const reply = m.from_address
+      ? `<a class="btn btn-secondary btn-sm mail-reply" href="${escapeHtml(mailReplyHref(m, entry))}" title="Öffnet dein Mailprogramm">Antworten</a>` : "";
+    return `${text}${more}${attachments}<div class="mail-actions">${reply}${link}</div>`;
   }
 
   function toggleMail(id) {

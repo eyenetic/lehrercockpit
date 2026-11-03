@@ -6701,6 +6701,11 @@ html, body { overflow-x: clip; }
 .mail-loading, .mail-error, .mail-attachments { margin: 8px 0 0; font-size: 0.8rem; color: var(--muted); }
 .mail-error { color: var(--danger); }
 .mail-open { display: inline-block; margin-top: 8px; font-size: 0.82rem; font-weight: 600; }
+.mail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 10px; }
+.mail-actions .mail-open { margin-top: 0; }
+.inbox-card-head:has(.mail-compose) { display: flex; align-items: center; }
+.inbox-card-head:has(.mail-compose) .inbox-card-title { flex: 1; min-width: 0; }
+.mail-compose { flex: none; margin-right: 14px; }
 
 /* Posteingang: Dienstmail und itslearning nebeneinander (breit), untereinander (Handy) */
 .inbox-columns { display: grid; gap: 16px; align-items: start; }
