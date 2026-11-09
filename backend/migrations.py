@@ -563,6 +563,28 @@ def _migrate_encrypt_stored_secrets(conn) -> None:
         print(f"[migrations] Zugangsdaten: {changed} Einträge nachverschlüsselt.", flush=True)
 
 
+def _migrate_calendar_feeds(conn) -> None:
+    """Kalender-Abo: one secret link per teacher (backend/calendar_feed.py)."""
+    statements = [
+        """
+        CREATE TABLE IF NOT EXISTS calendar_feeds (
+            user_id        INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            token_hash     TEXT NOT NULL UNIQUE,
+            token_enc      TEXT NOT NULL,
+            level          TEXT NOT NULL DEFAULT 'all',
+            created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            last_fetch_at  TIMESTAMPTZ
+        )
+        """,
+    ]
+    for statement in statements:
+        try:
+            with conn.transaction():
+                conn.execute(statement)
+        except Exception as exc:
+            print(f"[migrations] calendar_feeds statement skipped: {exc}", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -576,6 +598,7 @@ def run_all_migrations() -> None:
         _migrate_reset_unseen_signals(conn)
         _migrate_drop_plaintext_code_prefixes(conn)
         _migrate_encrypt_stored_secrets(conn)
+        _migrate_calendar_feeds(conn)
 
 
 def log_audit_event(

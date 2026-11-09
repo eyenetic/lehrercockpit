@@ -136,9 +136,10 @@ var LehrerCalendar = (function () {
   function order(src) { for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i].id === src) return i; return 9; }
   function label(src) { for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i].id === src) return SOURCES[i].label; return ''; }
 
-  /** Shown in the week's time grid (else in the all-day row): one day, between 6 and 20 o'clock. */
+  /** Shown in the week's time grid (else in the all-day row): one day, 6–20 o'clock, at most three hours
+   *  – longer ones (itslearning notices from 8 to 16) would hide the whole day's lessons. */
   function inGrid(ev) {
-    if (ev.allDay || ev.endDay !== ev.day) return false;
+    if (ev.allDay || ev.endDay !== ev.day || ev.endMs - ev.startMs > 3 * 3600000) return false;
     var hour = new Date(ev.startMs).getHours();
     return hour >= 6 && hour < 20;
   }
@@ -223,6 +224,7 @@ var LehrerCalendar = (function () {
       + '<h3 class="cal-title">' + esc(title()) + '</h3>'
       + '<button class="cal-icon-btn" type="button" data-cal="next" aria-label="Weiter">›</button>'
       + '<button class="cal-today-btn" type="button" data-cal="today">Heute</button>'
+      + (window.MULTIUSER_ENABLED ? '<button class="cal-today-btn cal-subscribe-btn" type="button" data-cal="subscribe" title="Diese Termine im eigenen Kalender (Apple, Outlook, Google)">Abonnieren</button>' : '')
       + '</div>'
       + '<div class="cal-views" role="tablist" aria-label="Ansicht">'
       + views.map(function (v) {
@@ -353,7 +355,9 @@ var LehrerCalendar = (function () {
     var cols = days.map(function (d, i) {
       var dIso = iso(d);
       var html = '';
-      lessons.filter(function (l) { return l.startsAt.slice(0, 10) === dIso; }).forEach(function (l) {
+      var dayLessons = lessons.filter(function (l) { return l.startsAt.slice(0, 10) === dIso; });
+      var offset = dayLessons.length ? 45 : 0; // with lessons, events use the right part so lessons stay readable
+      dayLessons.forEach(function (l) {
         var s = new Date(l.startsAt).getTime(), e = new Date(l.endsAt).getTime();
         var p = _h.lessonParts ? _h.lessonParts(l.src) : { main: l.title, sub: '', room: l.location };
         html += '<div class="cal-lesson' + (l.cancelled ? ' is-cancelled' : '') + (p.duty ? ' is-duty' : '') + '" style="top:' + top(s) + 'px;height:' + Math.max(18, top(e) - top(s) - 2) + 'px"'
@@ -366,7 +370,7 @@ var LehrerCalendar = (function () {
         var t = top(ev.startMs);
         var bottom = ev.endDay === ev.day ? top(ev.endMs) : height;
         html += '<button type="button" class="cal-ev cal-ev-timed src-' + ev.src + '" data-cal-ev="' + esc(ev.id) + '"'
-          + ' style="top:' + t + 'px;height:' + Math.max(20, bottom - t - 2) + 'px;left:calc(' + (x.lane / x.of * 100) + '% + 2px);width:calc(' + (100 / x.of) + '% - 4px)"'
+          + ' style="top:' + t + 'px;height:' + Math.max(20, bottom - t - 2) + 'px;left:calc(' + (offset + x.lane / x.of * (100 - offset)) + '% + 2px);width:calc(' + ((100 - offset) / x.of) + '% - 4px)"'
           + ' title="' + esc(ev.time + ' ' + ev.title) + '"><span class="cal-ev-time">' + esc(ev.time) + '</span> ' + esc(ev.title) + '</button>';
       });
       if (dIso === today) {
@@ -508,6 +512,95 @@ var LehrerCalendar = (function () {
     if (open) open.remove();
   }
 
+  // ── Abo für den eigenen Kalender (backend/calendar_feed.py) ──────────────────
+  function api(method, body) {
+    var init = { method: method, credentials: 'include', headers: {} };
+    if (body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
+    return fetch((window.BACKEND_API_URL || '') + '/api/v2/calendar', init).then(function (resp) {
+      return resp.json().catch(function () { return {}; }).then(function (data) {
+        if (!resp.ok || data.ok === false) throw new Error(data.error || 'Anfrage fehlgeschlagen (' + resp.status + ').');
+        return data;
+      });
+    });
+  }
+
+  function orgaplanLevel() {
+    try { return localStorage.getItem('lc.orgaplanLevel') || 'all'; } catch (e) { return 'all'; }
+  }
+
+  function subscribeHtml(feed, message) {
+    var intro = '<p class="cal-sub-copy">Orgaplan, die Klassenarbeiten deiner Klassen und die Schultermine erscheinen in deinem Kalender – '
+      + 'auf dem Mac, dem iPhone oder in Outlook – und bleiben dort von selbst aktuell. Private Termine bleiben, wo sie sind.</p>';
+    if (!feed) return intro + '<p class="cal-sub-copy">Lade …</p>';
+    if (!feed.active) {
+      return intro + (message ? '<p class="cal-sub-error">' + esc(message) + '</p>' : '')
+        + '<div class="modal-actions cal-detail-actions"><button class="btn btn-primary" type="button" data-sub="create">Link erstellen</button></div>';
+    }
+    var levels = [['all', 'alle Stufen'], ['middle', 'Mittelstufe'], ['upper', 'Oberstufe']];
+    return intro
+      + '<div class="cal-sub-link"><input class="form-input" type="text" readonly value="' + esc(feed.url) + '" aria-label="Abo-Link" data-sub-url />'
+      + '<button class="btn btn-secondary btn-sm" type="button" data-sub="copy">Kopieren</button></div>'
+      + (message ? '<p class="cal-sub-note">' + esc(message) + '</p>' : '')
+      + '<div class="modal-actions cal-detail-actions">'
+      + '<a class="btn btn-primary btn-sm" href="' + esc(feed.webcal) + '">Im Kalender öffnen</a></div>'
+      + '<details class="cal-sub-help"><summary>So geht’s von Hand</summary><ul>'
+      + '<li><strong>Mac:</strong> Kalender → Ablage → Neues Kalenderabonnement → Link einfügen. Bei „Ort“ iCloud wählen, dann ist es auch auf dem iPhone.</li>'
+      + '<li><strong>iPhone:</strong> Einstellungen → Apps → Kalender → Kalender-Accounts → Account hinzufügen → Andere → Kalenderabo hinzufügen.</li>'
+      + '<li><strong>Outlook:</strong> Kalender hinzufügen → Aus dem Internet abonnieren → Link einfügen.</li>'
+      + '</ul></details>'
+      + '<label class="cal-sub-level">Orgaplan: <select data-sub-level>' + levels.map(function (l) {
+        return '<option value="' + l[0] + '"' + (feed.level === l[0] ? ' selected' : '') + '>' + l[1] + '</option>';
+      }).join('') + '</select></label>'
+      + '<p class="cal-sub-note">Klassenarbeiten: die Klassen, die du unter „Heute anpassen“ gewählt hast. '
+      + 'Der Link ist wie ein Schlüssel – nicht weitergeben.'
+      + (feed.last_fetch_at ? ' Zuletzt abgerufen ' + esc(new Date(feed.last_fetch_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })) + '.' : '')
+      + '</p>'
+      + '<div class="cal-sub-more"><button class="secondary-link" type="button" data-sub="renew">Neuen Link erzeugen</button>'
+      + '<button class="secondary-link" type="button" data-sub="stop">Abo beenden</button></div>';
+  }
+
+  function openSubscribe() {
+    closeDetail();
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay cal-detail-overlay';
+    overlay.innerHTML = '<div class="modal cal-detail cal-subscribe" role="dialog" aria-modal="true" aria-labelledby="cal-sub-title">'
+      + '<div class="modal-header"><h3 class="cal-detail-title" id="cal-sub-title">Im eigenen Kalender</h3>'
+      + '<button class="modal-close" type="button" data-cal-close aria-label="Schließen">✕</button></div>'
+      + '<div data-sub-body>' + subscribeHtml(null) + '</div></div>';
+    document.body.appendChild(overlay);
+    var body = overlay.querySelector('[data-sub-body]');
+    var feed = null;
+    function show(next, message) { feed = next; body.innerHTML = subscribeHtml(feed, message); }
+    function fail(err) { show(feed || { active: false }, err.message); }
+    api('GET').then(function (data) { show(data); }, fail);
+
+    overlay.addEventListener('change', function (e) {
+      var select = e.target.closest('[data-sub-level]');
+      if (!select) return;
+      api('PATCH', { level: select.value }).then(function () { feed.level = select.value; show(feed, 'Gespeichert – dein Kalender übernimmt das beim nächsten Abruf.'); }, fail);
+    });
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay || e.target.closest('[data-cal-close]')) { closeDetail(); return; }
+      var btn = e.target.closest('[data-sub]');
+      if (!btn) return;
+      var action = btn.dataset.sub;
+      if (action === 'create') {
+        api('POST', { level: orgaplanLevel() }).then(function (data) { show(data); }, fail);
+      } else if (action === 'copy') {
+        var input = body.querySelector('[data-sub-url]');
+        var done = function () { show(feed, 'Link kopiert.'); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(feed.url).then(done, function () { input.select(); });
+        else { input.select(); try { document.execCommand('copy'); done(); } catch (err) { /* selected for manual copy */ } }
+      } else if (action === 'renew') {
+        if (!window.confirm('Neuen Link erzeugen? Der alte Link funktioniert dann nicht mehr – im Kalender musst du das Abo neu einrichten.')) return;
+        api('POST', { level: feed.level }).then(function (data) { show(data, 'Neuer Link erstellt. Richte das Abo mit diesem Link neu ein.'); }, fail);
+      } else if (action === 'stop') {
+        if (!window.confirm('Abo beenden? Dein Kalender bekommt dann keine Termine mehr aus dem Cockpit.')) return;
+        api('DELETE').then(function () { show({ active: false }, 'Abo beendet. Den Kalender kannst du jetzt in deiner Kalender-App löschen.'); }, fail);
+      }
+    });
+  }
+
   // ── Events ─────────────────────────────────────────────────────────────────
   function onClick(e) {
     var t = e.target;
@@ -544,6 +637,7 @@ var LehrerCalendar = (function () {
     if (nav) {
       if (nav.dataset.cal === 'prev') shift(-1);
       else if (nav.dataset.cal === 'next') shift(1);
+      else if (nav.dataset.cal === 'subscribe') openSubscribe();
       else goToday(true);
     }
   }

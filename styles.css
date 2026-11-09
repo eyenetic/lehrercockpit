@@ -7578,3 +7578,14 @@ html, body { overflow-x: clip; }
 .cal-title, .cal-daypanel-title, .cal-detail-title, .cal-day-num, .cal-week-num, .cal-list-date strong { color: var(--ink); }
 .cal-day.is-today .cal-day-num { color: #fff; }
 .cal-list-day.is-today .cal-list-date strong, .cal-week-day.is-today .cal-week-num { color: var(--accent); }
+.cal-subscribe-btn { margin-left: 4px; }
+.cal-sub-copy { margin: 0 0 10px; font-size: 0.88rem; color: var(--ink-2); line-height: 1.5; }
+.cal-sub-link { display: flex; gap: 8px; align-items: center; }
+.cal-sub-link input { flex: 1; min-width: 0; font-size: 0.8rem; }
+.cal-sub-note { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.45; }
+.cal-sub-error { margin: 0 0 10px; font-size: 0.84rem; color: var(--danger); }
+.cal-sub-help { margin-top: 12px; font-size: 0.84rem; }
+.cal-sub-help summary { cursor: pointer; color: var(--ink-2); font-weight: 560; }
+.cal-sub-help ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-2); }
+.cal-sub-level { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.84rem; color: var(--ink-2); }
+.cal-sub-more { display: flex; gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
