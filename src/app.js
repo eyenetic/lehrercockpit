@@ -2858,6 +2858,7 @@
     renderWebUntisControls();
     renderWebUntisSchedule();
     renderPlanDigest();
+    if (window.LehrerCalendar) safely(() => window.LehrerCalendar.render());
     renderGrades();
     renderDocuments();
     renderExpandableSections();
@@ -3546,6 +3547,14 @@
     initClassTabs();
     initInboxTabs();
     initAppUpdates();
+    if (window.LehrerCalendar) {
+      window.LehrerCalendar.init({
+        getData,
+        orgaplanParts,
+        lessonParts,
+        selectedClasses: (classes, defaultClass) => getSelectedClassworkClasses(classes, defaultClass),
+      });
+    }
     if (window.LehrerSearch) {
       window.LehrerSearch.init({
         getData,

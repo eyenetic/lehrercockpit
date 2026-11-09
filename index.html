@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=125" />
+    <link rel="stylesheet" href="./styles.css?v=126" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -354,6 +354,8 @@
             <div class="plans-tabs">
               <div class="plans-tab-bar" role="tablist">
                 <button class="plans-tab-btn is-active" role="tab" aria-selected="true"
+                  aria-controls="plans-block-alle" data-plans-tab="alle">Alle</button>
+                <button class="plans-tab-btn" role="tab" aria-selected="false"
                   aria-controls="plans-block-orgaplan" data-plans-tab="orgaplan">Orgaplan</button>
                 <button class="plans-tab-btn" role="tab" aria-selected="false"
                   aria-controls="plans-block-klassenarbeitsplan" data-plans-tab="klassenarbeitsplan"><span class="wide-only">Klassenarbeitsplan</span><span class="narrow-only">Klassenarbeiten</span></button>
@@ -363,8 +365,13 @@
                   aria-controls="plans-block-itslearning" data-plans-tab="itslearning">itslearning</button>
               </div>
 
+              <!-- Alle: alle Quellen in einem Kalender (src/features/calendar.js) -->
+              <div class="plans-block" id="plans-block-alle" role="tabpanel">
+                <div id="calendar-root" class="cal"></div>
+              </div>
+
               <!-- Orgaplan -->
-              <div class="plans-block" id="plans-block-orgaplan" role="tabpanel">
+              <div class="plans-block" id="plans-block-orgaplan" role="tabpanel" hidden>
                 <div id="orgaplan-source-bar" class="plan-source-bar"></div>
                 <section class="plan-digest-card tone-orgaplan" aria-labelledby="orgaplan-digest-title">
                   <h2 id="orgaplan-digest-title" class="sr-only">Orgaplan: Termine der nächsten Wochen</h2>
@@ -632,31 +639,32 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=125"></script>
-    <script src="./src/features/vault.js?v=125"></script>
-    <script src="./src/api-client.js?v=125"></script>
-    <script src="./src/modules/dashboard-manager.js?v=125"></script>
-    <script src="./src/features/grades.js?v=125"></script>
-    <script src="./src/features/webuntis.js?v=125"></script>
-    <script src="./src/features/itslearning.js?v=125"></script>
-    <script src="./src/features/nextcloud.js?v=125"></script>
-    <script src="./src/features/documents.js?v=125"></script>
-    <script src="./src/features/classwork.js?v=125"></script>
-    <script src="./src/features/classlist.js?v=125"></script>
-    <script src="./src/features/collections.js?v=125"></script>
-    <script src="./src/features/seating.js?v=125"></script>
-    <script src="./src/features/schoolyear.js?v=125"></script>
-    <script src="./src/features/attachments.js?v=125"></script>
-    <script src="./src/features/inbox.js?v=125"></script>
-    <script src="./src/features/zugaenge.js?v=125"></script>
-    <script src="./src/features/onedrive-sync.js?v=125"></script>
-    <script src="./src/features/signals.js?v=125"></script>
-    <script src="./src/features/ai.js?v=125"></script>
-    <script src="./src/features/links.js?v=125"></script>
-    <script src="./src/features/connections.js?v=125"></script>
-    <script src="./src/features/feedback.js?v=125"></script>
-    <script src="./src/features/search.js?v=125"></script>
-    <script src="./src/app.js?v=125"></script>
+    <script src="./data/mock-dashboard.js?v=126"></script>
+    <script src="./src/features/vault.js?v=126"></script>
+    <script src="./src/api-client.js?v=126"></script>
+    <script src="./src/modules/dashboard-manager.js?v=126"></script>
+    <script src="./src/features/grades.js?v=126"></script>
+    <script src="./src/features/webuntis.js?v=126"></script>
+    <script src="./src/features/itslearning.js?v=126"></script>
+    <script src="./src/features/nextcloud.js?v=126"></script>
+    <script src="./src/features/documents.js?v=126"></script>
+    <script src="./src/features/classwork.js?v=126"></script>
+    <script src="./src/features/classlist.js?v=126"></script>
+    <script src="./src/features/collections.js?v=126"></script>
+    <script src="./src/features/seating.js?v=126"></script>
+    <script src="./src/features/schoolyear.js?v=126"></script>
+    <script src="./src/features/attachments.js?v=126"></script>
+    <script src="./src/features/inbox.js?v=126"></script>
+    <script src="./src/features/zugaenge.js?v=126"></script>
+    <script src="./src/features/onedrive-sync.js?v=126"></script>
+    <script src="./src/features/signals.js?v=126"></script>
+    <script src="./src/features/ai.js?v=126"></script>
+    <script src="./src/features/links.js?v=126"></script>
+    <script src="./src/features/connections.js?v=126"></script>
+    <script src="./src/features/feedback.js?v=126"></script>
+    <script src="./src/features/search.js?v=126"></script>
+    <script src="./src/features/calendar.js?v=126"></script>
+    <script src="./src/app.js?v=126"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.
