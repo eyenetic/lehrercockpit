@@ -6,9 +6,9 @@ ein Prüfwert (SHA-256) zum Wiederfinden und der Link verschlüsselt, damit er
 der Lehrkraft erneut angezeigt werden kann.
 
 Inhalt nach Wahl der Lehrkraft: Orgaplan (alle Stufen, Mittel- oder Oberstufe),
-Klassenarbeiten der eigenen Klassen (wie unter „Heute anpassen“ gewählt) und
-die Schultermine. Nichts Privates – private Kalender bleiben auf den Geräten
-der Lehrkraft.
+Klassenarbeiten der eigenen Klassen (wie unter „Heute anpassen“ gewählt),
+Schultermine, der eigene itslearning-Kalender, der eigene Stundenplan sowie
+Ferien und Feiertage. Private Kalender bleiben auf den Geräten der Lehrkraft.
 """
 from __future__ import annotations
 
@@ -18,7 +18,9 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 LEVELS = ("all", "middle", "upper")
-SOURCES = ("org", "ka", "sch")  # Orgaplan, Klassenarbeiten, Schultermine
+# Orgaplan, Klassenarbeiten, Schultermine, itslearning, Stundenplan, Ferien und Feiertage
+SOURCES = ("org", "ka", "sch", "its", "lessons", "breaks")
+DEFAULT_SOURCES = ("org", "ka", "sch")  # links made before the choice existed
 _KIND_SHORT = {"Klassenarbeit": "KA", "LEK": "LEK", "Klausur": "Klausur", "Test": "Test", "VERA": "VERA"}
 
 
@@ -41,7 +43,7 @@ def load(conn, user_id: int) -> dict[str, Any] | None:
     return {"token": token, "level": row[1], "sources": clean_sources(row[2]), "created_at": row[3], "last_fetch_at": row[4]}
 
 
-def create(conn, user_id: int, level: str, sources: Any = SOURCES) -> str:
+def create(conn, user_id: int, level: str, sources: Any = DEFAULT_SOURCES) -> str:
     """A new secret link (the old one stops working)."""
     from .crypto import encrypt_config
 
@@ -92,9 +94,9 @@ def clean_level(level: Any) -> str:
 
 
 def clean_sources(sources: Any) -> list[str]:
-    """Known sources in a fixed order; a comma list or a list. None/missing → all."""
+    """Known sources in a fixed order; a comma list or a list. None/missing → the original three."""
     if sources is None:
-        return list(SOURCES)
+        return list(DEFAULT_SOURCES)
     items = sources.split(",") if isinstance(sources, str) else sources if isinstance(sources, (list, tuple)) else []
     chosen = {str(item).strip() for item in items}
     return [source for source in SOURCES if source in chosen]
@@ -173,7 +175,54 @@ def _school_source(conn, user_id: int, level: str, now: datetime) -> list[dict[s
     return _school_events(build_calendar(feed_url(conn), now).get("data") or {})
 
 
-_SOURCE_READERS = {"org": _orgaplan_source, "ka": _classwork_source, "sch": _school_source}
+def _itslearning_source(conn, user_id: int, level: str, now: datetime) -> list[dict[str, Any]]:
+    """The teacher's itslearning calendar (link under Verbindungen), the next three weeks."""
+    from .itslearning_module import fetch_itslearning_calendar
+    from .modules.module_registry import get_user_module_config
+    url = str((get_user_module_config(conn, user_id, "itslearning") or {}).get("calendar_url") or "").strip()
+    if not url:
+        return []
+    events = []
+    for event in fetch_itslearning_calendar(url, now).get("events") or []:
+        all_day = bool(event.get("allDay"))
+        start = _date(event.get("start")) if all_day else _datetime(event.get("start"))
+        end = (_date(event.get("end")) if all_day else _datetime(event.get("end"))) if event.get("end") else None
+        if not start:
+            continue
+        events.append({"uid": "its", "title": ("Abgabe: " if event.get("kind") == "todo" else "") + (event.get("title") or ""),
+                       "start": start, "end": end or start, "all_day": all_day, "location": event.get("location") or "",
+                       "description": event.get("detail") or "", "url": event.get("url") or ""})
+    return events
+
+
+def _lessons_source(conn, user_id: int, level: str, now: datetime) -> list[dict[str, Any]]:
+    """The teacher's WebUntis timetable (link under Verbindungen): last week and four ahead."""
+    from .modules.module_registry import get_user_module_config
+    from .webuntis_adapter import fetch_webuntis_sync
+    config = get_user_module_config(conn, user_id, "webuntis") or {}
+    if not config.get("ical_url"):
+        return []
+    result = fetch_webuntis_sync(config.get("base_url", ""), config["ical_url"], now)
+    events = []
+    for item in result.events or []:
+        start, end = _datetime(item.get("startsAt")), _datetime(item.get("endsAt"))
+        if not start:
+            continue
+        title = item.get("title") or "Unterricht"
+        events.append({"uid": "lessons", "title": ("Entfällt: " if item.get("cancelled") else "") + title,
+                       "start": start, "end": end or start, "all_day": False, "location": item.get("location") or ""})
+    return events
+
+
+def _breaks_source(conn, user_id: int, level: str, now: datetime) -> list[dict[str, Any]]:
+    from .school_year import free_days_between
+    today = now.date()
+    return [{"uid": "breaks", "title": b["name"], "start": b["start"], "end": b["end"], "all_day": True}
+            for b in free_days_between(today - timedelta(days=30), today + timedelta(days=400))]
+
+
+_SOURCE_READERS = {"org": _orgaplan_source, "ka": _classwork_source, "sch": _school_source,
+                   "its": _itslearning_source, "lessons": _lessons_source, "breaks": _breaks_source}
 
 
 def collect(conn, user_id: int, level: str, sources: Any = SOURCES,

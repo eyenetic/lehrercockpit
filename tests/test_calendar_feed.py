@@ -106,7 +106,6 @@ def test_ics_reads_back_with_our_own_parser():
 
 
 def test_sources_are_cleaned_and_ordered():
-    assert cf.clean_sources(None) == ["org", "ka", "sch"]
     assert cf.clean_sources("sch,org") == ["org", "sch"]
     assert cf.clean_sources(["ka", "boese", "ka"]) == ["ka"]
     assert cf.clean_sources([]) == []
@@ -127,3 +126,46 @@ def test_at_least_one_source_is_needed(client):
     with patch.object(backend.api.helpers, "get_current_user", return_value=user):
         assert client.post("/api/v2/calendar", json={"sources": []}).status_code == 422
         assert client.patch("/api/v2/calendar", json={"sources": ["nichts"]}).status_code == 422
+
+
+def test_breaks_source_has_ferien_and_feiertage():
+    events = cf._breaks_source(MagicMock(), 3, "all", NOW)
+    titles = {(e["title"], e["start"]) for e in events}
+    assert ("Weihnachtsferien", date(2026, 12, 23)) in titles
+    assert ("Ostermontag", date(2027, 3, 29)) in titles
+    assert all(e["all_day"] for e in events)
+
+
+def test_lessons_source_uses_the_teachers_timetable():
+    result = MagicMock(events=[
+        {"title": "9a Mathematik", "startsAt": "2026-11-10T08:00:00", "endsAt": "2026-11-10T08:45:00", "location": "R220"},
+        {"title": "10b Physik", "startsAt": "2026-11-10T10:00:00", "endsAt": "2026-11-10T10:45:00", "cancelled": True},
+    ])
+    with patch("backend.modules.module_registry.get_user_module_config", return_value={"ical_url": "https://x/ical"}), \
+            patch("backend.webuntis_adapter.fetch_webuntis_sync", return_value=result):
+        events = cf._lessons_source(MagicMock(), 3, "all", NOW)
+    assert [e["title"] for e in events] == ["9a Mathematik", "Entfällt: 10b Physik"]
+    assert events[0]["start"].utcoffset() is not None  # Berlin time, not floating
+    ics = cf.build_ics(events, NOW)
+    assert "DTSTART:20261110T070000Z" in ics  # 08:00 Berlin (winter time)
+
+
+def test_lessons_and_itslearning_need_a_link():
+    with patch("backend.modules.module_registry.get_user_module_config", return_value={}):
+        assert cf._lessons_source(MagicMock(), 3, "all", NOW) == []
+        assert cf._itslearning_source(MagicMock(), 3, "all", NOW) == []
+
+
+def test_itslearning_source_marks_deadlines():
+    payload = {"events": [{"kind": "todo", "title": "Lernbox", "start": "2026-11-11T23:59:00+01:00", "allDay": False},
+                          {"kind": "event", "title": "Projekttag", "start": "2026-11-12", "allDay": True}]}
+    with patch("backend.modules.module_registry.get_user_module_config", return_value={"calendar_url": "https://its/x"}), \
+            patch("backend.itslearning_module.fetch_itslearning_calendar", return_value=payload):
+        events = cf._itslearning_source(MagicMock(), 3, "all", NOW)
+    assert [e["title"] for e in events] == ["Abgabe: Lernbox", "Projekttag"]
+    assert events[1]["all_day"] and events[1]["start"] == date(2026, 11, 12)
+
+
+def test_old_links_keep_their_three_sources():
+    assert cf.clean_sources(None) == ["org", "ka", "sch"]
+    assert cf.clean_sources("org,ka,sch,its,lessons,breaks") == list(cf.SOURCES)

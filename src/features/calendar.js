@@ -583,11 +583,16 @@ var LehrerCalendar = (function () {
     try { return localStorage.getItem('lc.orgaplanLevel') || 'all'; } catch (e) { return 'all'; }
   }
 
-  var FEED_SOURCES = [['org', 'Orgaplan'], ['ka', 'Klassenarbeiten deiner Klassen'], ['sch', 'Schultermine']];
+  var FEED_SOURCES = [['org', 'Orgaplan'], ['ka', 'Klassenarbeiten deiner Klassen'], ['sch', 'Schultermine'],
+    ['its', 'itslearning – Termine und Abgaben'], ['lessons', 'Stundenplan'], ['breaks', 'Ferien und Feiertage']];
+  var FEED_DEFAULT = ['org', 'ka', 'sch', 'its', 'breaks'];
 
   function optionsHtml(opts) {
     var levels = [['all', 'alle Stufen'], ['middle', 'nur Mittelstufe'], ['upper', 'nur Oberstufe']];
-    return '<fieldset class="cal-sub-options"><legend>Was soll in deinen Kalender?</legend>'
+    var all = opts.sources.length === FEED_SOURCES.length;
+    return '<fieldset class="cal-sub-options"><legend class="sr-only">Was soll in deinen Kalender?</legend>'
+      + '<div class="cal-sub-options-head"><span>Was soll in deinen Kalender?</span>'
+      + '<button class="secondary-link" type="button" data-sub="all">' + (all ? 'Alle abwählen' : 'Alle auswählen') + '</button></div>'
       + FEED_SOURCES.map(function (src) {
         var on = opts.sources.indexOf(src[0]) !== -1;
         return '<div class="cal-sub-option"><label><input type="checkbox" data-sub-src="' + src[0] + '"' + (on ? ' checked' : '') + ' /> '
@@ -597,7 +602,8 @@ var LehrerCalendar = (function () {
           }).join('') + '</select>' : '')
           + '</div>';
       }).join('')
-      + '<p class="cal-sub-note">Klassenarbeiten: die Klassen, die du unter „Heute anpassen“ gewählt hast.</p>'
+      + '<p class="cal-sub-note">Klassenarbeiten: die Klassen, die du unter „Heute anpassen“ gewählt hast. '
+      + 'itslearning und Stundenplan kommen über die Links unter Verbindungen – mit dem Abo-Link sieht sie jeder, der ihn hat.</p>'
       + '</fieldset>';
   }
 
@@ -640,21 +646,21 @@ var LehrerCalendar = (function () {
     document.body.appendChild(overlay);
     var body = overlay.querySelector('[data-sub-body]');
     var feed = null;
-    var opts = { level: orgaplanLevel(), sources: FEED_SOURCES.map(function (src) { return src[0]; }) };
+    var opts = { level: orgaplanLevel(), sources: FEED_DEFAULT.slice() };
     function show(next, message, isError) {
       feed = next;
-      if (next && next.active) opts = { level: next.level || opts.level, sources: next.sources || opts.sources };
       body.innerHTML = subscribeHtml(feed, opts, message, isError);
     }
+    // what the server has – only when it answers, not on every redraw (that would undo a choice in progress)
+    function loaded(data, message) {
+      if (data && data.active) opts = { level: data.level || opts.level, sources: data.sources || opts.sources };
+      show(data, message);
+    }
     function fail(err) { show(feed || { active: false }, err.message, true); }
-    api('GET').then(function (data) { show(data); }, fail);
+    api('GET').then(function (data) { loaded(data); }, fail);
 
-    overlay.addEventListener('change', function (e) {
-      if (!e.target.closest('[data-sub-src], [data-sub-level]')) return;
-      var chosen = Array.prototype.slice.call(body.querySelectorAll('[data-sub-src]'))
-        .filter(function (box) { return box.checked; }).map(function (box) { return box.dataset.subSrc; });
-      var level = (body.querySelector('[data-sub-level]') || {}).value || opts.level;
-      if (!chosen.length) { show(feed, 'Wähle mindestens eine Quelle aus.', true); return; }
+    function choose(chosen, level) {
+      if (!chosen.length) { opts = { level: level, sources: [] }; show(feed, 'Wähle mindestens eine Quelle aus.', true); return; }
       opts = { level: level, sources: chosen };
       if (!feed || !feed.active) { show(feed); return; }
       api('PATCH', opts).then(function () {
@@ -662,14 +668,23 @@ var LehrerCalendar = (function () {
         feed.sources = chosen;
         show(feed, 'Gespeichert.');
       }, fail);
+    }
+    overlay.addEventListener('change', function (e) {
+      if (!e.target.closest('[data-sub-src], [data-sub-level]')) return;
+      var chosen = Array.prototype.slice.call(body.querySelectorAll('[data-sub-src]'))
+        .filter(function (box) { return box.checked; }).map(function (box) { return box.dataset.subSrc; });
+      choose(chosen, (body.querySelector('[data-sub-level]') || {}).value || opts.level);
     });
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay || e.target.closest('[data-cal-close]')) { closeDetail(); return; }
       var btn = e.target.closest('[data-sub]');
       if (!btn) return;
       var action = btn.dataset.sub;
-      if (action === 'create') {
-        api('POST', opts).then(function (data) { show(data); }, fail);
+      if (action === 'all') {
+        choose(opts.sources.length === FEED_SOURCES.length ? [] : FEED_SOURCES.map(function (src) { return src[0]; }), opts.level);
+      } else if (action === 'create') {
+        if (!opts.sources.length) { show(feed, 'Wähle mindestens eine Quelle aus.', true); return; }
+        api('POST', opts).then(function (data) { loaded(data); }, fail);
       } else if (action === 'copy') {
         var input = body.querySelector('[data-sub-url]');
         var done = function () { show(feed, 'Link kopiert.'); };
@@ -677,7 +692,8 @@ var LehrerCalendar = (function () {
         else { input.select(); try { document.execCommand('copy'); done(); } catch (err) { /* selected for manual copy */ } }
       } else if (action === 'renew') {
         if (!window.confirm('Neuen Link erzeugen? Der alte Link funktioniert dann nicht mehr – im Kalender musst du das Abo neu einrichten.')) return;
-        api('POST', opts).then(function (data) { show(data, 'Neuer Link erstellt. Richte das Abo mit diesem Link neu ein.'); }, fail);
+        if (!opts.sources.length) { show(feed, 'Wähle mindestens eine Quelle aus.', true); return; }
+        api('POST', opts).then(function (data) { loaded(data, 'Neuer Link erstellt. Richte das Abo mit diesem Link neu ein.'); }, fail);
       } else if (action === 'stop') {
         if (!window.confirm('Abo beenden? Dein Kalender bekommt dann keine Termine mehr aus dem Cockpit.')) return;
         api('DELETE').then(function () { show({ active: false }, 'Abo beendet. Den Kalender kannst du jetzt in deiner Kalender-App löschen.'); }, fail);

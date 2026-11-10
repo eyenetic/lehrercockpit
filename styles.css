@@ -7602,3 +7602,5 @@ html, body { overflow-x: clip; }
 .cal-sub-option select { font: inherit; font-size: 0.82rem; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel); color: var(--ink); }
 .cal-sub-option select:disabled { opacity: 0.5; }
 .cal-sub-options .cal-sub-note { margin-top: 6px; }
+.src-breaks { --c: var(--cal-break); }
+.cal-sub-options-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 0.8rem; font-weight: 600; color: var(--ink-2); }
