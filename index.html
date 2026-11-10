@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=131" />
+    <link rel="stylesheet" href="./styles.css?v=132" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -210,6 +210,15 @@
             </header>
             <div class="sched-tile-controls" id="tile-schedule-controls" hidden></div>
             <div id="briefing-output" class="tile-body"></div>
+          </article>
+
+          <article class="tile" data-today-module="tasks" data-col="side" aria-labelledby="tile-tasks-title">
+            <header class="tile-head">
+              <h2 id="tile-tasks-title">Zu erledigen</h2>
+              <span class="tile-meta" id="tile-tasks-meta"></span>
+              <button class="tile-link" type="button" data-task-new>+ Neu</button>
+            </header>
+            <div id="today-tasks-body" class="tile-body"></div>
           </article>
 
           <article class="tile" data-today-module="school" data-col="side" aria-labelledby="tile-school-title">
@@ -606,7 +615,7 @@
       </div>
     </div>
 
-    <script src="./src/features/terms.js?v=131"></script>
+    <script src="./src/features/terms.js?v=132"></script>
     <script>
 // Auth-Check: wenn nicht eingeloggt → Login
 // initUserInfo() is defined in the next script block and called here — after the async
@@ -644,32 +653,33 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=131"></script>
-    <script src="./src/features/vault.js?v=131"></script>
-    <script src="./src/api-client.js?v=131"></script>
-    <script src="./src/modules/dashboard-manager.js?v=131"></script>
-    <script src="./src/features/grades.js?v=131"></script>
-    <script src="./src/features/webuntis.js?v=131"></script>
-    <script src="./src/features/itslearning.js?v=131"></script>
-    <script src="./src/features/nextcloud.js?v=131"></script>
-    <script src="./src/features/documents.js?v=131"></script>
-    <script src="./src/features/classwork.js?v=131"></script>
-    <script src="./src/features/classlist.js?v=131"></script>
-    <script src="./src/features/collections.js?v=131"></script>
-    <script src="./src/features/seating.js?v=131"></script>
-    <script src="./src/features/schoolyear.js?v=131"></script>
-    <script src="./src/features/attachments.js?v=131"></script>
-    <script src="./src/features/inbox.js?v=131"></script>
-    <script src="./src/features/zugaenge.js?v=131"></script>
-    <script src="./src/features/onedrive-sync.js?v=131"></script>
-    <script src="./src/features/signals.js?v=131"></script>
-    <script src="./src/features/ai.js?v=131"></script>
-    <script src="./src/features/links.js?v=131"></script>
-    <script src="./src/features/connections.js?v=131"></script>
-    <script src="./src/features/feedback.js?v=131"></script>
-    <script src="./src/features/search.js?v=131"></script>
-    <script src="./src/features/calendar.js?v=131"></script>
-    <script src="./src/app.js?v=131"></script>
+    <script src="./data/mock-dashboard.js?v=132"></script>
+    <script src="./src/features/vault.js?v=132"></script>
+    <script src="./src/api-client.js?v=132"></script>
+    <script src="./src/modules/dashboard-manager.js?v=132"></script>
+    <script src="./src/features/grades.js?v=132"></script>
+    <script src="./src/features/webuntis.js?v=132"></script>
+    <script src="./src/features/itslearning.js?v=132"></script>
+    <script src="./src/features/nextcloud.js?v=132"></script>
+    <script src="./src/features/documents.js?v=132"></script>
+    <script src="./src/features/classwork.js?v=132"></script>
+    <script src="./src/features/classlist.js?v=132"></script>
+    <script src="./src/features/collections.js?v=132"></script>
+    <script src="./src/features/seating.js?v=132"></script>
+    <script src="./src/features/schoolyear.js?v=132"></script>
+    <script src="./src/features/attachments.js?v=132"></script>
+    <script src="./src/features/inbox.js?v=132"></script>
+    <script src="./src/features/zugaenge.js?v=132"></script>
+    <script src="./src/features/onedrive-sync.js?v=132"></script>
+    <script src="./src/features/signals.js?v=132"></script>
+    <script src="./src/features/ai.js?v=132"></script>
+    <script src="./src/features/links.js?v=132"></script>
+    <script src="./src/features/connections.js?v=132"></script>
+    <script src="./src/features/feedback.js?v=132"></script>
+    <script src="./src/features/search.js?v=132"></script>
+    <script src="./src/features/calendar.js?v=132"></script>
+    <script src="./src/features/tasks.js?v=132"></script>
+    <script src="./src/app.js?v=132"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.
@@ -699,7 +709,7 @@ function initUserInfo() {
     const vault = window.LehrerVault;
     if (vault && vault.hasLocalData()) {
       if (vault.status() === 'off') {
-        const leave = confirm('Deine Klassenlisten, Einsammlungen und eigenen Links liegen bisher nur auf diesem Gerät und werden beim Abmelden gelöscht.\n\nAbbrechen und unter „Konto“ erst „Auf allen Geräten verfügbar machen“?\n\nOK = trotzdem abmelden');
+        const leave = confirm('Deine Klassenlisten, Einsammlungen, eigenen Links und eigenen Termine liegen bisher nur auf diesem Gerät und werden beim Abmelden gelöscht.\n\nAbbrechen und unter „Konto“ erst „Auf allen Geräten verfügbar machen“?\n\nOK = trotzdem abmelden');
         if (!leave) { openChangeCode(); return; }
       } else {
         await vault.syncNow().catch(() => {});

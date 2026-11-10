@@ -1,7 +1,7 @@
 /**
  * LehrerVault — Daten bleiben im Browser und reisen verschlüsselt mit.
  *
- * Klassenlisten, Einsammlungen, eigene Links und ein paar Einstellungen liegen
+ * Klassenlisten, Einsammlungen, eigene Links, eigene Termine/Aufgaben und ein paar Einstellungen liegen
  * im localStorage dieses Geräts. Damit sie auf einem neuen Gerät (oder nach dem
  * Abmelden) wieder da sind, legt der Browser eine Kopie auf dem Server ab –
  * verschlüsselt mit AES-GCM. Der Schlüssel entsteht nur im Browser aus dem
@@ -28,6 +28,7 @@
     'lehrerCockpit.collections',
     'lehrerCockpit.seatingPlans',
     'lehrerCockpit.links',
+    'lehrerCockpit.ownEntries',
     'lehrerCockpit.classwork.selectedClasses',
     'lehrerCockpit.todayLayout.local',
     'lc.scheduleView',
@@ -142,7 +143,7 @@
   }
 
   function hasLocalData() {
-    return ['lehrerCockpit.classLists', 'lehrerCockpit.collections', 'lehrerCockpit.seatingPlans', 'lehrerCockpit.links'].some(function (key) {
+    return ['lehrerCockpit.classLists', 'lehrerCockpit.collections', 'lehrerCockpit.seatingPlans', 'lehrerCockpit.links', 'lehrerCockpit.ownEntries'].some(function (key) {
       var value = get(key);
       return value && value !== '{}' && value !== '[]';
     });
@@ -170,7 +171,7 @@
   function mergeFirstSync(serverData) {
     var merged = Object.assign({}, serverData);
     var changed = false;
-    ['lehrerCockpit.classLists', 'lehrerCockpit.collections'].forEach(function (key) {
+    ['lehrerCockpit.classLists', 'lehrerCockpit.collections', 'lehrerCockpit.ownEntries'].forEach(function (key) {
       var local = get(key);
       if (!local) return;
       try {

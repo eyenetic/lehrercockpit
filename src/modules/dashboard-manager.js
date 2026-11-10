@@ -49,6 +49,7 @@
       { id: 'nextup', label: 'Als Nächstes', mandatory: false },
       { id: 'week', label: 'Deine Woche (am Wochenende)', mandatory: false },
       { id: 'schedule', label: 'Stundenplan', mandatory: false },
+      { id: 'tasks', label: 'Zu erledigen', mandatory: false },
       { id: 'school', label: 'Heute an der Schule', mandatory: false },
       { id: 'classwork', label: 'Klassenarbeiten', mandatory: false },
       { id: 'breaks', label: 'Ferien', mandatory: false },
@@ -106,8 +107,11 @@
 
       var knownIds = TODAY_LAYOUT_DEFINITION.map(function(item) { return item.id; });
       var order = Array.isArray(layout.order) ? layout.order.filter(function(id) { return knownIds.indexOf(id) !== -1; }) : [];
-      knownIds.forEach(function(id) {
-        if (order.indexOf(id) === -1) order.push(id);
+      // a tile that is new since the layout was saved goes where it is by default, not to the end
+      knownIds.forEach(function(id, i) {
+        if (order.indexOf(id) !== -1) return;
+        var after = order.indexOf(knownIds[i - 1]);
+        order.splice(after === -1 ? order.length : after + 1, 0, id);
       });
 
       var visibility = Object.assign({}, base.visibility);

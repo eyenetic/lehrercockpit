@@ -4,8 +4,8 @@
  * Monat (Überblick, bis zu fünf Einträge pro Tag), Woche (Zeitleiste mit dem
  * Stundenplan im Hintergrund) und Liste (Tag für Tag, am Handy Standard).
  * Quellen: Orgaplan, Klassenarbeiten der eigenen Klassen, Schultermine,
- * itslearning; Ferien und Feiertage als Hintergrund. Alles, was das Cockpit
- * ohnehin geladen hat – nichts geht dafür an den Server.
+ * itslearning, eigene Einträge (tasks.js); Ferien und Feiertage als Hintergrund.
+ * Alles, was das Cockpit ohnehin geladen hat – nichts geht dafür an den Server.
  *
  * Exports (window.LehrerCalendar): init, render
  */
@@ -18,6 +18,7 @@ var LehrerCalendar = (function () {
     { id: 'sch', label: 'Schultermine', tab: 'termine' },
     { id: 'its', label: 'itslearning', tab: 'itslearning' },
     { id: 'lessons', label: 'Stundenplan', tab: '' },
+    { id: 'own', label: 'Eigene', tab: '' },
   ];
   var MAX_PER_DAY = 5;
   var HOUR_PX = 52;
@@ -122,6 +123,16 @@ var LehrerCalendar = (function () {
     });
 
     list.forEach(timeFromText);
+
+    // own entries (tasks.js): times are exact, so they come after timeFromText
+    (window.LehrerTasks ? window.LehrerTasks.all() : []).forEach(function (entry) {
+      if (!entry.date) return;
+      var w = when(entry.time ? entry.date + 'T' + entry.time : entry.date,
+                   entry.endTime ? entry.date + 'T' + entry.endTime : null, !entry.time);
+      var title = entry.kind === 'task' ? (entry.done ? '✓ ' : 'Frist: ') + entry.title : entry.title;
+      push('own', entry.id, title, entry.kind === 'task' ? 'Aufgabe' : '', w, entry);
+      if (w) list[list.length - 1].done = entry.done;
+    });
 
     list.sort(function (a, b) {
       return a.day.localeCompare(b.day)
@@ -266,6 +277,7 @@ var LehrerCalendar = (function () {
       + '<h3 class="cal-title">' + esc(title()) + '</h3>'
       + '<button class="cal-icon-btn" type="button" data-cal="next" aria-label="Weiter">›</button>'
       + '<button class="cal-today-btn" type="button" data-cal="today">Heute</button>'
+      + (window.LehrerTasks ? '<button class="cal-today-btn cal-add-btn" type="button" data-cal="add" title="Eigenen Termin oder Aufgabe eintragen">+ Eintrag</button>' : '')
       + (window.MULTIUSER_ENABLED ? '<button class="cal-today-btn cal-subscribe-btn" type="button" data-cal="subscribe" title="Diese Termine im eigenen Kalender (Apple, Outlook, Google)">Abonnieren</button>' : '')
       + '</div>'
       + '<div class="cal-views" role="tablist" aria-label="Ansicht">'
@@ -285,14 +297,14 @@ var LehrerCalendar = (function () {
     });
     if (!chips.length) {
       return '<div class="empty-state">Noch keine Termine. Verbinde Orgaplan, Klassenarbeitsplan, Schultermine oder itslearning – '
-        + 'dann erscheinen hier alle zusammen.</div>';
+        + 'dann erscheinen hier alle zusammen. Eigene Termine trägst du über „+ Eintrag“ ein.</div>';
     }
     return '<div class="cal-chips">' + chips.join('') + '</div>';
   }
 
   function evButton(ev, dayIso, extraClass) {
     var multi = ev.endDay > ev.day;
-    var cls = 'cal-ev src-' + ev.src + (multi ? ' is-multi' : '') + (multi && dayIso > ev.day ? ' is-cont' : '')
+    var cls = 'cal-ev src-' + ev.src + (ev.done ? ' is-done' : '') + (multi ? ' is-multi' : '') + (multi && dayIso > ev.day ? ' is-cont' : '')
       + (multi && dayIso < ev.endDay ? ' is-goes-on' : '') + (extraClass || '');
     var showText = !multi || dayIso === ev.day || (fromIso(dayIso).getDay() === 1);
     return '<button type="button" class="' + cls + '" data-cal-ev="' + esc(ev.id) + '" title="' + esc((ev.time ? ev.time + ' ' : '') + ev.title) + '">'
@@ -339,12 +351,13 @@ var LehrerCalendar = (function () {
       + '<h4 class="cal-daypanel-title">' + esc(d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }))
       + (br ? ' <span class="cal-break-tag">' + esc(br.name) + '</span>' : '') + '</h4>'
       + (evs.length ? evs.map(rowHtml).join('') : '<p class="cal-empty">Keine Termine.</p>')
+      + (window.LehrerTasks ? '<button type="button" class="secondary-link cal-daypanel-add" data-cal-add-day="' + dayIso + '">+ Eintrag an diesem Tag</button>' : '')
       + '</section>';
   }
 
   function rowHtml(ev) {
     var whenText = ev.time ? ev.time + (ev.endTime ? '–' + ev.endTime : '') : (ev.endDay > ev.day ? 'mehrtägig' : 'ganztägig');
-    return '<button type="button" class="cal-row src-' + ev.src + '" data-cal-ev="' + esc(ev.id) + '">'
+    return '<button type="button" class="cal-row src-' + ev.src + (ev.done ? ' is-done' : '') + '" data-cal-ev="' + esc(ev.id) + '">'
       + '<span class="cal-dot" aria-hidden="true"></span>'
       + '<span class="cal-row-when">' + esc(whenText) + '</span>'
       + '<span class="cal-row-title">' + esc(ev.title) + (ev.sub ? ' <span class="cal-row-sub">' + esc(ev.sub) + '</span>' : '') + '</span>'
@@ -424,7 +437,7 @@ var LehrerCalendar = (function () {
             + '<strong>' + esc(p.main) + '</strong>' + (p.sub ? ' ' + esc(p.sub) : '') + (p.room ? '<span>' + esc(p.room) + '</span>' : '') + '</div>';
         } else {
           var ev = x.ev;
-          html += '<button type="button" class="cal-ev cal-ev-timed' + compact + ' src-' + ev.src + '" data-cal-ev="' + esc(ev.id) + '" style="' + place + '"'
+          html += '<button type="button" class="cal-ev cal-ev-timed' + compact + (ev.done ? ' is-done' : '') + ' src-' + ev.src + '" data-cal-ev="' + esc(ev.id) + '" style="' + place + '"'
             + ' title="' + esc(ev.time + (ev.endTime ? '–' + ev.endTime : '') + ' ' + ev.title) + '"><span class="cal-ev-time">' + esc(ev.time) + '</span> ' + esc(ev.title) + '</button>';
         }
       });
@@ -433,7 +446,8 @@ var LehrerCalendar = (function () {
         var nowTop = top(now.getTime());
         if (nowTop >= 0 && nowTop <= height) html += '<span class="cal-now" style="top:' + nowTop + 'px" aria-hidden="true"></span>';
       }
-      return '<div class="cal-week-col' + (i > 4 ? ' is-weekend' : '') + (dIso === today ? ' is-today' : '') + (breakOn(d) ? ' is-break' : '') + '" style="height:' + height + 'px">' + html + '</div>';
+      return '<div class="cal-week-col' + (i > 4 ? ' is-weekend' : '') + (dIso === today ? ' is-today' : '') + (breakOn(d) ? ' is-break' : '') + '" style="height:' + height + 'px"'
+        + ' data-cal-col="' + dIso + '" data-cal-min-h="' + minH + '">' + html + '</div>';
     }).join('');
 
     var lines = '';
@@ -603,7 +617,8 @@ var LehrerCalendar = (function () {
           + '</div>';
       }).join('')
       + '<p class="cal-sub-note">Klassenarbeiten: die Klassen, die du unter „Heute anpassen“ gewählt hast. '
-      + 'itslearning und Stundenplan kommen über die Links unter Verbindungen – mit dem Abo-Link sieht sie jeder, der ihn hat.</p>'
+      + 'itslearning und Stundenplan kommen über die Links unter Verbindungen – mit dem Abo-Link sieht sie jeder, der ihn hat. '
+      + 'Deine eigenen Einträge bleiben auf deinen Geräten und kommen nicht ins Abo.</p>'
       + '</fieldset>';
   }
 
@@ -705,7 +720,23 @@ var LehrerCalendar = (function () {
   function onClick(e) {
     var t = e.target;
     var ev = t.closest('[data-cal-ev]');
-    if (ev) { if (_byId[ev.dataset.calEv]) openDetail(_byId[ev.dataset.calEv]); return; }
+    if (ev) {
+      var hit = _byId[ev.dataset.calEv];
+      if (hit && hit.src === 'own' && window.LehrerTasks) window.LehrerTasks.openEditor(hit.raw);
+      else if (hit) openDetail(hit);
+      return;
+    }
+    var addDay = t.closest('[data-cal-add-day]');
+    if (addDay && window.LehrerTasks) { window.LehrerTasks.openEditor({ kind: 'event', date: addDay.dataset.calAddDay }); return; }
+    // a free spot in the week: new entry at that time (half hours)
+    if (t.matches && t.matches('[data-cal-col]') && window.LehrerTasks) {
+      var rect = t.getBoundingClientRect();
+      var minutes = Math.floor(((e.clientY - rect.top) / HOUR_PX * 60) / 30) * 30 + (+t.dataset.calMinH) * 60;
+      minutes = Math.max(0, Math.min(23 * 60 + 30, minutes));
+      var at = String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0');
+      window.LehrerTasks.openEditor({ kind: 'event', date: t.dataset.calCol, time: at });
+      return;
+    }
     var more = t.closest('[data-cal-day-more]');
     if (more) {
       // the whole day: in the month view below the grid, elsewhere in the month view
@@ -738,6 +769,9 @@ var LehrerCalendar = (function () {
       if (nav.dataset.cal === 'prev') shift(-1);
       else if (nav.dataset.cal === 'next') shift(1);
       else if (nav.dataset.cal === 'subscribe') openSubscribe();
+      else if (nav.dataset.cal === 'add') {
+        if (window.LehrerTasks) window.LehrerTasks.openEditor({ kind: 'event', date: _view === 'month' && _selected ? _selected : todayIso() });
+      }
       else goToday(true);
     }
   }

@@ -2067,7 +2067,7 @@
     return "";
   }
 
-  const TODAY_LAYOUT_IDS = ["nextup", "week", "schedule", "school", "classwork", "breaks", "collections", "inbox", "ai", "access"];
+  const TODAY_LAYOUT_IDS = ["nextup", "week", "schedule", "tasks", "school", "classwork", "breaks", "collections", "inbox", "ai", "access"];
   // Shown full width above the two columns, not moved into them.
   const TODAY_ABOVE_BOARD = ["access", "nextup", "week"];
 
@@ -2084,8 +2084,11 @@
       return base;
     }
     const order = Array.isArray(layout.order) ? layout.order.filter((id) => TODAY_LAYOUT_IDS.includes(id)) : [];
-    TODAY_LAYOUT_IDS.forEach((id) => {
-      if (!order.includes(id)) order.push(id);
+    // a tile that is new since the layout was saved goes where it is by default, not to the end
+    TODAY_LAYOUT_IDS.forEach((id, i) => {
+      if (order.includes(id)) return;
+      const after = order.indexOf(TODAY_LAYOUT_IDS[i - 1]);
+      order.splice(after === -1 ? order.length : after + 1, 0, id);
     });
     const visibility = { ...base.visibility };
     if (layout.visibility && typeof layout.visibility === "object") {
@@ -2859,6 +2862,7 @@
     renderWebUntisSchedule();
     renderPlanDigest();
     if (window.LehrerCalendar) safely(() => window.LehrerCalendar.render());
+    if (window.LehrerTasks) safely(() => window.LehrerTasks.renderTile());
     renderGrades();
     renderDocuments();
     renderExpandableSections();
@@ -3108,6 +3112,7 @@
       nextup: "Als Nächstes",
       week: "Deine Woche (am Wochenende)",
       schedule: "Stundenplan",
+      tasks: "Zu erledigen",
       school: "Heute an der Schule",
       classwork: "Klassenarbeiten",
       breaks: "Ferien",
