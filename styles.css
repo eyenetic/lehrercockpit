@@ -7589,3 +7589,10 @@ html, body { overflow-x: clip; }
 .cal-sub-help ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-2); }
 .cal-sub-level { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.84rem; color: var(--ink-2); }
 .cal-sub-more { display: flex; gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+.cal-lesson.is-short, .cal-ev-timed.is-short { padding: 0 6px; font-size: 0.64rem; line-height: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.cal-lesson.is-short span { display: inline; margin-left: 4px; }
+.cal-lesson { box-sizing: border-box; }
+.cal-ev-timed.is-band { z-index: 0; padding-top: 3px; background: color-mix(in srgb, var(--c) 8%, var(--panel)); box-shadow: none; }
+.cal-ev-timed:not(.is-band), .cal-lesson { z-index: 1; }
+.cal-ev-timed { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: 0 4px; overflow: hidden; }

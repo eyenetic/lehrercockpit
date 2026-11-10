@@ -20,7 +20,7 @@ var LehrerCalendar = (function () {
     { id: 'lessons', label: 'Stundenplan', tab: '' },
   ];
   var MAX_PER_DAY = 5;
-  var HOUR_PX = 44;
+  var HOUR_PX = 52;
   var VIEW_KEY = 'lc.calendarView';
   var OFF_KEY = 'lc.calendarOff';
   var WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -121,6 +121,8 @@ var LehrerCalendar = (function () {
            when(event.start, event.end, event.allDay), event);
     });
 
+    list.forEach(timeFromText);
+
     list.sort(function (a, b) {
       return a.day.localeCompare(b.day)
         || (b.endDay > b.day) - (a.endDay > a.day)          // multi-day first (bars)
@@ -133,13 +135,53 @@ var LehrerCalendar = (function () {
     list.forEach(function (ev) { _byId[ev.id] = ev; });
   }
 
+  /** "FK Mathematik 8:30-10", "2. FK Ku, 15.30 - 16.30 h", "ab 14 Uhr" → the time from the text.
+   *  Dates ("13.11.") and lesson numbers ("6. Stunde") are not times. */
+  function textTime(text) {
+    var str = String(text || '');
+    var re = /(\d{1,2})(?:[:.](\d{2}))?/g;
+    var m;
+    while ((m = re.exec(str))) {
+      var before = str.charAt(m.index - 1);
+      var after = str.slice(m.index + m[0].length);
+      var h = +m[1], min = m[2] ? +m[2] : 0;
+      if (/[\d.:]/.test(before) || /^\d/.test(after) || h > 23 || h < 6 || min > 59) continue;
+      if (m[2] && /^\.(\d|\s|$)/.test(after)) continue;               // 13.11. / 13.11.2026
+      var range = /^\s*(?:-|–|bis)\s*(\d{1,2})(?:[:.](\d{2}))?(?!\d)/.exec(after);
+      var unit = /^\s*(?:Uhr|h)\b/i.test(range ? after.slice(range[0].length) : after);
+      if (!m[2] && !unit) continue;                                    // "6." or "2" alone is no time
+      var end = null;
+      if (range && +range[1] <= 23) {
+        var eh = +range[1], em = range[2] ? +range[2] : 0;
+        if (eh * 60 + em > h * 60 + min) end = [eh, em];
+      }
+      return { h: h, m: min, end: end };
+    }
+    return null;
+  }
+
+  function timeFromText(ev) {
+    if (!ev.allDay || ev.endDay !== ev.day || ev.src === 'ka') return;
+    var t = textTime(ev.title);
+    if (!t) return;
+    var start = fromIso(ev.day);
+    start.setHours(t.h, t.m, 0, 0);
+    var end = new Date(start.getTime() + 3600000);
+    if (t.end) { end = fromIso(ev.day); end.setHours(t.end[0], t.end[1], 0, 0); }
+    ev.allDay = false;
+    ev.timeFromText = true;
+    ev.time = hhmm(start);
+    ev.endTime = t.end ? hhmm(end) : '';
+    ev.startMs = start.getTime();
+    ev.endMs = end.getTime();
+  }
+
   function order(src) { for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i].id === src) return i; return 9; }
   function label(src) { for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i].id === src) return SOURCES[i].label; return ''; }
 
-  /** Shown in the week's time grid (else in the all-day row): one day, 6–20 o'clock, at most three hours
-   *  – longer ones (itslearning notices from 8 to 16) would hide the whole day's lessons. */
+  /** Shown in the week's time grid (else in the all-day row): one day, starting between 6 and 20 o'clock. */
   function inGrid(ev) {
-    if (ev.allDay || ev.endDay !== ev.day || ev.endMs - ev.startMs > 3 * 3600000) return false;
+    if (ev.allDay || ev.endDay !== ev.day) return false;
     var hour = new Date(ev.startMs).getHours();
     return hour >= 6 && hour < 20;
   }
@@ -355,23 +397,36 @@ var LehrerCalendar = (function () {
     var cols = days.map(function (d, i) {
       var dIso = iso(d);
       var html = '';
-      var dayLessons = lessons.filter(function (l) { return l.startsAt.slice(0, 10) === dIso; });
-      var offset = dayLessons.length ? 45 : 0; // with lessons, events use the right part so lessons stay readable
-      dayLessons.forEach(function (l) {
-        var s = new Date(l.startsAt).getTime(), e = new Date(l.endsAt).getTime();
-        var p = _h.lessonParts ? _h.lessonParts(l.src) : { main: l.title, sub: '', room: l.location };
-        html += '<div class="cal-lesson' + (l.cancelled ? ' is-cancelled' : '') + (p.duty ? ' is-duty' : '') + '" style="top:' + top(s) + 'px;height:' + Math.max(18, top(e) - top(s) - 2) + 'px"'
-          + ' title="' + esc(hhmm(new Date(s)) + ' ' + p.main + (p.sub ? ' · ' + p.sub : '') + (p.room ? ' · ' + p.room : '') + (l.cancelled ? ' · entfällt' : '')) + '">'
-          + '<strong>' + esc(p.main) + '</strong>' + (p.sub ? ' ' + esc(p.sub) : '') + (p.room ? '<span>' + esc(p.room) + '</span>' : '') + '</div>';
-      });
-      var mine = timed.filter(function (ev) { return ev.day === dIso; });
-      lanes(mine).forEach(function (x) {
-        var ev = x.ev;
-        var t = top(ev.startMs);
-        var bottom = ev.endDay === ev.day ? top(ev.endMs) : height;
-        html += '<button type="button" class="cal-ev cal-ev-timed src-' + ev.src + '" data-cal-ev="' + esc(ev.id) + '"'
-          + ' style="top:' + t + 'px;height:' + Math.max(20, bottom - t - 2) + 'px;left:calc(' + (offset + x.lane / x.of * (100 - offset)) + '% + 2px);width:calc(' + ((100 - offset) / x.of) + '% - 4px)"'
-          + ' title="' + esc(ev.time + ' ' + ev.title) + '"><span class="cal-ev-time">' + esc(ev.time) + '</span> ' + esc(ev.title) + '</button>';
+      // lessons and events share the column: whatever overlaps sits side by side, nothing hides another
+      var items = lessons.filter(function (l) { return l.startsAt.slice(0, 10) === dIso; }).map(function (l) {
+        return { lesson: l, startMs: new Date(l.startsAt).getTime(), endMs: new Date(l.endsAt).getTime() };
+      }).concat(timed.filter(function (ev) { return ev.day === dIso; }).map(function (ev) {
+        return { ev: ev, startMs: ev.startMs, endMs: Math.max(ev.endMs, ev.startMs + 15 * 60000) };
+      }));
+      // long events (over three hours, e.g. notices 8–16) lie behind as a band; lessons and short events
+      // share the column on top of it, slightly indented so the band's colour bar stays visible
+      var long = items.filter(function (x) { return x.ev && x.endMs - x.startMs > 3 * 3600000; });
+      var shortItems = items.filter(function (x) { return long.indexOf(x) === -1; });
+      var inset = long.length ? 10 : 0;
+      long.forEach(function (x, k) { x.band = true; x.left = k * 100 / long.length; x.width = 100 / long.length; });
+      lanes(shortItems).forEach(function (x) { x.left = x.lane / x.of * 100; x.width = 100 / x.of; x.inset = inset; });
+      long.concat(shortItems).forEach(function (x) {
+        var t = top(x.startMs);
+        var h = Math.max(13, top(x.endMs) - t - 2);
+        var shift = x.inset ? x.inset * (1 - x.left / 100) : 0;
+        var place = 'top:' + t + 'px;height:' + h + 'px;left:calc(' + x.left + '% + ' + (2 + shift) + 'px);width:calc(' + x.width + '% - ' + (4 + (x.inset ? x.inset * x.width / 100 : 0)) + 'px)';
+        var compact = (h < 30 ? ' is-short' : '') + (x.band ? ' is-band' : '');
+        if (x.lesson) {
+          var l = x.lesson;
+          var p = _h.lessonParts ? _h.lessonParts(l.src) : { main: l.title, sub: '', room: l.location };
+          html += '<div class="cal-lesson' + compact + (l.cancelled ? ' is-cancelled' : '') + (p.duty ? ' is-duty' : '') + '" style="' + place + '"'
+            + ' title="' + esc(hhmm(new Date(x.startMs)) + '–' + hhmm(new Date(x.endMs)) + ' ' + p.main + (p.sub ? ' · ' + p.sub : '') + (p.room ? ' · ' + p.room : '') + (l.cancelled ? ' · entfällt' : '')) + '">'
+            + '<strong>' + esc(p.main) + '</strong>' + (p.sub ? ' ' + esc(p.sub) : '') + (p.room ? '<span>' + esc(p.room) + '</span>' : '') + '</div>';
+        } else {
+          var ev = x.ev;
+          html += '<button type="button" class="cal-ev cal-ev-timed' + compact + ' src-' + ev.src + '" data-cal-ev="' + esc(ev.id) + '" style="' + place + '"'
+            + ' title="' + esc(ev.time + (ev.endTime ? '–' + ev.endTime : '') + ' ' + ev.title) + '"><span class="cal-ev-time">' + esc(ev.time) + '</span> ' + esc(ev.title) + '</button>';
+        }
       });
       if (dIso === today) {
         var now = new Date();
@@ -390,26 +445,26 @@ var LehrerCalendar = (function () {
       + (lessons.length || _off.lessons ? '' : '<p class="cal-hint">Den Stundenplan zeigt die Woche, sobald WebUntis verbunden ist.</p>');
   }
 
-  /** Side-by-side columns for overlapping timed events. */
-  function lanes(evs) {
+  /** Side-by-side columns for overlapping items ({startMs, endMs}); adds lane and of. */
+  function lanes(items) {
     var out = [];
     var group = [];
     var groupEnd = -1;
     function flush() {
       var laneEnds = [];
       group.forEach(function (x) {
-        var lane = laneEnds.findIndex(function (end) { return end <= x.ev.startMs; });
+        var lane = laneEnds.findIndex(function (end) { return end <= x.startMs; });
         if (lane === -1) { lane = laneEnds.length; laneEnds.push(0); }
-        laneEnds[lane] = x.ev.endMs;
+        laneEnds[lane] = x.endMs;
         x.lane = lane;
       });
       group.forEach(function (x) { x.of = laneEnds.length; out.push(x); });
       group = [];
     }
-    evs.slice().sort(function (a, b) { return a.startMs - b.startMs; }).forEach(function (ev) {
-      if (group.length && ev.startMs >= groupEnd) flush();
-      group.push({ ev: ev });
-      groupEnd = Math.max(groupEnd, ev.endMs);
+    items.slice().sort(function (a, b) { return a.startMs - b.startMs || b.endMs - a.endMs; }).forEach(function (x) {
+      if (group.length && x.startMs >= groupEnd) flush();
+      group.push(x);
+      groupEnd = Math.max(groupEnd, x.endMs);
     });
     if (group.length) flush();
     return out;
@@ -463,7 +518,7 @@ var LehrerCalendar = (function () {
       ? d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long' }) + ' – '
         + fromIso(ev.endDay).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long' })
       : d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    var timeText = ev.time ? ev.time + (ev.endTime ? '–' + ev.endTime + ' Uhr' : ' Uhr') : 'ganztägig';
+    var timeText = ev.time ? ev.time + (ev.endTime ? '–' + ev.endTime + ' Uhr' : ' Uhr') + (ev.timeFromText ? ' (aus dem Text)' : '') : 'ganztägig';
     var body = '';
     var A = window.LehrerAttachments;
     if (ev.src === 'sch' && A) {
