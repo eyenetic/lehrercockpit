@@ -586,6 +586,16 @@ def _migrate_calendar_feeds(conn) -> None:
             print(f"[migrations] calendar_feeds statement skipped: {exc}", flush=True)
 
 
+def _migrate_terms(conn) -> None:
+    """Nutzungsbedingungen: Nachweis, wer welcher Fassung wann zugestimmt hat."""
+    from .terms import migrate
+    try:
+        with conn.transaction():
+            migrate(conn)
+    except Exception as exc:
+        print(f"[migrations] terms_acceptances skipped: {exc}", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -600,6 +610,7 @@ def run_all_migrations() -> None:
         _migrate_drop_plaintext_code_prefixes(conn)
         _migrate_encrypt_stored_secrets(conn)
         _migrate_calendar_feeds(conn)
+        _migrate_terms(conn)
 
 
 def log_audit_event(

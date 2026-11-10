@@ -7604,3 +7604,17 @@ html, body { overflow-x: clip; }
 .cal-sub-options .cal-sub-note { margin-top: 6px; }
 .src-breaks { --c: var(--cal-break); }
 .cal-sub-options-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 0.8rem; font-weight: 600; color: var(--ink-2); }
+
+/* ── Nutzungsbedingungen (src/features/terms.js) ─────────────────────────── */
+.terms-gate { z-index: 2000; }
+.terms-panel { max-width: 600px; width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.terms-lead { margin: 0; font-size: 0.9rem; color: var(--ink-2); }
+.terms-body { overflow-y: auto; max-height: 48vh; padding: 4px 14px 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.terms-body h3 { margin: 14px 0 4px; font-size: 0.88rem; font-weight: 620; color: var(--ink); }
+.terms-body p, .terms-body li { margin: 0; font-size: 0.86rem; line-height: 1.55; color: var(--ink-2); }
+.terms-body ul { margin: 0 0 6px; padding-left: 1.1rem; }
+.terms-tip { margin-top: 8px; padding: 10px 12px; border-radius: 9px; background: var(--panel-soft); }
+.terms-tip .terms-tip-title { display: block; font-weight: 620; margin-bottom: 4px; font-size: 0.86rem; color: var(--ink); }
+.terms-check { display: flex; gap: 10px; align-items: flex-start; font-size: 0.86rem; line-height: 1.45; color: var(--ink); cursor: pointer; }
+.terms-check input { margin-top: 3px; flex: none; width: 17px; height: 17px; accent-color: var(--accent); }
+.terms-error { margin: 0; font-size: 0.85rem; color: var(--danger); }

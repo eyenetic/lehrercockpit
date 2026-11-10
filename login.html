@@ -21,7 +21,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=130" />
+    <link rel="stylesheet" href="./styles.css?v=131" />
     <style>
       body.auth {
         min-height: 100vh;
@@ -133,6 +133,12 @@
       .privacy-panel h3 { margin: 16px 0 4px; font-size: 0.86rem; font-weight: 620; color: var(--ink); }
       .privacy-panel p, .privacy-panel li { margin: 0; font-size: 0.85rem; color: var(--ink-2); line-height: 1.55; }
       .privacy-panel ul { margin: 0; padding-left: 1.1rem; }
+      .privacy-panel { max-height: 86vh; overflow-y: auto; }
+      .terms-check { display: flex; gap: 10px; align-items: flex-start; font-size: 0.82rem; line-height: 1.45; color: var(--ink-2); cursor: pointer; }
+      .terms-check input { margin-top: 3px; flex: none; width: 17px; height: 17px; accent-color: var(--accent); }
+      .terms-tip { margin-top: 8px; padding: 10px 12px; border-radius: 9px; background: var(--panel-soft); }
+      .terms-tip .terms-tip-title { display: block; font-weight: 620; margin-bottom: 4px; font-size: 0.84rem; color: var(--ink); }
+      .terms-tip ul { margin: 0 0 6px; }
       @media (max-width: 420px) {
         .auth-main { padding-top: 40px; }
         .auth-row { grid-template-columns: 1fr; }
@@ -180,8 +186,12 @@
         </label>
         <p class="auth-hint">Wie ein Passwort: mindestens 8 Zeichen. Damit meldest du dich auf jedem Gerät an – dein Browser kann ihn sich merken.</p>
         <p class="auth-message is-error" id="invite-error" role="alert" hidden></p>
+        <label class="terms-check">
+          <input type="checkbox" id="invite-terms" />
+          <span id="invite-terms-text"></span>
+        </label>
+        <p class="auth-legal"><button type="button" data-open-terms>Nutzungsbedingungen</button> · <button type="button" data-open-privacy>Datenschutzhinweise</button></p>
         <button class="btn btn-primary auth-submit" type="submit" id="invite-btn">Konto anlegen und weiter</button>
-        <p class="auth-legal">Mit dem Anlegen gelten die <button type="button" data-open-privacy>Datenschutzhinweise</button>.</p>
       </form>
 
       <!-- Einladung ungültig -->
@@ -234,8 +244,19 @@
     </main>
 
     <footer class="auth-footer">
-      <button type="button" data-open-privacy>Datenschutz</button>
+      <button type="button" data-open-terms>Nutzungsbedingungen</button> · <button type="button" data-open-privacy>Datenschutz</button>
     </footer>
+
+    <!-- Nutzungsbedingungen (Text aus src/features/terms.js) -->
+    <div class="modal-overlay" id="terms-modal" hidden>
+      <div class="modal privacy-panel" role="dialog" aria-modal="true" aria-labelledby="terms-title">
+        <div class="modal-header">
+          <h2 class="modal-title" id="terms-title">Nutzungsbedingungen und Datenschutz</h2>
+          <button class="modal-close" id="terms-close" aria-label="Schließen" type="button">✕</button>
+        </div>
+        <div id="terms-body"></div>
+      </div>
+    </div>
 
     <!-- Datenschutz -->
     <div class="modal-overlay" id="privacy-modal" hidden>
@@ -247,14 +268,16 @@
         <p>Das Lehrercockpit ist ein privat betriebener Dienst für die Lehrkräfte eurer Schule.</p>
         <h3>Wo deine Daten liegen</h3>
         <ul>
-          <li><strong>Nur auf deinen Geräten:</strong> Klassenlisten, Einsammlungen, eigene Links und Einstellungen. Damit sie auf einem neuen Gerät wieder da sind, liegt eine Kopie verschlüsselt auf dem Server – der Schlüssel entsteht nur in deinem Browser aus deinem Zugangscode; der Server kann sie nicht lesen.</li>
+          <li><strong>Nur auf deinen Geräten:</strong> Klassenlisten, Sitzpläne, Einsammlungen, eigene Links und Einstellungen. Damit sie auf einem neuen Gerät wieder da sind, liegt eine Kopie verschlüsselt auf dem Server – der Schlüssel entsteht nur in deinem Browser aus deinem Zugangscode; der Server kann sie nicht lesen.</li>
           <li><strong>Auf dem Server, verschlüsselt:</strong> Links und Zugänge zu WebUntis, itslearning und Nextcloud – das Cockpit braucht sie, um deinen Stundenplan und deine Termine abzurufen.</li>
           <li><strong>Auf dem Server:</strong> Name, E-Mail (falls angegeben), deine Klassenauswahl für Hinweise und Rückmeldungen an die Verwaltung.</li>
         </ul>
         <h3>Zugangscode</h3>
         <p>Dein Code wird nur als Argon2id-Hash gespeichert – niemand kann ihn auslesen, auch die Verwaltung nicht.</p>
         <h3>Bitte nicht eingeben</h3>
-        <p>Keine personenbezogenen Daten von Schülerinnen und Schülern (Namen mit Noten o. Ä.).</p>
+        <p>Keine Namen oder anderen personenbezogenen Daten von Schülerinnen und Schülern – nimm Nummern aus der Klassenliste (z. B. „9a-07“) oder selbst vergebene Codes. Mehr dazu in den Nutzungsbedingungen.</p>
+        <h3>Nachweis deiner Zustimmung</h3>
+        <p>Wann du welcher Fassung der Nutzungsbedingungen zugestimmt hast, wird gespeichert (ohne IP-Adresse).</p>
         <h3>Weitergabe</h3>
         <p>Keine Weitergabe an Dritte, kein Tracking, keine Werbung. Der optionale KI-Assistent schickt nur Plan- und Termindaten an die Claude API von Anthropic – und nur, wenn du ihn einschaltest.</p>
       </div>
@@ -266,7 +289,8 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/features/vault.js?v=130"></script>
+    <script src="./src/features/vault.js?v=131"></script>
+    <script src="./src/features/terms.js?v=131"></script>
     <script>
       (function () {
         'use strict';
@@ -430,12 +454,14 @@
           var code = $('invite-code').value.trim();
           if (!first || !last) { message(error, 'Bitte gib Vor- und Nachnamen ein.'); return; }
           if (code.length < 8) { message(error, 'Der Code braucht mindestens 8 Zeichen.'); return; }
+          if (!$('invite-terms').checked) { message(error, 'Bitte stimme den Nutzungsbedingungen zu.'); $('invite-terms').focus(); return; }
           $('invite-username').value = first + ' ' + last;
           message(error, '');
           busy($('invite-btn'), 'Lege Konto an …');
           post('/api/v2/auth/invitation/accept', {
             token: inviteToken, first_name: first, last_name: last,
             email: $('invite-email-field').hidden ? '' : $('invite-email').value.trim(), code: code,
+            accept_terms: true, terms_version: window.LehrerTerms.VERSION,
           }, true).then(function (result) {
             if (result.ok) {
               try { sessionStorage.removeItem('lc.invite'); } catch (e) {}
@@ -531,14 +557,18 @@
           });
         });
 
-        // ── Datenschutz ────────────────────────────────────────────────────
-        var privacy = $('privacy-modal');
-        document.querySelectorAll('[data-open-privacy]').forEach(function (button) {
-          button.addEventListener('click', function () { privacy.hidden = false; });
+        // ── Datenschutz und Nutzungsbedingungen ────────────────────────────
+        $('terms-body').innerHTML = window.LehrerTerms.HTML;
+        $('invite-terms-text').textContent = window.LehrerTerms.CHECKBOX;
+        [['privacy-modal', 'privacy-close', '[data-open-privacy]'], ['terms-modal', 'terms-close', '[data-open-terms]']].forEach(function (m) {
+          var modal = $(m[0]);
+          document.querySelectorAll(m[2]).forEach(function (button) {
+            button.addEventListener('click', function () { modal.hidden = false; });
+          });
+          $(m[1]).addEventListener('click', function () { modal.hidden = true; });
+          modal.addEventListener('click', function (event) { if (event.target === modal) modal.hidden = true; });
+          document.addEventListener('keydown', function (event) { if (event.key === 'Escape') modal.hidden = true; });
         });
-        $('privacy-close').addEventListener('click', function () { privacy.hidden = true; });
-        privacy.addEventListener('click', function (event) { if (event.target === privacy) privacy.hidden = true; });
-        document.addEventListener('keydown', function (event) { if (event.key === 'Escape') privacy.hidden = true; });
 
         // ── Start ──────────────────────────────────────────────────────────
         if (inviteToken) {

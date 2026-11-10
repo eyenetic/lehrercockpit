@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=130" />
-    <link rel="stylesheet" href="./styles.admin.css?v=130" />
+    <link rel="stylesheet" href="./styles.css?v=131" />
+    <link rel="stylesheet" href="./styles.admin.css?v=131" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -550,6 +550,7 @@
       .setup-chip { font-size: 0.72rem; padding: 2px 7px; border-radius: 999px; background: var(--panel-soft); color: var(--muted); border: 1px dashed var(--line-strong); white-space: nowrap; }
       .setup-chip.is-ok { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); font-weight: 600; }
       .user-table .user-note { display: block; }
+      .user-table .user-note.is-warn { color: var(--warning, #b26a00); }
       .admin-topbar, .admin-body, .admin-section, .admin-card { min-width: 0; max-width: 100%; box-sizing: border-box; }
       @media (max-width: 640px) {
         .admin-body { padding: 1rem 0.75rem 2rem; }
@@ -879,7 +880,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=130"></script>
+    <script src="./src/api-client.js?v=131"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1208,6 +1209,11 @@
             + '</tr></thead><tbody>';
           // Who has connected what – so you can help colleagues who got stuck.
           const SOURCES = [['webuntis', 'Stundenplan'], ['itslearning', 'itslearning'], ['mail', 'Dienstmail']];
+          function termsText(iso) {
+            if (!iso) return 'Nutzungsbedingungen: noch nicht zugestimmt';
+            const d = new Date(iso);
+            return 'Bedingungen zugestimmt am ' + d.toLocaleDateString('de-DE') + ', ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr';
+          }
           function seenText(iso) {
             if (!iso) return 'noch nie angemeldet';
             const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -1226,7 +1232,8 @@
               + '<td><span class="user-name">' + esc(u.full_name || (u.first_name + ' ' + u.last_name)) + '</span>'
               + (isAdminUser ? ' <span class="badge badge-admin">Admin</span>' : '')
               + (u.has_access_code ? '' : '<span class="user-note">noch kein Code</span>')
-              + '<span class="user-note">' + esc(seenText(u.last_seen)) + '</span></td>'
+              + '<span class="user-note">' + esc(seenText(u.last_seen)) + '</span>'
+              + '<span class="user-note' + (u.terms_accepted_at ? '' : ' is-warn') + '">' + esc(termsText(u.terms_accepted_at)) + '</span></td>'
               + '<td><div class="setup-chips">' + SOURCES.map(function (src) {
                   const ok = (u.connected || []).indexOf(src[0]) !== -1;
                   return '<span class="setup-chip' + (ok ? ' is-ok' : '') + '" title="' + src[1] + (ok ? ' verbunden' : ' noch nicht verbunden') + '">'

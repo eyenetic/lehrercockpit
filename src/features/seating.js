@@ -192,11 +192,12 @@ var LehrerSeating = (function () {
     var placedIds = {};
     Object.keys(plan.seats).forEach(function (i) { placedIds[plan.seats[i]] = true; });
     var unplaced = students.filter(function (s) { return !placedIds[s.id]; });
-    var missingFirst = students.filter(function (s) { return !s.firstName; }).length;
+    // Only entries that look like a whole name in one field – codes like „9a-07“ are fine as they are.
+    var missingFirst = students.filter(function (s) { return !s.firstName && /[\s,;]/.test((s.lastName || '').trim()); }).length;
 
     if (!students.length) {
-      return '<div class="seat-empty"><h3>Klasse ' + _esc(classId) + ' hat noch keine Namen</h3>' +
-        '<p>Trag die Schüler:innen unter „Klassenlisten“ ein – dann kannst du sie hier auf Plätze setzen.</p></div>';
+      return '<div class="seat-empty"><h3>Klasse ' + _esc(classId) + ' hat noch keine Einträge</h3>' +
+        '<p>Trag die Schüler:innen unter „Klassenlisten“ ein – am besten als Nummer oder Code statt mit Namen. Dann kannst du sie hier auf Plätze setzen.</p></div>';
     }
 
     var board = '<div class="seat-board">Tafel</div>';

@@ -281,11 +281,11 @@ var LehrerClasslist = (function () {
       +   '</div>'
       + '</div>'
       + '<form class="classlist-add-form" data-add-student-form autocomplete="off">'
-      +   '<input class="form-input" name="lastName" placeholder="Nachname" aria-label="Nachname" required />'
-      +   '<input class="form-input" name="firstName" placeholder="Vorname" aria-label="Vorname" />'
+      +   '<input class="form-input" name="lastName" placeholder="Nummer oder Code, z. B. 9a-07" aria-label="Nummer oder Code" required />'
+      +   '<input class="form-input" name="firstName" placeholder="Zusatz (optional)" aria-label="Zusatz (optional)" />'
       +   '<button class="btn btn-primary btn-sm" type="submit">Hinzufügen</button>'
       + '</form>'
-      + '<p class="classlist-add-hint">Enter fügt hinzu – danach gleich den nächsten Namen tippen. Mehrere auf einmal: „Importieren“.</p>'
+      + '<p class="classlist-add-hint">Bitte keine Namen – Nummern aus der Klassenliste oder eigene Codes, die Zuordnung bleibt auf Papier. Enter fügt hinzu; mehrere auf einmal: „Importieren“.</p>'
       + '<p class="classlist-add-feedback" data-add-feedback role="status"></p>'
       + (_needsSplit(classId).length
           ? '<div class="seat-banner is-warn"><span>Bei ' + _needsSplit(classId).length + ' Namen steht alles im Nachnamen.</span>'
@@ -315,8 +315,8 @@ var LehrerClasslist = (function () {
           '<button class="modal-close" type="button" data-action="close-import">✕</button>',
         '</div>',
         '<div class="classlist-import-body">',
-          '<p class="classlist-import-hint">Namen einfügen (eine Person pro Zeile, z. B. „Müller, Anna“) oder eine CSV-/Excel-Datei wählen.</p>',
-          '<textarea id="classlist-paste" class="form-input classlist-paste" rows="5" placeholder="Müller, Anna&#10;Schmidt, Ben"></textarea>',
+          '<p class="classlist-import-hint">Eine Person pro Zeile, z. B. „9a-01“ – bitte Nummern oder eigene Codes statt Namen. Oder eine CSV-/Excel-Datei wählen.</p>',
+          '<textarea id="classlist-paste" class="form-input classlist-paste" rows="5" placeholder="9a-01&#10;9a-02&#10;9a-03"></textarea>',
           '<label class="classlist-upload-area" for="classlist-file-input">',
             '<span class="classlist-upload-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg></span>',
             '<span>Datei auswählen oder hierher ziehen</span>',

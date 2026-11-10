@@ -18,7 +18,7 @@ from html import escape
 
 from flask import Blueprint, g, request
 
-from backend import invitations
+from backend import invitations, terms
 from backend.admin.admin_service import get_system_setting
 from backend.api.auth_routes import limiter
 from backend.api.helpers import error, require_admin, set_session_cookie, success
@@ -141,6 +141,8 @@ def accept_invitation():
     problem = chosen_code_problem(code)
     if problem:
         return error(problem, 422)
+    if body.get("accept_terms") is not True or body.get("terms_version") != terms.VERSION:
+        return error("Bitte stimme den Nutzungsbedingungen zu.", 422)
 
     try:
         with db_connection() as conn:
@@ -158,6 +160,8 @@ def accept_invitation():
                 conn.execute("UPDATE users SET email = %s WHERE id = %s", (email, user.id))
             initialize_user_modules(conn, user.id)
             invitations.mark_used(conn, invite["id"], user.id)
+            terms.accept(conn, user.id)
+            log_audit_event(conn, "terms_accepted", user_id=user.id, details={"version": terms.VERSION})
             log_audit_event(conn, "invitation_accepted", user_id=user.id, ip_address=request.remote_addr,
                             details={"invitation_id": invite["id"], "kind": invite["kind"]})
             session = create_session(conn, user.id)

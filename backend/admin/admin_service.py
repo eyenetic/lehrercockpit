@@ -8,6 +8,8 @@ verwendet werden können.
 from typing import List, Dict, Any, Optional, Tuple
 import psycopg.types.json as _pjson
 
+from backend.terms import VERSION as TERMS_VERSION
+
 
 # ── System-Settings ────────────────────────────────────────────────────────────
 
@@ -352,14 +354,17 @@ def get_user_overview(conn) -> List[Dict[str, Any]]:
             (uac.user_id IS NOT NULL) AS has_access_code,
             u.is_admin,
             ARRAY_REMOVE(ARRAY_AGG(DISTINCT um.module_id) FILTER (WHERE um.is_configured = TRUE), NULL) AS connected,
-            (SELECT MAX(s.last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen
+            (SELECT MAX(s.last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen,
+            (SELECT ta.accepted_at FROM terms_acceptances ta
+              WHERE ta.user_id = u.id AND ta.version = %s) AS terms_accepted_at
         FROM users u
         LEFT JOIN user_modules um ON um.user_id = u.id
         LEFT JOIN user_access_codes uac ON uac.user_id = u.id
         GROUP BY u.id, u.first_name, u.last_name, u.role, u.is_active,
                  u.created_at, u.updated_at, uac.user_id, u.is_admin
         ORDER BY u.last_name, u.first_name
-        """
+        """,
+        (TERMS_VERSION,),
     ).fetchall()
 
     result = []
@@ -380,5 +385,6 @@ def get_user_overview(conn) -> List[Dict[str, Any]]:
             # set-up status, so the admin sees who might need a hand
             "connected": sorted(row[10] or []),
             "last_seen": row[11].isoformat() if row[11] else None,
+            "terms_accepted_at": row[12].isoformat() if row[12] else None,
         })
     return result

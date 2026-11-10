@@ -12,6 +12,7 @@ from backend.users.user_service import authenticate_by_code, code_taken
 from backend.users.user_store import set_access_code
 from backend.auth.access_code import chosen_code_problem, hash_code, get_code_prefix
 from backend.migrations import log_audit_event
+from backend import terms
 from backend.api.helpers import (
     require_auth,
     set_session_cookie,
@@ -124,7 +125,28 @@ def me():
 
     Response 200: {"ok": true, "user": {...}}
     """
-    return success({"user": g.current_user.to_dict()})
+    user = g.current_user.to_dict()
+    try:
+        with db_connection() as conn:
+            user["terms"] = terms.status(conn, g.current_user.id)
+    except Exception:
+        # Never lock anyone out because this check failed.
+        user["terms"] = {"version": terms.VERSION, "accepted": True, "accepted_at": None, "unknown": True}
+    return success({"user": user})
+
+
+@auth_bp.route("/me/terms", methods=["POST"])
+@require_auth
+def accept_terms():
+    """Zustimmung zu den Nutzungsbedingungen (Fassung terms.VERSION) protokollieren."""
+    body = request.get_json(silent=True) or {}
+    if body.get("accept") is not True or body.get("version") != terms.VERSION:
+        return error("Bitte lies die aktuellen Nutzungsbedingungen und stimme ihnen zu.", 422)
+    with db_connection() as conn:
+        terms.accept(conn, g.current_user.id)
+        log_audit_event(conn, "terms_accepted", user_id=g.current_user.id, details={"version": terms.VERSION})
+        status = terms.status(conn, g.current_user.id)
+    return success({"terms": status})
 
 
 @auth_bp.route("/me/change-code", methods=["POST"])
