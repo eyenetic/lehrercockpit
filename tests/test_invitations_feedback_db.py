@@ -6,6 +6,9 @@ from unittest.mock import patch
 import pytest
 
 pytestmark = pytest.mark.db
+from backend import terms
+
+AGREED = {"accept_terms": True, "terms_version": terms.VERSION}
 
 
 @pytest.fixture
@@ -23,12 +26,14 @@ def app(db_url):
 
     import backend.api.auth_routes as auth_module
     from backend.api import register_blueprints
-    from backend.migrations import _migrate_invitations_and_feedback, _migrate_signals_and_push, run_migrations
+    from backend.migrations import (_migrate_invitations_and_feedback, _migrate_signals_and_push, _migrate_terms,
+                                    run_migrations)
 
     with psycopg.connect(db_url) as conn:
         run_migrations(conn)
         _migrate_signals_and_push(conn)
         _migrate_invitations_and_feedback(conn)
+        _migrate_terms(conn)
         conn.commit()
 
     flask_app = Flask(__name__)
@@ -90,7 +95,7 @@ def test_personal_invitation_creates_account_and_logs_in(app, people):
     assert info["first_name"] == "Clara" and info["last_name"] == "Eingeladen-Eins"
 
     accepted = guest.post("/api/v2/auth/invitation/accept", json={
-        "token": invite["token"], "first_name": "Clara", "last_name": "Eingeladen-Eins", "code": "Clara2026neu"})
+        "token": invite["token"], "first_name": "Clara", "last_name": "Eingeladen-Eins", "code": "Clara2026neu", **AGREED})
     assert accepted.status_code == 201, accepted.get_json()
     assert "lc_session" in accepted.headers.get("Set-Cookie", "")
     me = guest.get("/api/v2/auth/me").get_json()["user"]
@@ -101,7 +106,7 @@ def test_personal_invitation_creates_account_and_logs_in(app, people):
     assert login.status_code == 200
     # … and a personal link works only once.
     again = _client(app).post("/api/v2/auth/invitation/accept", json={
-        "token": invite["token"], "first_name": "X", "last_name": "Eingeladen-Zwei", "code": "Anderer2026x"})
+        "token": invite["token"], "first_name": "X", "last_name": "Eingeladen-Zwei", "code": "Anderer2026x", **AGREED})
     assert again.status_code == 410
 
 
@@ -112,7 +117,7 @@ def test_team_link_works_for_several_and_replaces_older_one(app, people):
 
     for index, code in enumerate(["TeamCode2026a", "TeamCode2026b"]):
         response = _client(app).post("/api/v2/auth/invitation/accept", json={
-            "token": second["token"], "first_name": f"Team{index}", "last_name": "Eingeladen-Team", "code": code})
+            "token": second["token"], "first_name": f"Team{index}", "last_name": "Eingeladen-Team", "code": code, **AGREED})
         assert response.status_code == 201, response.get_json()
 
     listing = _client(app, people["admin_session"]).get("/api/v2/admin/invitations").get_json()
@@ -121,7 +126,10 @@ def test_team_link_works_for_several_and_replaces_older_one(app, people):
 
 def test_accept_rejects_taken_and_weak_codes(app, people):
     invite = _new_invite(app, people, kind="personal", name="Doris Eingeladen-Drei")
-    base = {"token": invite["token"], "first_name": "Doris", "last_name": "Eingeladen-Drei"}
+    base = {"token": invite["token"], "first_name": "Doris", "last_name": "Eingeladen-Drei", **AGREED}
+    refused = _client(app).post("/api/v2/auth/invitation/accept", json={
+        "token": invite["token"], "first_name": "Doris", "last_name": "Eingeladen-Drei", "code": "OhneHaken2026"})
+    assert refused.status_code == 422  # no agreement to the Nutzungsbedingungen, no account
     weak = _client(app).post("/api/v2/auth/invitation/accept", json={**base, "code": "kurz"})
     assert weak.status_code == 422
 
