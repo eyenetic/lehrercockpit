@@ -2,9 +2,9 @@
 Kalender-Abo (Präfix /api/v2/calendar) – die Termine des Cockpits im eigenen
 Kalender (Apple, Outlook, Google), siehe backend/calendar_feed.py.
 
-    GET    ""                  → {"active", "url", "webcal", "level"}
-    POST   ""     {"level"}    → neuer geheimer Link (der alte gilt nicht mehr)
-    PATCH  ""     {"level"}    → Stufe für den Orgaplan ändern
+    GET    ""                             → {"active", "url", "webcal", "level", "sources"}
+    POST   ""     {"level", "sources"}    → neuer geheimer Link (der alte gilt nicht mehr)
+    PATCH  ""     {"level", "sources"}    → Inhalt ändern, der Link bleibt
     DELETE ""                  → Abo beenden
     GET    /feed/<token>.ics   → die Kalenderdatei (ohne Anmeldung, der Link ist der Schlüssel)
 """
@@ -37,7 +37,7 @@ def feed_status():
         return error(f"Kalender-Abo konnte nicht geladen werden: {type(exc).__name__}", 500)
     if not feed or not feed["token"]:
         return success({"active": False})
-    return success({"active": True, "level": feed["level"],
+    return success({"active": True, "level": feed["level"], "sources": feed["sources"],
                     "last_fetch_at": feed["last_fetch_at"].isoformat() if feed["last_fetch_at"] else None,
                     **_links(feed["token"])})
 
@@ -46,20 +46,29 @@ def feed_status():
 @require_auth
 @limiter.limit("20 per hour")
 def feed_create():
-    level = calendar_feed.clean_level((request.get_json(silent=True) or {}).get("level"))
+    level, sources = _options()
+    if not sources:
+        return error("Wähle mindestens eine Quelle aus.", 422)
     with db_connection() as conn:
-        token = calendar_feed.create(conn, g.current_user.id, level)
-    return success({"active": True, "level": level, "last_fetch_at": None, **_links(token)})
+        token = calendar_feed.create(conn, g.current_user.id, level, sources)
+    return success({"active": True, "level": level, "sources": sources, "last_fetch_at": None, **_links(token)})
 
 
 @calendar_bp.route("", methods=["PATCH"])
 @require_auth
-def feed_level():
-    level = calendar_feed.clean_level((request.get_json(silent=True) or {}).get("level"))
+def feed_options():
+    level, sources = _options()
+    if not sources:
+        return error("Wähle mindestens eine Quelle aus.", 422)
     with db_connection() as conn:
-        if not calendar_feed.set_level(conn, g.current_user.id, level):
+        if not calendar_feed.set_options(conn, g.current_user.id, level, sources):
             return error("Noch kein Kalender-Abo eingerichtet.", 404)
-    return success({"level": level})
+    return success({"level": level, "sources": sources})
+
+
+def _options() -> tuple[str, list[str]]:
+    body = request.get_json(silent=True) or {}
+    return calendar_feed.clean_level(body.get("level")), calendar_feed.clean_sources(body.get("sources"))
 
 
 @calendar_bp.route("", methods=["DELETE"])
@@ -77,7 +86,7 @@ def feed_ics(token: str):
         owner = calendar_feed.owner_of(conn, token)
         if not owner:
             return Response("Dieser Kalender-Link gilt nicht (mehr).\n", status=404, mimetype="text/plain")
-        events = calendar_feed.collect(conn, owner[0], owner[1])
+        events = calendar_feed.collect(conn, owner[0], owner[1], owner[2])
     resp = Response(calendar_feed.build_ics(events), mimetype="text/calendar")
     resp.headers["Content-Disposition"] = 'inline; filename="lehrercockpit.ics"'
     resp.headers["Cache-Control"] = "private, max-age=900"

@@ -5,9 +5,10 @@ Anmeldung ab, deshalb ist der Link selbst der Schlüssel: gespeichert werden nur
 ein Prüfwert (SHA-256) zum Wiederfinden und der Link verschlüsselt, damit er
 der Lehrkraft erneut angezeigt werden kann.
 
-Inhalt: Orgaplan (nach der gewählten Stufe), Klassenarbeiten der eigenen
-Klassen (wie unter „Heute anpassen“ gewählt) und die Schultermine. Nichts
-Privates – private Kalender bleiben auf den Geräten der Lehrkraft.
+Inhalt nach Wahl der Lehrkraft: Orgaplan (alle Stufen, Mittel- oder Oberstufe),
+Klassenarbeiten der eigenen Klassen (wie unter „Heute anpassen“ gewählt) und
+die Schultermine. Nichts Privates – private Kalender bleiben auf den Geräten
+der Lehrkraft.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 LEVELS = ("all", "middle", "upper")
+SOURCES = ("org", "ka", "sch")  # Orgaplan, Klassenarbeiten, Schultermine
 _KIND_SHORT = {"Klassenarbeit": "KA", "LEK": "LEK", "Klausur": "Klausur", "Test": "Test", "VERA": "VERA"}
 
 
@@ -27,52 +29,54 @@ def _hash(token: str) -> str:
 
 
 def load(conn, user_id: int) -> dict[str, Any] | None:
-    """{"token", "level", "created_at", "last_fetch_at"} or None."""
+    """{"token", "level", "sources", "created_at", "last_fetch_at"} or None."""
     from .crypto import decrypt_config
 
     row = conn.execute(
-        "SELECT token_enc, level, created_at, last_fetch_at FROM calendar_feeds WHERE user_id = %s", (user_id,)
+        "SELECT token_enc, level, sources, created_at, last_fetch_at FROM calendar_feeds WHERE user_id = %s", (user_id,)
     ).fetchone()
     if not row:
         return None
     token = decrypt_config({"token": row[0]}).get("token") or ""
-    return {"token": token, "level": row[1], "created_at": row[2], "last_fetch_at": row[3]}
+    return {"token": token, "level": row[1], "sources": clean_sources(row[2]), "created_at": row[3], "last_fetch_at": row[4]}
 
 
-def create(conn, user_id: int, level: str) -> str:
+def create(conn, user_id: int, level: str, sources: Any = SOURCES) -> str:
     """A new secret link (the old one stops working)."""
     from .crypto import encrypt_config
 
     token = secrets.token_urlsafe(32)
     conn.execute(
         """
-        INSERT INTO calendar_feeds (user_id, token_hash, token_enc, level)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO calendar_feeds (user_id, token_hash, token_enc, level, sources)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (user_id) DO UPDATE
         SET token_hash = EXCLUDED.token_hash, token_enc = EXCLUDED.token_enc,
-            level = EXCLUDED.level, created_at = NOW(), last_fetch_at = NULL
+            level = EXCLUDED.level, sources = EXCLUDED.sources, created_at = NOW(), last_fetch_at = NULL
         """,
-        (user_id, _hash(token), encrypt_config({"token": token})["token"], clean_level(level)),
+        (user_id, _hash(token), encrypt_config({"token": token})["token"], clean_level(level),
+         ",".join(clean_sources(sources))),
     )
     return token
 
 
-def set_level(conn, user_id: int, level: str) -> bool:
-    return conn.execute("UPDATE calendar_feeds SET level = %s WHERE user_id = %s",
-                        (clean_level(level), user_id)).rowcount > 0
+def set_options(conn, user_id: int, level: str, sources: Any) -> bool:
+    """What the feed contains – the link stays the same."""
+    return conn.execute("UPDATE calendar_feeds SET level = %s, sources = %s WHERE user_id = %s",
+                        (clean_level(level), ",".join(clean_sources(sources)), user_id)).rowcount > 0
 
 
 def delete(conn, user_id: int) -> bool:
     return conn.execute("DELETE FROM calendar_feeds WHERE user_id = %s", (user_id,)).rowcount > 0
 
 
-def owner_of(conn, token: str) -> tuple[int, str] | None:
-    """(user_id, level) for an active link of an active teacher, else None."""
+def owner_of(conn, token: str) -> tuple[int, str, list[str]] | None:
+    """(user_id, level, sources) for an active link of an active teacher, else None."""
     if not token or len(token) > 100:
         return None
     row = conn.execute(
         """
-        SELECT f.user_id, f.level FROM calendar_feeds f JOIN users u ON u.id = f.user_id
+        SELECT f.user_id, f.level, f.sources FROM calendar_feeds f JOIN users u ON u.id = f.user_id
         WHERE f.token_hash = %s AND u.is_active
         """,
         (_hash(token),),
@@ -80,11 +84,20 @@ def owner_of(conn, token: str) -> tuple[int, str] | None:
     if not row:
         return None
     conn.execute("UPDATE calendar_feeds SET last_fetch_at = NOW() WHERE user_id = %s", (row[0],))
-    return int(row[0]), str(row[1])
+    return int(row[0]), str(row[1]), clean_sources(row[2])
 
 
 def clean_level(level: Any) -> str:
     return level if level in LEVELS else "all"
+
+
+def clean_sources(sources: Any) -> list[str]:
+    """Known sources in a fixed order; a comma list or a list. None/missing → all."""
+    if sources is None:
+        return list(SOURCES)
+    items = sources.split(",") if isinstance(sources, str) else sources if isinstance(sources, (list, tuple)) else []
+    chosen = {str(item).strip() for item in items}
+    return [source for source in SOURCES if source in chosen]
 
 
 # ── Events ────────────────────────────────────────────────────────────────────
@@ -140,30 +153,39 @@ def _school_events(calendar: dict[str, Any]) -> list[dict[str, Any]]:
     return events
 
 
-def collect(conn, user_id: int, level: str, now: datetime | None = None) -> list[dict[str, Any]]:
-    """All events of the feed. Each source is optional: a failing one is left out."""
+def _orgaplan_source(conn, user_id: int, level: str, now: datetime) -> list[dict[str, Any]]:
+    from . import orgaplan
+    return _orgaplan_events(orgaplan.current(orgaplan.load_source(conn), now, wait=8.0), level)
+
+
+def _classwork_source(conn, user_id: int, level: str, now: datetime) -> list[dict[str, Any]]:
+    from .classwork_cache import load_cache
+    from .classwork_sync import CACHE_PATH
+    from .signal_store import load_prefs
+    classes = {str(c).replace(" ", "").upper() for c in (load_prefs(conn, user_id).get("classes") or []) if c}
+    if not classes:
+        return []
+    return _classwork_events(load_cache(CACHE_PATH).get("entries") or [], classes, now.date() - timedelta(days=30))
+
+
+def _school_source(conn, user_id: int, level: str, now: datetime) -> list[dict[str, Any]]:
+    from .school_calendar import build_calendar, feed_url
+    return _school_events(build_calendar(feed_url(conn), now).get("data") or {})
+
+
+_SOURCE_READERS = {"org": _orgaplan_source, "ka": _classwork_source, "sch": _school_source}
+
+
+def collect(conn, user_id: int, level: str, sources: Any = SOURCES,
+            now: datetime | None = None) -> list[dict[str, Any]]:
+    """Events of the chosen sources. A failing source is left out, the others still come."""
     now = now or datetime.now(timezone.utc)
     events: list[dict[str, Any]] = []
-    try:
-        from . import orgaplan
-        events += _orgaplan_events(orgaplan.current(orgaplan.load_source(conn), now, wait=8.0), level)
-    except Exception:
-        pass
-    try:
-        from .classwork_cache import load_cache
-        from .classwork_sync import CACHE_PATH
-        from .signal_store import load_prefs
-        classes = {str(c).replace(" ", "").upper() for c in (load_prefs(conn, user_id).get("classes") or []) if c}
-        if classes:
-            since = now.date() - timedelta(days=30)
-            events += _classwork_events(load_cache(CACHE_PATH).get("entries") or [], classes, since)
-    except Exception:
-        pass
-    try:
-        from .school_calendar import build_calendar, feed_url
-        events += _school_events(build_calendar(feed_url(conn), now).get("data") or {})
-    except Exception:
-        pass
+    for source in clean_sources(sources):
+        try:
+            events += _SOURCE_READERS[source](conn, user_id, level, now)
+        except Exception:
+            pass
     return events
 
 

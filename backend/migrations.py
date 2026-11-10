@@ -576,6 +576,7 @@ def _migrate_calendar_feeds(conn) -> None:
             last_fetch_at  TIMESTAMPTZ
         )
         """,
+        "ALTER TABLE calendar_feeds ADD COLUMN IF NOT EXISTS sources TEXT NOT NULL DEFAULT 'org,ka,sch'",
     ]
     for statement in statements:
         try:

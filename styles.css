@@ -7587,7 +7587,6 @@ html, body { overflow-x: clip; }
 .cal-sub-help { margin-top: 12px; font-size: 0.84rem; }
 .cal-sub-help summary { cursor: pointer; color: var(--ink-2); font-weight: 560; }
 .cal-sub-help ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-2); }
-.cal-sub-level { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.84rem; color: var(--ink-2); }
 .cal-sub-more { display: flex; gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 
 .cal-lesson.is-short, .cal-ev-timed.is-short { padding: 0 6px; font-size: 0.64rem; line-height: 12px; white-space: nowrap; text-overflow: ellipsis; }
@@ -7596,3 +7595,10 @@ html, body { overflow-x: clip; }
 .cal-ev-timed.is-band { z-index: 0; padding-top: 3px; background: color-mix(in srgb, var(--c) 8%, var(--panel)); box-shadow: none; }
 .cal-ev-timed:not(.is-band), .cal-lesson { z-index: 1; }
 .cal-ev-timed { display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: 0 4px; overflow: hidden; }
+.cal-sub-options { margin: 14px 0 0; padding: 10px 12px 8px; border: 1px solid var(--line); border-radius: 10px; }
+.cal-sub-options legend { padding: 0 4px; font-size: 0.8rem; font-weight: 600; color: var(--ink-2); }
+.cal-sub-option { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 5px 0; }
+.cal-sub-option label { display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--ink); cursor: pointer; }
+.cal-sub-option select { font: inherit; font-size: 0.82rem; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel); color: var(--ink); }
+.cal-sub-option select:disabled { opacity: 0.5; }
+.cal-sub-options .cal-sub-note { margin-top: 6px; }

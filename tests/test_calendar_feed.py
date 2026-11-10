@@ -80,13 +80,13 @@ def test_feed_needs_a_valid_link(client):
 
 def test_feed_returns_calendar_without_login(client):
     with patch.object(routes, "db_connection", return_value=_db()), \
-            patch.object(cf, "owner_of", return_value=(3, "middle")), \
+            patch.object(cf, "owner_of", return_value=(3, "middle", ["org", "sch"])), \
             patch.object(cf, "collect", return_value=[]) as collect:
         response = client.get("/api/v2/calendar/feed/geheim.ics")
     assert response.status_code == 200
     assert response.mimetype == "text/calendar"
     assert b"X-WR-CALNAME:Lehrercockpit" in response.data
-    assert collect.call_args.args[1:] == (3, "middle")
+    assert collect.call_args.args[1:] == (3, "middle", ["org", "sch"])
 
 
 def test_creating_a_link_requires_login(client):
@@ -103,3 +103,27 @@ def test_ics_reads_back_with_our_own_parser():
     assert [p.title for p in parsed] == ["Gesamtkonferenz, Aula", "Projektwoche"]
     assert all(p.all_day for p in parsed)
     assert parsed[1].end.date() == date(2026, 11, 13)  # inclusive again after parsing
+
+
+def test_sources_are_cleaned_and_ordered():
+    assert cf.clean_sources(None) == ["org", "ka", "sch"]
+    assert cf.clean_sources("sch,org") == ["org", "sch"]
+    assert cf.clean_sources(["ka", "boese", "ka"]) == ["ka"]
+    assert cf.clean_sources([]) == []
+
+
+def test_collect_reads_only_chosen_sources_and_survives_a_failing_one():
+    readers = {"org": MagicMock(side_effect=RuntimeError("PDF kaputt")),
+               "ka": MagicMock(return_value=[{"uid": "ka"}]),
+               "sch": MagicMock(return_value=[{"uid": "sch"}])}
+    with patch.dict(cf._SOURCE_READERS, readers):
+        events = cf.collect(MagicMock(), 3, "all", ["org", "sch"], NOW)
+    assert events == [{"uid": "sch"}]
+    readers["ka"].assert_not_called()
+
+
+def test_at_least_one_source_is_needed(client):
+    user = MagicMock(id=3, is_active=True, is_admin=False)
+    with patch.object(backend.api.helpers, "get_current_user", return_value=user):
+        assert client.post("/api/v2/calendar", json={"sources": []}).status_code == 422
+        assert client.patch("/api/v2/calendar", json={"sources": ["nichts"]}).status_code == 422
