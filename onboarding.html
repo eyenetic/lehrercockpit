@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=133" />
-    <link rel="stylesheet" href="./styles.auth.css?v=133" />
+    <link rel="stylesheet" href="./styles.css?v=134" />
+    <link rel="stylesheet" href="./styles.auth.css?v=134" />
     <style>
       body.onboarding-page {
         align-items: flex-start; padding: 40px 16px; box-sizing: border-box;
@@ -138,7 +138,7 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/connections.js?v=133"></script>
+    <script src="./src/features/connections.js?v=134"></script>
     <script>
       (function () {
         'use strict';
@@ -154,6 +154,7 @@
 
         function esc(value) { return C.esc(value); }
         function el(id) { return document.getElementById(id); }
+        function direct(s) { return /\/timetable\/my-teacher$/.test((s && s.school_url) || ''); }
         function ui(label) { return '<span class="ui">' + esc(label) + '</span>'; }
         // Screenshot from WebUntis (personal link and colleagues' short names made unreadable); tap = full size
         function shot(file, alt, w, h) {
@@ -173,8 +174,10 @@
             time: '1 Min.',
             steps: function (s) {
               return [
-                'WebUntis öffnen und anmelden.' + (s.school_url ? '<br>' + openLink(s.school_url, 'WebUntis öffnen') : ''),
-                'Links auf ' + ui('Mein Stundenplan') + ' gehen. Unten in der Leiste (neben ' + ui('Entfall') + ' ' + ui('Prüfung') + ' ' + ui('Änderung') + ') auf ' + ui('⋮') + ' und dann auf ' + ui('iCal-Abo verwalten') + ' tippen.' +
+                // the button opens „Mein Stundenplan“ directly (backend: /timetable/my-teacher)
+                (direct(s) ? 'WebUntis öffnen und anmelden, falls nötig – du landest direkt in deinem Stundenplan.'
+                  : 'WebUntis öffnen und anmelden.') + (s.school_url ? '<br>' + openLink(s.school_url, 'WebUntis öffnen') : ''),
+                (direct(s) ? '' : 'Links auf ' + ui('Mein Stundenplan') + ' gehen. ') + 'Unten in der Leiste (neben ' + ui('Entfall') + ' ' + ui('Prüfung') + ' ' + ui('Änderung') + ') auf ' + ui('⋮') + ' und dann auf ' + ui('iCal-Abo verwalten') + ' tippen.' +
                   shot('webuntis-menu.webp', 'Menü über den drei Punkten mit „iCal-Abo verwalten“', 310, 320),
                 'Format ' + ui('Standard') + ' lassen. Steht noch kein Link da, auf ' + ui('Link erstellen') + ' tippen. Dann ' + ui('Link kopieren') + '.' +
                   shot('webuntis-link.webp', 'Fenster „iCal-Abo verwalten“ mit dem Knopf „Link kopieren“', 416, 303),

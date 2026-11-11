@@ -78,6 +78,16 @@ def _https(value) -> str:
     return value.strip() if isinstance(value, str) and value.strip().lower().startswith("https://") else ""
 
 
+def _webuntis_timetable(value) -> str:
+    """The school's WebUntis address, opened right at the teacher's own timetable
+    („Mein Stundenplan“, where „iCal-Abo verwalten“ is) – WebUntis asks for the login first if needed."""
+    url = _https(value)
+    origin = nextcloud_module.origin(url) if url else ""
+    if origin and origin.lower().endswith(".webuntis.com"):
+        return origin + "/timetable/my-teacher"
+    return url
+
+
 def _school_settings(conn) -> dict:
     settings = {}
     for key in _NEXTCLOUD_SETTING_KEYS + _SCHOOL_LINK_KEYS:
@@ -102,7 +112,7 @@ def _status_payload(configs: dict[str, dict], settings: dict | None = None) -> d
     return {
         "webuntis": {
             "configured": bool(webuntis.get("ical_url")),
-            "school_url": _https(settings.get("webuntis_url")),
+            "school_url": _webuntis_timetable(settings.get("webuntis_url")),
         },
         "itslearning": {
             "school_url": nextcloud_module.origin(_https(settings.get("itslearning_base_url"))) or _ITSLEARNING_DEFAULT,

@@ -178,7 +178,9 @@
         '<input class="form-input" type="url" data-field="ical_url" placeholder="' +
         (s.configured ? 'Link gespeichert – zum Ändern neuen Link einfügen' : 'https://…webuntis.com/WebUntis/ical…') + '" autocomplete="off" /></label>' +
         '<details class="connection-help"' + (!s.configured || (window.LehrerSourceProblems || {}).webuntis ? ' open' : '') + '><summary>Wo finde ich den Link?</summary><ol>' +
-        (s.school_url
+        (s.school_url && /\/timetable\/my-teacher$/.test(s.school_url)
+          ? '<li>' + extLink(s.school_url, 'Deinen Stundenplan in WebUntis öffnen') + ' und anmelden, falls nötig.</li>'
+          : s.school_url
           ? '<li>' + extLink(s.school_url, 'WebUntis eurer Schule öffnen') + ', anmelden und zu „Mein Stundenplan“ gehen.</li>'
           : '<li>In WebUntis anmelden und „Mein Stundenplan“ öffnen.</li>') +
         '<li>Unten in der Leiste (neben „Entfall · Prüfung · Änderung“) auf ⋮ → „iCal-Abo verwalten“.' +
