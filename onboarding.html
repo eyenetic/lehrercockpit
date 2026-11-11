@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=134" />
-    <link rel="stylesheet" href="./styles.auth.css?v=134" />
+    <link rel="stylesheet" href="./styles.css?v=135" />
+    <link rel="stylesheet" href="./styles.auth.css?v=135" />
     <style>
       body.onboarding-page {
         align-items: flex-start; padding: 40px 16px; box-sizing: border-box;
@@ -53,7 +53,9 @@
       .guide li > div { padding-top: 3px; }
       .guide b { font-weight: 600; }
       .guide .shot { display: block; margin-top: 10px; max-width: 340px; border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; background: #fff; }
-      .guide .shot img { display: block; width: 100%; height: auto; }
+      .guide .shot img, .tip .shot img { display: block; width: 100%; height: auto; }
+      .tip .tip-shots { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px; }
+      .tip .shot { display: block; flex: 1 1 200px; max-width: 280px; border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; background: #fff; }
       .guide .ui { display: inline-block; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel-soft); font-size: 0.84rem; font-weight: 500; white-space: nowrap; }
       .guide .open-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--step); border-color: color-mix(in srgb, var(--step) 35%, var(--line-strong)); }
 
@@ -138,14 +140,14 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/connections.js?v=134"></script>
+    <script src="./src/features/connections.js?v=135"></script>
     <script>
       (function () {
         'use strict';
 
         var BACKEND = window.BACKEND_API_URL || '';
         var C = window.LehrerConnections;
-        var DIENSTMAIL_URL = 'https://lehrkraeftemail.schule.berlin.de/?iam_sso=1';
+        var SCHULPORTAL_URL = 'https://schulportal.berlin.de/';  // the Dienstmail is opened from there („BSP-Mail“)
         var current = 0;
         var status = {};
         var user = null;
@@ -159,7 +161,7 @@
         // Screenshot from WebUntis (personal link and colleagues' short names made unreadable); tap = full size
         function shot(file, alt, w, h) {
           var src = './src/assets/onboarding/' + file;
-          return '<a class="shot" href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="' + esc(alt) + '" width="' + w + '" height="' + h + '" loading="lazy" /></a>';
+          return '<a class="shot" style="max-width:' + w + 'px" href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="' + esc(alt) + '" width="' + w + '" height="' + h + '" loading="lazy" /></a>';
         }
         function openLink(url, label) {
           return url ? '<a class="btn btn-secondary btn-sm open-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + ' ↗&#xFE0E;</a>' : '';
@@ -185,7 +187,6 @@
               ];
             },
             trouble: '<p>„Link erstellen“ ist grau? Dann gibt es schon einen Link – einfach „Link kopieren“ tippen.</p>' +
-              '<p>Fehlt „iCal-Abo verwalten“? Dann im WebUntis-Profil unter „Freigaben“ den Punkt „Kalender publizieren“ einschalten.</p>' +
               '<p>Bitte nicht den Link aus der Adresszeile des Browsers nehmen – der funktioniert nur, solange du angemeldet bist.</p>',
             fields: [{ name: 'ical_url', label: 'Link aus WebUntis', type: 'url', placeholder: 'https://…webuntis.com/WebUntis/ical…' }],
             connected: function (s) { return !!s.configured; },
@@ -198,9 +199,11 @@
             time: '1 Min.',
             steps: function (s) {
               return [
-                'itslearning öffnen und anmelden.' + (s.school_url ? '<br>' + openLink(s.school_url, 'itslearning öffnen') : ''),
-                'Oben auf ' + ui('Kalender') + ' gehen.',
-                'Oben rechts auf die drei Punkte ' + ui('⋯') + ' und dann auf ' + ui('iCal-Feed') + ' tippen. Den angezeigten Link <b>kopieren</b>.',
+                'itslearning öffnen und anmelden.<br>' + openLink(s.school_url || 'https://berlin.itslearning.com', 'itslearning öffnen'),
+                'Oben auf ' + ui('Kalender') + ', dann rechts auf ' + ui('⋯') + ' und auf ' + ui('iCal-Feed abrufen') + ' tippen.' +
+                  shot('itslearning-menu.webp', 'itslearning: Kalender, drei Punkte und „iCal-Feed abrufen“', 450, 104),
+                'Bei „Kalender auswählen“ ' + ui('Alle Kalender') + ' lassen und auf ' + ui('Link kopieren') + ' tippen.' +
+                  shot('itslearning-link.webp', 'Seite „iCal-Feed abrufen“ mit dem Knopf „Link kopieren“', 412, 328),
                 'Den Link hier unten einfügen.',
               ];
             },
@@ -216,15 +219,23 @@
             time: '2 Min.',
             steps: function () {
               return [
-                'Die Dienstmail im Browser öffnen und anmelden.<br>' + openLink(DIENSTMAIL_URL, 'Dienstmail öffnen'),
-                'Die ' + ui('Geräteverwaltung') + ' öffnen und ein neues <b>App-Passwort</b> erstellen. Als Name passt z. B. „Lehrercockpit“.',
-                'Das App-Passwort <b>kopieren</b> und hier unten zusammen mit deiner Adresse einfügen.',
+                'Das Berliner Schulportal öffnen, anmelden und unter „Schnellzugriff“ auf ' + ui('BSP-Mail') + ' tippen.<br>' +
+                  openLink(SCHULPORTAL_URL, 'Schulportal öffnen') + shot('mail-schulportal.webp', 'Schulportal: Kachel „BSP-Mail“', 260, 206),
+                'In der Mail oben rechts auf den Schraubenschlüssel ' + ui('mailcow Einstellungen') + ' tippen.' +
+                  shot('mail-settings.webp', 'Webmail: Schraubenschlüssel oben rechts', 220, 75),
+                'Den Reiter ' + ui('App-Passwörter') + ' öffnen und auf ' + ui('Erstelle App-Passwort') + ' tippen.' +
+                  shot('mail-apppasswords.webp', 'Reiter „App-Passwörter“ mit „Erstelle App-Passwort“', 340, 133),
+                'Als App-Name „Lehrercockpit“ eintragen, auf ' + ui('generieren') + ' tippen und das Passwort <b>kopieren</b> – noch <b>vor</b> ' +
+                  ui('Hinzufügen') + ', danach zeigt die Seite es nicht mehr an. Dann ' + ui('Hinzufügen') + '.' +
+                  shot('mail-new-password.webp', 'Fenster „App-Passwort hinzufügen“', 514, 303),
+                'Hier unten deine Dienstmail-Adresse und das App-Passwort einfügen.',
               ];
             },
             trouble: '<p>Bitte nicht dein Schulportal-Passwort eingeben, sondern das App-Passwort – genau wie beim Einrichten der Mail-App auf dem Handy.</p>' +
-              '<p>Du kannst das App-Passwort jederzeit in der Geräteverwaltung löschen. Dann liest das Cockpit nichts mehr.</p>',
+              '<p>Passwort vergessen zu kopieren? Einfach unter „App-Passwörter“ ein neues erstellen.</p>' +
+              '<p>Du kannst das App-Passwort jederzeit unter „App-Passwörter“ entfernen. Dann liest das Cockpit nichts mehr.</p>',
             fields: [
-              { name: 'address', label: 'Deine Dienstmail-Adresse', type: 'email', placeholder: 'vorname.nachname@…schule.berlin.de', noPaste: true },
+              { name: 'address', label: 'Deine Dienstmail-Adresse', type: 'email', placeholder: 'vorname.nachname@schule.berlin.de', noPaste: true },
               { name: 'app_password', label: 'App-Passwort', type: 'password', placeholder: 'App-Passwort einfügen' },
             ],
             connected: function (s) { return !!s.configured; },
@@ -233,13 +244,14 @@
           nextcloud: {
             tone: 'var(--tone-links)',
             label: 'Nextcloud', title: 'Nextcloud-Favoriten', optional: true,
-            lead: 'Was du in Nextcloud mit ★ markierst, erreichst du im Cockpit mit einem Klick.',
+            lead: 'Was du in Nextcloud als Favorit (★) markierst, erscheint im Cockpit – unter „Links“, einen Klick entfernt.',
             time: '1 Min.',
             steps: function () {
               return [
                 'Unten auf ' + ui('Mit Nextcloud verbinden') + ' tippen – Nextcloud öffnet sich in einem neuen Tab.',
-                'Dort anmelden und ' + ui('Zugriff gewähren') + ' bestätigen.',
+                'Dort mit deinen Nextcloud-Zugangsdaten anmelden und ' + ui('Zugriff gewähren') + ' bestätigen.',
                 'Hierher zurückkommen – der Rest geht automatisch.',
+                'Ab jetzt gilt: Was du in Nextcloud mit ★ als <b>Favorit</b> markierst (Dateien oder Ordner), erscheint im Cockpit.',
               ];
             },
             connected: function (s) { return !!s.connected; },
@@ -469,7 +481,10 @@
             .map(function (id) { return GUIDES[id].label; });
           el('setup-body').innerHTML =
             (others.length ? '<p class="tip"><b>Wenn du magst, später:</b> ' + esc(others.join(', ')) + '. Das verbindest du direkt auf „Heute“ an der jeweiligen Kachel oder unter „Verbindungen“ – jeweils in etwa einer Minute.</p>' : '') +
-            '<p class="tip"><b>Tipp fürs Handy:</b> Öffne das Cockpit in Safari, tippe auf „Teilen“ und dann auf „Zum Home-Bildschirm“. Dann startet es wie eine App.</p>' +
+            '<div class="tip"><b>Wie eine App aufs iPhone:</b> Das Cockpit in Safari öffnen, unten in der Adressleiste auf ≡ tippen, dann auf „Teilen“, ' +
+              'nach unten scrollen und „Zum Home-Bildschirm“ wählen.' +
+              '<span class="tip-shots">' + shot('iphone-share.webp', 'Safari: „Teilen“', 300, 142) + shot('iphone-homescreen.webp', 'Safari: „Zum Home-Bildschirm“', 300, 89) + '</span>' +
+              '<br><b>Am Mac:</b> In Safari oben „Ablage“ → „Zum Dock hinzufügen“.</div>' +
             '<p class="note">Anmelden kannst du dich auf jedem Gerät mit deinem Zugangscode.</p>';
         }
 

@@ -187,7 +187,7 @@
         '<img class="connection-shot" src="./src/assets/onboarding/webuntis-menu.webp" alt="Menü über den drei Punkten mit „iCal-Abo verwalten“" loading="lazy" width="310" height="320" /></li>' +
         '<li>Format „Standard“ lassen. Steht noch kein Link da: „Link erstellen“. Dann „Link kopieren“ und hier einfügen.' +
         '<img class="connection-shot" src="./src/assets/onboarding/webuntis-link.webp" alt="Fenster „iCal-Abo verwalten“ mit dem Knopf „Link kopieren“" loading="lazy" width="416" height="303" /></li></ol>' +
-        '<p>„Link erstellen“ ist grau? Dann gibt es schon einen Link – einfach „Link kopieren“. Fehlt „iCal-Abo verwalten“: im Profil unter „Freigaben“ → „Kalender publizieren“. Nicht den Link aus der Adresszeile nehmen.</p></details>' +
+        '<p>„Link erstellen“ ist grau? Dann gibt es schon einen Link – einfach „Link kopieren“. Nicht den Link aus der Adresszeile nehmen.</p></details>' +
         '<div class="connection-actions">' +
         '<button class="btn btn-primary" type="button" data-action="save">Speichern</button>' +
         (s.configured ? '<button class="btn btn-secondary" type="button" data-action="remove">Trennen</button>' : '') +
@@ -232,11 +232,11 @@
         '<input class="form-input" type="url" data-field="calendar_url" placeholder="' +
         (s.calendar ? 'Link gespeichert – zum Ändern neuen Link einfügen' : 'https://berlin.itslearning.com/…') + '" autocomplete="off" /></label>' +
         '<details class="connection-help"' + (!connected || (window.LehrerSourceProblems || {}).itslearning ? ' open' : '') + '><summary>Wo finde ich den Link?</summary><ol>' +
-        (s.school_url
-          ? '<li>' + extLink(s.school_url, 'itslearning öffnen') + ' und dort zum <strong>Kalender</strong> gehen.</li>'
-          : '<li>In itslearning den <strong>Kalender</strong> öffnen.</li>') +
-        '<li>Oben rechts auf die drei Punkte ⋯ → „iCal-Feed“.</li>' +
-        '<li>Den angezeigten Link kopieren und hier einfügen.</li></ol>' +
+        '<li>' + extLink(s.school_url || 'https://berlin.itslearning.com', 'itslearning öffnen') + ' und anmelden.</li>' +
+        '<li>Oben auf <strong>Kalender</strong>, dann rechts auf ⋯ → „iCal-Feed abrufen“.' +
+        '<img class="connection-shot" src="./src/assets/onboarding/itslearning-menu.webp" alt="itslearning: Kalender, drei Punkte und „iCal-Feed abrufen“" loading="lazy" width="450" height="104" />' + '</li>' +
+        '<li>„Alle Kalender“ lassen, auf „Link kopieren“ tippen und den Link hier einfügen.' +
+        '<img class="connection-shot" src="./src/assets/onboarding/itslearning-link.webp" alt="Seite „iCal-Feed abrufen“ mit dem Knopf „Link kopieren“" loading="lazy" width="412" height="328" />' + '</li></ol>' +
         '<p>Der Link wird verschlüsselt gespeichert.</p></details>' +
         '<div class="connection-actions">' +
         '<button class="btn btn-primary" type="button" data-action="save-calendar">Speichern</button>' +
@@ -347,14 +347,20 @@
         '<p class="connection-copy">Die neuesten Mails im Posteingang – nur Absender, Betreff und Uhrzeit. Das Cockpit liest nur: nichts wird gelöscht, verschickt oder als gelesen markiert.</p>' +
         (problem && s.configured ? alertBox('error', esc(problem)) : '') +
         '<label class="connection-field">Dienstmail-Adresse' +
-        '<input class="form-input" type="email" data-field="address" value="' + esc(s.address || '') + '" placeholder="vorname.nachname@…schule.berlin.de" autocomplete="off" /></label>' +
+        '<input class="form-input" type="email" data-field="address" value="' + esc(s.address || '') + '" placeholder="vorname.nachname@schule.berlin.de" autocomplete="off" /></label>' +
         '<label class="connection-field">App-Passwort' +
-        '<input class="form-input" type="password" data-field="app_password" placeholder="' + (s.configured ? 'gespeichert – zum Ändern neues eingeben' : 'App-Passwort aus der Geräteverwaltung') + '" autocomplete="new-password" /></label>' +
+        '<input class="form-input" type="password" data-field="app_password" placeholder="' + (s.configured ? 'gespeichert – zum Ändern neues eingeben' : 'App-Passwort aus den mailcow-Einstellungen') + '" autocomplete="new-password" /></label>' +
         '<details class="connection-help"' + (!s.configured || problem ? ' open' : '') + '><summary>Wo bekomme ich das App-Passwort?</summary><ol>' +
-        '<li>' + extLink('https://lehrkraeftemail.schule.berlin.de/?iam_sso=1', 'Dienstmail im Browser öffnen') + ' und anmelden.</li>' +
-        '<li>In der <strong>Geräteverwaltung</strong> ein neues App-Passwort erzeugen (wie beim Einrichten der Mail-App am Handy oder Mac).</li>' +
+        '<li>' + extLink('https://schulportal.berlin.de/', 'Berliner Schulportal öffnen') + ', anmelden und unter „Schnellzugriff“ auf <strong>BSP-Mail</strong>.' +
+        '<img class="connection-shot" src="./src/assets/onboarding/mail-schulportal.webp" alt="Schulportal: Kachel „BSP-Mail“" loading="lazy" width="260" height="206" style="max-width:260px" />' + '</li>' +
+        '<li>In der Mail oben rechts auf den Schraubenschlüssel („mailcow Einstellungen“).' +
+        '<img class="connection-shot" src="./src/assets/onboarding/mail-settings.webp" alt="Webmail: Schraubenschlüssel oben rechts" loading="lazy" width="220" height="75" style="max-width:220px" />' + '</li>' +
+        '<li>Reiter <strong>App-Passwörter</strong> → „Erstelle App-Passwort“.' +
+        '<img class="connection-shot" src="./src/assets/onboarding/mail-apppasswords.webp" alt="Reiter „App-Passwörter“ mit „Erstelle App-Passwort“" loading="lazy" width="340" height="133" />' + '</li>' +
+        '<li>App-Name „Lehrercockpit“, auf „generieren“ tippen und das Passwort kopieren – <strong>vor</strong> „Hinzufügen“, danach wird es nicht mehr angezeigt. Dann „Hinzufügen“.' +
+        '<img class="connection-shot" src="./src/assets/onboarding/mail-new-password.webp" alt="Fenster „App-Passwort hinzufügen“" loading="lazy" width="514" height="303" />' + '</li>' +
         '<li>Das App-Passwort hier einfügen – nicht dein Schulportal-Passwort.</li></ol>' +
-        '<p>Das App-Passwort wird verschlüsselt gespeichert. Du kannst es in der Geräteverwaltung jederzeit löschen – dann liest das Cockpit nichts mehr.</p></details>' +
+        '<p>Das App-Passwort wird verschlüsselt gespeichert. Du kannst es unter „App-Passwörter“ jederzeit entfernen – dann liest das Cockpit nichts mehr.</p></details>' +
         '<div class="connection-actions">' +
         '<button class="btn btn-primary" type="button" data-action="save">Speichern</button>' +
         (s.configured ? '<button class="btn btn-secondary" type="button" data-action="remove">Trennen</button>' : '') +
@@ -400,7 +406,8 @@
           '<p class="connection-feedback" data-feedback></p>';
       }
       return head +
-        '<p class="connection-copy">Deine Nextcloud-Favoriten (★) mit einem Klick erreichbar. Du meldest dich direkt bei Nextcloud an – dein Passwort sieht das Cockpit nie.</p>' +
+        '<p class="connection-copy"><strong>Was du in Nextcloud als Favorit (★) markierst, erscheint im Cockpit</strong> – unter „Links“, einen Klick entfernt. ' +
+        'Du meldest dich mit deinen Nextcloud-Zugangsdaten direkt bei Nextcloud an – dein Passwort sieht das Cockpit nie.</p>' +
         (s.suggested_server
           // The school's Nextcloud is set in Verwaltung: one click, no address to type.
           ? '<input type="hidden" data-field="base_url" value="' + esc(s.suggested_server) + '" />' +
