@@ -173,6 +173,7 @@
       return '' +
         '<div class="connection-head"><h3>WebUntis</h3>' + pill(s.configured ? 'ok' : 'warn', s.configured ? 'verbunden' : 'nicht verbunden') + '</div>' +
         '<p class="connection-copy">Dein Stundenplan mit Vertretungen und Entfällen.</p>' +
+        (!s.configured && window.LehrerVideo ? '<p class="connection-copy">' + window.LehrerVideo.button('einrichtung') + '</p>' : '') +
         ((window.LehrerSourceProblems || {}).webuntis && s.configured ? alertBox('error', esc(window.LehrerSourceProblems.webuntis)) : '') +
         '<label class="connection-field">Kalender-Abo-Link' +
         '<input class="form-input" type="url" data-field="ical_url" placeholder="' +

@@ -1,0 +1,6 @@
+node_modules/
+out/
+!public/
+public/cookies.json
+# Pixabay-Musik nicht einzeln weitergeben (Lizenz) – Download-Link in README.md
+public/music/

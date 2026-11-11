@@ -1,0 +1,17 @@
+{
+  "name": "lehrercockpit-video",
+  "private": true,
+  "scripts": {
+    "studio": "remotion studio src/index.jsx",
+    "render:1": "remotion render src/index.jsx Lehrercockpit out/lehrercockpit-video1.mp4 --codec=h264 --crf=18 --concurrency=4 && python3 check_frames.py out/lehrercockpit-video1.mp4",
+    "render:2": "remotion render src/index.jsx Einrichtung out/lehrercockpit-video2-einrichtung.mp4 --codec=h264 --crf=18 --concurrency=4 && python3 check_frames.py out/lehrercockpit-video2-einrichtung.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.290",
+    "@remotion/google-fonts": "^4.0.290",
+    "puppeteer-core": "23.11.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.290"
+  }
+}

@@ -21,7 +21,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=135" />
+    <link rel="stylesheet" href="./styles.css?v=136" />
     <style>
       body.auth {
         min-height: 100vh;
@@ -168,6 +168,7 @@
 
       <!-- Einladung annehmen -->
       <form class="auth-form" id="invite-form" data-view="invite" novalidate hidden>
+        <div data-video-teaser="lehrercockpit"></div>
         <input class="sr-only" type="text" id="invite-username" name="username" autocomplete="username" tabindex="-1" aria-hidden="true" />
         <div class="auth-row">
           <label class="auth-field"><span>Vorname</span><input class="form-input" type="text" id="invite-first" autocomplete="given-name" required /></label>
@@ -229,6 +230,7 @@
 
       <!-- Zugang anfragen -->
       <form class="auth-form" id="register-form" data-view="register" novalidate hidden>
+        <div data-video-teaser="lehrercockpit"></div>
         <label class="auth-field"><span>Name</span><input class="form-input" type="text" id="register-name" autocomplete="name" required /></label>
         <label class="auth-field"><span>E-Mail-Adresse</span><input class="form-input" type="email" id="register-email" autocomplete="email" required /></label>
         <p class="auth-message is-error" id="register-error" role="alert" hidden></p>
@@ -289,8 +291,9 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/features/vault.js?v=135"></script>
-    <script src="./src/features/terms.js?v=135"></script>
+    <script src="./src/features/video.js?v=136"></script>
+    <script src="./src/features/vault.js?v=136"></script>
+    <script src="./src/features/terms.js?v=136"></script>
     <script>
       (function () {
         'use strict';

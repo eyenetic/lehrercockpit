@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=135" />
-    <link rel="stylesheet" href="./styles.auth.css?v=135" />
+    <link rel="stylesheet" href="./styles.css?v=136" />
+    <link rel="stylesheet" href="./styles.auth.css?v=136" />
     <style>
       body.onboarding-page {
         align-items: flex-start; padding: 40px 16px; box-sizing: border-box;
@@ -140,7 +140,8 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/connections.js?v=135"></script>
+    <script src="./src/features/video.js?v=136"></script>
+    <script src="./src/features/connections.js?v=136"></script>
     <script>
       (function () {
         'use strict';
@@ -307,7 +308,7 @@
             first && name ? 'Hallo ' + name + '! ' + g.title : g.title, g.lead);
           document.querySelector('.setup-card').style.setProperty('--step', g.tone);
           var connected = isConnected(id);
-          var guide = '<ol class="guide">' + g.steps(s).map(function (text) { return '<li><div>' + text + '</div></li>'; }).join('') + '</ol>';
+          var guide = (id === 'webuntis' && window.LehrerVideo ? '<p class="guide-video">' + window.LehrerVideo.button('einrichtung') + '</p>' : '') + '<ol class="guide">' + g.steps(s).map(function (text) { return '<li><div>' + text + '</div></li>'; }).join('') + '</ol>';
 
           if (id === 'nextcloud') {
             el('setup-body').innerHTML = (connected ? '' : guide) + '<div class="nc-mount" id="nc-mount"></div>';
