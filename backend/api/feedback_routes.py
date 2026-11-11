@@ -12,7 +12,7 @@ Admins:
 """
 from __future__ import annotations
 
-from flask import Blueprint, g, request
+from flask import Blueprint, Response, g, request
 
 from backend import feedback
 from backend.api.auth_routes import limiter
@@ -128,6 +128,57 @@ def update_feedback(feedback_id: int):
         except Exception:
             pass
     return success({"item": item})
+
+
+@feedback_bp.route("/admin/<int:feedback_id>/images", methods=["POST"])
+@require_admin
+@limiter.limit("60 per hour")
+def add_feedback_image(feedback_id: int):
+    """Photo for the answer: the image itself as the request body (JPG, PNG or WebP)."""
+    if (request.content_length or 0) > feedback.MAX_IMAGE_BYTES:
+        return error("Das Bild ist zu groß.", 413)
+    data = request.get_data(cache=False)
+    try:
+        with db_connection() as conn:
+            result = feedback.add_image(conn, feedback_id, data)
+            item = feedback.get(conn, feedback_id, for_admin=True) if isinstance(result, dict) else None
+    except Exception as exc:
+        return error(f"Das Foto konnte nicht gespeichert werden: {type(exc).__name__}", 500)
+    if isinstance(result, str):
+        return error(result, 404 if result.startswith("Rückmeldung") else 422)
+    return success({"image": result, "item": item}, 201)
+
+
+@feedback_bp.route("/admin/<int:feedback_id>/images/<int:image_id>", methods=["DELETE"])
+@require_admin
+def delete_feedback_image(feedback_id: int, image_id: int):
+    try:
+        with db_connection() as conn:
+            deleted = feedback.delete_image(conn, feedback_id, image_id)
+            item = feedback.get(conn, feedback_id, for_admin=True)
+    except Exception as exc:
+        return error(f"Konnte nicht gelöscht werden: {type(exc).__name__}", 500)
+    if not deleted:
+        return error("Foto nicht gefunden.", 404)
+    return success({"item": item})
+
+
+@feedback_bp.route("/images/<int:image_id>", methods=["GET"])
+@require_auth
+def feedback_image(image_id: int):
+    """A photo from an answer – for the teacher who wrote the Rückmeldung and for admins."""
+    try:
+        with db_connection() as conn:
+            found = feedback.load_image(conn, image_id)
+    except Exception as exc:
+        return error(f"Das Foto konnte nicht geladen werden: {type(exc).__name__}", 500)
+    if not found or (found[0] != g.current_user.id and not g.current_user.is_admin):
+        return error("Foto nicht gefunden.", 404)
+    resp = Response(found[2], mimetype=found[1])
+    resp.headers["Cache-Control"] = "private, max-age=86400"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Content-Security-Policy"] = "default-src 'none'; sandbox"
+    return resp
 
 
 @feedback_bp.route("/admin/<int:feedback_id>", methods=["DELETE"])

@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=132" />
-    <link rel="stylesheet" href="./styles.auth.css?v=132" />
+    <link rel="stylesheet" href="./styles.css?v=133" />
+    <link rel="stylesheet" href="./styles.auth.css?v=133" />
     <style>
       body.onboarding-page {
         align-items: flex-start; padding: 40px 16px; box-sizing: border-box;
@@ -52,6 +52,8 @@
       }
       .guide li > div { padding-top: 3px; }
       .guide b { font-weight: 600; }
+      .guide .shot { display: block; margin-top: 10px; max-width: 340px; border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; background: #fff; }
+      .guide .shot img { display: block; width: 100%; height: auto; }
       .guide .ui { display: inline-block; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel-soft); font-size: 0.84rem; font-weight: 500; white-space: nowrap; }
       .guide .open-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--step); border-color: color-mix(in srgb, var(--step) 35%, var(--line-strong)); }
 
@@ -136,7 +138,7 @@
         : "https://api.lehrercockpit.com";
       window.MULTIUSER_ENABLED = true;
     </script>
-    <script src="./src/features/connections.js?v=132"></script>
+    <script src="./src/features/connections.js?v=133"></script>
     <script>
       (function () {
         'use strict';
@@ -153,6 +155,11 @@
         function esc(value) { return C.esc(value); }
         function el(id) { return document.getElementById(id); }
         function ui(label) { return '<span class="ui">' + esc(label) + '</span>'; }
+        // Screenshot from WebUntis (personal link and colleagues' short names made unreadable); tap = full size
+        function shot(file, alt, w, h) {
+          var src = './src/assets/onboarding/' + file;
+          return '<a class="shot" href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="' + esc(alt) + '" width="' + w + '" height="' + h + '" loading="lazy" /></a>';
+        }
         function openLink(url, label) {
           return url ? '<a class="btn btn-secondary btn-sm open-link" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + ' ↗&#xFE0E;</a>' : '';
         }
@@ -167,12 +174,15 @@
             steps: function (s) {
               return [
                 'WebUntis öffnen und anmelden.' + (s.school_url ? '<br>' + openLink(s.school_url, 'WebUntis öffnen') : ''),
-                'Links auf ' + ui('Mein Stundenplan') + ' gehen. Unten neben der Legende auf ' + ui('⋯') + ' und dann ' + ui('iCal-Abo verwalten') + ' tippen.',
-                'Format ' + ui('Standard') + ' wählen, ' + ui('Link erzeugen') + ' tippen und den Link <b>kopieren</b>.',
+                'Links auf ' + ui('Mein Stundenplan') + ' gehen. Unten in der Leiste (neben ' + ui('Entfall') + ' ' + ui('Prüfung') + ' ' + ui('Änderung') + ') auf ' + ui('⋮') + ' und dann auf ' + ui('iCal-Abo verwalten') + ' tippen.' +
+                  shot('webuntis-menu.webp', 'Menü über den drei Punkten mit „iCal-Abo verwalten“', 310, 320),
+                'Format ' + ui('Standard') + ' lassen. Steht noch kein Link da, auf ' + ui('Link erstellen') + ' tippen. Dann ' + ui('Link kopieren') + '.' +
+                  shot('webuntis-link.webp', 'Fenster „iCal-Abo verwalten“ mit dem Knopf „Link kopieren“', 416, 303),
                 'Den Link hier unten einfügen.',
               ];
             },
-            trouble: '<p>Fehlt „iCal-Abo verwalten“? Dann im WebUntis-Profil unter „Freigaben“ den Punkt „Kalender publizieren“ einschalten.</p>' +
+            trouble: '<p>„Link erstellen“ ist grau? Dann gibt es schon einen Link – einfach „Link kopieren“ tippen.</p>' +
+              '<p>Fehlt „iCal-Abo verwalten“? Dann im WebUntis-Profil unter „Freigaben“ den Punkt „Kalender publizieren“ einschalten.</p>' +
               '<p>Bitte nicht den Link aus der Adresszeile des Browsers nehmen – der funktioniert nur, solange du angemeldet bist.</p>',
             fields: [{ name: 'ical_url', label: 'Link aus WebUntis', type: 'url', placeholder: 'https://…webuntis.com/WebUntis/ical…' }],
             connected: function (s) { return !!s.configured; },
@@ -234,17 +244,15 @@
           },
         };
 
-        var STEPS = ['welcome', 'webuntis', 'itslearning', 'mail', 'done'];
+        // Only the timetable at the start. Everything else the teacher connects later, when they want it –
+        // on „Heute“ at the tile or under „Verbindungen“. ?schritt=<id> opens a single guide.
+        var wanted = (/[?&]schritt=([a-z]+)/.exec(window.location.search) || [])[1];
+        var STEPS = [GUIDES[wanted] ? wanted : 'webuntis', 'done'];
 
         function connectionSteps() { return STEPS.filter(function (id) { return GUIDES[id]; }); }
         function sourceStatus(id) { return status[id] || {}; }
         function isConnected(id) { return GUIDES[id].connected(sourceStatus(id)); }
 
-        // Nextcloud only when the school set its address (otherwise later under „Verbindungen“).
-        function applyOptionalSteps() {
-          var hasNextcloud = STEPS.indexOf('nextcloud') !== -1;
-          if (sourceStatus('nextcloud').suggested_server && !hasNextcloud) STEPS.splice(STEPS.length - 1, 0, 'nextcloud');
-        }
 
         // ── Rendering ──────────────────────────────────────────────────────
         function renderProgress() {
@@ -255,7 +263,7 @@
             var cls = id === 'done' || index < position ? 'is-done' : index === position ? 'is-active' : '';
             return '<span class="' + cls + '"></span>';
           }).join('');
-          el('setup-progress').hidden = id === 'welcome';
+          el('setup-progress').hidden = steps.length < 2;  // one step: no progress bar
         }
 
         function setHead(eyebrow, title, lead) {
@@ -269,37 +277,19 @@
           var id = STEPS[current];
           document.querySelector('.setup-card').style.setProperty('--step', GUIDES[id] ? GUIDES[id].tone : 'var(--accent)');
           renderProgress();
-          if (id === 'welcome') renderWelcome();
-          else if (id === 'done') renderDone();
+          if (id === 'done') renderDone();
           else renderGuide(id);
           updateFooter();
           if (toTop) window.scrollTo(0, 0);
         }
 
-        function renderWelcome() {
-          var name = (user && user.first_name) || '';
-          var steps = connectionSteps();
-          setHead('Einrichtung', 'Hallo' + (name ? ' ' + name : '') + '!',
-            'In ' + steps.length + ' kurzen Schritten verbindest du deine Zugänge. Danach siehst du deinen Schultag auf einer Seite.');
-          var school = [];
-          if ((status.orgaplan || {}).status === 'ok') school.push('Orgaplan');
-          if ((status.termine || {}).ok) school.push('Schultermine');
-          if (((status.klassenarbeitsplan || {}).plan || {}).state === 'ok') school.push('Klassenarbeitsplan');
-          el('setup-body').innerHTML =
-            '<ol class="plan">' + steps.map(function (stepId, index) {
-              var g = GUIDES[stepId];
-              return '<li><span class="num" style="--num: ' + g.tone + '">' + (index + 1) + '</span><span class="what">' + esc(g.title) +
-                (g.optional ? '<small>optional</small>' : '') + '</span><span class="time">' + esc(g.time) + '</span></li>';
-            }).join('') + '</ol>' +
-            '<p class="tip"><b>Alles ist freiwillig.</b> Dein Cockpit funktioniert sofort – jeder Schritt lässt sich überspringen und jederzeit später nachholen. Am Computer geht es am leichtesten.</p>' +
-            (school.length ? '<p class="note">Schon von deiner Schule eingerichtet: ' + esc(school.join(', ')) + '. Dafür musst du nichts tun.</p>' : '');
-        }
-
         function renderGuide(id) {
           var g = GUIDES[id];
           var s = sourceStatus(id);
-          var steps = connectionSteps();
-          setHead('Schritt ' + (steps.indexOf(id) + 1) + ' von ' + steps.length + (g.optional ? ' · optional' : ''), g.title, g.lead);
+          var name = (user && user.first_name) || '';
+          var first = current === 0 && id === 'webuntis' && !isConnected(id);
+          setHead(first ? 'Einrichtung · ein Schritt' : 'Einrichtung' + (g.optional ? ' · optional' : ''),
+            first && name ? 'Hallo ' + name + '! ' + g.title : g.title, g.lead);
           document.querySelector('.setup-card').style.setProperty('--step', g.tone);
           var connected = isConnected(id);
           var guide = '<ol class="guide">' + g.steps(s).map(function (text) { return '<li><div>' + text + '</div></li>'; }).join('') + '</ol>';
@@ -472,15 +462,10 @@
 
         function renderDone() {
           setHead('Fertig', 'Geschafft!', 'Dein Cockpit ist startklar.');
-          var steps = connectionSteps();
+          var others = ['webuntis', 'itslearning', 'mail', 'nextcloud'].filter(function (id) { return !isConnected(id); })
+            .map(function (id) { return GUIDES[id].label; });
           el('setup-body').innerHTML =
-            '<ul class="plan">' + steps.map(function (id) {
-              var ok = isConnected(id);
-              return '<li><span class="num ' + (ok ? 'is-ok' : 'is-off') + '">' + (ok ? '✓' : '–') + '</span><span class="what">' + esc(GUIDES[id].title) +
-                '<small>' + (ok ? 'Verbunden' : 'Übersprungen') + '</small></span>' +
-                (ok ? '' : '<button class="btn btn-secondary btn-sm" type="button" data-goto="' + id + '">Jetzt einrichten</button>') + '</li>';
-            }).join('') + '</ul>' +
-            '<p class="note">Alles lässt sich auch später unter „Verbindungen“ einrichten oder ändern.</p>' +
+            (others.length ? '<p class="tip"><b>Wenn du magst, später:</b> ' + esc(others.join(', ')) + '. Das verbindest du direkt auf „Heute“ an der jeweiligen Kachel oder unter „Verbindungen“ – jeweils in etwa einer Minute.</p>' : '') +
             '<p class="tip"><b>Tipp fürs Handy:</b> Öffne das Cockpit in Safari, tippe auf „Teilen“ und dann auf „Zum Home-Bildschirm“. Dann startet es wie eine App.</p>' +
             '<p class="note">Anmelden kannst du dich auf jedem Gerät mit deinem Zugangscode.</p>';
         }
@@ -490,13 +475,12 @@
           var nextBtn = el('setup-next');
           var later = el('setup-later');
           el('setup-back').hidden = current === 0;
-          later.hidden = id === 'done' || (id !== 'welcome' && isConnected(id));
+          later.hidden = id === 'done' || isConnected(id);
           // Nextcloud has its own "Mit Nextcloud verbinden" button: no second primary button.
           var ownButton = id === 'nextcloud' && !isConnected(id);
           nextBtn.hidden = ownButton;
-          later.textContent = id === 'welcome' ? 'Erst mal umsehen' : (ownButton ? 'Überspringen' : 'Später');
-          if (id === 'welcome') nextBtn.textContent = 'Los geht’s';
-          else if (id === 'done') nextBtn.textContent = 'Zum Cockpit';
+          later.textContent = ownButton ? 'Überspringen' : 'Später';
+          if (id === 'done') nextBtn.textContent = 'Zum Cockpit';
           else nextBtn.textContent = 'Weiter';
         }
 
@@ -546,9 +530,7 @@
           render(true);
         });
         el('setup-later').addEventListener('click', function () {
-          if (STEPS[current] === 'welcome') { finish(); return; }  // straight into the cockpit
-          editing[STEPS[current]] = false;
-          next();
+          finish();  // skipped: straight into the cockpit, no „Geschafft!“ page
         });
         el('setup-back').addEventListener('click', function () {
           current = Math.max(current - 1, 0);
@@ -568,11 +550,10 @@
             render();
             refreshStatus()
               .then(function () {
-                applyOptionalSteps();
-                // „Jetzt einrichten“ from Heute: straight to the first step still open
-                if (/[?&]weiter\b/.test(window.location.search)) {
-                  var open = STEPS.findIndex(function (id) { return GUIDES[id] && !isConnected(id); });
-                  if (open > 0) current = open;
+                // old „Jetzt einrichten“ links (?weiter): the first source still open
+                if (/[?&]weiter\b/.test(window.location.search) && !wanted) {
+                  var open = ['webuntis', 'itslearning', 'mail'].filter(function (id) { return !isConnected(id); })[0];
+                  if (open) STEPS[0] = open;
                 }
                 render();
               })

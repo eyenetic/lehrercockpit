@@ -586,6 +586,16 @@ def _migrate_calendar_feeds(conn) -> None:
             print(f"[migrations] calendar_feeds statement skipped: {exc}", flush=True)
 
 
+def _migrate_feedback_images(conn) -> None:
+    """Fotos in Antworten auf Rückmeldungen (backend/feedback.py)."""
+    from .feedback import migrate_images
+    try:
+        with conn.transaction():
+            migrate_images(conn)
+    except Exception as exc:
+        print(f"[migrations] feedback_images skipped: {exc}", flush=True)
+
+
 def _migrate_terms(conn) -> None:
     """Nutzungsbedingungen: Nachweis, wer welcher Fassung wann zugestimmt hat."""
     from .terms import migrate
@@ -611,6 +621,7 @@ def run_all_migrations() -> None:
         _migrate_encrypt_stored_secrets(conn)
         _migrate_calendar_feeds(conn)
         _migrate_terms(conn)
+        _migrate_feedback_images(conn)
 
 
 def log_audit_event(

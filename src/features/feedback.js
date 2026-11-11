@@ -69,7 +69,11 @@
         '<span>' + esc(shortDate(item.created_at)) + '</span>' +
         '<span class="status-badge is-' + esc(item.status) + '">' + esc(item.status_label) + '</span></div>' +
         '<p class="feedback-item-text">' + esc(item.message) + '</p>' +
-        (item.reply ? '<div class="feedback-reply"><strong>Antwort</strong>' + esc(item.reply) + '</div>' : '') +
+        (item.reply || (item.images || []).length ? '<div class="feedback-reply"><strong>Antwort</strong>' + esc(item.reply || '') +
+          ((item.images || []).length ? '<span class="feedback-photos">' + item.images.map(function (id) {
+            var src = (window.BACKEND_API_URL || '') + '/api/v2/feedback/images/' + encodeURIComponent(id);
+            return '<a href="' + esc(src) + '" target="_blank" rel="noopener"><img src="' + esc(src) + '" alt="Foto in der Antwort" loading="lazy" /></a>';
+          }).join('') + '</span>' : '') + '</div>' : '') +
         '</article>';
     }).join('');
   }

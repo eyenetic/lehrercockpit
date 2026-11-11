@@ -1076,15 +1076,17 @@
     let hidden = false;
     try { hidden = localStorage.getItem(SETUP_DISMISS_KEY) === "1"; } catch (_e) { /* private mode */ }
     if (!window.MULTIUSER_ENABLED || !state.data || hidden) { box.hidden = true; return; }
+    // each source on its own: the teacher picks what they want (Verbindungen opens at that source)
     const missing = [];
-    if (!isWebUntisConnected(data)) missing.push("Stundenplan");
-    if (!data.itslearningCalendar) missing.push("itslearning");
-    if (!data.dienstmail) missing.push("Dienstmail");
+    if (!isWebUntisConnected(data)) missing.push(["webuntis", "Stundenplan"]);
+    if (!data.itslearningCalendar) missing.push(["itslearning", "itslearning"]);
+    if (!data.dienstmail) missing.push(["mail", "Dienstmail"]);
     if (!missing.length) { box.hidden = true; return; }
     box.hidden = false;
     box.innerHTML = `<div class="setup-rem-text"><b>Dein Cockpit kann noch mehr.</b>
-        <span>Noch nicht verbunden: ${escapeHtml(missing.join(" · "))}. Jeder Schritt dauert etwa eine Minute.</span></div>
-      <div class="setup-rem-actions"><a class="btn btn-primary btn-sm" href="./onboarding.html?weiter">Jetzt einrichten</a>
+        <span>Verbinde, was du brauchst – jeweils in etwa einer Minute.</span></div>
+      <div class="setup-rem-actions">${missing.map(([id, label]) =>
+        `<button class="btn btn-secondary btn-sm" type="button" data-open-connections="${id}">${escapeHtml(label)}</button>`).join("")}
         <button class="btn-later-inline" type="button" data-setup-dismiss>Nicht mehr anzeigen</button></div>`;
     box.querySelector("[data-setup-dismiss]").addEventListener("click", () => {
       try { localStorage.setItem(SETUP_DISMISS_KEY, "1"); } catch (_e) { /* private mode */ }

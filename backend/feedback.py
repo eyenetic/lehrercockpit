@@ -13,6 +13,16 @@ STATUSES = {"neu": "Neu", "in_arbeit": "In Arbeit", "erledigt": "Erledigt"}
 MAX_MESSAGE = 4000
 MAX_REPLY = 4000
 
+# Photos in an admin's answer (e.g. screenshots: „hier tippen“). Only the teacher who wrote
+# the Rückmeldung and the admins can load them; deleting the Rückmeldung deletes them.
+MAX_IMAGES = 4
+MAX_IMAGE_BYTES = 2_500_000
+_IMAGE_MAGIC = (
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"RIFF", "image/webp"),  # checked further below: "WEBP" at offset 8
+)
+
 _COLUMNS = "f.id, f.user_id, f.kind, f.message, f.context, f.status, f.reply, f.replied_at, " \
            "f.user_unread, f.created_at, f.updated_at, u.first_name, u.last_name, u.email"
 
@@ -47,6 +57,90 @@ def _item(row, *, for_admin: bool) -> dict[str, Any]:
     return item
 
 
+def migrate_images(conn) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS feedback_images (
+            id          SERIAL PRIMARY KEY,
+            feedback_id INTEGER NOT NULL REFERENCES feedback(id) ON DELETE CASCADE,
+            mime        TEXT NOT NULL,
+            data        BYTEA NOT NULL,
+            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_feedback_images_feedback ON feedback_images(feedback_id)")
+
+
+def image_type(data: bytes) -> str | None:
+    """The image type judged by the file's first bytes (not by what the browser claims)."""
+    for magic, mime in _IMAGE_MAGIC:
+        if data.startswith(magic):
+            if mime == "image/webp" and data[8:12] != b"WEBP":
+                return None
+            return mime
+    return None
+
+
+def add_image(conn, feedback_id: int, data: bytes, now: datetime | None = None) -> dict[str, Any] | str:
+    """Stores a photo for the answer; returns {"id"} or an error message."""
+    if not data:
+        return "Kein Bild empfangen."
+    if len(data) > MAX_IMAGE_BYTES:
+        return "Das Bild ist zu groß."
+    mime = image_type(data)
+    if not mime:
+        return "Bitte ein Foto oder einen Screenshot (JPG, PNG oder WebP) wählen."
+    if not conn.execute("SELECT 1 FROM feedback WHERE id = %s", (feedback_id,)).fetchone():
+        return "Rückmeldung nicht gefunden."
+    count = conn.execute("SELECT COUNT(*) FROM feedback_images WHERE feedback_id = %s", (feedback_id,)).fetchone()[0]
+    if int(count) >= MAX_IMAGES:
+        return f"Höchstens {MAX_IMAGES} Fotos pro Antwort."
+    row = conn.execute(
+        "INSERT INTO feedback_images (feedback_id, mime, data) VALUES (%s, %s, %s) RETURNING id",
+        (feedback_id, mime, data),
+    ).fetchone()
+    now = now or datetime.now(timezone.utc)
+    conn.execute(
+        "UPDATE feedback SET user_unread = TRUE, updated_at = %s, replied_at = COALESCE(replied_at, %s) WHERE id = %s",
+        (now, now, feedback_id),
+    )
+    return {"id": row[0]}
+
+
+def delete_image(conn, feedback_id: int, image_id: int) -> bool:
+    return conn.execute("DELETE FROM feedback_images WHERE id = %s AND feedback_id = %s",
+                        (image_id, feedback_id)).rowcount > 0
+
+
+def load_image(conn, image_id: int) -> tuple[int | None, str, bytes] | None:
+    """(owner user id, mime, bytes) of a photo, or None."""
+    row = conn.execute(
+        """SELECT f.user_id, i.mime, i.data FROM feedback_images i JOIN feedback f ON f.id = i.feedback_id
+           WHERE i.id = %s""",
+        (image_id,),
+    ).fetchone()
+    return (row[0], row[1], bytes(row[2])) if row else None
+
+
+def _with_images(conn, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    for item in items:
+        item["images"] = []
+    if not items:
+        return items
+    by_id = {item["id"]: item for item in items}
+    try:
+        rows = conn.execute(
+            "SELECT feedback_id, id FROM feedback_images WHERE feedback_id = ANY(%s) ORDER BY id",
+            (list(by_id),),
+        ).fetchall()
+    except Exception:
+        return items  # table not there yet: answers without photos
+    for feedback_id, image_id in rows:
+        by_id[feedback_id]["images"].append(image_id)
+    return items
+
+
 def validate(kind: Any, message: Any) -> str | None:
     if kind not in KINDS:
         return "Bitte wähle, worum es geht."
@@ -73,7 +167,7 @@ def get(conn, feedback_id: int, *, for_admin: bool) -> dict[str, Any] | None:
         f"SELECT {_COLUMNS} FROM feedback f LEFT JOIN users u ON u.id = f.user_id WHERE f.id = %s",
         (feedback_id,),
     ).fetchone()
-    return _item(row, for_admin=for_admin) if row else None
+    return _with_images(conn, [_item(row, for_admin=for_admin)])[0] if row else None
 
 
 def list_for_user(conn, user_id: int, limit: int = 30) -> list[dict[str, Any]]:
@@ -82,7 +176,7 @@ def list_for_user(conn, user_id: int, limit: int = 30) -> list[dict[str, Any]]:
             WHERE f.user_id = %s ORDER BY f.created_at DESC LIMIT %s""",
         (user_id, limit),
     ).fetchall()
-    return [_item(row, for_admin=False) for row in rows]
+    return _with_images(conn, [_item(row, for_admin=False) for row in rows])
 
 
 def unread_for_user(conn, user_id: int) -> int:
@@ -100,7 +194,7 @@ def list_all(conn, limit: int = 200) -> list[dict[str, Any]]:
             ORDER BY (f.status = 'erledigt'), f.created_at DESC LIMIT %s""",
         (limit,),
     ).fetchall()
-    return [_item(row, for_admin=True) for row in rows]
+    return _with_images(conn, [_item(row, for_admin=True) for row in rows])
 
 
 def counts(conn) -> dict[str, int]:

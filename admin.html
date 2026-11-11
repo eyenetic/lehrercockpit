@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=132" />
-    <link rel="stylesheet" href="./styles.admin.css?v=132" />
+    <link rel="stylesheet" href="./styles.css?v=133" />
+    <link rel="stylesheet" href="./styles.admin.css?v=133" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -880,7 +880,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=132"></script>
+    <script src="./src/api-client.js?v=133"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1956,8 +1956,10 @@
               + '<p class="fb-text">' + esc(item.message) + '</p>'
               + (context ? '<p class="fb-context">' + esc(context) + '</p>' : '')
               + '<div class="fb-reply">'
-              + '<textarea rows="2" data-fb-reply placeholder="Antwort (sieht ' + esc((item.user_name || '').split(' ')[0] || 'die Lehrkraft') + ' im Cockpit)">' + esc(item.reply || '') + '</textarea>'
+              + '<textarea rows="2" data-fb-reply placeholder="Antwort (sieht ' + esc((item.user_name || '').split(' ')[0] || 'die Lehrkraft') + ' im Cockpit) – Screenshots kannst du hier auch einfügen">' + esc(item.reply || '') + '</textarea>'
+              + '<div class="fb-photos" data-fb-photos>' + photosHtml(item) + '</div>'
               + '<div class="fb-reply-actions">'
+              + '<label class="btn btn-sm btn-ghost fb-photo-add">Foto anhängen<input type="file" accept="image/*" multiple data-fb-photo-input hidden /></label>'
               + (item.user_email ? '<a class="btn btn-sm btn-ghost" href="mailto:' + esc(item.user_email) + '?subject=' + encodeURIComponent('Deine Rückmeldung zum Lehrercockpit') + '">E-Mail</a>' : '')
               + '<button class="btn btn-sm btn-ghost" type="button" data-fb-delete>Löschen</button>'
               + '<button class="btn btn-sm btn-primary" type="button" data-fb-save>' + (item.reply ? 'Antwort aktualisieren' : 'Antworten') + '</button>'
@@ -1966,6 +1968,72 @@
               + '</article>';
           }).join('');
         }
+
+        // ── Fotos in der Antwort ─────────────────────────────────────────────
+        function photoUrl(id) { return BACKEND + '/api/v2/feedback/images/' + id; }
+
+        function photosHtml(item) {
+          var images = item.images || [];
+          if (!images.length) return '';
+          return images.map(function (id) {
+            return '<span class="fb-photo"><a href="' + photoUrl(id) + '" target="_blank" rel="noopener"><img src="' + photoUrl(id) + '" alt="Foto in der Antwort" loading="lazy" /></a>'
+              + '<button type="button" data-fb-photo-del="' + id + '" aria-label="Foto entfernen" title="Foto entfernen">✕</button></span>';
+          }).join('') + '<p class="fb-photo-note">Sieht die Lehrkraft unter „Rückmeldung“. Achte darauf, dass keine persönlichen Links oder Namen zu sehen sind.</p>';
+        }
+
+        // Photos from the phone are large: at most 1600 px wide/high as JPEG – sharp enough for screenshots.
+        function shrinkImage(file) {
+          return new Promise(function (resolve, reject) {
+            var url = URL.createObjectURL(file);
+            var img = new Image();
+            img.onload = function () {
+              var scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+              var canvas = document.createElement('canvas');
+              canvas.width = Math.round(img.naturalWidth * scale);
+              canvas.height = Math.round(img.naturalHeight * scale);
+              var ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#fff';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              URL.revokeObjectURL(url);
+              canvas.toBlob(function (blob) { blob ? resolve(blob) : reject(new Error('Das Bild konnte nicht gelesen werden.')); }, 'image/jpeg', 0.88);
+            };
+            img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Das Bild konnte nicht gelesen werden.')); };
+            img.src = url;
+          });
+        }
+
+        async function uploadPhotos(card, files) {
+          var id = card.getAttribute('data-fb-id');
+          var box = card.querySelector('[data-fb-photos]');
+          files = Array.prototype.filter.call(files || [], function (f) { return /^image\//.test(f.type); });
+          if (!files.length) return;
+          setFeedback('feedback-admin-feedback', files.length > 1 ? 'Lade ' + files.length + ' Fotos hoch …' : 'Lade das Foto hoch …', '');
+          try {
+            for (var i = 0; i < files.length; i++) {
+              var blob = await shrinkImage(files[i]);
+              var resp = await fetch(BACKEND + '/api/v2/feedback/admin/' + id + '/images', {
+                method: 'POST', credentials: 'include', headers: { 'Content-Type': 'image/jpeg' }, body: blob,
+              });
+              var data = await resp.json().catch(function () { return {}; });
+              if (!resp.ok) throw new Error(data.error || 'Das Foto konnte nicht gespeichert werden.');
+              _feedback = _feedback.map(function (item) { return item.id === data.item.id ? data.item : item; });
+              box.innerHTML = photosHtml(data.item);  // only the photos – a reply being typed stays
+            }
+            setFeedback('feedback-admin-feedback', 'Foto gespeichert – die Lehrkraft sieht es unter „Rückmeldung“.', 'success');
+            setTimeout(function () { setFeedback('feedback-admin-feedback', '', ''); }, 4000);
+          } catch (e) {
+            setFeedback('feedback-admin-feedback', e.message, 'error');
+          }
+        }
+
+        document.getElementById('feedback-admin-list').addEventListener('paste', function (event) {
+          var area = event.target.closest('[data-fb-reply]');
+          var files = event.clipboardData && event.clipboardData.files;
+          if (!area || !files || !files.length) return;
+          event.preventDefault();
+          uploadPhotos(area.closest('[data-fb-id]'), files);
+        });
 
         function updateFeedbackCount() {
           var fresh = _feedback.filter(function (item) { return item.status === 'neu'; }).length;
@@ -1999,6 +2067,8 @@
         document.getElementById('feedback-filter').addEventListener('change', renderFeedback);
 
         document.getElementById('feedback-admin-list').addEventListener('change', async function (event) {
+          var input = event.target.closest('[data-fb-photo-input]');
+          if (input) { uploadPhotos(input.closest('[data-fb-id]'), input.files); input.value = ''; return; }
           var select = event.target.closest('[data-fb-status]');
           if (!select) return;
           var id = select.closest('[data-fb-id]').getAttribute('data-fb-id');
@@ -2010,6 +2080,15 @@
           var card = event.target.closest('[data-fb-id]');
           if (!card) return;
           var id = card.getAttribute('data-fb-id');
+          var photoDel = event.target.closest('[data-fb-photo-del]');
+          if (photoDel) {
+            var resp = await apiFetch('/api/v2/feedback/admin/' + id + '/images/' + photoDel.getAttribute('data-fb-photo-del'), { method: 'DELETE' }).catch(function () { return null; });
+            var data = resp ? await resp.json().catch(function () { return {}; }) : {};
+            if (!resp || !resp.ok) { setFeedback('feedback-admin-feedback', data.error || 'Konnte nicht gelöscht werden.', 'error'); return; }
+            _feedback = _feedback.map(function (item) { return item.id === data.item.id ? data.item : item; });
+            card.querySelector('[data-fb-photos]').innerHTML = photosHtml(data.item);
+            return;
+          }
           if (event.target.closest('[data-fb-save]')) {
             var reply = card.querySelector('[data-fb-reply]').value.trim();
             var button = event.target.closest('[data-fb-save]');

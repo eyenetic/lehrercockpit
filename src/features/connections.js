@@ -181,9 +181,11 @@
         (s.school_url
           ? '<li>' + extLink(s.school_url, 'WebUntis eurer Schule öffnen') + ', anmelden und zu „Mein Stundenplan“ gehen.</li>'
           : '<li>In WebUntis anmelden und „Mein Stundenplan“ öffnen.</li>') +
-        '<li>Unten neben der Legende auf ⋯ → „iCal-Abo verwalten“.</li>' +
-        '<li>Format „Standard“ wählen → „Link erzeugen“ → Link kopieren und hier einfügen.</li></ol>' +
-        '<p>Fehlt der Punkt: im Profil unter „Freigaben“ → „Kalender publizieren“. Nicht den Link aus der Adresszeile nehmen.</p></details>' +
+        '<li>Unten in der Leiste (neben „Entfall · Prüfung · Änderung“) auf ⋮ → „iCal-Abo verwalten“.' +
+        '<img class="connection-shot" src="./src/assets/onboarding/webuntis-menu.webp" alt="Menü über den drei Punkten mit „iCal-Abo verwalten“" loading="lazy" width="310" height="320" /></li>' +
+        '<li>Format „Standard“ lassen. Steht noch kein Link da: „Link erstellen“. Dann „Link kopieren“ und hier einfügen.' +
+        '<img class="connection-shot" src="./src/assets/onboarding/webuntis-link.webp" alt="Fenster „iCal-Abo verwalten“ mit dem Knopf „Link kopieren“" loading="lazy" width="416" height="303" /></li></ol>' +
+        '<p>„Link erstellen“ ist grau? Dann gibt es schon einen Link – einfach „Link kopieren“. Fehlt „iCal-Abo verwalten“: im Profil unter „Freigaben“ → „Kalender publizieren“. Nicht den Link aus der Adresszeile nehmen.</p></details>' +
         '<div class="connection-actions">' +
         '<button class="btn btn-primary" type="button" data-action="save">Speichern</button>' +
         (s.configured ? '<button class="btn btn-secondary" type="button" data-action="remove">Trennen</button>' : '') +

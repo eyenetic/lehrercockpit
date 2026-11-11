@@ -26,14 +26,15 @@ def app(db_url):
 
     import backend.api.auth_routes as auth_module
     from backend.api import register_blueprints
-    from backend.migrations import (_migrate_invitations_and_feedback, _migrate_signals_and_push, _migrate_terms,
-                                    run_migrations)
+    from backend.migrations import (_migrate_feedback_images, _migrate_invitations_and_feedback,
+                                    _migrate_signals_and_push, _migrate_terms, run_migrations)
 
     with psycopg.connect(db_url) as conn:
         run_migrations(conn)
         _migrate_signals_and_push(conn)
         _migrate_invitations_and_feedback(conn)
         _migrate_terms(conn)
+        _migrate_feedback_images(conn)
         conn.commit()
 
     flask_app = Flask(__name__)
@@ -219,6 +220,50 @@ def test_feedback_round_trip(app, people):
 
     assert admin.delete(f"/api/v2/feedback/admin/{item_id}").status_code == 200
     assert teacher.get("/api/v2/feedback").get_json()["items"] == []
+
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+
+
+def test_answer_photos_only_for_the_teacher_and_admins(app, people, db_url):
+    import psycopg
+    from backend.auth.session import create_session
+    from backend.users.user_store import create_user
+
+    teacher = _client(app, people["teacher_session"])
+    admin = _client(app, people["admin_session"])
+    item_id = teacher.post("/api/v2/feedback", json={"kind": "frage", "message": "Wo finde ich den Link?"}).get_json()["item"]["id"]
+    url = f"/api/v2/feedback/admin/{item_id}/images"
+
+    assert teacher.post(url, data=PNG, content_type="image/png").status_code == 403
+    assert admin.post(url, data=b"<svg onload=alert(1)>", content_type="image/png").status_code == 422
+    assert admin.post("/api/v2/feedback/admin/999999/images", data=PNG, content_type="image/png").status_code == 404
+
+    added = admin.post(url, data=PNG, content_type="image/png")
+    assert added.status_code == 201, added.get_json()
+    image_id = added.get_json()["image"]["id"]
+
+    own = teacher.get("/api/v2/feedback").get_json()
+    assert own["items"][0]["images"] == [image_id] and own["unread"] == 1
+    photo = teacher.get(f"/api/v2/feedback/images/{image_id}")
+    assert photo.status_code == 200 and photo.mimetype == "image/png" and photo.data == PNG
+    assert "sandbox" in photo.headers["Content-Security-Policy"]
+    assert _client(app).get(f"/api/v2/feedback/images/{image_id}").status_code == 401
+
+    with psycopg.connect(db_url) as conn:
+        other = create_user(conn, "Olga", "Eingeladen-Fremd")
+        other_session = create_session(conn, other.id).id
+        conn.commit()
+    assert _client(app, other_session).get(f"/api/v2/feedback/images/{image_id}").status_code == 404
+
+    for _ in range(3):
+        assert admin.post(url, data=PNG, content_type="image/png").status_code == 201
+    assert admin.post(url, data=PNG, content_type="image/png").status_code == 422  # at most four
+
+    assert admin.delete(f"{url}/{image_id}").status_code == 200
+    assert len(admin.get("/api/v2/feedback/admin").get_json()["items"][0]["images"]) == 3
+    assert admin.delete(f"/api/v2/feedback/admin/{item_id}").status_code == 200
+    assert admin.get(f"/api/v2/feedback/images/{image_id + 1}").status_code == 404  # gone with the Rückmeldung
 
 
 # ── Links, Tresor, Konto ─────────────────────────────────────────────────────

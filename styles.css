@@ -7659,3 +7659,9 @@ html, body { overflow-x: clip; }
 .task-editor-actions { flex-wrap: wrap; }
 .task-editor-actions .task-delete { margin-right: auto; color: var(--danger); }
 @media (max-width: 480px) { .task-when { grid-template-columns: 1fr 1fr; } }
+
+/* WebUntis screenshots in „Verbindungen“ (src/assets/onboarding) */
+.connection-shot { display: block; width: 100%; max-width: 320px; height: auto; margin: 8px 0 4px; border: 1px solid var(--line-strong); border-radius: 10px; background: #fff; }
+.setup-rem-actions { flex-wrap: wrap; }
+.feedback-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; white-space: normal; }
+.feedback-photos img { display: block; max-width: 100%; width: 220px; height: auto; border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; }
