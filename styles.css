@@ -7665,3 +7665,37 @@ html, body { overflow-x: clip; }
 .setup-rem-actions { flex-wrap: wrap; }
 .feedback-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; white-space: normal; }
 .feedback-photos img { display: block; max-width: 100%; width: 220px; height: auto; border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; }
+
+/* Dialoge: Kopf mit × bleibt beim Scrollen stehen (sonst rutscht er auf dem iPhone unter die Statusleiste) */
+.modal > .modal-header {
+  position: sticky;
+  top: -18px;
+  z-index: 3;
+  margin: -18px -20px 14px;
+  padding: 14px 20px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid transparent;
+}
+.modal-close { flex-shrink: 0; }
+
+/* Verbindungen: lange Namen laufen nicht in den Status */
+.conn-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 768px) {
+  .modal {
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - 12px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px);
+  }
+  .modal > .modal-header { padding-top: 16px; border-bottom-color: var(--line); }
+  .modal-close { width: 40px; height: 40px; margin-right: -8px; font-size: 1.1rem; }
+  /* Status unter den Namen statt daneben */
+  .conn-row {
+    grid-template-columns: 32px minmax(0, 1fr) 14px;
+    grid-template-areas: "icon name chev" "icon state chev";
+    row-gap: 2px;
+  }
+  .conn-row .conn-icon { grid-area: icon; }
+  .conn-row .conn-name { grid-area: name; }
+  .conn-row .conn-state { grid-area: state; white-space: normal; }
+  .conn-row .conn-chevron { grid-area: chev; }
+}
