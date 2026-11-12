@@ -159,14 +159,16 @@ var LehrerCalendar = (function () {
       if (/[\d.:]/.test(before) || /^\d/.test(after) || h > 23 || h < 6 || min > 59) continue;
       if (m[2] && /^\.(\d|\s|$)/.test(after)) continue;               // 13.11. / 13.11.2026
       var range = /^\s*(?:-|–|bis)\s*(\d{1,2})(?:[:.](\d{2}))?(?!\d)/.exec(after);
-      var unit = /^\s*(?:Uhr|h)\b/i.test(range ? after.slice(range[0].length) : after);
+      var unitMatch = /^\s*(?:Uhr|h)\b/i.exec(range ? after.slice(range[0].length) : after);
+      var unit = !!unitMatch;
       if (!m[2] && !unit) continue;                                    // "6." or "2" alone is no time
       var end = null;
       if (range && +range[1] <= 23) {
         var eh = +range[1], em = range[2] ? +range[2] : 0;
         if (eh * 60 + em > h * 60 + min) end = [eh, em];
       }
-      return { h: h, m: min, end: end };
+      var len = m[0].length + (range ? range[0].length : 0) + (unitMatch ? unitMatch[0].length : 0);
+      return { h: h, m: min, end: end, at: m.index, len: len };
     }
     return null;
   }
@@ -181,6 +183,10 @@ var LehrerCalendar = (function () {
     if (t.end) { end = fromIso(ev.day); end.setHours(t.end[0], t.end[1], 0, 0); }
     ev.allDay = false;
     ev.timeFromText = true;
+    // the title without the time ("FK Mathematik 8:30-10 Uhr R.109" → "FK Mathematik R.109")
+    var head = ev.title.slice(0, t.at).replace(/(?:\b(?:ab|um|von)\s*)$/i, '');
+    ev.shortTitle = (head + ' ' + ev.title.slice(t.at + t.len))
+      .replace(/\s*,\s*(?=,|$)/g, '').replace(/\s{2,}/g, ' ').replace(/^[\s,;:–-]+|[\s,;:–-]+$/g, '').trim() || ev.title;
     ev.time = hhmm(start);
     ev.endTime = t.end ? hhmm(end) : '';
     ev.startMs = start.getTime();
@@ -788,7 +794,34 @@ var LehrerCalendar = (function () {
     });
   }
 
-  return { init: init, render: render };
+  /**
+   * Appointments with a time on one day (for „Als Nächstes“ on Heute): Orgaplan,
+   * Schultermine, itslearning and own entries – no lessons, no all-day entries, no
+   * finished tasks. The same appointment from two sources (e.g. Orgaplan and
+   * Schultermine) appears once. Ignores the calendar's source filter.
+   */
+  function timedOn(dayIso) {
+    if (!_h) return [];
+    try { collect(); } catch (e) { return []; }
+    var seen = {};
+    var out = [];
+    _events.filter(function (ev) {
+      return ev.src !== 'ka' && ev.src !== 'lessons' && !ev.allDay && ev.day === dayIso && ev.endDay === dayIso && !ev.done;
+    }).sort(function (a, b) {
+      return a.startMs - b.startMs || (b.endTime ? 1 : 0) - (a.endTime ? 1 : 0);
+    }).forEach(function (ev) {
+      var key = ev.startMs + '|' + String(ev.title).toLowerCase().replace(/[^a-zäöüß]/g, '').slice(0, 12);
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push({
+        id: ev.id, src: ev.src, srcLabel: label(ev.src), title: ev.shortTitle || ev.title, sub: ev.sub || '',
+        startMs: ev.startMs, endMs: ev.endMs, time: ev.time, endTime: ev.endTime,
+      });
+    });
+    return out;
+  }
+
+  return { init: init, render: render, timedOn: timedOn };
 })();
 
 if (typeof window !== 'undefined') window.LehrerCalendar = LehrerCalendar;

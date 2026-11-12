@@ -1135,21 +1135,36 @@
       return;
     }
     if (!isWebUntisConnected(data) || personalSourceProblems(data).webuntis) { box.hidden = true; return; }
-    let { events: raw, previewLabel } = todayLessons(data);
     const now = new Date();
-    // Nothing left today (lessons over, all cancelled, or a free day) – even before the
-    // usual switch at 15:00: show the next school day right away instead of hiding the card.
-    const todayLive = raw.filter((e) => !e.cancelled);
+    const byStart = (a, b) => new Date(a.startsAt) - new Date(b.startsAt) || (a.appt ? 1 : 0) - (b.appt ? 1 : 0);
+    const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    // Appointments with a time (Orgaplan, Schultermine, itslearning, own) – from the calendar.
+    const apptsOn = (day) => (window.LehrerCalendar && window.LehrerCalendar.timedOn ? window.LehrerCalendar.timedOn(isoDay(day)) : [])
+      .map((a) => ({ appt: true, title: a.title, sub: a.sub, srcLabel: a.srcLabel, hasEnd: !!a.endTime,
+                     startsAt: new Date(a.startMs).toISOString(), endsAt: new Date(a.endMs).toISOString() }));
+    const allLessons = (data.webuntisCenter?.events || []).filter((e) => e.startsAt);
+    const today = startOfDay(now);
+    const tomorrowStart = new Date(today);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const todayRaw = allLessons.filter((e) => { const st = new Date(e.startsAt); return st >= today && st < tomorrowStart; }).sort(byStart);
+    const todayLive = todayRaw.filter((e) => !e.cancelled);
+    const todayAppts = apptsOn(today).filter((a) => new Date(a.endsAt) > now);
+    let raw = todayRaw;
+    let appts = todayAppts;
+    let previewLabel = null;
     let freeToday = false;
-    if (!previewLabel && !todayLive.some((e) => new Date(e.endsAt) > now)) {
+    // Nothing left today (lessons over, all cancelled, a free day, weekend) and no appointment
+    // still to come: show the next school day right away instead of hiding the card.
+    if (!todayLive.some((e) => new Date(e.endsAt) > now) && !todayAppts.length) {
       const next = nextSchoolDayLessons(data, now);
       if (next.events.length) {
         freeToday = !todayLive.length;
         raw = next.events;
         previewLabel = next.label;
+        appts = apptsOn(startOfDay(new Date(next.events[0].startsAt)));
       }
     }
-    const events = withDoubles(raw);
+    const events = withDoubles(raw).concat(appts).sort(byStart);
     const live = events.filter((e) => !e.cancelled);
     // count real lessons (a double lesson is two)
     const lessons = raw.filter((e) => !e.cancelled && !isSupervision(e));
@@ -1164,7 +1179,7 @@
     } else {
       main = live.find((e) => new Date(e.startsAt) <= now && new Date(e.endsAt) > now) || null;
       if (main) {
-        kicker = `Jetzt · bis ${hhmm(new Date(main.endsAt))}`;
+        kicker = main.appt && !main.hasEnd ? "Jetzt" : `Jetzt · bis ${hhmm(new Date(main.endsAt))}`;
       } else {
         main = live.find((e) => new Date(e.startsAt) > now) || null;
         if (main) {
@@ -1175,27 +1190,45 @@
     }
     box.className = "nextup";
     if (!main) { box.hidden = true; return; }
-    const parts = lessonParts(main);
     const start = new Date(main.startsAt);
     const end = new Date(main.endsAt);
-    const after = events.filter((e) => new Date(e.startsAt) >= end && e !== main).slice(0, 3);
+    // "Danach": up to three entries; appointments of the day are never pushed out by lessons.
+    const afterAll = events.filter((e) => e !== main && (new Date(e.startsAt) > start || (e.appt && new Date(e.endsAt) > now)));
+    const apptsAfter = afterAll.filter((e) => e.appt).slice(0, 2);
+    const after = afterAll.filter((e) => !e.appt).slice(0, 3 - apptsAfter.length).concat(apptsAfter).sort(byStart);
     const doneCount = previewLabel ? 0 : lessons.filter((e) => new Date(e.endsAt) <= now).length;
     const lastEnd = lessons.length ? new Date(lessons[lessons.length - 1].endsAt) : null;
-    const seatingClass = !parts.duty && parts.main && window.LehrerSeating && window.LehrerSeating.hasPlan(parts.main) ? parts.main : "";
+    const apptCount = appts.length;
+    const foot = [
+      lessons.length ? `${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"}${lastEnd ? ` · Schluss ${hhmm(lastEnd)}` : ""}` : "",
+      apptCount ? `${apptCount} ${apptCount === 1 ? "Termin" : "Termine"}` : "",
+    ].filter(Boolean).join(" · ");
+    let mainHtml;
+    if (main.appt) {
+      mainHtml = `<p class="nextup-title"><span class="nextup-group nextup-appt-title">${escapeHtml(main.title)}</span></p>
+        <p class="nextup-meta">${main.sub ? `<span>${escapeHtml(main.sub)}</span>` : ""}<span>${hhmm(start)}${main.hasEnd ? ` – ${hhmm(end)}` : " Uhr"}</span><span class="nextup-src">${escapeHtml(main.srcLabel || "Termin")}</span></p>`;
+    } else {
+      const parts = lessonParts(main);
+      const seatingClass = !parts.duty && parts.main && window.LehrerSeating && window.LehrerSeating.hasPlan(parts.main) ? parts.main : "";
+      mainHtml = `<p class="nextup-title"><span class="nextup-group">${escapeHtml(parts.main)}</span>${parts.sub ? `<span class="nextup-subject">${escapeHtml(parts.sub)}</span>` : ""}</p>
+        <p class="nextup-meta">${parts.room ? `<span>Raum <b>${escapeHtml(parts.room)}</b></span>` : parts.duty && parts.sub ? `<span>${escapeHtml(parts.sub)}</span>` : ""}<span>${hhmm(start)} – ${hhmm(end)}${main.double ? " · Doppelstunde" : ""}</span></p>
+        ${seatingClass ? `<button class="nextup-action" type="button" data-hero-seating="${escapeHtml(seatingClass)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Sitzplan ${escapeHtml(seatingClass)}<span aria-hidden="true">→</span></button>` : ""}`;
+    }
     box.hidden = false;
     box.innerHTML = `<div class="nextup-main">
         <p class="nextup-kicker">${escapeHtml(kicker)}</p>
-        <p class="nextup-title"><span class="nextup-group">${escapeHtml(parts.main)}</span>${parts.sub ? `<span class="nextup-subject">${escapeHtml(parts.sub)}</span>` : ""}</p>
-        <p class="nextup-meta">${parts.room ? `<span>Raum <b>${escapeHtml(parts.room)}</b></span>` : parts.duty && parts.sub ? `<span>${escapeHtml(parts.sub)}</span>` : ""}<span>${hhmm(start)} – ${hhmm(end)}${main.double ? " · Doppelstunde" : ""}</span></p>
-        ${seatingClass ? `<button class="nextup-action" type="button" data-hero-seating="${escapeHtml(seatingClass)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Sitzplan ${escapeHtml(seatingClass)}<span aria-hidden="true">→</span></button>` : ""}
+        ${mainHtml}
       </div>
       <div class="nextup-side">
         <p class="nextup-kicker">Danach</p>
         ${after.length ? `<ul class="nextup-list">${after.map((e) => {
+          if (e.appt) {
+            return `<li class="is-appt"><span class="nextup-time">${hhmm(new Date(e.startsAt))}</span><span><b>${escapeHtml(e.title)}</b>${e.sub ? ` · ${escapeHtml(e.sub)}` : ""}</span></li>`;
+          }
           const p = lessonParts(e);
           return `<li${e.cancelled ? ' class="is-cancelled"' : ""}><span class="nextup-time">${hhmm(new Date(e.startsAt))}</span><span><b>${escapeHtml(p.main)}</b>${p.sub || p.room ? ` · ${escapeHtml([p.sub, p.room].filter(Boolean).join(" · "))}` : ""}${e.cancelled ? " · entfällt" : ""}</span></li>`;
         }).join("")}</ul>` : '<p class="nextup-empty">Danach nichts mehr im Plan.</p>'}
-        ${lessons.length ? `<p class="nextup-foot">${previewLabel ? "" : "Heute "}${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"}${lastEnd ? ` · Schluss ${hhmm(lastEnd)}` : ""}</p>` : ""}
+        ${foot ? `<p class="nextup-foot">${previewLabel ? "" : "Heute "}${foot}</p>` : ""}
         ${weekStripHtml(data, now, previewLabel ? null : (lessons.length ? doneCount / lessons.length : 0))}
       </div>`;
   }

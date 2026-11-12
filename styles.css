@@ -7198,7 +7198,7 @@ html, body { overflow-x: clip; }
   }
   /* the tab bar carries navigation and „Mehr“; the big page title names the area */
   .mobile-topbar { display: none !important; }
-  .nextup-list li:nth-child(n+3) { display: none; }
+  .nextup-list li:nth-child(n+3):not(.is-appt) { display: none; }
   .nextup-main, .nextup-side { padding: 18px 18px; }
   .nextup-group { font-size: 2.2rem; }
   .nextup-side { gap: 8px; }
@@ -7710,3 +7710,11 @@ html, body { overflow-x: clip; }
 .news-list strong { font-weight: 600; }
 .news-list span { color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
 .news-hint { margin: 16px 0 0; font-size: 0.82rem; color: var(--muted); }
+
+/* „Als Nächstes“: Termine aus dem Kalender */
+.nextup-group.nextup-appt-title { font-size: 1.9rem; line-height: 1.12; letter-spacing: -0.025em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nextup-src { padding: 1px 8px; border-radius: 999px; background: rgba(255,255,255,.18); font-size: 0.78rem; font-weight: 600; }
+.nextup-list li.is-appt > span:last-child { padding-left: 10px; border-left: 2px solid rgba(255,255,255,.7); }
+@media (max-width: 768px) {
+  .nextup-group.nextup-appt-title { font-size: 1.5rem; }
+}
