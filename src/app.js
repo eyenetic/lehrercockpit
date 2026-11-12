@@ -1137,11 +1137,17 @@
     if (!isWebUntisConnected(data) || personalSourceProblems(data).webuntis) { box.hidden = true; return; }
     let { events: raw, previewLabel } = todayLessons(data);
     const now = new Date();
-    // Today's lessons are over (before the usual switch at 15:00): show the next school day right away.
+    // Nothing left today (lessons over, all cancelled, or a free day) – even before the
+    // usual switch at 15:00: show the next school day right away instead of hiding the card.
     const todayLive = raw.filter((e) => !e.cancelled);
-    if (!previewLabel && todayLive.length && todayLive.every((e) => new Date(e.endsAt) <= now)) {
+    let freeToday = false;
+    if (!previewLabel && !todayLive.some((e) => new Date(e.endsAt) > now)) {
       const next = nextSchoolDayLessons(data, now);
-      if (next.events.length) { raw = next.events; previewLabel = next.label; }
+      if (next.events.length) {
+        freeToday = !todayLive.length;
+        raw = next.events;
+        previewLabel = next.label;
+      }
     }
     const events = withDoubles(raw);
     const live = events.filter((e) => !e.cancelled);
@@ -1154,6 +1160,7 @@
       const first = main ? startOfDay(new Date(main.startsAt)) : null;
       const tomorrow = startOfDay(new Date(now.getTime() + 86400000));
       kicker = first && first.getTime() === tomorrow.getTime() ? "Morgen zuerst" : `Nächster Schultag · ${previewLabel}`;
+      if (freeToday && now.getDay() !== 0 && now.getDay() !== 6) kicker = `Heute keine Stunden · ${kicker}`;
     } else {
       main = live.find((e) => new Date(e.startsAt) <= now && new Date(e.endsAt) > now) || null;
       if (main) {
