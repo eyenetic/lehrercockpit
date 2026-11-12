@@ -12,7 +12,7 @@ from backend.users.user_service import authenticate_by_code, code_taken
 from backend.users.user_store import set_access_code
 from backend.auth.access_code import chosen_code_problem, hash_code, get_code_prefix
 from backend.migrations import log_audit_event
-from backend import terms
+from backend import news, terms
 from backend.api.helpers import (
     require_auth,
     set_session_cookie,
@@ -132,7 +132,24 @@ def me():
     except Exception:
         # Never lock anyone out because this check failed.
         user["terms"] = {"version": terms.VERSION, "accepted": True, "accepted_at": None, "unknown": True}
+    try:
+        with db_connection() as conn:
+            user["news"] = news.status(conn, g.current_user.id, getattr(g.current_user, "created_at", None))
+    except Exception:
+        user["news"] = {"id": news.NEWS_ID, "seen": True}
     return success({"user": user})
+
+
+@auth_bp.route("/me/news", methods=["POST"])
+@require_auth
+def news_seen():
+    """„Neu im Cockpit“ gesehen – gilt für das Konto, also auf allen Geräten."""
+    body = request.get_json(silent=True) or {}
+    if body.get("id") != news.NEWS_ID:
+        return error("Unbekannte Neuigkeit.", 422)
+    with db_connection() as conn:
+        news.mark_seen(conn, g.current_user.id)
+    return success({"news": {"id": news.NEWS_ID, "seen": True}})
 
 
 @auth_bp.route("/me/terms", methods=["POST"])

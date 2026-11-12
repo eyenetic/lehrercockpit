@@ -238,6 +238,13 @@
 .invite-state { color: var(--ink-2); font-size: 0.8rem; }
 .invite-state.is-muted { color: var(--muted); }
 .invite-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.invite-actions { flex-wrap: wrap; }
+.invite-remind-result { grid-column: 1 / -1; padding: 10px 12px; border-radius: 8px; background: var(--success-soft); }
+.invite-remind-result .invite-meta { margin: 0 0 8px; color: var(--ink); }
+@media (max-width: 640px) {
+  .invite-list li { grid-template-columns: minmax(0, 1fr) auto; }
+  .invite-list .invite-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
 
 .empty-note { margin: 8px 0; color: var(--muted); font-size: 0.88rem; }
 .fb-item { padding: 14px 0; border-top: 1px solid var(--line); }

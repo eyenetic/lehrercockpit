@@ -93,6 +93,11 @@ def mark_used(conn, invite_id: int, user_id: int, now: datetime | None = None) -
     )
 
 
+def get(conn, invite_id: int) -> dict[str, Any] | None:
+    row = conn.execute(f"SELECT {_COLUMNS} FROM invitations WHERE id = %s", (invite_id,)).fetchone()
+    return _row(row) if row else None
+
+
 def revoke(conn, invite_id: int, now: datetime | None = None) -> bool:
     result = conn.execute(
         "UPDATE invitations SET revoked_at = %s WHERE id = %s AND revoked_at IS NULL",

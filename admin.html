@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=137" />
-    <link rel="stylesheet" href="./styles.admin.css?v=137" />
+    <link rel="stylesheet" href="./styles.css?v=138" />
+    <link rel="stylesheet" href="./styles.admin.css?v=138" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -880,7 +880,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=137"></script>
+    <script src="./src/api-client.js?v=138"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -1751,6 +1751,16 @@
           var school = (currentAdmin && currentAdmin.school_name) || '';
           var name = (person && person.name) || '';
           var reset = !!(person && person.reset);
+          if (person && person.reminder) {
+            return 'mailto:' + encodeURIComponent(person.email || '')
+              + '?subject=' + encodeURIComponent('Lehrercockpit: neuer Link und was sich getan hat')
+              + '&body=' + encodeURIComponent((name ? 'Hallo ' + name.split(' ')[0] + ',' : 'Hallo,') + '\n\n'
+                + 'im Lehrercockpit hat sich einiges getan: Es gibt jetzt ein kurzes Video, das zeigt, was das Cockpit kann, '
+                + 'und die Einrichtung ist deutlich einfacher – du verbindest erst nur deinen Stundenplan, alles andere später.\n\n'
+                + 'Hier ist dein neuer Link (gilt ' + ((window._inviteDays || {}).personal || 14) + ' Tage, nur für dich):\n\n'
+                + link + '\n\n'
+                + 'Viele Grüße\n' + ((currentAdmin && currentAdmin.first_name) || ''));
+          }
           var body = (name ? 'Hallo ' + name.split(' ')[0] + ',' : 'Hallo,') + '\n\n'
             + (reset
               ? 'mit diesem Link legst du einen neuen Zugangscode fürs Lehrercockpit fest (gilt 3 Tage, einmalig):\n\n'
@@ -1828,15 +1838,28 @@
               : '<button class="btn btn-primary" type="button" data-invite-new-team>Kollegiums-Link erstellen</button>'
                 + '<p class="invite-meta">Gilt ' + esc((data.valid_days || {}).team || 30) + ' Tage. Du siehst, wer sich damit anmeldet, und kannst ihn jederzeit abschalten.</p>';
 
-            var personal = (data.invitations || []).slice(0, 12);
+            window._inviteDays = data.valid_days || {};
+            // Erneuerte Einladungen: nur den neuesten Link je Person zeigen.
+            var seenPeople = {};
+            var personal = (data.invitations || []).filter(function (inv) {
+              var key = (inv.email || inv.name || '').toLowerCase();
+              if (!key) return true;
+              if (seenPeople[key]) return false;
+              seenPeople[key] = true;
+              return true;
+            }).slice(0, 12);
             list.innerHTML = personal.length
               ? '<h3 class="invite-list-title">Zuletzt eingeladen</h3><ul class="invite-list">' + personal.map(function (inv) {
                   return '<li><span class="invite-who">' + esc(inv.name || inv.email || 'Ohne Namen') + '</span>'
                     + '<span class="invite-state' + (inv.usable ? '' : ' is-muted') + '">' + esc(inviteState(inv)) + '</span>'
                     + (inv.usable
                       ? '<span class="invite-actions"><button class="btn btn-sm btn-secondary" type="button" data-copy-link="' + esc(inviteLink(inv.token)) + '">Link kopieren</button>'
+                        + '<button class="btn btn-sm btn-secondary" type="button" data-invite-remind="' + inv.id + '">Erinnerung schreiben</button>'
                         + '<button class="btn btn-sm btn-ghost" type="button" data-invite-revoke="' + inv.id + '">Abschalten</button></span>'
-                      : '<span class="invite-actions"></span>')
+                      : !inv.uses
+                        ? '<span class="invite-actions"><button class="btn btn-sm btn-secondary" type="button" data-invite-remind="' + inv.id + '">Erinnerung schreiben</button></span>'
+                        : '<span class="invite-actions"></span>')
+                    + '<div class="invite-remind-result" data-remind-result="' + inv.id + '" hidden></div>'
                     + '</li>';
                 }).join('') + '</ul>'
               : '';
@@ -1859,6 +1882,37 @@
             newTeam.disabled = true;
             try { await createInvitation({ kind: 'team' }); } catch (e) { alert(e.message); }
             loadInvitations();
+            return;
+          }
+          var remind = event.target.closest('[data-invite-remind]');
+          if (remind) {
+            var oldId = remind.getAttribute('data-invite-remind');
+            remind.disabled = true;
+            try {
+              var resp = await apiFetch('/api/v2/admin/invitations/' + oldId + '/renew', { method: 'POST' });
+              var data = await resp.json().catch(function () { return {}; });
+              if (!resp.ok) throw new Error(data.error || 'Neuer Link konnte nicht erstellt werden.');
+              var inv = data.invitation || {};
+              var person = { name: inv.name, email: inv.email, reminder: true };
+              var box = document.querySelector('[data-remind-result="' + oldId + '"]');
+              if (box) {
+                box.innerHTML = '<p class="invite-meta">Neuer Link erstellt, der alte ist abgeschaltet. Dein Mailprogramm öffnet sich mit fertigem Text'
+                  + (inv.email ? '' : ' – trag noch die Adresse ein') + '. Falls nicht:</p>'
+                  + linkBox(inviteLink(inv.token), person);
+                box.hidden = false;
+                var row = box.closest('li');
+                if (row) {
+                  var state = row.querySelector('.invite-state');
+                  if (state) { state.textContent = 'neuer Link bis ' + shortDate(inv.expires_at); state.classList.remove('is-muted'); }
+                  var actions = row.querySelector('.invite-actions');
+                  if (actions) actions.innerHTML = '';
+                }
+              }
+              window.location.href = mailtoHref(inviteLink(inv.token), person);
+            } catch (e) {
+              alert(e.message);
+              remind.disabled = false;
+            }
             return;
           }
           var revoke = event.target.closest('[data-invite-revoke]');

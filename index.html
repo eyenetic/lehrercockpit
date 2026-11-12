@@ -47,7 +47,7 @@
         window.MULTIUSER_ENABLED = !window.LEHRERCOCKPIT_IS_LOCAL_HOST || devMultiuser;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=137" />
+    <link rel="stylesheet" href="./styles.css?v=138" />
   </head>
   <body>
     <!-- Mobile top bar (hidden on desktop via CSS) -->
@@ -152,6 +152,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <span>Admin-Bereich</span><span class="nav-count" id="admin-feedback-count" hidden></span>
               </a>
+              <button class="user-menu-item" type="button" data-open-news role="menuitem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10l-5 3.6L16.5 20 12 16.4 7.5 20 9 13.6 4 10l6.1-1.2z"/></svg>
+                <span>Neu im Cockpit</span>
+              </button>
               <button class="user-menu-item" type="button" id="theme-toggle" role="menuitem" aria-pressed="false">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
                 <span id="theme-label" class="theme-toggle-label">Dunkles Design</span>
@@ -514,6 +518,7 @@
         <div class="more-sheet-actions">
           <button class="more-sheet-row" type="button" id="more-sheet-connections-btn" hidden>Verbindungen</button>
           <button class="more-sheet-row" type="button" data-open-feedback>Rückmeldung geben</button>
+          <button class="more-sheet-row" type="button" data-open-news>Neu im Cockpit</button>
           <a class="more-sheet-row" href="./admin.html" id="more-sheet-admin-link" hidden>Admin-Bereich</a>
           <button class="more-sheet-row" type="button" id="more-sheet-theme-toggle"><span id="more-sheet-theme-label">Dunkles Design</span></button>
           <button class="more-sheet-row" type="button" id="more-sheet-change-code-btn">Konto & Zugangscode</button>
@@ -615,7 +620,8 @@
       </div>
     </div>
 
-    <script src="./src/features/terms.js?v=137"></script>
+    <script src="./src/features/terms.js?v=138"></script>
+    <script src="./src/features/news.js?v=138"></script>
     <script>
 // Auth-Check: wenn nicht eingeloggt → Login
 // initUserInfo() is defined in the next script block and called here — after the async
@@ -646,6 +652,8 @@
             return;
           }
         }
+        // „Neu im Cockpit“: einmal pro Konto, nach den Nutzungsbedingungen.
+        if (window.LehrerNews) window.LehrerNews.maybeShow(data.user);
       }
     }
   } catch(e) {
@@ -653,34 +661,34 @@
   }
 })();
     </script>
-    <script src="./data/mock-dashboard.js?v=137"></script>
-    <script src="./src/features/vault.js?v=137"></script>
-    <script src="./src/api-client.js?v=137"></script>
-    <script src="./src/modules/dashboard-manager.js?v=137"></script>
-    <script src="./src/features/grades.js?v=137"></script>
-    <script src="./src/features/webuntis.js?v=137"></script>
-    <script src="./src/features/itslearning.js?v=137"></script>
-    <script src="./src/features/nextcloud.js?v=137"></script>
-    <script src="./src/features/documents.js?v=137"></script>
-    <script src="./src/features/classwork.js?v=137"></script>
-    <script src="./src/features/classlist.js?v=137"></script>
-    <script src="./src/features/collections.js?v=137"></script>
-    <script src="./src/features/seating.js?v=137"></script>
-    <script src="./src/features/schoolyear.js?v=137"></script>
-    <script src="./src/features/attachments.js?v=137"></script>
-    <script src="./src/features/inbox.js?v=137"></script>
-    <script src="./src/features/zugaenge.js?v=137"></script>
-    <script src="./src/features/onedrive-sync.js?v=137"></script>
-    <script src="./src/features/signals.js?v=137"></script>
-    <script src="./src/features/ai.js?v=137"></script>
-    <script src="./src/features/links.js?v=137"></script>
-    <script src="./src/features/video.js?v=137"></script>
-    <script src="./src/features/connections.js?v=137"></script>
-    <script src="./src/features/feedback.js?v=137"></script>
-    <script src="./src/features/search.js?v=137"></script>
-    <script src="./src/features/calendar.js?v=137"></script>
-    <script src="./src/features/tasks.js?v=137"></script>
-    <script src="./src/app.js?v=137"></script>
+    <script src="./data/mock-dashboard.js?v=138"></script>
+    <script src="./src/features/vault.js?v=138"></script>
+    <script src="./src/api-client.js?v=138"></script>
+    <script src="./src/modules/dashboard-manager.js?v=138"></script>
+    <script src="./src/features/grades.js?v=138"></script>
+    <script src="./src/features/webuntis.js?v=138"></script>
+    <script src="./src/features/itslearning.js?v=138"></script>
+    <script src="./src/features/nextcloud.js?v=138"></script>
+    <script src="./src/features/documents.js?v=138"></script>
+    <script src="./src/features/classwork.js?v=138"></script>
+    <script src="./src/features/classlist.js?v=138"></script>
+    <script src="./src/features/collections.js?v=138"></script>
+    <script src="./src/features/seating.js?v=138"></script>
+    <script src="./src/features/schoolyear.js?v=138"></script>
+    <script src="./src/features/attachments.js?v=138"></script>
+    <script src="./src/features/inbox.js?v=138"></script>
+    <script src="./src/features/zugaenge.js?v=138"></script>
+    <script src="./src/features/onedrive-sync.js?v=138"></script>
+    <script src="./src/features/signals.js?v=138"></script>
+    <script src="./src/features/ai.js?v=138"></script>
+    <script src="./src/features/links.js?v=138"></script>
+    <script src="./src/features/video.js?v=138"></script>
+    <script src="./src/features/connections.js?v=138"></script>
+    <script src="./src/features/feedback.js?v=138"></script>
+    <script src="./src/features/search.js?v=138"></script>
+    <script src="./src/features/calendar.js?v=138"></script>
+    <script src="./src/features/tasks.js?v=138"></script>
+    <script src="./src/app.js?v=138"></script>
     <script>
 // Multi-User: Nutzermenü, Abmelden, Zugangscode ändern.
 // Kein IIFE – checkAuth() ruft initUserInfo() auf, sobald window.CURRENT_USER feststeht.

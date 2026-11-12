@@ -227,6 +227,29 @@ def create_invitation():
     return success({"invitation": view, "mailed": mailed}, 201)
 
 
+@invitation_admin_bp.route("/<int:invite_id>/renew", methods=["POST"])
+@require_admin
+def renew_invitation(invite_id: int):
+    """Erinnerung: neuer persönlicher Link für dieselbe Person, der alte wird abgeschaltet.
+    Verschickt nichts – die Verwaltung öffnet damit das Mailprogramm."""
+    try:
+        with db_connection() as conn:
+            old = invitations.get(conn, invite_id)
+            if not old or old["kind"] != "personal":
+                return error("Einladung nicht gefunden.", 404)
+            if old.get("uses"):
+                return error("Diese Einladung wurde schon angenommen.", 409)
+            invitations.revoke(conn, invite_id)
+            invite = invitations.create(conn, kind="personal", name=old.get("name") or "",
+                                        email=old.get("email") or "", created_by=g.current_user.id,
+                                        access_request_id=old.get("access_request_id"))
+            log_audit_event(conn, "invitation_renewed", user_id=g.current_user.id, ip_address=request.remote_addr,
+                            details={"invitation_id": invite["id"], "replaces": invite_id})
+    except Exception as exc:
+        return error(f"Neuer Link konnte nicht erstellt werden: {type(exc).__name__}", 500)
+    return success({"invitation": invitations.public_view(invite, frontend_base())}, 201)
+
+
 @invitation_admin_bp.route("/<int:invite_id>", methods=["DELETE"])
 @require_admin
 def revoke_invitation(invite_id: int):
