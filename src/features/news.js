@@ -15,7 +15,7 @@
     ['Einfacher einrichten', 'Zuerst nur den Stundenplan verbinden, alles andere später. Für itslearning, Dienstmail und das iPhone gibt es jetzt Anleitungen mit Bildern.'],
     ['Eigene Termine und Aufgaben', 'Trag eigene Termine und Aufgaben ein. Was ansteht, zeigt die Kachel „Zu erledigen“ auf Heute.'],
     ['Alle Termine in einem Kalender', 'Unter Termine → „Alle“ siehst du Orgaplan, Klassenarbeiten, itslearning und deinen Stundenplan zusammen – auf Wunsch auch als Abo in deinem eigenen Kalender.'],
-    ['Suche über alles', 'Mit der Lupe oben (am Mac ⌘K) findest du Termine, Nachrichten und Ferien sofort.'],
+    ['Suche über alles', 'Tipp auf die Lupe oben – so findest du Termine, Nachrichten und Ferien sofort.'],
   ];
 
   var overlay = null;
