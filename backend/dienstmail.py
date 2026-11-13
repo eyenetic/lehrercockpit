@@ -170,8 +170,7 @@ def _html_to_text(html_text: str) -> str:
 def _body_text(raw: bytes) -> tuple[str, list[str]]:
     from email import policy
     message = email.message_from_bytes(raw, policy=policy.default)
-    attachments = [part.get_filename() for part in message.iter_attachments() if part.get_filename()] \
-        if message.is_multipart() else []
+    attachments = [part.get_filename() for part in _attachment_parts(message)]
     body = message.get_body(preferencelist=("plain", "html"))
     if body is None:
         return "", attachments
@@ -213,6 +212,57 @@ def fetch_message(address: str, app_password: str, uid: str) -> dict[str, Any]:
             client.logout()
         except Exception:
             pass
+
+
+# ── Anhang einer Mail (nur auf Klick, nur lesen) ─────────────────────────────
+MAX_ATTACHMENT_MAIL_BYTES = 25_000_000
+INLINE_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp", "text/plain"}
+
+
+def _attachment_parts(message) -> list:
+    """The attachments in the same order as fetch_message lists them."""
+    return [part for part in message.iter_attachments() if part.get_filename()] if message.is_multipart() else []
+
+
+def fetch_attachment(address: str, app_password: str, uid: str, index: int) -> tuple[str, str, bytes]:
+    """(file name, content type, bytes) of one attachment. BODY.PEEK: the mail stays unread."""
+    from email import policy
+
+    if not re.fullmatch(r"\d{1,10}", uid or "") or not 0 <= index < 10:
+        raise DienstmailError("Unbekannter Anhang.")
+    try:
+        client = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT, ssl_context=tls_context(), timeout=TIMEOUT_SECONDS)
+    except (OSError, socket.timeout) as exc:
+        raise DienstmailError("Die Dienstmail ist gerade nicht erreichbar.") from exc
+    try:
+        try:
+            client.login(address, app_password)
+        except imaplib.IMAP4.error as exc:
+            raise DienstmailError("Anmeldung abgelehnt – bitte das App-Passwort unter Verbindungen prüfen.") from exc
+        status, _ = client.select("INBOX", readonly=True)
+        if status != "OK":
+            raise DienstmailError("Der Posteingang der Dienstmail konnte nicht geöffnet werden.")
+        status, rows = client.uid("fetch", uid.encode(), "(RFC822.SIZE)")
+        size = re.search(rb"RFC822\.SIZE (\d+)", b" ".join(r if isinstance(r, bytes) else r[0] for r in rows or [] if r))
+        if status != "OK" or not size:
+            raise DienstmailError("Diese Mail gibt es nicht mehr – vielleicht wurde sie verschoben oder gelöscht.")
+        if int(size.group(1)) > MAX_ATTACHMENT_MAIL_BYTES:
+            raise DienstmailError("Diese Mail ist zu groß – bitte den Anhang im Webmail öffnen.")
+        status, rows = client.uid("fetch", uid.encode(), "(BODY.PEEK[])")
+        raw = next((row[1] for row in rows or [] if isinstance(row, tuple) and len(row) > 1), None)
+        if status != "OK" or not raw:
+            raise DienstmailError("Diese Mail gibt es nicht mehr – vielleicht wurde sie verschoben oder gelöscht.")
+    finally:
+        try:
+            client.logout()
+        except Exception:
+            pass
+    parts = _attachment_parts(email.message_from_bytes(raw, policy=policy.default))
+    if index >= len(parts):
+        raise DienstmailError("Diesen Anhang gibt es nicht mehr.")
+    part = parts[index]
+    data = part.get_payload(decode=True) or b""
+    return str(part.get_filename()), (part.get_content_type() or "application/octet-stream").lower(), data
 
 
 # ── Rückmeldung in den eigenen Posteingang legen (nur Admins) ───────────────

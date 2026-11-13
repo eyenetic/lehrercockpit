@@ -1788,6 +1788,17 @@
     if (!list.dataset.bound) {
       list.dataset.bound = "1";
       list.addEventListener("click", (event) => {
+        const taskBtn = event.target.closest("[data-mail-task]");
+        if (taskBtn) {
+          const m = ((getData().dienstmail || {}).messages || []).find((x) => String(x.id) === taskBtn.dataset.mailTask);
+          const entry = mailBodies[taskBtn.dataset.mailTask] || {};
+          if (m && window.LehrerTasks) {
+            const when = m.date ? new Date(m.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : "";
+            window.LehrerTasks.fromSource({ title: m.subject || "Mail", texts: [m.subject, entry.text],
+              note: `Aus der Dienstmail von ${m.from || "?"}${when ? ` (${when})` : ""}` });
+          }
+          return;
+        }
         const row = event.target.closest(".mail-row");
         if (!row) return;
         const item = row.closest("[data-mail-id]");
@@ -1833,12 +1844,15 @@
     if (!entry || entry.loading) return '<p class="mail-loading">Lade die Mail …</p>';
     if (entry.error) return `<p class="mail-error">${escapeHtml(entry.error)}</p>${link}`;
     const text = entry.text ? `<div class="mail-text">${escapeHtml(entry.text)}</div>` : '<p class="mail-loading">Diese Mail enthält keinen lesbaren Text.</p>';
+    // attachments open in a new tab, fetched read-only by the server (the mail stays unread)
     const attachments = entry.attachments && entry.attachments.length
-      ? `<p class="mail-attachments">Anhang: ${entry.attachments.map(escapeHtml).join(", ")}</p>` : "";
+      ? `<p class="mail-attachments">Anhang: ${entry.attachments.map((name, i) =>
+          `<a class="mail-attachment" href="${escapeHtml(`${window.BACKEND_API_URL || ""}/api/v2/dienstmail/messages/${encodeURIComponent(m.id)}/attachments/${i}`)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`).join("")}</p>` : "";
     const more = entry.truncated ? '<p class="mail-loading">… gekürzt – die ganze Mail im Webmail.</p>' : "";
     const reply = m.from_address
       ? `<a class="btn btn-secondary btn-sm mail-reply" href="${escapeHtml(mailReplyHref(m, entry))}" title="Öffnet dein Mailprogramm">Antworten</a>` : "";
-    return `${text}${more}${attachments}<div class="mail-actions">${reply}${link}</div>`;
+    const task = window.LehrerTasks ? `<button class="btn btn-secondary btn-sm" type="button" data-mail-task="${escapeHtml(m.id)}" title="Als Aufgabe oder Termin ins Cockpit übernehmen">Als Aufgabe</button>` : "";
+    return `${text}${more}${attachments}<div class="mail-actions">${reply}${task}${link}</div>`;
   }
 
   function toggleMail(id) {

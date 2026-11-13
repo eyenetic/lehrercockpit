@@ -147,6 +147,39 @@
     return { title: title, date: date, time: date ? time : '' };
   }
 
+  // ── Aus einer Mail, itslearning oder einem Termin übernehmen ──────────────
+  function cleanSubject(text) {
+    var t = String(text || '').trim();
+    var prefix = /^(re|aw|wg|fw|fwd)\s*:\s*/i;
+    while (prefix.test(t)) t = t.replace(prefix, '');
+    return t;
+  }
+
+  /** The first date from today on in the subject, else in the text („bis Freitag“, „am 24.11. um 14 Uhr“). */
+  function suggestDate(texts) {
+    var today = iso(new Date());
+    for (var i = 0; i < texts.length; i++) {
+      var text = String(texts[i] || '').slice(0, 1500);
+      if (!text) continue;
+      // dates already past (e.g. „Berlin, 12.11.2026“ in a signature) must not hide „bis Freitag“
+      text = text.replace(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})?/g, function (m, d, mo, y) {
+        var year = y ? (+y < 100 ? 2000 + +y : +y) : new Date().getFullYear();
+        var when = new Date(year, +mo - 1, +d);
+        return y && iso(when) < today ? ' ' : m;
+      });
+      var found = parseQuick(text);
+      if (found.date && found.date >= today) return { date: found.date, time: found.time };
+    }
+    return { date: '', time: '' };
+  }
+
+  /** opts: {title, texts?: [...], date?, time?, note?} → the editor, prefilled; nothing is saved without „Speichern“. */
+  function fromSource(opts) {
+    opts = opts || {};
+    var found = opts.date ? { date: opts.date, time: opts.time || '' } : suggestDate(opts.texts || [opts.title]);
+    openEditor({ kind: 'task', title: cleanSubject(opts.title).slice(0, 200), date: found.date, time: found.time, note: opts.note || '' });
+  }
+
   // ── Kachel „Zu erledigen“ auf Heute ───────────────────────────────────────
   function dueLabel(e, todayIso) {
     if (!e.date) return '';
@@ -376,6 +409,6 @@
 
   window.LehrerTasks = {
     all: all, get: get, save: save, remove: remove, setDone: setDone,
-    openEditor: openEditor, parseQuick: parseQuick, renderTile: renderTile,
+    openEditor: openEditor, parseQuick: parseQuick, renderTile: renderTile, fromSource: fromSource,
   };
 })();

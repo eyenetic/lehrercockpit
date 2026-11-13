@@ -109,3 +109,39 @@ def test_message_text_is_read_without_marking_it_read(monkeypatch):
 def test_message_id_must_be_a_number():
     with pytest.raises(dienstmail.DienstmailError):
         dienstmail.fetch_message("ich@schule.berlin.de", "app-pw", "1:*")
+
+
+class FakeIMAPAttachment(FakeIMAPBody):
+    size = 600
+
+    def uid(self, command, *args):
+        if command == "fetch" and "RFC822.SIZE" in args[1]:
+            FakeIMAP.calls.append(("uid", command, args))
+            return "OK", [b"1 (UID 9 RFC822.SIZE %d)" % self.size]
+        return super().uid(command, *args)
+
+
+def test_attachment_is_read_without_marking_the_mail_read(monkeypatch):
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", FakeIMAPAttachment)
+    name, ctype, data = dienstmail.fetch_attachment("ich@schule.berlin.de", "app-pw", "9", 0)
+    assert (name, ctype) == ("plan.pdf", "application/pdf") and data.strip() == b"JVBERi0="
+    fetches = [c[2][1] for c in FakeIMAP.calls if c[0] == "uid" and c[1] == "fetch"]
+    assert all("PEEK" in f or "RFC822.SIZE" in f for f in fetches)
+    assert ("select", "INBOX", True) in FakeIMAP.calls
+    with pytest.raises(dienstmail.DienstmailError):
+        dienstmail.fetch_attachment("ich@schule.berlin.de", "app-pw", "9", 1)  # there is only one
+
+
+def test_too_large_mails_are_not_downloaded(monkeypatch):
+    class Big(FakeIMAPAttachment):
+        size = dienstmail.MAX_ATTACHMENT_MAIL_BYTES + 1
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", Big)
+    with pytest.raises(dienstmail.DienstmailError, match="zu groß"):
+        dienstmail.fetch_attachment("ich@schule.berlin.de", "app-pw", "9", 0)
+    assert not any(c[0] == "uid" and "BODY" in c[2][1] for c in FakeIMAP.calls if c[0] == "uid" and c[1] == "fetch")
+
+
+def test_attachment_ids_are_checked():
+    for uid, index in (("1:*", 0), ("9", -1), ("9", 10)):
+        with pytest.raises(dienstmail.DienstmailError):
+            dienstmail.fetch_attachment("ich@schule.berlin.de", "app-pw", uid, index)
