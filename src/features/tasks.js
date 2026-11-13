@@ -94,6 +94,7 @@
 
   function changed() {
     renderTile();
+    window.dispatchEvent(new Event('lehrer:tasks-changed'));  // the blue card on Heute shows tasks of the next class
     if (window.LehrerCalendar && window.LehrerCalendar.render) {
       try { window.LehrerCalendar.render(); } catch (e) { /* calendar not ready */ }
     }

@@ -7198,7 +7198,6 @@ html, body { overflow-x: clip; }
   }
   /* the tab bar carries navigation and „Mehr“; the big page title names the area */
   .mobile-topbar { display: none !important; }
-  .nextup-list li:nth-child(n+3):not(.is-appt) { display: none; }
   .nextup-main, .nextup-side { padding: 18px 18px; }
   .nextup-group { font-size: 2.2rem; }
   .nextup-side { gap: 8px; }
@@ -7718,3 +7717,9 @@ html, body { overflow-x: clip; }
 @media (max-width: 768px) {
   .nextup-group.nextup-appt-title { font-size: 1.5rem; }
 }
+
+/* Blauer Balken: was zur Klasse gehört und was am Tag besonders ist */
+.nextup-side .nextup-list + .nextup-kicker { margin-top: 6px; }
+.nextup-when { width: 54px; font-family: inherit; font-size: 0.8rem; text-transform: none; }
+.nextup-list li.is-change > span:last-child { padding: 1px 8px; border-radius: 6px; background: rgba(255, 196, 0, .22); color: #fff; }
+.nextup-related li > span:last-child { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }

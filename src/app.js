@@ -1192,45 +1192,115 @@
     if (!main) { box.hidden = true; return; }
     const start = new Date(main.startsAt);
     const end = new Date(main.endsAt);
-    // "Danach": up to three entries; appointments of the day are never pushed out by lessons.
-    const afterAll = events.filter((e) => e !== main && (new Date(e.startsAt) > start || (e.appt && new Date(e.endsAt) > now)));
-    const apptsAfter = afterAll.filter((e) => e.appt).slice(0, 2);
-    const after = afterAll.filter((e) => !e.appt).slice(0, 3 - apptsAfter.length).concat(apptsAfter).sort(byStart);
-    const doneCount = previewLabel ? 0 : lessons.filter((e) => new Date(e.endsAt) <= now).length;
+    const isTomorrow = previewLabel && startOfDay(start).getTime() === startOfDay(new Date(now.getTime() + 86400000)).getTime();
+    const parts = main.appt ? null : lessonParts(main);
+    const cls = parts && !parts.duty ? parts.main : "";
+    // What belongs to this lesson's class: Klassenarbeiten, Abgaben, Einsammlungen, own tasks.
+    const related = cls ? relatedToClass(data, cls, now) : [];
+    // What is special about the day: changes, supervision, appointments – not the plain timetable.
+    const dayLessons = withDoubles(raw);
+    const upcoming = (e) => previewLabel || new Date(e.endsAt) > now;
+    const rows = [];
+    dayLessons.filter((e) => e !== main && upcoming(e) && (e.cancelled || isSubstitution(e))).forEach((e) => {
+      const p = lessonParts(e);
+      rows.push({ at: new Date(e.startsAt), cls: "is-change",
+                  html: `<b>${e.cancelled ? "Entfall" : "Vertretung"}</b> · ${escapeHtml([p.main, p.sub].filter(Boolean).join(" "))}${!e.cancelled && p.room ? ` · ${escapeHtml(p.room)}` : ""}` });
+    });
+    dayLessons.filter((e) => e !== main && upcoming(e) && !e.cancelled && isSupervision(e)).forEach((e) => {
+      rows.push({ at: new Date(e.startsAt), cls: "", html: `<b>Aufsicht</b>${e.location ? ` · ${escapeHtml(e.location)}` : ""}` });
+    });
+    appts.filter((a) => a !== main).slice(0, 3).forEach((a) => {
+      rows.push({ at: new Date(a.startsAt), cls: "is-appt", html: `<b>${escapeHtml(a.title)}</b>${a.sub ? ` · ${escapeHtml(a.sub)}` : ""}` });
+    });
+    rows.sort((a, b) => a.at - b.at);
+    // A later day (weekend, holidays) only when there is something to know about it.
+    if (previewLabel && !isTomorrow && !related.length && !rows.length) { box.hidden = true; return; }
     const lastEnd = lessons.length ? new Date(lessons[lessons.length - 1].endsAt) : null;
-    const apptCount = appts.length;
-    const foot = [
-      lessons.length ? `${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"}${lastEnd ? ` · Schluss ${hhmm(lastEnd)}` : ""}` : "",
-      apptCount ? `${apptCount} ${apptCount === 1 ? "Termin" : "Termine"}` : "",
-    ].filter(Boolean).join(" · ");
+    const foot = lessons.length ? `${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"}${lastEnd ? ` · Schluss ${hhmm(lastEnd)}` : ""}` : "";
+    const dayName = !previewLabel ? "Heute" : isTomorrow ? "Morgen" : previewLabel.split(",")[0];
+
     let mainHtml;
     if (main.appt) {
       mainHtml = `<p class="nextup-title"><span class="nextup-group nextup-appt-title">${escapeHtml(main.title)}</span></p>
         <p class="nextup-meta">${main.sub ? `<span>${escapeHtml(main.sub)}</span>` : ""}<span>${hhmm(start)}${main.hasEnd ? ` – ${hhmm(end)}` : " Uhr"}</span><span class="nextup-src">${escapeHtml(main.srcLabel || "Termin")}</span></p>`;
     } else {
-      const parts = lessonParts(main);
-      const seatingClass = !parts.duty && parts.main && window.LehrerSeating && window.LehrerSeating.hasPlan(parts.main) ? parts.main : "";
+      const seatingClass = cls && window.LehrerSeating && window.LehrerSeating.hasPlan(cls) ? cls : "";
       mainHtml = `<p class="nextup-title"><span class="nextup-group">${escapeHtml(parts.main)}</span>${parts.sub ? `<span class="nextup-subject">${escapeHtml(parts.sub)}</span>` : ""}</p>
-        <p class="nextup-meta">${parts.room ? `<span>Raum <b>${escapeHtml(parts.room)}</b></span>` : parts.duty && parts.sub ? `<span>${escapeHtml(parts.sub)}</span>` : ""}<span>${hhmm(start)} – ${hhmm(end)}${main.double ? " · Doppelstunde" : ""}</span></p>
+        <p class="nextup-meta">${parts.room ? `<span>Raum <b>${escapeHtml(parts.room)}</b></span>` : parts.duty && parts.sub ? `<span>${escapeHtml(parts.sub)}</span>` : ""}<span>${hhmm(start)} – ${hhmm(end)}${main.double ? " · Doppelstunde" : ""}</span>${main.cancelled ? '<span class="nextup-src">entfällt</span>' : ""}</p>
         ${seatingClass ? `<button class="nextup-action" type="button" data-hero-seating="${escapeHtml(seatingClass)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Sitzplan ${escapeHtml(seatingClass)}<span aria-hidden="true">→</span></button>` : ""}`;
     }
+    const relatedHtml = related.length ? `<p class="nextup-kicker">Zur ${escapeHtml(cls)}</p>
+        <ul class="nextup-list nextup-related">${related.map((r) =>
+          `<li><span class="nextup-time nextup-when">${escapeHtml(r.when)}</span><span>${r.html}</span></li>`).join("")}</ul>` : "";
+    const dayHtml = rows.length ? `<p class="nextup-kicker">${escapeHtml(dayName)}</p>
+        <ul class="nextup-list">${rows.map((r) =>
+          `<li${r.cls ? ` class="${r.cls}"` : ""}><span class="nextup-time">${hhmm(r.at)}</span><span>${r.html}</span></li>`).join("")}</ul>` : "";
     box.hidden = false;
     box.innerHTML = `<div class="nextup-main">
         <p class="nextup-kicker">${escapeHtml(kicker)}</p>
         ${mainHtml}
       </div>
       <div class="nextup-side">
-        <p class="nextup-kicker">Danach</p>
-        ${after.length ? `<ul class="nextup-list">${after.map((e) => {
-          if (e.appt) {
-            return `<li class="is-appt"><span class="nextup-time">${hhmm(new Date(e.startsAt))}</span><span><b>${escapeHtml(e.title)}</b>${e.sub ? ` · ${escapeHtml(e.sub)}` : ""}</span></li>`;
-          }
-          const p = lessonParts(e);
-          return `<li${e.cancelled ? ' class="is-cancelled"' : ""}><span class="nextup-time">${hhmm(new Date(e.startsAt))}</span><span><b>${escapeHtml(p.main)}</b>${p.sub || p.room ? ` · ${escapeHtml([p.sub, p.room].filter(Boolean).join(" · "))}` : ""}${e.cancelled ? " · entfällt" : ""}</span></li>`;
-        }).join("")}</ul>` : '<p class="nextup-empty">Danach nichts mehr im Plan.</p>'}
-        ${foot ? `<p class="nextup-foot">${previewLabel ? "" : "Heute "}${foot}</p>` : ""}
-        ${weekStripHtml(data, now, previewLabel ? null : (lessons.length ? doneCount / lessons.length : 0))}
+        ${relatedHtml}${dayHtml}
+        ${!relatedHtml && !dayHtml ? `<p class="nextup-empty">${cls ? `Für die ${escapeHtml(cls)} steht gerade nichts an.` : "Sonst steht nichts Besonderes an."}</p>` : ""}
+        ${foot ? `<p class="nextup-foot">${escapeHtml(dayName)}: ${foot}</p>` : ""}
       </div>`;
+  }
+
+  /** WebUntis marks substitutions only in the text („Vertretung“, „statt …“). */
+  function isSubstitution(event) {
+    return /vertret|statt\s/i.test(`${event.title || ""} ${event.description || ""}`);
+  }
+
+  /** "9a", "10b", "Q1", "S2" – a label that can be found in other texts. */
+  function classPattern(cls) {
+    const key = String(cls || "").replace(/\s+/g, "");
+    if (!/^(\d{1,2}[a-z]{1,2}|[QS]\d)$/i.test(key)) return null;
+    const body = key.split("").map((ch) => ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s?");
+    return new RegExp(`(^|[^0-9a-zäöüß])${body}(?![0-9a-zäöüß])`, "i");
+  }
+
+  function whenLabel(iso, now) {
+    if (!iso) return "";
+    const day = SY() ? SY().fromIso(iso) : new Date(`${iso}T00:00`);
+    const diff = Math.round((startOfDay(day) - startOfDay(now)) / 86400000);
+    if (diff < 0) return "fällig";
+    if (diff === 0) return "heute";
+    if (diff === 1) return "morgen";
+    if (diff < 7) return day.toLocaleDateString("de-DE", { weekday: "short" }).replace(".", "");
+    return day.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) + ".";
+  }
+
+  /** Up to four things for a class from the next two weeks: KA, itslearning Abgaben, Einsammlungen, own tasks. */
+  function relatedToClass(data, cls, now) {
+    const re = classPattern(cls);
+    if (!re) return [];
+    const key = cls.replace(/\s+/g, "").toLowerCase();
+    const sameClass = (label) => String(label || "").replace(/\s+/g, "").toLowerCase() === key;
+    const today = localIso(now);
+    const until = (days) => localIso(new Date(now.getTime() + days * 86400000));
+    const out = [];
+    (((data.planDigest || {}).classwork || {}).entries || []).forEach((entry) => {
+      if (!sameClass(entry.classLabel) || !entry.isoDate || entry.isoDate < today || entry.isoDate > until(14)) return;
+      const kind = { Klassenarbeit: "KA", Klausur: "Klausur", LEK: "LEK", Test: "Test", VERA: "VERA" }[entry.kind] || entry.kind || "Termin";
+      out.push({ date: entry.isoDate, html: `<b>${escapeHtml(kind)}</b> ${escapeHtml(entry.title || entry.summary || "")}` });
+    });
+    ((data.itslearningCalendar || {}).events || []).forEach((event) => {
+      if (event.kind !== "todo" || !event.start) return;
+      const day = localIso(new Date(event.start));
+      if (day < today || day > until(7) || !re.test(`${event.title || ""} ${event.location || ""}`)) return;
+      out.push({ date: day, html: `<b>Abgabe</b> ${escapeHtml(event.title || "")}` });
+    });
+    (window.LehrerCollections && window.LehrerCollections.summary ? window.LehrerCollections.summary() : []).forEach((c) => {
+      if (!(c.classIds || []).some(sameClass)) return;
+      out.push({ date: c.dueDate || "", html: `<b>${escapeHtml(c.title)}</b> · ${c.total - c.done} offen` });
+    });
+    (window.LehrerTasks ? window.LehrerTasks.all() : []).forEach((task) => {
+      if (task.kind !== "task" || task.done || !re.test(task.title)) return;
+      out.push({ date: task.date || "", html: `<b>Aufgabe</b> ${escapeHtml(task.title)}` });
+    });
+    return out.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999")).slice(0, 4)
+      .map((item) => ({ when: whenLabel(item.date, now), html: item.html }));
   }
 
   /** Lessons of the next school day after today (holidays have no lessons, so they are skipped). */
@@ -1246,41 +1316,6 @@
       day = _nextSchoolDay(day);
     }
     return { events: [], label: "" };
-  }
-
-  /**
-   * Mo–Fr of this week (at the weekend: the coming one): past days filled, today by
-   * its lessons, free days dashed – plus how many school days until the next holidays.
-   */
-  function weekStripHtml(data, now, todayShare) {
-    if (!SY()) return "";
-    syncExtraBreaks(data);
-    const today = startOfDay(now);
-    const monday = new Date(today);
-    const dow = today.getDay();
-    monday.setDate(monday.getDate() + (dow === 0 ? 1 : dow === 6 ? 2 : 1 - dow));
-    const names = ["Mo", "Di", "Mi", "Do", "Fr"];
-    const cells = names.map((name, i) => {
-      const day = SY().addDays(monday, i);
-      const free = SY().breakOn(day);
-      let fill = 0;
-      if (day < today) fill = 1;
-      else if (day.getTime() === today.getTime()) fill = todayShare == null ? 1 : todayShare;
-      const cls = free ? "is-free" : day.getTime() === today.getTime() ? "is-today" : "";
-      return `<span class="wk-cell ${cls}" title="${escapeHtml(free ? free.name : name)}"><span class="wk-bar"><span style="width:${free ? 0 : Math.round(fill * 100)}%"></span></span><span class="wk-name">${name}</span></span>`;
-    }).join("");
-    let line = "";
-    const current = SY().breakOn(today);
-    const next = SY().nextBreak(today);
-    if (current && !current.holiday) line = `${current.name} bis ${shortDate(SY().fromIso(current.end))}`;
-    else if (next) {
-      const from = now.getHours() < 14 ? today : SY().addDays(today, 1);
-      const n = SY().schoolDaysBetween(from, SY().fromIso(next.start));
-      line = n === 0 ? `${next.name} ab ${SY().fromIso(next.start).toLocaleDateString("de-DE", { weekday: "long" })}`
-        : `Noch ${n} ${n === 1 ? "Schultag" : "Schultage"} bis zu den ${next.name}`;
-    }
-    return `<div class="nextup-week" role="img" aria-label="Schulwoche${line ? ` – ${escapeHtml(line)}` : ""}">${cells}</div>`
-      + (line ? `<p class="nextup-foot nextup-break">${escapeHtml(line)}</p>` : "");
   }
 
   // ── Ferien-Countdown und Schuljahr ───────────────────────────────────────────
@@ -2181,6 +2216,9 @@
   if (todayWideQuery.addEventListener) {
     todayWideQuery.addEventListener("change", () => renderTodayModuleLayout());
   }
+  window.addEventListener("lehrer:tasks-changed", () => {
+    if (state.data) safely(() => renderNextUp(getData()));
+  });
   window.addEventListener("lehrer:user", () => {
     try { localStorage.setItem(LAST_USER_KEY, String(window.CURRENT_USER.id)); } catch (_) { /* private mode */ }
     renderPageHead();
