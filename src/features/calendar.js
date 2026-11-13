@@ -554,8 +554,7 @@ var LehrerCalendar = (function () {
     }
     var src = SOURCES[order(ev.src)] || {};
     var actions = (raw.url ? '<a class="btn btn-secondary btn-sm" href="' + esc(raw.url) + '" target="_blank" rel="noopener noreferrer">In der Quelle öffnen ↗</a>' : '')
-      + (src.tab ? '<button class="btn btn-secondary btn-sm" type="button" data-cal-goto="' + src.tab + '">Im Reiter ' + esc(src.label) + '</button>' : '')
-      + (window.LehrerTasks && ev.src !== 'lessons' ? '<button class="btn btn-secondary btn-sm" type="button" data-cal-task>Als Aufgabe</button>' : '');
+      + (src.tab ? '<button class="btn btn-secondary btn-sm" type="button" data-cal-goto="' + src.tab + '">Im Reiter ' + esc(src.label) + '</button>' : '');
 
     closeDetail();
     var overlay = document.createElement('div');
@@ -572,13 +571,6 @@ var LehrerCalendar = (function () {
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay || e.target.closest('[data-cal-close]')) { closeDetail(); return; }
-      if (e.target.closest('[data-cal-task]')) {
-        closeDetail();
-        // the entry's own day as the deadline; „Abgabe: …“ without the prefix
-        window.LehrerTasks.fromSource({ title: String(ev.title).replace(/^Abgabe:\s*/, ''), date: ev.day, time: ev.allDay ? '' : ev.time,
-          note: 'Aus ' + label(ev.src) + (ev.sub ? ' – ' + ev.sub : '') });
-        return;
-      }
       var go = e.target.closest('[data-cal-goto]');
       if (go) {
         closeDetail();
