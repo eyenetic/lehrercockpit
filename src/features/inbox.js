@@ -352,17 +352,6 @@ var LehrerInbox = (function () {
     }
     container.classList.remove('is-collapsed');
     container.classList.add('is-expanded');
-    if (!container.dataset.taskBound) {
-      container.dataset.taskBound = '1';
-      container.addEventListener('click', function (event) {
-        var btn = event.target.closest('[data-its-task]');
-        if (!btn || !window.LehrerTasks || !_getRelevantInboxMessages) return;
-        var msg = _getRelevantInboxMessages().filter(function (m) { return String(m.id) === btn.getAttribute('data-its-task'); })[0];
-        if (!msg) return;
-        window.LehrerTasks.fromSource({ title: msg.title, texts: [msg.title, msg.snippet],
-          note: 'Aus itslearning' + (msg.sender ? ' – ' + msg.sender : '') });
-      });
-    }
     container.innerHTML = messages.length
       ? messages.map(function (message) {
           var title = message.url
@@ -376,7 +365,6 @@ var LehrerInbox = (function () {
             + '</div>'
             + '</div>'
             + '<p class="message-snippet">' + esc(message.snippet) + '</p>'
-            + (window.LehrerTasks ? '<button class="btn btn-secondary btn-sm message-task" type="button" data-its-task="' + esc(message.id) + '">Als Aufgabe</button>' : '')
             + '</article>';
         }).join('')
       : (_getData && _getData().itslearningMode === 'calendar'

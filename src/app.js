@@ -1788,17 +1788,6 @@
     if (!list.dataset.bound) {
       list.dataset.bound = "1";
       list.addEventListener("click", (event) => {
-        const taskBtn = event.target.closest("[data-mail-task]");
-        if (taskBtn) {
-          const m = ((getData().dienstmail || {}).messages || []).find((x) => String(x.id) === taskBtn.dataset.mailTask);
-          const entry = mailBodies[taskBtn.dataset.mailTask] || {};
-          if (m && window.LehrerTasks) {
-            const when = m.date ? new Date(m.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) : "";
-            window.LehrerTasks.fromSource({ title: m.subject || "Mail", texts: [m.subject, entry.text],
-              note: `Aus der Dienstmail von ${m.from || "?"}${when ? ` (${when})` : ""}` });
-          }
-          return;
-        }
         const row = event.target.closest(".mail-row");
         if (!row) return;
         const item = row.closest("[data-mail-id]");
@@ -1851,8 +1840,7 @@
     const more = entry.truncated ? '<p class="mail-loading">… gekürzt – die ganze Mail im Webmail.</p>' : "";
     const reply = m.from_address
       ? `<a class="btn btn-secondary btn-sm mail-reply" href="${escapeHtml(mailReplyHref(m, entry))}" title="Öffnet dein Mailprogramm">Antworten</a>` : "";
-    const task = window.LehrerTasks ? `<button class="btn btn-secondary btn-sm" type="button" data-mail-task="${escapeHtml(m.id)}" title="Als Aufgabe oder Termin ins Cockpit übernehmen">Als Aufgabe</button>` : "";
-    return `${text}${more}${attachments}<div class="mail-actions">${reply}${task}${link}</div>`;
+    return `${text}${more}${attachments}<div class="mail-actions">${reply}${link}</div>`;
   }
 
   function toggleMail(id) {
