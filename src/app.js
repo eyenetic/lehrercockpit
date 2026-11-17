@@ -1136,35 +1136,32 @@
     }
     if (!isWebUntisConnected(data) || personalSourceProblems(data).webuntis) { box.hidden = true; return; }
     const now = new Date();
-    const byStart = (a, b) => new Date(a.startsAt) - new Date(b.startsAt) || (a.appt ? 1 : 0) - (b.appt ? 1 : 0);
+    const byStart = (a, b) => new Date(a.startsAt) - new Date(b.startsAt);
     const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    // Appointments with a time (Orgaplan, Schultermine, itslearning, own) – from the calendar.
-    const apptsOn = (day) => (window.LehrerCalendar && window.LehrerCalendar.timedOn ? window.LehrerCalendar.timedOn(isoDay(day)) : [])
-      .map((a) => ({ appt: true, title: a.title, sub: a.sub, srcLabel: a.srcLabel, hasEnd: !!a.endTime,
-                     startsAt: new Date(a.startMs).toISOString(), endsAt: new Date(a.endMs).toISOString() }));
+    // Appointments with a time (Orgaplan, Schultermine, itslearning, own) – only counted here,
+    // the bar belongs to the lessons; the line below leads to the calendar.
+    const apptsOn = (day) => (window.LehrerCalendar && window.LehrerCalendar.timedOn ? window.LehrerCalendar.timedOn(isoDay(day)) : []);
     const allLessons = (data.webuntisCenter?.events || []).filter((e) => e.startsAt);
     const today = startOfDay(now);
     const tomorrowStart = new Date(today);
     tomorrowStart.setDate(tomorrowStart.getDate() + 1);
     const todayRaw = allLessons.filter((e) => { const st = new Date(e.startsAt); return st >= today && st < tomorrowStart; }).sort(byStart);
     const todayLive = todayRaw.filter((e) => !e.cancelled);
-    const todayAppts = apptsOn(today).filter((a) => new Date(a.endsAt) > now);
+    const todayAppts = apptsOn(today).filter((a) => a.endMs > now.getTime());
     let raw = todayRaw;
-    let appts = todayAppts;
     let previewLabel = null;
     let freeToday = false;
-    // Nothing left today (lessons over, all cancelled, a free day, weekend) and no appointment
-    // still to come: show the next school day right away instead of hiding the card.
-    if (!todayLive.some((e) => new Date(e.endsAt) > now) && !todayAppts.length) {
+    // Nothing left today (lessons over, all cancelled, a free day, weekend):
+    // show the next school day right away instead of hiding the card.
+    if (!todayLive.some((e) => new Date(e.endsAt) > now)) {
       const next = nextSchoolDayLessons(data, now);
       if (next.events.length) {
         freeToday = !todayLive.length;
         raw = next.events;
         previewLabel = next.label;
-        appts = apptsOn(startOfDay(new Date(next.events[0].startsAt)));
       }
     }
-    const events = withDoubles(raw).concat(appts).sort(byStart);
+    const events = withDoubles(raw).sort(byStart);
     const live = events.filter((e) => !e.cancelled);
     // count real lessons (a double lesson is two)
     const lessons = raw.filter((e) => !e.cancelled && !isSupervision(e));
@@ -1179,7 +1176,7 @@
     } else {
       main = live.find((e) => new Date(e.startsAt) <= now && new Date(e.endsAt) > now) || null;
       if (main) {
-        kicker = main.appt && !main.hasEnd ? "Jetzt" : `Jetzt · bis ${hhmm(new Date(main.endsAt))}`;
+        kicker = `Jetzt · bis ${hhmm(new Date(main.endsAt))}`;
       } else {
         main = live.find((e) => new Date(e.startsAt) > now) || null;
         if (main) {
@@ -1193,8 +1190,8 @@
     const start = new Date(main.startsAt);
     const end = new Date(main.endsAt);
     const isTomorrow = previewLabel && startOfDay(start).getTime() === startOfDay(new Date(now.getTime() + 86400000)).getTime();
-    const parts = main.appt ? null : lessonParts(main);
-    const cls = parts && !parts.duty ? parts.main : "";
+    const parts = lessonParts(main);
+    const cls = !parts.duty ? parts.main : "";
     // What belongs to this lesson's class: Klassenarbeiten, Abgaben, Einsammlungen, own tasks.
     const related = cls ? relatedToClass(data, cls, now) : [];
     // What is special about the day: changes, supervision, appointments – not the plain timetable.
@@ -1209,26 +1206,22 @@
     dayLessons.filter((e) => e !== main && upcoming(e) && !e.cancelled && isSupervision(e)).forEach((e) => {
       rows.push({ at: new Date(e.startsAt), cls: "", html: `<b>Aufsicht</b>${e.location ? ` · ${escapeHtml(e.location)}` : ""}` });
     });
-    appts.filter((a) => a !== main).slice(0, 3).forEach((a) => {
-      rows.push({ at: new Date(a.startsAt), cls: "is-appt", html: `<b>${escapeHtml(a.title)}</b>${a.sub ? ` · ${escapeHtml(a.sub)}` : ""}` });
-    });
     rows.sort((a, b) => a.at - b.at);
+    // Appointments: today's still to come, otherwise those of the day shown.
+    const apptDay = todayAppts.length || !previewLabel ? today : startOfDay(start);
+    const apptCount = todayAppts.length || !previewLabel ? todayAppts.length : apptsOn(apptDay).length;
     // A later day (weekend, holidays) only when there is something to know about it.
-    if (previewLabel && !isTomorrow && !related.length && !rows.length) { box.hidden = true; return; }
+    if (previewLabel && !isTomorrow && !related.length && !rows.length && !apptCount) { box.hidden = true; return; }
     const lastEnd = lessons.length ? new Date(lessons[lessons.length - 1].endsAt) : null;
     const foot = lessons.length ? `${lessons.length} ${lessons.length === 1 ? "Stunde" : "Stunden"}${lastEnd ? ` · Schluss ${hhmm(lastEnd)}` : ""}` : "";
     const dayName = !previewLabel ? "Heute" : isTomorrow ? "Morgen" : previewLabel.split(",")[0];
+    const apptName = apptDay === today ? "Heute noch" : `${dayName}:`;
+    const apptHtml = apptCount ? `<button class="nextup-appts" type="button" data-nextup-appts="${isoDay(apptDay)}">${apptName} ${apptCount} ${apptCount === 1 ? "Termin" : "Termine"} <span aria-hidden="true">→</span></button>` : "";
 
-    let mainHtml;
-    if (main.appt) {
-      mainHtml = `<p class="nextup-title"><span class="nextup-group nextup-appt-title">${escapeHtml(main.title)}</span></p>
-        <p class="nextup-meta">${main.sub ? `<span>${escapeHtml(main.sub)}</span>` : ""}<span>${hhmm(start)}${main.hasEnd ? ` – ${hhmm(end)}` : " Uhr"}</span><span class="nextup-src">${escapeHtml(main.srcLabel || "Termin")}</span></p>`;
-    } else {
-      const seatingClass = cls && window.LehrerSeating && window.LehrerSeating.hasPlan(cls) ? cls : "";
-      mainHtml = `<p class="nextup-title"><span class="nextup-group">${escapeHtml(parts.main)}</span>${parts.sub ? `<span class="nextup-subject">${escapeHtml(parts.sub)}</span>` : ""}</p>
+    const seatingClass = cls && window.LehrerSeating && window.LehrerSeating.hasPlan(cls) ? cls : "";
+    const mainHtml = `<p class="nextup-title"><span class="nextup-group">${escapeHtml(parts.main)}</span>${parts.sub ? `<span class="nextup-subject">${escapeHtml(parts.sub)}</span>` : ""}</p>
         <p class="nextup-meta">${parts.room ? `<span>Raum <b>${escapeHtml(parts.room)}</b></span>` : parts.duty && parts.sub ? `<span>${escapeHtml(parts.sub)}</span>` : ""}<span>${hhmm(start)} – ${hhmm(end)}${main.double ? " · Doppelstunde" : ""}</span>${main.cancelled ? '<span class="nextup-src">entfällt</span>' : ""}</p>
         ${seatingClass ? `<button class="nextup-action" type="button" data-hero-seating="${escapeHtml(seatingClass)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Sitzplan ${escapeHtml(seatingClass)}<span aria-hidden="true">→</span></button>` : ""}`;
-    }
     const relatedHtml = related.length ? `<p class="nextup-kicker">Zur ${escapeHtml(cls)}</p>
         <ul class="nextup-list nextup-related">${related.map((r) =>
           `<li><span class="nextup-time nextup-when">${escapeHtml(r.when)}</span><span>${r.html}</span></li>`).join("")}</ul>` : "";
@@ -1242,7 +1235,8 @@
       </div>
       <div class="nextup-side">
         ${relatedHtml}${dayHtml}
-        ${!relatedHtml && !dayHtml ? `<p class="nextup-empty">${cls ? `Für die ${escapeHtml(cls)} steht gerade nichts an.` : "Sonst steht nichts Besonderes an."}</p>` : ""}
+        ${!relatedHtml && !dayHtml && !apptHtml ? `<p class="nextup-empty">${cls ? `Für die ${escapeHtml(cls)} steht gerade nichts an.` : "Sonst steht nichts Besonderes an."}</p>` : ""}
+        ${apptHtml}
         ${foot ? `<p class="nextup-foot">${escapeHtml(dayName)}: ${foot}</p>` : ""}
       </div>`;
   }
@@ -2734,6 +2728,13 @@
 
     // „Als Nächstes“ → Sitzplan der Klasse, „Heute wichtig“ → Einsammlung
     document.getElementById("today-overview-grid")?.addEventListener("click", (event) => {
+      const appts = event.target.closest("[data-nextup-appts]");
+      if (appts) {
+        goToSection("documents");
+        document.querySelector('.plans-tab-btn[data-plans-tab="alle"]')?.click();
+        if (window.LehrerCalendar && window.LehrerCalendar.showDay) window.LehrerCalendar.showDay(appts.dataset.nextupAppts);
+        return;
+      }
       const seating = event.target.closest("[data-hero-seating]");
       const collection = event.target.closest("[data-hero-collection]");
       if (!seating && !collection) return;

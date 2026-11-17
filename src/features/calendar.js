@@ -744,20 +744,7 @@ var LehrerCalendar = (function () {
       return;
     }
     var more = t.closest('[data-cal-day-more]');
-    if (more) {
-      // the whole day: in the month view below the grid, elsewhere in the month view
-      _selected = more.dataset.calDayMore;
-      if (_view !== 'month') {
-        var d = fromIso(_selected);
-        _view = 'month';
-        store(VIEW_KEY, 'month');
-        _anchor = new Date(d.getFullYear(), d.getMonth(), 1);
-      }
-      render();
-      var panel = _root.querySelector('.cal-daypanel');
-      if (panel && panel.scrollIntoView) panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      return;
-    }
+    if (more) { showDay(more.dataset.calDayMore); return; }
     var day = t.closest('[data-cal-day]');
     if (day) { _selected = day.dataset.calDay; render(); return; }
     var view = t.closest('[data-cal-view]');
@@ -800,6 +787,24 @@ var LehrerCalendar = (function () {
    * finished tasks. The same appointment from two sources (e.g. Orgaplan and
    * Schultermine) appears once. Ignores the calendar's source filter.
    */
+  /** The whole day: in the month view, the day's list below the grid. */
+  function showDay(dayIso) {
+    if (!_root || !fromIso(dayIso)) return;
+    _selected = dayIso;
+    var d = fromIso(dayIso);
+    if (_view !== 'month') {
+      _view = 'month';
+      store(VIEW_KEY, 'month');
+    }
+    _anchor = new Date(d.getFullYear(), d.getMonth(), 1);
+    render();
+    // after the section/tab switch has laid out the page
+    setTimeout(function () {
+      var panel = _root.querySelector('.cal-daypanel');
+      if (panel && panel.scrollIntoView) panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 60);
+  }
+
   function timedOn(dayIso) {
     if (!_h) return [];
     try { collect(); } catch (e) { return []; }
@@ -821,7 +826,7 @@ var LehrerCalendar = (function () {
     return out;
   }
 
-  return { init: init, render: render, timedOn: timedOn };
+  return { init: init, render: render, timedOn: timedOn, showDay: showDay };
 })();
 
 if (typeof window !== 'undefined') window.LehrerCalendar = LehrerCalendar;
