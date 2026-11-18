@@ -145,3 +145,38 @@ def test_attachment_ids_are_checked():
     for uid, index in (("1:*", 0), ("9", -1), ("9", 10)):
         with pytest.raises(dienstmail.DienstmailError):
             dienstmail.fetch_attachment("ich@schule.berlin.de", "app-pw", uid, index)
+
+
+class FakeIMAPSearch(FakeIMAP):
+    """FROM finds 8 and 9, SUBJECT finds 9 and 12 – each mail only once in the result."""
+    literal = None
+
+    def uid(self, command, *args):
+        FakeIMAP.calls.append(("uid", command, args, self.literal))
+        if command == "search":
+            hits = {"FROM": b"8 9", "SUBJECT": b"9 12"}[args[-1]]
+            self.literal = None
+            return "OK", [hits]
+        def row(uid, date):
+            return (f"x (UID {uid} FLAGS (\\Seen))".encode(), f"From: a@b.de\r\nSubject: s{uid}\r\nDate: {date}\r\n\r\n".encode())
+        return "OK", [row(8, "Mon, 05 Oct 2026 08:00:00 +0200"), b")", row(9, "Tue, 06 Oct 2026 08:00:00 +0200"), b")",
+                      row(12, "Wed, 07 Oct 2026 08:00:00 +0200"), b")"]
+
+
+def test_search_looks_at_sender_and_subject_read_only(monkeypatch):
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", FakeIMAPSearch)
+    messages = dienstmail.search_headers("ich@schule.berlin.de", "app-pw", '  Müller "x" ')
+    assert [m["id"] for m in messages] == ["12", "9", "8"]          # union, newest first
+    searches = [c for c in FakeIMAP.calls if c[0] == "uid" and c[1] == "search"]
+    assert [c[2] for c in searches] == [("CHARSET", "UTF-8", "FROM"), ("CHARSET", "UTF-8", "SUBJECT")]
+    assert all(c[3] == "Müller x".encode() for c in searches)        # sent as literal, quotes removed
+    fetch = next(c for c in FakeIMAP.calls if c[0] == "uid" and c[1] == "fetch")
+    assert fetch[2][0] == b"12,9,8" and "BODY.PEEK" in fetch[2][1]
+    assert ("select", "INBOX", True) in FakeIMAP.calls and FakeIMAP.calls[-1] == ("logout",)
+
+
+def test_search_needs_two_characters():
+    assert dienstmail.clean_query('a\r\n"') == "a"
+    assert len(dienstmail.clean_query("x" * 200)) == dienstmail.MAX_QUERY_CHARS
+    with pytest.raises(dienstmail.DienstmailError, match="2 Zeichen"):
+        dienstmail.search_headers("ich@schule.berlin.de", "app-pw", " a ")

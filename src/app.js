@@ -1762,11 +1762,24 @@
       list.innerHTML = tileEmpty(mail.error, '<button class="btn btn-secondary btn-sm" type="button" data-open-connections="mail">Verbindung prüfen</button>');
       return;
     }
-    const messages = (mail.messages || []).slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-    const unread = messages.filter((m) => m.unread).length;
+    const searching = mailSearch.query.length >= 2;
+    const source = searching ? (mailSearch.results || []) : (mail.messages || []);
+    const messages = source.slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+    const unread = (mail.messages || []).filter((m) => m.unread).length;
     if (meta) meta.textContent = unread ? `${unread} ungelesen` : "alles gelesen";
     block.classList.toggle("has-unread", unread > 0);
-    list.innerHTML = messages.length
+    const searchNote = !searching ? ""
+      : mailSearch.loading && !mailSearch.results ? ""
+      : `<p class="mail-search-note">${messages.length
+          ? `${messages.length === mailSearch.limit ? `Die neuesten ${messages.length}` : messages.length} ${messages.length === 1 ? "Mail" : "Mails"} mit „${escapeHtml(mailSearch.query)}“ im Absender oder Betreff`
+          : ""}</p>`;
+    if (searching && mailSearch.error) {
+      list.innerHTML = tileEmpty(mailSearch.error);
+    } else if (searching && mailSearch.loading && !mailSearch.results) {
+      list.innerHTML = '<p class="mail-loading mail-search-note">Suche im ganzen Postfach …</p>';
+    } else if (searching && !messages.length) {
+      list.innerHTML = tileEmpty(`Keine Mail mit „${mailSearch.query}“ im Absender oder Betreff.`);
+    } else list.innerHTML = searchNote + (messages.length
       ? messages.map((m) => `
           <div class="mail-item${openMailId === m.id ? " is-open" : ""}" data-mail-id="${escapeHtml(m.id)}">
             <button class="mail-row${m.unread ? " is-unread" : ""}" type="button" aria-expanded="${openMailId === m.id}">
@@ -1778,7 +1791,7 @@
             </button>
             <div class="mail-body" ${openMailId === m.id ? "" : "hidden"}>${openMailId === m.id ? mailBodyHtml(m, mail.webmail_url) : ""}</div>
           </div>`).join("")
-      : tileEmpty("Der Posteingang ist leer.");
+      : tileEmpty("Der Posteingang ist leer."));
     if (!list.dataset.bound) {
       list.dataset.bound = "1";
       list.addEventListener("click", (event) => {
@@ -1802,6 +1815,35 @@
     let hash = 0;
     for (const ch of String(name || "")) hash = (hash * 31 + ch.codePointAt(0)) % 360;
     return hash;
+  }
+
+  // Search by sender or subject: the Dienstmail on the server (whole INBOX), itslearning in the list.
+  const mailSearch = { query: "", results: null, loading: false, error: "", limit: 30, seq: 0 };
+  let mailSearchTimer = null;
+
+  function onInboxSearch(text) {
+    const query = String(text || "").trim();
+    if (window.LehrerInbox && window.LehrerInbox.setQuery) window.LehrerInbox.setQuery(query);
+    clearTimeout(mailSearchTimer);
+    const seq = ++mailSearch.seq;
+    Object.assign(mailSearch, { query, results: null, loading: false, error: "" });
+    const mail = getData().dienstmail;
+    if (query.length < 2 || !mail || mail.error) { renderDienstmail(); return; }
+    mailSearch.loading = true;
+    renderDienstmail();
+    mailSearchTimer = setTimeout(() => {
+      fetch(`${window.BACKEND_API_URL || ""}/api/v2/dienstmail/search`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q: query }),
+      })
+        .then((resp) => resp.json().catch(() => ({})).then((data) => ({ resp, data })))
+        .then(({ resp, data }) => {
+          if (seq !== mailSearch.seq) return;
+          if (resp.ok) Object.assign(mailSearch, { results: data.messages || [], limit: data.limit || 30 });
+          else mailSearch.error = data.error || "Die Suche hat nicht geklappt.";
+        })
+        .catch(() => { if (seq === mailSearch.seq) mailSearch.error = "Keine Verbindung zum Server."; })
+        .then(() => { if (seq === mailSearch.seq) { mailSearch.loading = false; renderDienstmail(); } });
+    }, 400);
   }
 
   // Text of a mail on click: fetched from the server, never stored; the mail stays unread.
@@ -2724,6 +2766,12 @@
     });
     document.getElementById("schoolyear-modal")?.addEventListener("click", (event) => {
       if (event.target.id === "schoolyear-modal" || event.target.closest("[data-schoolyear-close]")) event.currentTarget.hidden = true;
+    });
+
+    const inboxSearch = document.getElementById("inbox-search");
+    inboxSearch?.addEventListener("input", () => onInboxSearch(inboxSearch.value));
+    inboxSearch?.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && inboxSearch.value) { inboxSearch.value = ""; onInboxSearch(""); }
     });
 
     // „Als Nächstes“ → Sitzplan der Klasse, „Heute wichtig“ → Einsammlung

@@ -341,6 +341,13 @@ var LehrerInbox = (function () {
    * Render itslearning messages into #message-list-itslearning.
    * Called once the itslearning tab is activated.
    */
+  // Search in the Posteingang: sender or title (the Dienstmail is searched on the server, see app.js)
+  var _query = '';
+  function setQuery(text) {
+    _query = String(text || '').trim();
+    renderItslearningTab();
+  }
+
   function renderItslearningTab() {
     var container = document.getElementById('message-list-itslearning');
     if (!container) return;
@@ -349,6 +356,12 @@ var LehrerInbox = (function () {
       messages = _getRelevantInboxMessages()
         .filter(function (msg) { return msg.channel === 'itslearning'; })
         .sort(compareMessages);
+    }
+    var query = _query.toLowerCase();
+    if (query) {
+      messages = messages.filter(function (msg) {
+        return (String(msg.title || '') + ' ' + String(msg.sender || '')).toLowerCase().indexOf(query) !== -1;
+      });
     }
     container.classList.remove('is-collapsed');
     container.classList.add('is-expanded');
@@ -367,6 +380,7 @@ var LehrerInbox = (function () {
             + '<p class="message-snippet">' + esc(message.snippet) + '</p>'
             + '</article>';
         }).join('')
+      : query ? '<p class="empty-state">Keine itslearning-Nachricht passt zu „' + esc(_query) + '“.</p>'
       : (_getData && _getData().itslearningMode === 'calendar'
           ? '<p class="empty-state">Nachrichten aus itslearning kannst du optional unter „Verbindungen“ per Login dazuholen.</p>'
           : '<div class="empty-state">Keine neuen Nachrichten in itslearning.</div>');
@@ -441,6 +455,7 @@ var LehrerInbox = (function () {
     initInboxTabs: initInboxTabs,
     renderBadges: renderBadges,
     renderItslearningTab: renderItslearningTab,
+    setQuery: setQuery,
     renderItslearningCalendar: renderItslearningCalendar,
     isNewMessage: isNewMessage,
     beginVisit: beginVisit,

@@ -6933,6 +6933,16 @@ html, body { overflow-x: clip; }
 }
 .inbox-tab-bar[hidden] { display: none; }
 
+/* Posteingang: Suche nach Absender oder Betreff */
+.inbox-search { grid-column: 1 / -1; position: relative; display: flex; align-items: center; }
+.inbox-search svg { position: absolute; left: 14px; width: 17px; height: 17px; color: var(--muted); pointer-events: none; }
+.inbox-search input {
+  width: 100%; box-sizing: border-box; padding: 10px 14px 10px 40px; border: 1px solid var(--line); border-radius: var(--radius-md, 12px);
+  background: var(--panel); color: var(--ink); font: inherit; font-size: 0.95rem;
+}
+.inbox-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.mail-search-note { margin: 0; padding: 10px 18px 4px; font-size: 0.82rem; color: var(--muted); }
+
 /* Installierte App: Herunterziehen zum Aktualisieren, Hinweis auf neue Version */
 .pull-refresh {
   position: fixed; top: calc(env(safe-area-inset-top, 0px) - 34px); left: 50%; z-index: 300;

@@ -9,6 +9,7 @@ subject, date and the read flag of the newest messages:
 - one exception, admins only: a new Rückmeldung is placed into the admin's own
   INBOX (IMAP APPEND) – nothing is sent, no SMTP, no other recipient
 - no message bodies, nothing stored – only a short in-memory cache
+- search by sender or subject runs on the mail server (IMAP SEARCH), not in the mail text
 - the app password is encrypted at rest like every "*password" field (crypto.py)
 """
 from __future__ import annotations
@@ -77,8 +78,8 @@ def _parse_headers(header_bytes: bytes) -> dict[str, str]:
     return {"from": name or addr or "Unbekannt", "from_address": addr, "subject": _text(message.get("Subject")) or "(kein Betreff)", "date": when}
 
 
-def fetch_headers(address: str, app_password: str, *, limit: int = MAX_MESSAGES) -> list[dict[str, Any]]:
-    """Newest messages of the INBOX, newest first. Raises DienstmailError with a readable message."""
+def _open_inbox(address: str, app_password: str) -> imaplib.IMAP4_SSL:
+    """Logged in, INBOX opened read-only (EXAMINE). The caller logs out."""
     try:
         client = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT, ssl_context=tls_context(), timeout=TIMEOUT_SECONDS)
     except (OSError, socket.timeout) as exc:
@@ -91,36 +92,92 @@ def fetch_headers(address: str, app_password: str, *, limit: int = MAX_MESSAGES)
         status, _ = client.select("INBOX", readonly=True)
         if status != "OK":
             raise DienstmailError("Der Posteingang der Dienstmail konnte nicht geöffnet werden.")
+    except BaseException:
+        _logout(client)
+        raise
+    return client
+
+
+def _logout(client: Any) -> None:
+    try:
+        client.logout()
+    except Exception:
+        pass
+
+
+def _headers_of(client: Any, uids: list[bytes], limit: int) -> list[dict[str, Any]]:
+    """Sender, subject, date and read flag of these UIDs, newest (by date) first."""
+    # UIDs follow the order mails arrived in this folder, not their date
+    # (moved or imported mails) – read a few more and sort by date below.
+    newest = uids[-(limit + 10):][::-1]
+    if not newest:
+        return []
+    status, rows = client.uid("fetch", b",".join(newest), "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
+    if status != "OK":
+        raise DienstmailError("Die Dienstmail hat die Nachrichtenliste nicht geliefert.")
+    messages: dict[bytes, dict[str, Any]] = {}
+    for row in rows or []:
+        if not isinstance(row, tuple) or len(row) < 2:
+            continue
+        meta = row[0] or b""
+        uid_match = re.search(rb"UID (\d+)", meta)
+        if not uid_match:
+            continue
+        item = _parse_headers(row[1] or b"")
+        item["id"] = uid_match.group(1).decode()
+        item["unread"] = b"\\Seen" not in meta
+        messages[uid_match.group(1)] = item
+    ordered = sorted((messages[u] for u in newest if u in messages),
+                     key=lambda m: m["date"] or "", reverse=True)
+    return ordered[:limit]
+
+
+def fetch_headers(address: str, app_password: str, *, limit: int = MAX_MESSAGES) -> list[dict[str, Any]]:
+    """Newest messages of the INBOX, newest first. Raises DienstmailError with a readable message."""
+    client = _open_inbox(address, app_password)
+    try:
         status, data = client.uid("search", None, "ALL")
         uids = (data[0] or b"").split() if status == "OK" and data else []
-        # UIDs follow the order mails arrived in this folder, not their date
-        # (moved or imported mails) – read a few more and sort by date below.
-        newest = uids[-(limit + 10):][::-1]
-        if not newest:
-            return []
-        status, rows = client.uid("fetch", b",".join(newest), "(FLAGS BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE)])")
-        if status != "OK":
-            raise DienstmailError("Die Dienstmail hat die Nachrichtenliste nicht geliefert.")
-        messages: dict[bytes, dict[str, Any]] = {}
-        for row in rows or []:
-            if not isinstance(row, tuple) or len(row) < 2:
-                continue
-            meta = row[0] or b""
-            uid_match = re.search(rb"UID (\d+)", meta)
-            if not uid_match:
-                continue
-            item = _parse_headers(row[1] or b"")
-            item["id"] = uid_match.group(1).decode()
-            item["unread"] = b"\\Seen" not in meta
-            messages[uid_match.group(1)] = item
-        ordered = sorted((messages[u] for u in newest if u in messages),
-                         key=lambda m: m["date"] or "", reverse=True)
-        return ordered[:limit]
+        return _headers_of(client, uids, limit)
     finally:
-        try:
-            client.logout()
-        except Exception:
-            pass
+        _logout(client)
+
+
+# ── Suche nach Absender oder Betreff (ganzes Postfach, nur lesen) ───────────
+MAX_SEARCH_RESULTS = 30
+MAX_QUERY_CHARS = 60
+
+
+def clean_query(query: str | None) -> str:
+    """Plain text for IMAP SEARCH: no quotes, backslashes or control characters."""
+    text = re.sub(r'[\x00-\x1f\x7f"\\]', " ", str(query or ""))
+    return re.sub(r"\s+", " ", text).strip()[:MAX_QUERY_CHARS].strip()
+
+
+def search_headers(address: str, app_password: str, query: str, *, limit: int = MAX_SEARCH_RESULTS) -> list[dict[str, Any]]:
+    """Mails whose sender (name or address) or subject contains the query – newest first.
+
+    The server searches (IMAP SEARCH FROM / SUBJECT); the text of the mails is not searched.
+    The query goes as a literal, so umlauts work and nothing can be injected.
+    """
+    text = clean_query(query)
+    if len(text) < 2:
+        raise DienstmailError("Bitte mindestens 2 Zeichen eingeben.")
+    client = _open_inbox(address, app_password)
+    try:
+        found: set[bytes] = set()
+        for field in ("FROM", "SUBJECT"):
+            client.literal = text.encode("utf-8")
+            try:
+                status, data = client.uid("search", "CHARSET", "UTF-8", field)
+            except imaplib.IMAP4.error as exc:
+                raise DienstmailError("Die Dienstmail hat die Suche abgelehnt.") from exc
+            if status == "OK" and data and data[0]:
+                found.update(data[0].split())
+        uids = sorted(found, key=int)
+        return _headers_of(client, uids, limit)
+    finally:
+        _logout(client)
 
 
 def build_payload(config: dict | None, now: datetime, *, force: bool = False) -> dict[str, Any]:
