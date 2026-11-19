@@ -7666,6 +7666,11 @@ html, body { overflow-x: clip; }
 .task-editor-hint { margin: 0; font-size: 0.78rem; color: var(--muted); }
 .task-editor-error { margin: 0; font-size: 0.85rem; color: var(--danger); }
 .task-editor-actions { flex-wrap: wrap; }
+/* the calendar stays visible behind the editor; the window moves by its header */
+.task-editor-overlay { background: rgba(15, 15, 14, 0.16); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.task-editor { box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22); }
+.modal-header.is-draggable { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.modal-header.is-draggable:active { cursor: grabbing; }
 .task-editor-actions .task-delete { margin-right: auto; color: var(--danger); }
 @media (max-width: 480px) { .task-when { grid-template-columns: 1fr 1fr; } }
 

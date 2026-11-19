@@ -268,6 +268,45 @@
     if (open) open.remove();
   }
 
+  function timeInput(name, value) {
+    return '<input class="form-input" type="text" name="' + name + '" data-time inputmode="numeric" autocomplete="off" maxlength="9"'
+      + ' placeholder="hh:mm" value="' + esc(value) + '" />';
+  }
+
+  /** "14", "930", "1430", "14.30", "14:30", "14 Uhr" → "14:30"; "" → ""; anything else → null */
+  function normTime(value) {
+    var text = String(value || '').trim().toLowerCase().replace(/\s*uhr$/, '').replace(/\s+/g, '');
+    if (!text) return '';
+    var m = /^(\d{1,2})(?:[:.,h]?(\d{2}))?$/.exec(text);
+    if (!m || +m[1] > 23 || +(m[2] || 0) > 59) return null;
+    return String(+m[1]).padStart(2, '0') + ':' + (m[2] || '00');
+  }
+
+  /** Move a dialog by its header (mouse, pen, finger), e.g. to look at the calendar behind it. */
+  function draggable(box, handle) {
+    if (!box || !handle) return;
+    var x = 0, y = 0, start = null;
+    handle.classList.add('is-draggable');
+    handle.addEventListener('pointerdown', function (ev) {
+      if (ev.button !== 0 || ev.target.closest('button, a, input, select, textarea')) return;
+      start = { px: ev.clientX, py: ev.clientY, x: x, y: y, rect: box.getBoundingClientRect() };
+      handle.setPointerCapture(ev.pointerId);
+      ev.preventDefault();
+    });
+    handle.addEventListener('pointermove', function (ev) {
+      if (!start) return;
+      var dx = ev.clientX - start.px, dy = ev.clientY - start.py;
+      // keep at least the header on the screen
+      dx = Math.max(-start.rect.left - start.rect.width + 80, Math.min(window.innerWidth - start.rect.left - 80, dx));
+      dy = Math.max(-start.rect.top, Math.min(window.innerHeight - start.rect.top - 48, dy));
+      x = start.x + dx; y = start.y + dy;
+      box.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+    });
+    function stop() { start = null; }
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
+  }
+
   /** prefill: an existing entry, or {kind, date, time} for a new one */
   function openEditor(prefill) {
     prefill = prefill || {};
@@ -290,8 +329,8 @@
       + '<label class="form-label">Titel<input class="form-input" name="title" maxlength="200" required value="' + esc(e.title) + '" placeholder="z. B. Zeugnisnoten eintragen, Elterngespräch" /></label>'
       + '<div class="task-when">'
       + '<label class="form-label"><span data-date-label>' + (e.kind === 'task' ? 'Frist (optional)' : 'Datum') + '</span><input class="form-input" type="date" name="date" value="' + esc(e.date) + '" /></label>'
-      + '<label class="form-label">Uhrzeit<input class="form-input" type="time" name="time" value="' + esc(e.time) + '" /></label>'
-      + '<label class="form-label" data-end-field' + (e.kind === 'task' ? ' hidden' : '') + '>bis<input class="form-input" type="time" name="endTime" value="' + esc(e.endTime) + '" /></label>'
+      + '<label class="form-label">Uhrzeit' + timeInput('time', e.time) + '</label>'
+      + '<label class="form-label" data-end-field' + (e.kind === 'task' ? ' hidden' : '') + '>bis' + timeInput('endTime', e.endTime) + '</label>'
       + '</div>'
       + '<label class="form-label">Auf „Heute“ zeigen<select class="form-input" name="remind">'
       + REMIND.map(function (r) { return '<option value="' + r[0] + '"' + (e.remind === r[0] ? ' selected' : '') + '>' + r[1] + '</option>'; }).join('')
@@ -326,17 +365,33 @@
       var date = form.elements.date.value;
       if (!title) { error.textContent = 'Bitte gib einen Titel ein.'; error.hidden = false; form.elements.title.focus(); return; }
       if (kind() === 'event' && !date) { error.textContent = 'Ein Termin braucht ein Datum.'; error.hidden = false; form.elements.date.focus(); return; }
-      if (form.elements.time.value && !date) { error.textContent = 'Zur Uhrzeit fehlt noch das Datum.'; error.hidden = false; form.elements.date.focus(); return; }
+      var time = normTime(form.elements.time.value);
+      var endTime = kind() === 'event' ? normTime(form.elements.endTime.value) : '';
+      if (time === null || endTime === null) {
+        error.textContent = 'Uhrzeit bitte so eingeben: 14:30 (oder 1430, 14.30, 14).'; error.hidden = false;
+        (time === null ? form.elements.time : form.elements.endTime).focus(); return;
+      }
+      if (time && !date) { error.textContent = 'Zur Uhrzeit fehlt noch das Datum.'; error.hidden = false; form.elements.date.focus(); return; }
       save({
-        id: e.id, kind: kind(), title: title, date: date, time: form.elements.time.value,
-        endTime: kind() === 'event' ? form.elements.endTime.value : '',
+        id: e.id, kind: kind(), title: title, date: date, time: time,
+        endTime: time ? endTime : '',
         note: form.elements.note.value, remind: form.elements.remind.value,
         done: kind() === 'task' && e.done, doneAt: e.doneAt, created: e.created,
       });
       closeEditor();
     });
+    // times typed on the keyboard: tidied up when leaving the field
+    form.addEventListener('focusout', function (ev) {
+      if (!ev.target.matches || !ev.target.matches('[data-time]')) return;
+      var t = normTime(ev.target.value);
+      if (t !== null) ev.target.value = t;
+    });
+    draggable(form, form.querySelector('.modal-header'));
+    // closes on a click beside the window – not when a drag or a text selection ends there
+    var downOnOverlay = false;
+    overlay.addEventListener('pointerdown', function (ev) { downOnOverlay = ev.target === overlay; });
     overlay.addEventListener('click', function (ev) {
-      if (ev.target === overlay || ev.target.closest('[data-task-close]')) { closeEditor(); return; }
+      if ((ev.target === overlay && downOnOverlay) || ev.target.closest('[data-task-close]')) { closeEditor(); return; }
       if (ev.target.closest('[data-task-delete]')) {
         if (!window.confirm('„' + e.title + '“ löschen?')) return;
         remove(e.id);
