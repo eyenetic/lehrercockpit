@@ -729,6 +729,38 @@
     return tracks;
   }
 
+  // The school's periods (Stunden) from the timetable itself: start/end pairs of
+  // single lessons that occur at least twice. Numbered when the first one starts
+  // by 08:15 (then it is the 1st period), otherwise times only.
+  function _periods() {
+    var counts = {};
+    (((_getData() || {}).webuntisCenter || {}).events || []).forEach(function (ev) {
+      if (isSupervision(ev)) return;
+      var m = _eventMinutes(ev);
+      if (!m || m.end - m.start < 30 || m.end - m.start > 60) return;
+      var key = m.start + '-' + m.end;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    var list = Object.keys(counts).filter(function (k) { return counts[k] >= 2; }).map(function (k) {
+      var parts = k.split('-');
+      return { start: +parts[0], end: +parts[1], n: counts[k] };
+    }).sort(function (a, b) { return a.start - b.start; });
+    var out = [];
+    list.forEach(function (p) {
+      var last = out[out.length - 1];
+      if (last && p.start < last.end) { if (p.n > last.n) out[out.length - 1] = p; return; }
+      out.push(p);
+    });
+    if (out.length < 3) return [];
+    var numbered = out[0].start <= 8 * 60 + 15;
+    out.forEach(function (p, i) { p.num = numbered ? i + 1 : 0; });
+    return out;
+  }
+
+  function _clock(minutes) {
+    return String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0');
+  }
+
   // Week: five columns that always fit the width; the height is scaled so the
   // whole school day fits on the screen (phone and laptop) without scrolling.
   function renderWeekGrid(columns, gridStart, gridEnd, container) {
@@ -744,12 +776,25 @@
     var now = new Date();
 
     var ticks = '';
-    for (var h = Math.ceil(gridStart / 60) * 60; h < gridEnd; h += 60) {
-      ticks += '<span class="wk-tick" style="top:' + ((h - gridStart) * perMinute).toFixed(1) + 'px">' + String(h / 60).padStart(2, '0') + '</span>';
-    }
     var lines = '';
-    for (var l = Math.ceil(gridStart / 60) * 60; l < gridEnd; l += 60) {
-      lines += '<span class="wk-line" style="top:' + ((l - gridStart) * perMinute).toFixed(1) + 'px"></span>';
+    var periods = _periods().filter(function (p) { return p.start >= gridStart && p.end <= gridEnd; });
+    if (periods.length) {
+      // like WebUntis: number, start and end of every period; light bands in the columns
+      periods.forEach(function (p) {
+        var top = ((p.start - gridStart) * perMinute).toFixed(1);
+        var size = (p.end - p.start) * perMinute;
+        ticks += '<span class="wk-period" style="top:' + top + 'px;height:' + size.toFixed(1) + 'px">'
+          + (p.num ? '<b>' + p.num + '.</b>' : '')
+          + '<span>' + _clock(p.start) + '</span>'
+          + (size >= (p.num ? 36 : 24) ? '<span class="wk-period-end">' + _clock(p.end) + '</span>' : '')
+          + '</span>';
+        lines += '<span class="wk-band" style="top:' + top + 'px;height:' + size.toFixed(1) + 'px"></span>';
+      });
+    } else {
+      for (var h = Math.ceil(gridStart / 60) * 60; h < gridEnd; h += 60) {
+        ticks += '<span class="wk-tick" style="top:' + ((h - gridStart) * perMinute).toFixed(1) + 'px">' + String(h / 60).padStart(2, '0') + '</span>';
+        lines += '<span class="wk-line" style="top:' + ((h - gridStart) * perMinute).toFixed(1) + 'px"></span>';
+      }
     }
 
     var head = '<div class="wk-head"><span></span>' + columns.map(function (col) {
@@ -794,7 +839,7 @@
       return '<div class="wk-col' + (col.isToday ? ' is-today' : '') + '" style="height:' + height + 'px">' + lines + blocks + nowLine + '</div>';
     }).join('');
 
-    return '<div class="wk-grid">' + head
+    return '<div class="wk-grid' + (periods.length ? ' has-periods' : '') + '">' + head
       + '<div class="wk-body"><div class="wk-axis" style="height:' + height + 'px">' + ticks + '</div>' + body + '</div></div>';
   }
 

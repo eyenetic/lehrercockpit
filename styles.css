@@ -6291,6 +6291,16 @@ textarea.form-input { resize: vertical; line-height: 1.5; }
 .wk-col { position: relative; border-radius: 8px; background: var(--panel-soft); }
 .wk-col.is-today { background: color-mix(in srgb, var(--accent) 6%, var(--panel-soft)); }
 .wk-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--line); }
+/* Stundenleiste wie bei WebUntis: Nummer, Beginn, Ende; Bänder zeigen Stunden und Pausen */
+.wk-grid.has-periods { --wk-axis: 42px; }
+.wk-period {
+  position: absolute; left: 0; right: 5px; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;
+  padding-top: 2px; overflow: hidden; font-size: 0.64rem; line-height: 1.15; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.wk-period b { font-size: 0.76rem; font-weight: 650; color: var(--ink-2); }
+.wk-period-end { opacity: 0.7; }
+.wk-band { position: absolute; left: 0; right: 0; border-radius: 6px; background: var(--panel); opacity: 0.7; }
+.wk-col.is-today .wk-band { opacity: 0.55; }
 .wk-event {
   position: absolute;
   box-sizing: border-box;
@@ -6356,6 +6366,9 @@ textarea.form-input { resize: vertical; line-height: 1.5; }
   .webuntis-toolbar { gap: 8px; }
   .webuntis-toolbar-actions { width: 100%; justify-content: flex-end; }
   .wk-grid { --wk-axis: 20px; }
+  .wk-grid.has-periods { --wk-axis: 30px; }
+  .wk-period { right: 2px; font-size: 0.56rem; }
+  .wk-period b { font-size: 0.66rem; }
   .wk-head, .wk-body { gap: 3px; }
   .wk-tick { font-size: 0.6rem; right: 2px; }
   .wk-event { padding: 2px 3px; border-left-width: 2px; border-radius: 4px; }
