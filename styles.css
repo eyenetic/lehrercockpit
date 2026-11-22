@@ -7656,8 +7656,54 @@ html, body { overflow-x: clip; }
 .task-empty { margin: 4px 0 0; color: var(--muted); font-size: 0.86rem; line-height: 1.5; }
 .task-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .task-list.is-later, .task-list.is-done-list { margin-top: 6px; }
-.task-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 4px; border-radius: 8px; }
-.task-row:hover { background: var(--panel-soft); }
+.task-row { position: relative; border-radius: 8px; overflow: hidden; }
+.task-row-inner {
+  position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 6px 4px; border-radius: 8px;
+  background: var(--panel); touch-action: pan-y;
+}
+.task-row-inner:hover { background: var(--panel-soft); }
+/* Wischen zum Löschen: rot dahinter */
+.task-swipe-bg {
+  position: absolute; inset: 0; display: none; align-items: center; justify-content: flex-end; padding-right: 14px;
+  border-radius: 8px; background: var(--danger); color: #fff; font-size: 0.82rem; font-weight: 600;
+}
+.task-row.is-swiping .task-swipe-bg { display: flex; }
+/* Papierkorb bei Maus: erscheint beim Drüberfahren */
+.task-del {
+  flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; margin: -3px -2px -3px 0; padding: 0;
+  border: 0; border-radius: 7px; background: none; color: var(--muted); cursor: pointer; opacity: 0;
+}
+.task-del svg { width: 16px; height: 16px; }
+.task-del:hover { background: var(--danger-soft); color: var(--danger); }
+.task-row-inner:hover .task-del, .task-del:focus-visible, .task-del.is-visible { opacity: 1; }
+@media (hover: none) { .task-row .task-del { display: none; } }
+/* Listen: Alle · Schule · Privat */
+.task-lists { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.task-chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--panel); color: var(--ink-2); font: inherit; font-size: 0.8rem; cursor: pointer;
+}
+.task-chip:hover { background: var(--panel-soft); }
+.task-chip.is-active { border-color: var(--cal-own); background: color-mix(in srgb, var(--cal-own) 12%, var(--panel)); color: var(--ink); font-weight: 600; }
+.task-chip-count { min-width: 16px; padding: 0 4px; border-radius: 8px; background: var(--cal-own); color: #fff; font-size: 0.68rem; font-weight: 650; line-height: 16px; text-align: center; }
+.task-chip-edit { border-style: dashed; color: var(--muted); }
+@media (max-width: 600px) {
+  .task-lists { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: -2px; padding: 0 2px 2px; }
+  .task-lists::-webkit-scrollbar { display: none; }
+  .task-chip { flex: none; }
+}
+.task-list-tag { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 6px; background: var(--panel-soft); color: var(--ink-2); font-size: 0.7rem; }
+.task-undo {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; padding: 7px 10px;
+  border-radius: 8px; background: var(--ink); color: var(--panel); font-size: 0.84rem;
+}
+.task-undo span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-undo button { flex: none; border: 0; background: none; color: inherit; font: inherit; font-weight: 650; text-decoration: underline; cursor: pointer; }
+.task-when.task-when-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.task-lm { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.task-lm-row { display: flex; align-items: center; gap: 6px; }
+.task-lm-row .form-input { flex: 1; min-width: 0; }
+.task-lm-add { justify-self: start; }
 .task-check { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--cal-own); cursor: pointer; }
 .task-event-dot { flex: none; width: 8px; height: 8px; margin: 7px 5px 0; border-radius: 50%; background: var(--cal-own); }
 .task-open { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }

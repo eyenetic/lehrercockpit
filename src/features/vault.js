@@ -29,6 +29,7 @@
     'lehrerCockpit.seatingPlans',
     'lehrerCockpit.links',
     'lehrerCockpit.ownEntries',
+    'lehrerCockpit.taskLists',
     'lehrerCockpit.classwork.selectedClasses',
     'lehrerCockpit.todayLayout.local',
     'lc.scheduleView',
@@ -171,7 +172,7 @@
   function mergeFirstSync(serverData) {
     var merged = Object.assign({}, serverData);
     var changed = false;
-    ['lehrerCockpit.classLists', 'lehrerCockpit.collections', 'lehrerCockpit.ownEntries'].forEach(function (key) {
+    ['lehrerCockpit.classLists', 'lehrerCockpit.collections', 'lehrerCockpit.ownEntries', 'lehrerCockpit.taskLists'].forEach(function (key) {
       var local = get(key);
       if (!local) return;
       try {

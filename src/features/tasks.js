@@ -10,7 +10,11 @@
  * (vault.js) verschlüsselt auf die anderen Geräte – der Server kann es nicht
  * lesen, deshalb kommen eigene Einträge auch nicht ins Kalender-Abo.
  *
- * Exposes window.LehrerTasks = { all, get, save, remove, setDone, openEditor, parseQuick, renderTile }.
+ * Listen (Schule, Privat, … – frei benennbar) liegen unter lehrerCockpit.taskLists und
+ * reisen ebenfalls über den Tresor. Welche Liste die Kachel zeigt, merkt sich jedes Gerät.
+ * Löschen: Wischen nach links (Touch) oder Papierkorb (Maus), danach kurz „Rückgängig“.
+ *
+ * Exposes window.LehrerTasks = { all, get, save, remove, setDone, openEditor, parseQuick, renderTile, lists }.
  */
 (function () {
   'use strict';
@@ -18,8 +22,12 @@
   var KEY = 'lehrerCockpit.ownEntries';
   var REMIND = [[0, 'am Tag selbst'], [1, '1 Tag vorher'], [3, '3 Tage vorher'], [7, '1 Woche vorher'], [14, '2 Wochen vorher']];
   var DEFAULT_REMIND = { task: 3, event: 0 };
+  var LISTS_KEY = 'lehrerCockpit.taskLists';
+  var FILTER_KEY = 'lc.taskList';
+  var DEFAULT_LISTS = [{ id: 'schule', name: 'Schule' }, { id: 'privat', name: 'Privat' }];
   var _showDone = false;
   var _showLater = false;
+  var _undo = null;            // {entry, timer} – the last deleted entry, for „Rückgängig“
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function esc(value) {
@@ -70,7 +78,36 @@
       remind: isNaN(remind) || remind < 0 || remind > 60 ? DEFAULT_REMIND[kind] : remind,
       done: kind === 'task' && !!e.done, doneAt: kind === 'task' && e.done ? (e.doneAt || today()) : '',
       created: e.created || new Date().toISOString(),
+      list: String(e.list || '').slice(0, 40),
     };
+  }
+
+  // ── Listen ─────────────────────────────────────────────────────────────────
+  function lists() {
+    var map = null;
+    try { map = JSON.parse(localStorage.getItem(LISTS_KEY) || 'null'); } catch (e) { map = null; }
+    if (!map || typeof map !== 'object' || Array.isArray(map) || !Object.keys(map).length) return DEFAULT_LISTS.slice();
+    return Object.keys(map).map(function (id) {
+      var item = map[id] || {};
+      return { id: id, name: String(item.name || '').trim().slice(0, 30) || 'Liste', order: +item.order || 0 };
+    }).sort(function (a, b) { return a.order - b.order; }).map(function (l) { return { id: l.id, name: l.name }; });
+  }
+  function writeLists(arr) {
+    var map = {};
+    arr.forEach(function (l, i) { map[l.id] = { name: l.name, order: i }; });
+    try { localStorage.setItem(LISTS_KEY, JSON.stringify(map)); } catch (e) { /* storage blocked */ }
+  }
+  /** The list an entry belongs to; entries from before lists (or a deleted list) go to the first one. */
+  function listOf(e, ls) {
+    return ls.some(function (l) { return l.id === e.list; }) ? e.list : ls[0].id;
+  }
+  function activeList(ls) {
+    var v = null;
+    try { v = localStorage.getItem(FILTER_KEY); } catch (e) { v = null; }
+    return v && ls.some(function (l) { return l.id === v; }) ? v : 'all';
+  }
+  function setActiveList(id) {
+    try { localStorage.setItem(FILTER_KEY, id); } catch (e) { /* storage blocked */ }
   }
 
   function save(entry) {
@@ -166,18 +203,26 @@
     return iso(addDays(fromIso(e.date), -e.remind)) <= todayIso;
   }
 
-  function rowHtml(e, todayIso) {
+  var TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>';
+
+  function rowHtml(e, todayIso, listName) {
     var overdue = e.kind === 'task' && e.date && e.date < todayIso && !e.done;
     var due = dueLabel(e, todayIso);
     var check = e.kind === 'task'
       ? '<input type="checkbox" class="task-check" data-task-done="' + esc(e.id) + '"' + (e.done ? ' checked' : '') + ' aria-label="' + esc(e.title) + ' erledigt" />'
       : '<span class="task-event-dot" aria-hidden="true"></span>';
-    return '<li class="task-row' + (e.done ? ' is-done' : '') + (overdue ? ' is-overdue' : '') + (e.kind === 'event' ? ' is-event' : '') + '">'
+    var dueText = due ? (e.kind === 'event' ? 'Termin · ' : overdue ? 'überfällig · ' : 'bis ') + due : '';
+    return '<li class="task-row' + (e.done ? ' is-done' : '') + (overdue ? ' is-overdue' : '') + (e.kind === 'event' ? ' is-event' : '') + '" data-task-id="' + esc(e.id) + '">'
+      + '<span class="task-swipe-bg" aria-hidden="true">Löschen</span>'
+      + '<div class="task-row-inner">'
       + check
       + '<button type="button" class="task-open" data-task-edit="' + esc(e.id) + '">'
       + '<span class="task-title">' + esc(e.title) + '</span>'
-      + (due ? '<span class="task-due">' + (e.kind === 'event' ? 'Termin · ' : overdue ? 'überfällig · ' : 'bis ') + esc(due) + '</span>' : '')
-      + '</button></li>';
+      + (dueText || listName ? '<span class="task-due">' + (listName ? '<span class="task-list-tag">' + esc(listName) + '</span>' : '') + esc(dueText) + '</span>' : '')
+      + '</button>'
+      + '<button type="button" class="task-del" data-task-del="' + esc(e.id) + '" aria-label="' + esc(e.title) + ' löschen" title="Löschen">' + TRASH + '</button>'
+      + '</div></li>';
   }
 
   function sortOpen(a, b) {
@@ -189,7 +234,14 @@
     var body = document.getElementById('today-tasks-body');
     if (!body) return;
     var t = today();
-    var list = all();
+    var ls = lists();
+    var active = activeList(ls);
+    var everything = all();
+    var list = everything.filter(function (e) { return active === 'all' || listOf(e, ls) === active; });
+    var names = {};
+    ls.forEach(function (l) { names[l.id] = l.name; });
+    // in „Alle“ every row says which list it is on
+    var row = function (e) { return rowHtml(e, t, active === 'all' && ls.length > 1 ? names[listOf(e, ls)] : ''); };
     var open = list.filter(function (e) { return !e.done; });
     var now = open.filter(function (e) { return visibleNow(e, t); }).sort(sortOpen);
     var later = open.filter(function (e) { return !visibleNow(e, t) && !(e.kind === 'event' && e.date < t); }).sort(sortOpen);
@@ -201,30 +253,64 @@
     var overdueCount = now.filter(function (e) { return e.kind === 'task' && e.date && e.date < t; }).length;
     if (meta) meta.textContent = overdueCount ? overdueCount + ' überfällig' : now.length ? now.length + ' offen' : '';
 
-    var html = '<form class="task-quick" data-task-quick autocomplete="off">'
-      + '<input class="form-input" name="quick" maxlength="200" placeholder="z. B. „Kopien 8b bis Fr“" aria-label="Neue Aufgabe" />'
+    var openCount = function (id) {
+      return everything.filter(function (e) { return !e.done && visibleNow(e, t) && (id === 'all' || listOf(e, ls) === id); }).length;
+    };
+    var html = '<div class="task-lists" role="tablist" aria-label="Listen">'
+      + [{ id: 'all', name: 'Alle' }].concat(ls).map(function (l) {
+        var n = openCount(l.id);
+        return '<button type="button" role="tab" class="task-chip' + (l.id === active ? ' is-active' : '') + '" aria-selected="' + (l.id === active) + '" data-task-list="' + esc(l.id) + '">'
+          + esc(l.name) + (n ? ' <span class="task-chip-count">' + n + '</span>' : '') + '</button>';
+      }).join('')
+      + '<button type="button" class="task-chip task-chip-edit" data-task-lists-edit>Listen …</button></div>'
+      + '<form class="task-quick" data-task-quick autocomplete="off">'
+      + '<input class="form-input" name="quick" maxlength="200" placeholder="' + (active === 'all' ? 'z. B. „Kopien 8b bis Fr“' : 'Neu in „' + esc(names[active]) + '“') + '" aria-label="Neue Aufgabe" />'
       + '<button class="btn btn-secondary btn-sm" type="submit">Hinzufügen</button></form>';
+    if (_undo) {
+      html += '<div class="task-undo" role="status"><span>„' + esc(_undo.entry.title) + '“ gelöscht</span>'
+        + '<button type="button" data-task-undo>Rückgängig</button></div>';
+    }
 
     if (!now.length && !doneToday.length) {
-      html += '<p class="task-empty">' + (later.length ? 'Gerade nichts fällig.' : 'Nichts zu erledigen. Aufgaben und eigene Termine trägst du oben oder im Kalender ein.') + '</p>';
+      html += '<p class="task-empty">' + (later.length ? 'Gerade nichts fällig.'
+        : active !== 'all' ? 'In „' + esc(names[active]) + '“ ist nichts zu erledigen.'
+        : 'Nichts zu erledigen. Aufgaben und eigene Termine trägst du oben oder im Kalender ein.') + '</p>';
     } else {
-      html += '<ul class="task-list">' + now.concat(doneToday).map(function (e) { return rowHtml(e, t); }).join('') + '</ul>';
+      html += '<ul class="task-list">' + now.concat(doneToday).map(row).join('') + '</ul>';
     }
     if (later.length) {
       html += '<button type="button" class="tile-more" data-task-toggle="later">' + (_showLater ? 'Spätere ausblenden' : later.length + ' später – anzeigen') + '</button>';
-      if (_showLater) html += '<ul class="task-list is-later">' + later.map(function (e) { return rowHtml(e, t); }).join('') + '</ul>';
+      if (_showLater) html += '<ul class="task-list is-later">' + later.map(row).join('') + '</ul>';
     }
     if (doneOlder.length) {
       html += '<button type="button" class="tile-more" data-task-toggle="done">' + (_showDone ? 'Erledigte ausblenden' : doneOlder.length + ' erledigt – anzeigen') + '</button>';
       if (_showDone) {
-        html += '<ul class="task-list is-done-list">' + doneOlder.map(function (e) { return rowHtml(e, t); }).join('') + '</ul>'
+        html += '<ul class="task-list is-done-list">' + doneOlder.map(row).join('') + '</ul>'
           + '<button type="button" class="tile-more task-clear" data-task-clear>Erledigte löschen</button>';
       }
     }
     body.innerHTML = html;
   }
 
+  function deleteWithUndo(id) {
+    var entry = get(id);
+    if (!entry) return;
+    if (_undo) clearTimeout(_undo.timer);
+    _undo = { entry: entry, timer: setTimeout(function () { _undo = null; renderTile(); }, 7000) };
+    remove(id);
+  }
+
   function onTileClick(e) {
+    if (_suppressClick) { e.preventDefault(); return; }
+    var del = e.target.closest('[data-task-del]');
+    if (del) { deleteWithUndo(del.dataset.taskDel); return; }
+    if (e.target.closest('[data-task-undo]')) {
+      if (_undo) { clearTimeout(_undo.timer); var back = _undo.entry; _undo = null; save(back); }
+      return;
+    }
+    var chip = e.target.closest('[data-task-list]');
+    if (chip) { setActiveList(chip.dataset.taskList); renderTile(); return; }
+    if (e.target.closest('[data-task-lists-edit]')) { openListManager(); return; }
     var edit = e.target.closest('[data-task-edit]');
     if (edit) { var entry = get(edit.dataset.taskEdit); if (entry) openEditor(entry); return; }
     var toggle = e.target.closest('[data-task-toggle]');
@@ -257,9 +343,115 @@
     var input = form.elements.quick;
     var parsed = parseQuick(input.value);
     if (!parsed.title) { input.focus(); return; }
-    save({ kind: 'task', title: parsed.title, date: parsed.date, time: parsed.time });
+    var ls = lists();
+    var active = activeList(ls);
+    save({ kind: 'task', title: parsed.title, date: parsed.date, time: parsed.time, list: active === 'all' ? ls[0].id : active });
     var again = document.querySelector('#today-tasks-body [data-task-quick] input');
     if (again) again.focus();
+  }
+
+  // ── Wischen zum Löschen (Finger, Stift) ───────────────────────────────────
+  var _swipe = null;
+  var _suppressClick = false;
+
+  function onSwipeStart(ev) {
+    if (ev.pointerType === 'mouse' || ev.button > 0) return;
+    var inner = ev.target.closest('.task-row-inner');
+    if (!inner || ev.target.closest('.task-check')) return;
+    _swipe = { inner: inner, row: inner.parentNode, x: ev.clientX, y: ev.clientY, dx: 0, active: false, pid: ev.pointerId };
+  }
+  function onSwipeMove(ev) {
+    var s = _swipe;
+    if (!s || ev.pointerId !== s.pid) return;
+    var dx = ev.clientX - s.x, dy = ev.clientY - s.y;
+    if (!s.active) {
+      if (dx < -10 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        s.active = true;
+        s.row.classList.add('is-swiping');
+        try { s.inner.setPointerCapture(ev.pointerId); } catch (e) { /* already released */ }
+      } else if (Math.abs(dy) > 10 || dx > 10) { _swipe = null; return; } else return;
+    }
+    s.dx = Math.min(0, dx);
+    s.inner.style.transform = 'translateX(' + s.dx + 'px)';
+  }
+  function onSwipeEnd(ev) {
+    var s = _swipe;
+    if (!s || ev.pointerId !== s.pid) return;
+    _swipe = null;
+    if (!s.active) return;
+    _suppressClick = true;
+    setTimeout(function () { _suppressClick = false; }, 400);
+    s.inner.style.transition = 'transform 0.18s ease-out';
+    if (ev.type === 'pointerup' && -s.dx > Math.min(110, s.row.offsetWidth * 0.33)) {
+      s.inner.style.transform = 'translateX(-100%)';
+      var id = s.row.dataset.taskId;
+      setTimeout(function () { deleteWithUndo(id); }, 170);
+    } else {
+      s.inner.style.transform = '';
+      setTimeout(function () { s.row.classList.remove('is-swiping'); s.inner.style.transition = ''; }, 200);
+    }
+  }
+
+  // ── Listen verwalten ───────────────────────────────────────────────────────
+  function openListManager() {
+    closeEditor();
+    var ls = lists();
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay task-editor-overlay';
+    var rowFor = function (l) {
+      return '<li class="task-lm-row" data-lm-id="' + esc(l.id) + '"><input class="form-input" maxlength="30" value="' + esc(l.name) + '" aria-label="Name der Liste" />'
+        + '<button type="button" class="task-del is-visible" data-lm-del aria-label="Liste löschen" title="Liste löschen">' + TRASH + '</button></li>';
+    };
+    overlay.innerHTML = '<form class="modal task-editor" role="dialog" aria-modal="true" aria-labelledby="task-lm-title" novalidate>'
+      + '<div class="modal-header"><h3 class="modal-title" id="task-lm-title">Listen</h3>'
+      + '<button class="modal-close" type="button" data-task-close aria-label="Schließen">✕</button></div>'
+      + '<ul class="task-lm">' + ls.map(rowFor).join('') + '</ul>'
+      + '<button type="button" class="btn btn-secondary btn-sm task-lm-add" data-lm-add>+ Neue Liste</button>'
+      + '<p class="task-editor-hint">Einträge einer gelöschten Liste kommen in die erste Liste.</p>'
+      + '<p class="task-editor-error" role="alert" hidden></p>'
+      + '<div class="modal-actions"><button class="btn btn-primary" type="submit">Speichern</button></div>'
+      + '</form>';
+    document.body.appendChild(overlay);
+    var form = overlay.querySelector('form');
+    var ul = form.querySelector('.task-lm');
+    var error = form.querySelector('.task-editor-error');
+    draggable(form, form.querySelector('.modal-header'));
+    var downOnOverlay = false;
+    overlay.addEventListener('pointerdown', function (ev) { downOnOverlay = ev.target === overlay; });
+    overlay.addEventListener('click', function (ev) {
+      if ((ev.target === overlay && downOnOverlay) || ev.target.closest('[data-task-close]')) { closeEditor(); return; }
+      if (ev.target.closest('[data-lm-add]')) {
+        ul.insertAdjacentHTML('beforeend', rowFor({ id: newId(), name: '' }));
+        ul.lastElementChild.querySelector('input').focus();
+        return;
+      }
+      var del = ev.target.closest('[data-lm-del]');
+      if (del) {
+        if (ul.children.length <= 1) { error.textContent = 'Eine Liste muss bleiben.'; error.hidden = false; return; }
+        del.closest('li').remove();
+      }
+    });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var next = [].map.call(ul.children, function (li) {
+        return { id: li.dataset.lmId, name: li.querySelector('input').value.trim().slice(0, 30) };
+      }).filter(function (l) { return l.name; });
+      if (!next.length) { error.textContent = 'Gib der Liste einen Namen.'; error.hidden = false; return; }
+      // entries of deleted lists move to the first list
+      var keep = {};
+      next.forEach(function (l) { keep[l.id] = true; });
+      var map = readMap();
+      Object.keys(map).forEach(function (id) {
+        var current = listOf(map[id], ls);
+        map[id].list = keep[current] ? current : next[0].id;
+      });
+      writeLists(next);
+      try { localStorage.setItem(KEY, JSON.stringify(map)); } catch (e) { /* storage blocked */ }
+      closeEditor();
+      changed();
+    });
+    var first = ul.querySelector('input');
+    if (first) first.focus();
   }
 
   // ── Eintrag anlegen / bearbeiten ───────────────────────────────────────────
@@ -315,6 +507,11 @@
     if (!existing) e.title = prefill.title || '';
     if (!existing && prefill.kind === 'task' && !prefill.date) e.date = '';
 
+    var ls = lists();
+    var active = activeList(ls);
+    var listId = existing ? listOf(e, ls)
+      : ls.some(function (l) { return l.id === prefill.list; }) ? prefill.list : active !== 'all' ? active : ls[0].id;
+
     closeEditor();
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay task-editor-overlay';
@@ -332,10 +529,14 @@
       + '<label class="form-label">Uhrzeit' + timeInput('time', e.time) + '</label>'
       + '<label class="form-label" data-end-field' + (e.kind === 'task' ? ' hidden' : '') + '>bis' + timeInput('endTime', e.endTime) + '</label>'
       + '</div>'
+      + '<div class="task-when task-when-2">'
+      + '<label class="form-label">Liste<select class="form-input" name="list">'
+      + ls.map(function (l) { return '<option value="' + esc(l.id) + '"' + (l.id === listId ? ' selected' : '') + '>' + esc(l.name) + '</option>'; }).join('')
+      + '</select></label>'
       + '<label class="form-label">Auf „Heute“ zeigen<select class="form-input" name="remind">'
       + REMIND.map(function (r) { return '<option value="' + r[0] + '"' + (e.remind === r[0] ? ' selected' : '') + '>' + r[1] + '</option>'; }).join('')
       + (REMIND.some(function (r) { return r[0] === e.remind; }) ? '' : '<option value="' + e.remind + '" selected>' + e.remind + ' Tage vorher</option>')
-      + '</select></label>'
+      + '</select></label></div>'
       + '<label class="form-label">Notiz (optional)<textarea class="form-input" name="note" rows="3" maxlength="2000">' + esc(e.note) + '</textarea></label>'
       + '<p class="task-editor-hint">Bleibt nur auf deinen Geräten. Bitte keine Schülernamen – Nummern oder Codes.</p>'
       + '<p class="task-editor-error" role="alert" hidden></p>'
@@ -375,7 +576,7 @@
       save({
         id: e.id, kind: kind(), title: title, date: date, time: time,
         endTime: time ? endTime : '',
-        note: form.elements.note.value, remind: form.elements.remind.value,
+        note: form.elements.note.value, remind: form.elements.remind.value, list: form.elements.list.value,
         done: kind() === 'task' && e.done, doneAt: e.doneAt, created: e.created,
       });
       closeEditor();
@@ -412,6 +613,10 @@
       body.addEventListener('click', onTileClick);
       body.addEventListener('change', onTileChange);
       body.addEventListener('submit', onTileSubmit);
+      body.addEventListener('pointerdown', onSwipeStart);
+      body.addEventListener('pointermove', onSwipeMove);
+      body.addEventListener('pointerup', onSwipeEnd);
+      body.addEventListener('pointercancel', onSwipeEnd);
     }
     var add = document.querySelector('[data-task-new]');
     if (add && !add.dataset.bound) {
@@ -425,12 +630,12 @@
     if (ev.key === 'Escape' && document.querySelector('.task-editor-overlay')) closeEditor();
   });
   window.addEventListener('lehrer:vault-updated', changed);                         // edits from another device
-  window.addEventListener('storage', function (ev) { if (ev.key === KEY) changed(); }); // another tab
+  window.addEventListener('storage', function (ev) { if (ev.key === KEY || ev.key === LISTS_KEY) changed(); }); // another tab
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') renderTile(); }); // new day
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 
   window.LehrerTasks = {
     all: all, get: get, save: save, remove: remove, setDone: setDone,
-    openEditor: openEditor, parseQuick: parseQuick, renderTile: renderTile,
+    openEditor: openEditor, parseQuick: parseQuick, renderTile: renderTile, lists: lists,
   };
 })();
