@@ -616,6 +616,16 @@ def _migrate_news(conn) -> None:
         print(f"[migrations] news_seen skipped: {exc}", flush=True)
 
 
+def _migrate_usage(conn) -> None:
+    """Nutzung: Tagessummen ohne Personenbezug (Admin-Seite „Nutzung“)."""
+    from .usage import migrate
+    try:
+        with conn.transaction():
+            migrate(conn)
+    except Exception as exc:
+        print(f"[migrations] usage_counts skipped: {exc}", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -633,6 +643,7 @@ def run_all_migrations() -> None:
         _migrate_terms(conn)
         _migrate_feedback_images(conn)
         _migrate_news(conn)
+        _migrate_usage(conn)
 
 
 def log_audit_event(

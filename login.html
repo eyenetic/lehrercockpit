@@ -21,7 +21,7 @@
         document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <link rel="stylesheet" href="./styles.css?v=150" />
+    <link rel="stylesheet" href="./styles.css?v=151" />
     <style>
       body.auth {
         min-height: 100vh;
@@ -280,8 +280,10 @@
         <p>Keine Namen oder anderen personenbezogenen Daten von Schülerinnen und Schülern – nimm Nummern aus der Klassenliste (z. B. „9a-07“) oder selbst vergebene Codes. Mehr dazu in den Nutzungsbedingungen.</p>
         <h3>Nachweis deiner Zustimmung</h3>
         <p>Wann du welcher Fassung der Nutzungsbedingungen zugestimmt hast, wird gespeichert (ohne IP-Adresse).</p>
+        <h3>Nutzungszahlen</h3>
+        <p>Damit die Verwaltung sieht, ob das Cockpit gebraucht wird, zählt es anonym: wie oft es pro Tag geöffnet wird (Handy, Computer oder App), wie viele Lehrkräfte an einem Tag aktiv waren, wie oft die Einladungsseite aufgerufen und die Erklärvideos gestartet werden. Gespeichert werden nur diese Summen pro Tag – keine IP-Adresse, kein Ort, keine Zuordnung zu dir.</p>
         <h3>Weitergabe</h3>
-        <p>Keine Weitergabe an Dritte, kein Tracking, keine Werbung. Der optionale KI-Assistent schickt nur Plan- und Termindaten an die Claude API von Anthropic – und nur, wenn du ihn einschaltest.</p>
+        <p>Keine Weitergabe an Dritte, kein Tracking durch fremde Dienste, keine Werbung. Der optionale KI-Assistent schickt nur Plan- und Termindaten an die Claude API von Anthropic – und nur, wenn du ihn einschaltest.</p>
       </div>
     </div>
 
@@ -291,9 +293,9 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/features/video.js?v=150"></script>
-    <script src="./src/features/vault.js?v=150"></script>
-    <script src="./src/features/terms.js?v=150"></script>
+    <script src="./src/features/video.js?v=151"></script>
+    <script src="./src/features/vault.js?v=151"></script>
+    <script src="./src/features/terms.js?v=151"></script>
     <script>
       (function () {
         'use strict';
@@ -437,6 +439,13 @@
               return;
             }
             var info = result.data.invitation || {};
+            // Nutzung: Einladungsseite geöffnet (anonym, einmal pro Browser-Sitzung)
+            try {
+              if (window.LehrerUsage && sessionStorage.getItem('lc.inviteCounted') !== inviteToken) {
+                sessionStorage.setItem('lc.inviteCounted', inviteToken);
+                window.LehrerUsage.count({ event: 'invite' });
+              }
+            } catch (e) { /* storage blocked */ }
             var who = info.inviter ? info.inviter + ' lädt dich ein' : 'Du bist eingeladen';
             show('invite', who + (info.school_name ? ' – ' + info.school_name + '.' : '.') + ' Leg dein Konto an – danach führt dich das Cockpit Schritt für Schritt durch die Einrichtung.');
             if (info.first_name) $('invite-first').value = info.first_name;

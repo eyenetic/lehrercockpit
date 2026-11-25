@@ -10,8 +10,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
     />
-    <link rel="stylesheet" href="./styles.css?v=150" />
-    <link rel="stylesheet" href="./styles.admin.css?v=150" />
+    <link rel="stylesheet" href="./styles.css?v=151" />
+    <link rel="stylesheet" href="./styles.admin.css?v=151" />
     <style>
       /* ── Admin Page Shell ─────────────────────────────────────── */
       body.admin-page {
@@ -581,6 +581,7 @@
           <button class="admin-tab active" type="button" data-tab="users" role="tab" aria-selected="true"><svg class="admin-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Lehrkräfte</button>
           <button class="admin-tab" type="button" data-tab="invite" role="tab" aria-selected="false"><svg class="admin-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>Einladen <span class="tab-count" id="requests-count" hidden></span></button>
           <button class="admin-tab" type="button" data-tab="feedback" role="tab" aria-selected="false"><svg class="admin-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Rückmeldungen <span class="tab-count" id="feedback-count" hidden></span></button>
+          <button class="admin-tab" type="button" data-tab="usage" role="tab" aria-selected="false"><svg class="admin-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg>Nutzung</button>
           <button class="admin-tab" type="button" data-tab="settings" role="tab" aria-selected="false"><svg class="admin-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Einstellungen</button>
           <button class="admin-tab" type="button" data-tab="audit" role="tab" aria-selected="false"><svg class="admin-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>Protokoll</button>
         </nav>
@@ -664,6 +665,21 @@
             </div>
             <div id="feedback-admin-feedback"></div>
             <div id="feedback-admin-list"><p class="loading-row">Lade …</p></div>
+          </div>
+        </section>
+
+        <!-- Tab: Nutzung (anonyme Tagessummen) -->
+        <section class="admin-section" id="tab-usage" role="tabpanel">
+          <div class="admin-card">
+            <div class="admin-card-header">
+              <h2 class="admin-section-title">Nutzung</h2>
+              <div class="segmented" id="usage-range" role="radiogroup" aria-label="Zeitraum">
+                <label><input type="radio" name="usage-days" value="14" /><span>14 Tage</span></label>
+                <label><input type="radio" name="usage-days" value="28" checked /><span>28 Tage</span></label>
+                <label><input type="radio" name="usage-days" value="90" /><span>90 Tage</span></label>
+              </div>
+            </div>
+            <div id="usage-body"><p class="loading-row">Lade …</p></div>
           </div>
         </section>
 
@@ -880,7 +896,7 @@
         ? window.location.origin
         : "https://api.lehrercockpit.com";
     </script>
-    <script src="./src/api-client.js?v=150"></script>
+    <script src="./src/api-client.js?v=151"></script>
     <script>
       (function () {
         const BACKEND = window.BACKEND_API_URL || '';
@@ -943,6 +959,7 @@
           }
 
           setupTabs();
+          setupUsage();
           loadUsers();
           loadSettings();
           loadSourceStatus();
@@ -1001,7 +1018,7 @@
 
         // ── Tabs ──────────────────────────────────────────────────────────────
 
-        var TAB_HASH = { users: 'nutzer', invite: 'einladen', feedback: 'rueckmeldungen', settings: 'einstellungen', audit: 'protokoll' };
+        var TAB_HASH = { users: 'nutzer', invite: 'einladen', feedback: 'rueckmeldungen', usage: 'nutzung', settings: 'einstellungen', audit: 'protokoll' };
 
         function showTab(tab) {
           if (!document.getElementById('tab-' + tab)) tab = 'users';
@@ -1015,6 +1032,7 @@
           if (tab === 'audit') { _auditOffset = 0; loadAuditLog(); }
           if (tab === 'invite') { loadInvitations(); loadAccessRequests(); }
           if (tab === 'feedback') loadFeedback();
+          if (tab === 'usage') loadUsage();
           history.replaceState(null, '', '#' + (TAB_HASH[tab] || tab));
         }
 
@@ -2094,6 +2112,113 @@
           var badge = document.getElementById('feedback-count');
           badge.textContent = String(fresh);
           badge.hidden = !fresh;
+        }
+
+        // ── Nutzung: anonyme Tagessummen (backend/usage.py) ─────────────────
+        var USAGE_VIDEOS = [['lehrercockpit', 'Was ist das Lehrercockpit?'], ['einrichtung', 'So richtest du es ein']];
+
+        function usageDays() {
+          var checked = document.querySelector('input[name="usage-days"]:checked');
+          return checked ? checked.value : '28';
+        }
+
+        async function loadUsage() {
+          var box = document.getElementById('usage-body');
+          try {
+            var resp = await apiFetch('/api/v2/usage/admin?days=' + usageDays());
+            var data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+            renderUsage(data);
+          } catch (e) {
+            box.innerHTML = '<p class="feedback-msg error">Die Nutzung konnte nicht geladen werden.</p>';
+          }
+        }
+
+        function usageSum(days, metric) {
+          return days.reduce(function (sum, d) { return sum + (d[metric] || 0); }, 0);
+        }
+
+        function usageDelta(now, before) {
+          if (!before && !now) return '';
+          if (!before) return '<span class="usage-delta">neu diese Woche</span>';
+          var change = Math.round((now - before) / before * 100);
+          return '<span class="usage-delta">' + (change > 0 ? '+' : '') + change + ' % ggü. Vorwoche</span>';
+        }
+
+        function usageDayLabel(iso, withWeekday) {
+          var d = new Date(iso + 'T12:00:00');
+          return d.toLocaleDateString('de-DE', withWeekday ? { weekday: 'short', day: 'numeric', month: 'numeric' } : { day: 'numeric', month: 'numeric' });
+        }
+
+        function renderUsage(data) {
+          var days = data.days || [];
+          var week = data.week || {}, prev = data.previous_week || {}, teachers = data.teachers || {};
+          var n = days.length;
+          var opens = usageSum(days, 'open');
+          var tiles = ''
+            + '<div class="usage-tile"><span class="usage-label">Cockpit geöffnet</span><strong class="usage-num">' + opens + '</strong>'
+            + '<span class="usage-sub">in ' + n + ' Tagen · diese Woche ' + (week.open || 0) + '</span>' + usageDelta(week.open || 0, prev.open || 0) + '</div>'
+            + '<div class="usage-tile"><span class="usage-label">Lehrkräfte aktiv</span><strong class="usage-num">' + (teachers.active_7 || 0) + '</strong>'
+            + '<span class="usage-sub">in 7 Tagen · ' + (teachers.active_28 || 0) + ' in 28 Tagen · ' + (teachers.accounts || 0) + ' Konten</span></div>'
+            + '<div class="usage-tile"><span class="usage-label">Einladungsseite geöffnet</span><strong class="usage-num">' + usageSum(days, 'invite') + '</strong>'
+            + '<span class="usage-sub">in ' + n + ' Tagen · diese Woche ' + (week.invite || 0) + '</span></div>';
+
+          // one series: daily opens; hover shows the day with its numbers
+          var max = Math.max(1, Math.max.apply(null, days.map(function (d) { return d.open || 0; })));
+          var bars = days.map(function (d, i) {
+            var h = (d.open || 0) / max * 100;
+            var label = usageDayLabel(d.day, true) + ': ' + (d.open || 0) + ' × geöffnet, ' + (d.active || 0) + ' Lehrkräfte';
+            return '<div class="usage-bar" tabindex="0" data-usage-tip="' + esc(label) + '" aria-label="' + esc(label) + '">'
+              + '<span style="height:' + h.toFixed(1) + '%"></span></div>';
+          }).join('');
+          var ticks = days.map(function (d, i) {
+            var show = i === 0 || i === n - 1 || (n <= 14 ? true : i % 7 === 0);
+            return '<span>' + (show ? usageDayLabel(d.day) : '') + '</span>';
+          }).join('');
+          var chart = '<div class="usage-block"><h3 class="usage-title">Pro Tag geöffnet</h3>'
+            + '<div class="usage-chart" style="--usage-n:' + n + '"><span class="usage-max">' + max + '</span>' + bars + '<div class="usage-tooltip" hidden></div></div>'
+            + '<div class="usage-ticks" style="--usage-n:' + n + '">' + ticks + '</div></div>';
+
+          var devices = [['phone', 'Handy oder Tablet'], ['desktop', 'Computer'], ['app', 'Als App installiert']];
+          var devTotal = devices.reduce(function (s, d) { return s + usageSum(days, 'open:' + d[0]); }, 0);
+          var deviceRows = devices.map(function (d) {
+            var v = usageSum(days, 'open:' + d[0]);
+            var pct = devTotal ? Math.round(v / devTotal * 100) : 0;
+            return '<tr><th scope="row">' + d[1] + '</th><td class="usage-meter"><span style="width:' + pct + '%"></span></td><td>' + v + '</td><td>' + pct + ' %</td></tr>';
+          }).join('');
+          var videoRows = USAGE_VIDEOS.map(function (v) {
+            var started = usageSum(days, 'video:' + v[0] + ':start'), ended = usageSum(days, 'video:' + v[0] + ':end');
+            return '<tr><th scope="row">' + v[1] + '</th><td>' + started + '</td><td>' + ended + '</td><td>'
+              + (started ? Math.round(Math.min(ended, started) / started * 100) + ' %' : '–') + '</td></tr>';
+          }).join('');
+          var tables = '<div class="usage-columns">'
+            + '<div class="usage-block"><h3 class="usage-title">Gerät</h3><table class="usage-table"><tbody>' + deviceRows + '</tbody></table></div>'
+            + '<div class="usage-block"><h3 class="usage-title">Erklärvideos</h3><table class="usage-table"><thead><tr><th></th><th>gestartet</th><th>bis zum Ende</th><th></th></tr></thead><tbody>'
+            + videoRows + '</tbody></table></div></div>';
+
+          document.getElementById('usage-body').innerHTML = '<div class="usage-tiles">' + tiles + '</div>' + chart + tables
+            + '<p class="usage-note">Gezählt wird anonym' + (data.since ? ' seit ' + esc(new Date(data.since + 'T12:00:00').toLocaleDateString('de-DE')) : '')
+            + ': nur Summen pro Tag – keine IP-Adressen, kein Ort, keine Zuordnung zu Personen. „Geöffnet“ zählt jedes Laden des Cockpits, '
+            + '„Lehrkräfte aktiv“ jede Lehrkraft höchstens einmal pro Tag. Wann jemand zuletzt da war, steht unter „Lehrkräfte“.</p>';
+        }
+
+        function setupUsage() {
+          document.getElementById('usage-range').addEventListener('change', loadUsage);
+          var body = document.getElementById('usage-body');
+          function tip(event) {
+            var bar = event.target.closest && event.target.closest('[data-usage-tip]');
+            var box = body.querySelector('.usage-tooltip');
+            if (!box) return;
+            if (!bar) { box.hidden = true; return; }
+            box.textContent = bar.dataset.usageTip;
+            box.hidden = false;
+            var chart = bar.parentNode.getBoundingClientRect(), r = bar.getBoundingClientRect();
+            var left = r.left - chart.left + r.width / 2;
+            box.style.left = Math.max(box.offsetWidth / 2, Math.min(chart.width - box.offsetWidth / 2, left)) + 'px';
+          }
+          body.addEventListener('mouseover', tip);
+          body.addEventListener('focusin', tip);
+          body.addEventListener('mouseleave', function () { var box = body.querySelector('.usage-tooltip'); if (box) box.hidden = true; });
         }
 
         async function loadFeedback(countOnly) {

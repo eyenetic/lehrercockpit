@@ -2,6 +2,7 @@
  * Erklärvideos: ein Klick auf ein Element mit data-video="lehrercockpit|einrichtung" öffnet das Video
  * groß in einem Fenster über der Seite (mit Ton, schließbar mit ×, Esc oder Klick daneben).
  * Die Videos liegen auf dem eigenen Server – kein YouTube, kein Tracking. Nichts startet von selbst.
+ * Gezählt wird nur anonym „gestartet“ und „bis zum Ende angesehen“ (Tagessummen, Admin-Seite „Nutzung“).
  *
  *   LehrerVideo.teaser('lehrercockpit')  → Karte mit Vorschaubild („Erst ansehen“)
  *   LehrerVideo.button('einrichtung')    → kleiner Knopf „▶ Video ansehen (50 s)“
@@ -57,6 +58,16 @@
 
   var openBackdrop = null;
 
+  // Anonyme Zählung (nur Tagessummen, keine IP, keine Person) für die Admin-Seite „Nutzung“.
+  function count(body) {
+    try {
+      fetch((window.BACKEND_API_URL || '') + '/api/v2/usage/event', {
+        method: 'POST', credentials: 'include', keepalive: true,
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      }).catch(function () {});
+    } catch (e) { /* counting never matters */ }
+  }
+
   function close() {
     if (!openBackdrop) return;
     var backdrop = openBackdrop;
@@ -96,6 +107,14 @@
       if (event.target === backdrop) close();
     });
     backdrop.querySelector('.lcv-close').addEventListener('click', close);
+    var player = backdrop.querySelector('video');
+    var started = false;
+    player.addEventListener('play', function () {
+      if (started) return;
+      started = true;
+      count({ event: 'video', video: id });
+    });
+    player.addEventListener('ended', function () { count({ event: 'video', video: id, ended: true }); });
     document.body.appendChild(backdrop);
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onKey, true);
@@ -136,4 +155,5 @@
   else fillPlaceholders();
 
   window.LehrerVideo = { open: open, close: close, teaser: teaser, button: button };
+  window.LehrerUsage = { count: count };
 })();

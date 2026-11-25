@@ -341,3 +341,36 @@
 }
 .row-menu-list button:hover { background: var(--panel-soft); }
 .row-menu-list button.is-danger { color: var(--danger); }
+
+/* ── Nutzung: anonyme Tagessummen ───────────────────────────────────────── */
+.usage-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.usage-tile { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.usage-label { font-size: 0.8rem; color: var(--muted); }
+.usage-num { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.usage-sub { font-size: 0.8rem; color: var(--ink-2); }
+.usage-delta { font-size: 0.76rem; color: var(--muted); }
+.usage-block { margin-bottom: 22px; min-width: 0; }
+.usage-title { margin: 0 0 10px; font-size: 0.9rem; font-weight: 620; color: var(--ink); }
+.usage-chart {
+  position: relative; display: grid; grid-template-columns: repeat(var(--usage-n), minmax(0, 1fr)); gap: 2px;
+  height: 140px; align-items: end; padding-top: 16px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(to bottom, var(--line) 1px, transparent 1px) 0 16px / 100% 100% no-repeat;
+}
+.usage-max { position: absolute; top: 0; left: 0; font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.usage-bar { height: 100%; display: flex; align-items: flex-end; cursor: default; outline: none; }
+.usage-bar span { display: block; width: 100%; min-height: 0; border-radius: 4px 4px 0 0; background: var(--accent); }
+.usage-bar:hover span, .usage-bar:focus-visible span { background: var(--accent-strong, var(--accent)); filter: brightness(0.9); }
+.usage-tooltip {
+  position: absolute; top: -6px; transform: translate(-50%, -100%); z-index: 2; padding: 5px 9px; border-radius: 7px;
+  background: var(--ink); color: var(--panel); font-size: 0.78rem; white-space: nowrap; pointer-events: none;
+}
+.usage-ticks { display: grid; grid-template-columns: repeat(var(--usage-n), minmax(0, 1fr)); gap: 2px; margin-top: 4px; font-size: 0.68rem; color: var(--muted); }
+.usage-ticks span { white-space: nowrap; overflow: visible; }
+.usage-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 28px; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.usage-table th, .usage-table td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+.usage-table th[scope="row"] { text-align: left; font-weight: 500; color: var(--ink); }
+.usage-table thead th { font-size: 0.76rem; font-weight: 500; color: var(--muted); }
+.usage-meter { width: 40%; }
+.usage-meter span { display: block; height: 8px; border-radius: 4px; background: var(--accent); }
+.usage-note { margin: 4px 0 0; font-size: 0.8rem; line-height: 1.5; color: var(--muted); }
