@@ -2236,6 +2236,7 @@
     const main = root.querySelector('[data-today-col="main"]');
     const side = root.querySelector('[data-today-col="side"]');
     const wide = todayWideQuery.matches;
+    const lastPlaced = new Map();  // column → tile placed before
     layout.order.forEach((id) => {
       const tile = root.querySelector(`[data-today-module="${id}"]`);
       if (!tile) return;
@@ -2244,8 +2245,12 @@
       tile.classList.toggle("is-layout-hidden", layout.visibility[id] === false || !allowed);
       if (TODAY_ABOVE_BOARD.includes(id)) return; // quick links, „Als Nächstes“, „Deine Woche“ stay above the board
       const column = wide && tile.dataset.col === "side" ? side : main;
-      if (tile.parentElement !== column) column.appendChild(tile);
-      else column.appendChild(tile); // keep layout order inside the column
+      // Move a tile only when it is not already in place: moving it would take the focus
+      // out of a field the teacher is typing in (e.g. „Zu erledigen“ after a data refresh).
+      const prev = lastPlaced.get(column) || null;
+      const wanted = prev ? prev.nextElementSibling : column.firstElementChild;
+      if (tile.parentElement !== column || wanted !== tile) column.insertBefore(tile, prev ? prev.nextSibling : column.firstChild);
+      lastPlaced.set(column, tile);
     });
     side.hidden = !wide;
     root.classList.remove("layout-pending");

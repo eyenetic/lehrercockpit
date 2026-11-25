@@ -289,7 +289,21 @@
           + '<button type="button" class="tile-more task-clear" data-task-clear>Erledigte löschen</button>';
       }
     }
+    // The tile is rebuilt whenever new data arrives (e.g. a few seconds after opening the app):
+    // keep what is being typed in the quick field, with focus and cursor – otherwise the first
+    // „Hinzufügen“ finds an empty field and nothing is saved.
+    var old = body.querySelector('[data-task-quick] input');
+    var typing = old && (old.value || document.activeElement === old)
+      ? { value: old.value, focused: document.activeElement === old, start: old.selectionStart, end: old.selectionEnd } : null;
     body.innerHTML = html;
+    if (typing) {
+      var input = body.querySelector('[data-task-quick] input');
+      input.value = typing.value;
+      if (typing.focused) {
+        input.focus();
+        try { input.setSelectionRange(typing.start, typing.end); } catch (e) { /* not supported */ }
+      }
+    }
   }
 
   function deleteWithUndo(id) {
@@ -345,6 +359,7 @@
     if (!parsed.title) { input.focus(); return; }
     var ls = lists();
     var active = activeList(ls);
+    input.value = '';  // before saving: the rebuilt tile keeps whatever is still in the field
     save({ kind: 'task', title: parsed.title, date: parsed.date, time: parsed.time, list: active === 'all' ? ls[0].id : active });
     var again = document.querySelector('#today-tasks-body [data-task-quick] input');
     if (again) again.focus();
