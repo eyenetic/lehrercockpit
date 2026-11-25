@@ -626,6 +626,16 @@ def _migrate_usage(conn) -> None:
         print(f"[migrations] usage_counts skipped: {exc}", flush=True)
 
 
+def _migrate_own_files(conn) -> None:
+    """Anhänge an eigenen Terminen/Aufgaben (nur verschlüsselte Bytes)."""
+    from .own_files import migrate
+    try:
+        with conn.transaction():
+            migrate(conn)
+    except Exception as exc:
+        print(f"[migrations] own_files skipped: {exc}", flush=True)
+
+
 def run_all_migrations() -> None:
     """Führt alle Migrationen aus. Wird bei App-Start aufgerufen wenn DATABASE_URL gesetzt."""
     from .db import db_connection
@@ -644,6 +654,7 @@ def run_all_migrations() -> None:
         _migrate_feedback_images(conn)
         _migrate_news(conn)
         _migrate_usage(conn)
+        _migrate_own_files(conn)
 
 
 def log_audit_event(

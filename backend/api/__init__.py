@@ -35,6 +35,8 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(feedback_bp, url_prefix="/api/v2/feedback")
     app.register_blueprint(links_bp, url_prefix="/api/v2/links")
     app.register_blueprint(vault_bp, url_prefix="/api/v2/vault")
+    from backend.api.own_files_routes import own_files_bp
+    app.register_blueprint(own_files_bp, url_prefix="/api/v2/files")
     from backend.api.usage_routes import usage_bp
     app.register_blueprint(usage_bp, url_prefix="/api/v2/usage")
     from backend.api.dienstmail_routes import dienstmail_bp

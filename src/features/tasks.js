@@ -79,6 +79,8 @@
       done: kind === 'task' && !!e.done, doneAt: kind === 'task' && e.done ? (e.doneAt || today()) : '',
       created: e.created || new Date().toISOString(),
       list: String(e.list || '').slice(0, 40),
+      // Anhänge: nur Verweise mit Schlüssel – die verschlüsselten Bytes liegen auf dem Server (files.js)
+      files: window.LehrerFiles ? window.LehrerFiles.clean(e.files) : (Array.isArray(e.files) ? e.files : []),
     };
   }
 
@@ -120,7 +122,17 @@
     writeMap(map);
     return e;
   }
-  function remove(id) { var map = readMap(); delete map[id]; writeMap(map); }
+  function filesOf(entry) { return ((entry && entry.files) || []).map(function (f) { return f.id; }); }
+  function dropFiles(ids) { if (ids.length && window.LehrerFiles) window.LehrerFiles.remove(ids); }
+
+  /** keepFiles: the attachments stay on the server for now (deleted with „Rückgängig“ still possible). */
+  function remove(id, keepFiles) {
+    var map = readMap();
+    var entry = map[id];
+    delete map[id];
+    writeMap(map);
+    if (!keepFiles) dropFiles(filesOf(entry));
+  }
   function setDone(id, done) {
     var e = get(id);
     if (!e || e.kind !== 'task') return;
@@ -219,7 +231,9 @@
       + check
       + '<button type="button" class="task-open" data-task-edit="' + esc(e.id) + '">'
       + '<span class="task-title">' + esc(e.title) + '</span>'
-      + (dueText || listName ? '<span class="task-due">' + (listName ? '<span class="task-list-tag">' + esc(listName) + '</span>' : '') + esc(dueText) + '</span>' : '')
+      + (dueText || listName || e.files.length ? '<span class="task-due">' + (listName ? '<span class="task-list-tag">' + esc(listName) + '</span>' : '')
+        + esc(dueText) + (e.files.length ? '<span class="task-clip" title="' + e.files.length + (e.files.length === 1 ? ' Anhang' : ' Anhänge') + '">'
+        + (dueText ? ' · ' : '') + '📎 ' + e.files.length + '</span>' : '') + '</span>' : '')
       + '</button>'
       + '<button type="button" class="task-del" data-task-del="' + esc(e.id) + '" aria-label="' + esc(e.title) + ' löschen" title="Löschen">' + TRASH + '</button>'
       + '</div></li>';
@@ -306,12 +320,21 @@
     }
   }
 
+  // The attachments of a deleted entry go only when „Rückgängig“ is no longer possible.
+  function finishUndo() {
+    if (!_undo) return;
+    clearTimeout(_undo.timer);
+    var gone = _undo.entry;
+    _undo = null;
+    if (!get(gone.id)) dropFiles(filesOf(gone));
+  }
+
   function deleteWithUndo(id) {
     var entry = get(id);
     if (!entry) return;
-    if (_undo) clearTimeout(_undo.timer);
-    _undo = { entry: entry, timer: setTimeout(function () { _undo = null; renderTile(); }, 7000) };
-    remove(id);
+    finishUndo();
+    _undo = { entry: entry, timer: setTimeout(function () { finishUndo(); renderTile(); }, 7000) };
+    remove(id, true);
   }
 
   function onTileClick(e) {
@@ -340,6 +363,7 @@
       old.forEach(function (x) { delete map[x.id]; });
       _showDone = false;
       writeMap(map);
+      old.forEach(function (x) { dropFiles(filesOf(x)); });
       return;
     }
     if (e.target.closest('[data-tile-add]')) openEditor({ kind: 'task' });
@@ -472,7 +496,9 @@
   // ── Eintrag anlegen / bearbeiten ───────────────────────────────────────────
   function closeEditor() {
     var open = document.querySelector('.task-editor-overlay');
-    if (open) open.remove();
+    if (!open) return;
+    if (open._discard) open._discard();   // closed without saving: drop attachments uploaded meanwhile
+    open.remove();
   }
 
   function timeInput(name, value) {
@@ -553,7 +579,12 @@
       + (REMIND.some(function (r) { return r[0] === e.remind; }) ? '' : '<option value="' + e.remind + '" selected>' + e.remind + ' Tage vorher</option>')
       + '</select></label></div>'
       + '<label class="form-label">Notiz (optional)<textarea class="form-input" name="note" rows="3" maxlength="2000">' + esc(e.note) + '</textarea></label>'
-      + '<p class="task-editor-hint">Bleibt nur auf deinen Geräten. Bitte keine Schülernamen – Nummern oder Codes.</p>'
+      + (window.LehrerFiles && window.MULTIUSER_ENABLED !== false
+        ? '<div class="task-files"><span class="form-label-text">Anhänge</span><ul class="task-file-list" data-file-list></ul>'
+          + '<label class="btn btn-secondary btn-sm task-file-add"><input type="file" accept="image/*,application/pdf,.pdf" multiple data-file-input hidden />'
+          + '📎 Foto oder PDF anhängen</label><span class="task-file-usage" data-file-usage></span></div>'
+        : '')
+      + '<p class="task-editor-hint">Bleibt nur auf deinen Geräten, Anhänge liegen verschlüsselt auf dem Server. Bitte keine Schülernamen – auch nicht auf Fotos.</p>'
       + '<p class="task-editor-error" role="alert" hidden></p>'
       + '<div class="modal-actions task-editor-actions">'
       + (existing ? '<button class="btn btn-secondary task-delete" type="button" data-task-delete>Löschen</button>' : '')
@@ -563,6 +594,68 @@
     document.body.appendChild(overlay);
     var form = overlay.querySelector('form');
     var error = overlay.querySelector('.task-editor-error');
+
+    // ── Anhänge: sofort verschlüsselt hochgeladen, mit dem Eintrag erst bei „Speichern“ verknüpft
+    var files = (e.files || []).slice();
+    var addedFiles = [];      // uploaded in this window
+    var removedFiles = [];    // existing ones taken out (deleted on „Speichern“)
+    var uploading = 0;
+    var saved = false;
+    overlay._discard = function () {
+      if (!saved) dropFiles(addedFiles.filter(function (id) { return !existing || filesOf(get(e.id)).indexOf(id) === -1; }));
+    };
+    var fileList = form.querySelector('[data-file-list]');
+    var fileInput = form.querySelector('[data-file-input]');
+    var usageEl = form.querySelector('[data-file-usage]');
+    function showUsage(data) {
+      if (usageEl && data && data.quota) usageEl.textContent = window.LehrerFiles.sizeText(data.used) + ' von ' + Math.round(data.quota / 1024 / 1024) + ' MB belegt';
+    }
+    function renderFiles(pending) {
+      if (!fileList) return;
+      fileList.innerHTML = files.map(function (f, i) {
+        return '<li class="task-file"><button type="button" class="task-file-open" data-file-open="' + i + '">'
+          + '<span aria-hidden="true">' + (/^image\//.test(f.type) ? '🖼' : '📄') + '</span><span class="task-file-name">' + esc(f.name) + '</span>'
+          + '<span class="task-file-size">' + window.LehrerFiles.sizeText(f.size) + '</span></button>'
+          + '<button type="button" class="task-del is-visible" data-file-remove="' + i + '" aria-label="' + esc(f.name) + ' entfernen" title="Entfernen">' + TRASH + '</button></li>';
+      }).join('') + (pending ? '<li class="task-file is-pending">' + esc(pending) + '</li>' : '');
+    }
+    renderFiles();
+    if (fileInput) {
+      window.LehrerFiles.usage().then(showUsage).catch(function () {});
+      fileInput.addEventListener('change', function () {
+        var picked = [].slice.call(fileInput.files || []);
+        fileInput.value = '';
+        if (files.length + picked.length > 10) { error.textContent = 'Höchstens 10 Anhänge pro Eintrag.'; error.hidden = false; return; }
+        error.hidden = true;
+        picked.reduce(function (chain, file) {
+          return chain.then(function () {
+            uploading++;
+            renderFiles('„' + (file.name || 'Foto') + '“ wird verschlüsselt und hochgeladen …');
+            return window.LehrerFiles.add(file).then(function (meta) {
+              files.push(meta);
+              addedFiles.push(meta.id);
+            }).catch(function (err) {
+              error.textContent = err.message || 'Hochladen hat nicht geklappt.';
+              error.hidden = false;
+            }).then(function () { uploading--; renderFiles(); });
+          });
+        }, Promise.resolve()).then(function () { window.LehrerFiles.usage().then(showUsage).catch(function () {}); });
+      });
+    }
+    if (fileList) {
+      fileList.addEventListener('click', function (ev) {
+        var openBtn = ev.target.closest('[data-file-open]');
+        if (openBtn) { window.LehrerFiles.open(files[+openBtn.dataset.fileOpen]); return; }
+        var rm = ev.target.closest('[data-file-remove]');
+        if (rm) {
+          var f = files.splice(+rm.dataset.fileRemove, 1)[0];
+          if (f) {
+            if (addedFiles.indexOf(f.id) !== -1) dropFiles([f.id]); else removedFiles.push(f.id);
+          }
+          renderFiles();
+        }
+      });
+    }
 
     function kind() { return form.elements.kind.value; }
     function syncKind() {
@@ -588,11 +681,14 @@
         (time === null ? form.elements.time : form.elements.endTime).focus(); return;
       }
       if (time && !date) { error.textContent = 'Zur Uhrzeit fehlt noch das Datum.'; error.hidden = false; form.elements.date.focus(); return; }
+      if (uploading) { error.textContent = 'Einen Moment – die Anhänge werden noch hochgeladen.'; error.hidden = false; return; }
+      saved = true;
+      dropFiles(removedFiles);
       save({
         id: e.id, kind: kind(), title: title, date: date, time: time,
         endTime: time ? endTime : '',
         note: form.elements.note.value, remind: form.elements.remind.value, list: form.elements.list.value,
-        done: kind() === 'task' && e.done, doneAt: e.doneAt, created: e.created,
+        done: kind() === 'task' && e.done, doneAt: e.doneAt, created: e.created, files: files,
       });
       closeEditor();
     });
@@ -609,8 +705,10 @@
     overlay.addEventListener('click', function (ev) {
       if ((ev.target === overlay && downOnOverlay) || ev.target.closest('[data-task-close]')) { closeEditor(); return; }
       if (ev.target.closest('[data-task-delete]')) {
-        if (!window.confirm('„' + e.title + '“ löschen?')) return;
+        if (!window.confirm('„' + e.title + '“ löschen?' + (files.length ? ' Die Anhänge werden mit gelöscht.' : ''))) return;
         remove(e.id);
+        dropFiles(addedFiles);
+        saved = true;
         closeEditor();
         return;
       }

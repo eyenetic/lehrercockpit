@@ -7704,6 +7704,32 @@ html, body { overflow-x: clip; }
 .task-lm-row { display: flex; align-items: center; gap: 6px; }
 .task-lm-row .form-input { flex: 1; min-width: 0; }
 .task-lm-add { justify-self: start; }
+/* Anhänge an eigenen Einträgen */
+.task-files { display: grid; gap: 6px; }
+.form-label-text { font-size: 0.82rem; color: var(--ink-2); }
+.task-file-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.task-file { display: flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 2px 4px 2px 2px; }
+.task-file.is-pending { padding: 7px 10px; color: var(--muted); font-size: 0.84rem; border-style: dashed; }
+.task-file-open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 0; border-radius: 6px;
+  background: none; color: var(--ink); font: inherit; font-size: 0.86rem; text-align: left; cursor: pointer;
+}
+.task-file-open:hover { background: var(--panel-soft); }
+.task-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-file-size { flex: none; font-size: 0.76rem; color: var(--muted); }
+.task-file-add { justify-self: start; cursor: pointer; }
+.task-file-usage { font-size: 0.74rem; color: var(--muted); }
+.task-clip { white-space: nowrap; }
+/* Anhang ansehen: Foto groß, entschlüsselt nur im Browser */
+.file-viewer { z-index: 600; background: rgba(10, 12, 16, 0.82); }
+.file-viewer-box { display: flex; flex-direction: column; width: min(1100px, 100%); max-height: 100%; }
+.file-viewer-bar { display: flex; align-items: center; gap: 10px; padding: 0 0 10px; color: #fff; }
+.file-viewer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.file-viewer-bar .modal-close { color: #fff; background: rgba(255, 255, 255, 0.14); }
+.file-viewer-body { min-height: 0; display: flex; justify-content: center; }
+.file-viewer-body img { max-width: 100%; max-height: calc(100dvh - 90px); border-radius: 10px; object-fit: contain; background: #fff; }
+.file-viewer-msg { margin: 40px 0; color: #fff; }
+.file-viewer-msg.is-error { color: #ffb4b4; }
 .task-check { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--cal-own); cursor: pointer; }
 .task-event-dot { flex: none; width: 8px; height: 8px; margin: 7px 5px 0; border-radius: 50%; background: var(--cal-own); }
 .task-open { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
