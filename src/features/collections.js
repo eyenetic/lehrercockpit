@@ -5,8 +5,10 @@
  *   „Wer hat abgegeben?“  Unterschriften, Geld, Dokumente … – abhaken, wer es hat.
  *   „Wer hat es nicht?“   Hausaufgaben, Material … (type "missing") – nur die
  *                         antippen, die es nicht haben, mit Grund. Jede Liste gilt
- *                         für einen Tag, es gibt bewusst keinen Verlauf pro Kind,
- *                         und sie wird am gewählten Tag automatisch gelöscht.
+ *                         für einen Tag, es gibt bewusst keinen Verlauf pro Kind.
+ *                         Nach der Aufbewahrungszeit (deleteOn) fragt das Cockpit:
+ *                         als PDF/CSV sichern, dann löschen – oder länger behalten.
+ *                         Ohne Klick der Lehrkraft wird nie etwas gelöscht.
  *
  * Datenstruktur (localStorage "lehrerCockpit.collections"):
  *   {
@@ -37,7 +39,7 @@ var LehrerCollections = (function () {
     { title: 'Material', reasons: ['Heft', 'Buch', 'Mappe', 'Sportzeug'] },
   ];
   var KEEP = [
-    { id: '4w', label: 'nach 4 Wochen' },
+    { id: '4w', label: '4 Wochen' },
     { id: 'hj', label: 'Halbjahresende' },
     { id: 'sj', label: 'Schuljahresende' },
   ];
@@ -59,7 +61,6 @@ var LehrerCollections = (function () {
     // one odd entry break the page.
     _data = {};
     var today = _todayIso();
-    var expired = false;
     var list = Array.isArray(raw) ? raw : Object.values(raw && typeof raw === 'object' ? raw : {});
     list.forEach(function (c) {
       if (!c || typeof c !== 'object' || !c.id) return;
@@ -69,8 +70,7 @@ var LehrerCollections = (function () {
       c.classIds = Array.isArray(c.classIds) ? c.classIds : [];
       c.checks = c.checks && typeof c.checks === 'object' ? c.checks : {};
       if (c.type === MISSING) {
-        // „Wer hat es nicht?“ lists delete themselves on the chosen day
-        if (c.deleteOn && String(c.deleteOn) <= today) { expired = true; return; }
+        c.deleteOn = /^\d{4}-\d{2}-\d{2}$/.test(String(c.deleteOn || '')) ? c.deleteOn : '';
         c.date = /^\d{4}-\d{2}-\d{2}$/.test(String(c.date || '')) ? c.date : today;
         c.reasons = (Array.isArray(c.reasons) ? c.reasons : []).map(function (r) { return String(r || '').trim().slice(0, 30); }).filter(Boolean).slice(0, 8);
         if (!c.reasons.length) c.reasons = ['fehlt'];
@@ -78,7 +78,6 @@ var LehrerCollections = (function () {
       }
       _data[c.id] = c;
     });
-    if (expired) _save();
   }
   function _save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_data)); } catch(e) {}
@@ -90,7 +89,7 @@ var LehrerCollections = (function () {
   function _todayIso() { return _iso(new Date()); }
   function _addDays(iso, n) { var d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return _iso(d); }
 
-  /** Day a „Wer hat es nicht?“ list deletes itself: 4 weeks after, or the first day of the
+  /** Day a „Wer hat es nicht?“ list is kept until (then the cockpit asks to save and delete): 4 weeks after, or the first day of the
    *  next Winter-/Sommerferien (Halbjahresende) or Sommerferien (Schuljahresende). */
   function _deleteOn(keep, iso) {
     if (keep === '4w') return _addDays(iso, 28);
@@ -107,6 +106,8 @@ var LehrerCollections = (function () {
   function _longDate(iso) {
     return iso ? new Date(iso + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
   }
+  function _isExpired(col) { return col.type === MISSING && !!col.deleteOn && col.deleteOn <= _todayIso(); }
+
   function _activeReason(col) {
     var r = _reason[col.id];
     return r && col.reasons.indexOf(r) !== -1 ? r : col.reasons[0];
@@ -252,7 +253,7 @@ var LehrerCollections = (function () {
       });
     });
     var today = _todayIso();
-    var soon = col.deleteOn && col.deleteOn <= _addDays(today, 7);
+    var expired = _isExpired(col);
     var archBtn = col.archived
       ? '<button class="btn btn-sm btn-secondary" type="button" data-action="unarchive">Reaktivieren</button>'
       : '<button class="btn btn-sm btn-secondary" type="button" data-action="archive">Archivieren</button>';
@@ -290,10 +291,15 @@ var LehrerCollections = (function () {
           : '')
       + '<div class="col-check-toolbar"><span class="col-missing-label" id="col-missing-label">' + _esc(_missLabel(col)) + '</span></div>'
       + '<ul class="col-check-list">' + (rows || '<li class="classlist-empty-hint">Keine Schüler in dieser Klasse.</li>') + '</ul>'
-      + '<p class="col-delete-note' + (soon ? ' is-soon' : '') + '">'
-      +   (soon ? 'Wird am ' + _esc(_longDate(col.deleteOn)) + ' automatisch gelöscht – sichere vorher ein PDF, falls du die Liste noch brauchst.'
-                : 'Wird am ' + _esc(_longDate(col.deleteOn)) + ' automatisch gelöscht.')
-      + '</p>'
+      + (expired
+          ? '<div class="col-delete-note is-soon"><p>Aufbewahrt bis ' + _esc(_longDate(col.deleteOn)) + ' – die Zeit ist um. Sichere die Liste auf deinem Gerät und lösch sie dann hier.</p>'
+            + '<div class="col-expire-actions">'
+            +   '<button class="btn btn-sm btn-secondary" type="button" data-action="print-col">Als PDF sichern</button>'
+            +   '<button class="btn btn-sm btn-secondary" type="button" data-action="export-col">Als CSV sichern</button>'
+            +   '<button class="btn btn-sm btn-secondary" type="button" data-action="keep-col">4 Wochen länger behalten</button>'
+            +   '<button class="btn btn-sm btn-danger" type="button" data-action="delete-col">Löschen …</button>'
+            + '</div></div>'
+          : '<p class="col-delete-note">Aufbewahrt bis ' + _esc(_longDate(col.deleteOn)) + '. Danach fragt dich das Cockpit, ob du sie sichern und löschen willst – von selbst wird nichts gelöscht.</p>')
       + '</div>';
   }
 
@@ -428,10 +434,10 @@ var LehrerCollections = (function () {
           '</div>',
           '<div class="col-form-row" data-only="missing">',
             '<label class="col-form-label">Datum<input class="col-form-input" type="date" id="col-new-date" value="' + today + '"></label>',
-            '<label class="col-form-label">Automatisch löschen<select class="col-form-input" id="col-new-keep"></select></label>',
+            '<label class="col-form-label">Aufbewahren bis<select class="col-form-input" id="col-new-keep"></select></label>',
           '</div>',
           '<label class="col-form-label" data-only="missing">Gründe zum Antippen<input class="col-form-input" type="text" id="col-new-reasons" value="vergessen, unvollständig" autocomplete="off"></label>',
-          '<p class="col-hint" data-only="missing">Mit Komma trennen. Jede Liste gilt für einen Tag – mit „Nochmal für heute“ legst du sie in der nächsten Stunde mit einem Tipp neu an.</p>',
+          '<p class="col-hint" data-only="missing">Mit Komma trennen. Jede Liste gilt für einen Tag – mit „Nochmal für heute“ legst du sie in der nächsten Stunde mit einem Tipp neu an. Ist die Aufbewahrungszeit um, erinnert dich das Cockpit: sichern, dann löschen.</p>',
           '<label class="col-form-label" data-only="positive">Fälligkeit (optional)<input class="col-form-input" type="date" id="col-new-due"></label>',
           '<label class="col-form-label" data-only="positive">Notiz (optional)<input class="col-form-input" type="text" id="col-new-note" placeholder="z.B. 15 €" autocomplete="off"></label>',
           '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">',
@@ -654,25 +660,37 @@ var LehrerCollections = (function () {
     _save();
     _activeId = null;
     render();
+    _dropCleanupHints();
+  }
+
+  function _csvCell(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+
+  function _downloadCsv(name, lines) {
+    var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = name.replace(/[^a-z0-9äöüß._-]/gi, '_') + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  var MISSING_CSV_HEAD = 'Liste,Datum,Klasse,Nachname,Vorname,Ohne,Grund';
+  function _missingCsvLines(col) {
+    return _getStudentsForCollection(col).map(function (s) {
+      var mark = col.marks[s.classId + '|' + s.id] || '';
+      return [col.title, col.date, s.classId, s.lastName, s.firstName, mark ? 'Ja' : 'Nein', mark].map(_csvCell).join(',');
+    });
   }
 
   function _exportCol(colId) {
     var col = _data[colId];
     if (!col) return;
-    var students = _getStudentsForCollection(col);
-    var missing = col.type === MISSING;
-    var lines = [missing ? 'Klasse,Nachname,Vorname,Datum,Ohne,Grund' : 'Klasse,Nachname,Vorname,Abgegeben,Notiz'];
-    students.forEach(function(s) {
-      var sid = s.classId+'|'+s.id;
-      var c = col.checks && col.checks[sid] || {};
-      var cells = missing ? [s.classId, s.lastName, s.firstName, col.date, col.marks[sid] ? 'Ja' : 'Nein', col.marks[sid] || '']
-                          : [s.classId, s.lastName, s.firstName, c.done?'Ja':'Nein', c.note||''];
-      lines.push(cells.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','));
+    if (col.type === MISSING) { _downloadCsv(col.title + '_' + col.date, [MISSING_CSV_HEAD].concat(_missingCsvLines(col))); return; }
+    var lines = ['Klasse,Nachname,Vorname,Abgegeben,Notiz'];
+    _getStudentsForCollection(col).forEach(function(s) {
+      var c = col.checks && col.checks[s.classId + '|' + s.id] || {};
+      lines.push([s.classId, s.lastName, s.firstName, c.done ? 'Ja' : 'Nein', c.note || ''].map(_csvCell).join(','));
     });
-    var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = col.title.replace(/[^a-z0-9äöü]/gi,'_') + (missing ? '_' + col.date : '') + '.csv'; a.click();
-    URL.revokeObjectURL(url);
+    _downloadCsv(col.title, lines);
   }
 
   /** PDF of this one collection: per class a table with ✓ and note. */
@@ -704,7 +722,7 @@ var LehrerCollections = (function () {
       { css: 'tr{height:6.5mm}td.name{width:1%}' });
   }
 
-  function _printMissing(col) {
+  function _missingBody(col) {
     var students = _getStudentsForCollection(col);
     var multi = col.classIds.length > 1;
     var tables = col.classIds.map(function (cid) {
@@ -718,10 +736,84 @@ var LehrerCollections = (function () {
         + '<table><thead><tr><th class="nr"></th><th class="name">Name</th><th class="mark">Ohne</th><th>Grund</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }).join('');
     var meta = ['Wer hat es nicht?', 'Klasse ' + col.classIds.join(', '), _longDate(col.date), _missProgressText(col)];
-    window.LehrerClasslist.printDocument(col.title + ' ' + _formatDate(col.date),
-      '<h1>' + _esc(col.title) + '</h1><p class="meta">' + _esc(meta.join(' · ')) + '</p>'
-      + (tables || '<p>Keine Schüler:innen in dieser Liste.</p>'),
+    return '<h1>' + _esc(col.title) + '</h1><p class="meta">' + _esc(meta.join(' · ')) + '</p>'
+      + (tables || '<p>Keine Schüler:innen in dieser Liste.</p>');
+  }
+
+  function _printMissing(col) {
+    window.LehrerClasslist.printDocument(col.title + ' ' + _formatDate(col.date), _missingBody(col), { css: 'tr{height:6.5mm}td.name{width:1%}' });
+  }
+
+  /** Several lists in one PDF, each on its own page. */
+  function _printMany(cols) {
+    if (!cols.length || !window.LehrerClasslist || !window.LehrerClasslist.printDocument) return;
+    window.LehrerClasslist.printDocument('Listen ' + _formatDate(_todayIso()),
+      cols.map(function (c, n) { return '<section' + (n ? ' style="page-break-before:always"' : '') + '>' + _missingBody(c) + '</section>'; }).join(''),
       { css: 'tr{height:6.5mm}td.name{width:1%}' });
+  }
+
+  function _keepLonger(cols) {
+    var today = _todayIso();
+    cols.forEach(function (c) { c.deleteOn = _addDays(c.deleteOn && c.deleteOn > today ? c.deleteOn : today, 28); });
+    _save();
+  }
+
+  function _expiredLists() {
+    return _sortedCollections().filter(_isExpired).sort(function (a, b) { return a.date.localeCompare(b.date); });
+  }
+
+  function _dropCleanupHints() {
+    document.querySelectorAll('[data-col-cleanup]').forEach(function (el) { if (!_expiredLists().length) el.remove(); });
+  }
+
+  /** Expired lists: save them on this device (PDF/CSV), then delete – or keep them longer. */
+  function openCleanup() {
+    _load();
+    var cols = _expiredLists();
+    if (!cols.length) return;
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal" role="dialog" aria-label="Abgelaufene Listen" style="width:min(500px,95vw)">'
+      + '<div class="modal-header"><span class="modal-title">Aufbewahrungszeit um</span><button class="modal-close" type="button" data-x="close">✕</button></div>'
+      + '<div class="col-new-body">'
+      +   '<p class="col-hint" style="font-size:0.84rem;color:var(--ink-2)">Diese ' + (cols.length === 1 ? 'Liste ist' : cols.length + ' Listen sind') + ' über die Aufbewahrungszeit. '
+      +   'Sichere sie zuerst auf deinem Gerät (PDF oder CSV, z. B. in „Dateien“ oder im Downloads-Ordner) und lösch sie dann aus dem Cockpit.</p>'
+      +   '<ul class="col-cleanup-list">' + cols.map(function (c) {
+            return '<li><strong>' + _esc(c.title) + '</strong> <span>Klasse ' + _esc(c.classIds.join(', ')) + ' · ' + _esc(_formatDate(c.date)) + ' · ' + _esc(_missProgressText(c)) + '</span></li>';
+          }).join('') + '</ul>'
+      +   '<div class="col-expire-actions">'
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-x="pdf">Als PDF sichern</button>'
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-x="csv">Als CSV sichern</button>'
+      +   '</div>'
+      +   '<p class="col-hint" data-x-saved hidden>Gesichert? Dann kannst du die Listen jetzt löschen.</p>'
+      +   '<div class="col-expire-actions" style="justify-content:flex-end">'
+      +     '<button class="btn btn-sm btn-ghost" type="button" data-x="keep">4 Wochen länger behalten</button>'
+      +     '<button class="btn btn-sm btn-danger" type="button" data-x="delete">' + (cols.length === 1 ? 'Liste löschen' : 'Alle ' + cols.length + ' löschen') + '</button>'
+      +   '</div>'
+      + '</div></div>';
+    document.body.appendChild(overlay);
+    var close = function () { _removeEl(overlay); _dropCleanupHints(); if (_container) render(); };
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) { close(); return; }
+      var btn = e.target.closest('[data-x]');
+      if (!btn) return;
+      var act = btn.dataset.x;
+      if (act === 'close') { close(); return; }
+      if (act === 'pdf' || act === 'csv') {
+        if (act === 'pdf') _printMany(cols);
+        else _downloadCsv('Listen_bis_' + _todayIso(), [MISSING_CSV_HEAD].concat([].concat.apply([], cols.map(_missingCsvLines))));
+        overlay.querySelector('[data-x-saved]').hidden = false;
+        return;
+      }
+      if (act === 'keep') { _keepLonger(cols); close(); return; }
+      if (act === 'delete') {
+        if (!confirm((cols.length === 1 ? 'Die Liste' : 'Alle ' + cols.length + ' Listen') + ' endgültig löschen? Das geht nicht rückgängig – hast du sie gesichert?')) return;
+        cols.forEach(function (c) { delete _data[c.id]; });
+        if (_activeId && !_data[_activeId]) _activeId = null;
+        _save();
+        close();
+      }
+    });
   }
 
   function _updateSidebarProgress(colId) {
@@ -766,6 +858,7 @@ var LehrerCollections = (function () {
       if (act === 'mark-all')     { _markAll(_activeId, true); return; }
       if (act === 'clear-all')    { _markAll(_activeId, false); return; }
       if (act === 'clear-miss')   { _clearMiss(_activeId); return; }
+      if (act === 'keep-col')     { if (_data[_activeId]) { _keepLonger([_data[_activeId]]); render(); _dropCleanupHints(); } return; }
       if (act === 'repeat-col')   { _repeatCol(_activeId); return; }
       if (act === 'save-reasons') { _saveReasons(_activeId); return; }
       if (act === 'edit-reasons') {
@@ -800,6 +893,13 @@ var LehrerCollections = (function () {
   // ── Public ────────────────────────────────────────────────────────────────
   function init(container) { _container = container; _load(); render(); }
 
+  // The reminder on „Heute“ opens the clean-up dialog.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('[data-col-cleanup]')) { e.preventDefault(); e.stopPropagation(); openCleanup(); }
+    }, true);
+  }
+
   /** Open collections with progress, nearest due date first (for „Heute wichtig“). */
   function summary() {
     _load();
@@ -811,19 +911,16 @@ var LehrerCollections = (function () {
     });
   }
 
-  /** „Wer hat es nicht?“ lists that delete themselves within the next 7 days (reminder on „Heute“). */
-  function deleteSoon() {
+  /** „Wer hat es nicht?“ lists past their keeping time (reminder on „Heute“). */
+  function expired() {
     _load();
-    var limit = _addDays(_todayIso(), 7);
-    return Object.values(_data).filter(function (c) { return c.type === MISSING && c.deleteOn && c.deleteOn <= limit; })
-      .map(function (c) { return { id: c.id, title: c.title, classIds: c.classIds.slice(), date: c.date, deleteOn: c.deleteOn }; })
-      .sort(function (a, b) { return a.deleteOn.localeCompare(b.deleteOn) || b.date.localeCompare(a.date); });
+    return _expiredLists().map(function (c) { return { id: c.id, title: c.title, classIds: c.classIds.slice(), date: c.date, deleteOn: c.deleteOn }; });
   }
 
   /** Show this collection when the tab is opened next. */
   function select(id) { _activeId = id; }
 
-  return { init: init, render: render, summary: summary, select: select, deleteSoon: deleteSoon };
+  return { init: init, render: render, summary: summary, select: select, expired: expired, openCleanup: openCleanup };
 })();
 
 if (typeof window !== 'undefined') window.LehrerCollections = LehrerCollections;

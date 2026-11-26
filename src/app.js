@@ -1390,11 +1390,11 @@
     if (!body) return;
     const open = window.LehrerCollections && window.LehrerCollections.summary ? window.LehrerCollections.summary() : [];
     setTileMeta("tile-collections-meta", open.length ? `${open.length} offen` : "");
-    // „Wer hat es nicht?“ lists delete themselves – remind a week before, so a PDF can be saved
-    const soon = window.LehrerCollections && window.LehrerCollections.deleteSoon ? window.LehrerCollections.deleteSoon() : [];
-    const soonHtml = !soon.length ? "" : `<button type="button" class="col-tile-soon" data-hero-collection="${escapeHtml(soon[0].id)}">${
-      soon.length === 1 ? `„${escapeHtml(soon[0].title)}“ (${escapeHtml(dayLabel(soon[0].date))}) wird ${escapeHtml(dayLabel(soon[0].deleteOn))} gelöscht`
-        : `${soon.length} Listen werden ab ${escapeHtml(dayLabel(soon[0].deleteOn))} gelöscht`} – vorher als PDF sichern →</button>`;
+    // „Wer hat es nicht?“ lists past their keeping time: save, then delete (never automatic)
+    const expired = window.LehrerCollections && window.LehrerCollections.expired ? window.LehrerCollections.expired() : [];
+    const soonHtml = !expired.length ? "" : `<button type="button" class="col-tile-soon" data-col-cleanup>${
+      expired.length === 1 ? `„${escapeHtml(expired[0].title)}“ (${escapeHtml(dayLabel(expired[0].date))}) ist über die Aufbewahrungszeit`
+        : `${expired.length} Listen sind über die Aufbewahrungszeit`} – sichern und löschen →</button>`;
     if (!open.length) {
       body.innerHTML = soonHtml + tileEmpty("Keine offenen Einsammlungen.",
         '<button class="btn btn-secondary btn-sm" type="button" data-open-collections>Liste anlegen</button>');
