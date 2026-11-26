@@ -1390,9 +1390,14 @@
     if (!body) return;
     const open = window.LehrerCollections && window.LehrerCollections.summary ? window.LehrerCollections.summary() : [];
     setTileMeta("tile-collections-meta", open.length ? `${open.length} offen` : "");
+    // „Wer hat es nicht?“ lists delete themselves – remind a week before, so a PDF can be saved
+    const soon = window.LehrerCollections && window.LehrerCollections.deleteSoon ? window.LehrerCollections.deleteSoon() : [];
+    const soonHtml = !soon.length ? "" : `<button type="button" class="col-tile-soon" data-hero-collection="${escapeHtml(soon[0].id)}">${
+      soon.length === 1 ? `„${escapeHtml(soon[0].title)}“ (${escapeHtml(dayLabel(soon[0].date))}) wird ${escapeHtml(dayLabel(soon[0].deleteOn))} gelöscht`
+        : `${soon.length} Listen werden ab ${escapeHtml(dayLabel(soon[0].deleteOn))} gelöscht`} – vorher als PDF sichern →</button>`;
     if (!open.length) {
-      body.innerHTML = tileEmpty("Keine offenen Einsammlungen.",
-        '<button class="btn btn-secondary btn-sm" type="button" data-open-collections>Einsammlung anlegen</button>');
+      body.innerHTML = soonHtml + tileEmpty("Keine offenen Einsammlungen.",
+        '<button class="btn btn-secondary btn-sm" type="button" data-open-collections>Liste anlegen</button>');
       return;
     }
     body.innerHTML = `<ul class="col-tile-list">${open.slice(0, 4).map((c) => {
@@ -1402,7 +1407,7 @@
         <span class="col-tile-top"><span class="col-tile-title">${escapeHtml(c.title)}</span>${due ? `<span class="col-tile-due">${escapeHtml(due)}</span>` : ""}</span>
         <span class="col-tile-bar"><span class="imp-bar"><span style="width:${pct}%"></span></span><span class="col-tile-count">${c.done}/${c.total}</span></span>
         <span class="col-tile-classes">${escapeHtml(c.classIds.join(", "))}</span></button></li>`;
-    }).join("")}</ul>${open.length > 4 ? `<p class="tile-more">+ ${open.length - 4} weitere</p>` : ""}`;
+    }).join("")}</ul>${open.length > 4 ? `<p class="tile-more">+ ${open.length - 4} weitere</p>` : ""}${soonHtml}`;
   }
 
   function openSchoolYear() {

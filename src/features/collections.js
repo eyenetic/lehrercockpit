@@ -1,8 +1,12 @@
 /**
  * src/features/collections.js — Einsammlungen
  *
- * Digitale Einsammel-Listen (Unterschriften, Geld, Dokumente, …)
- * basierend auf den Klassenlisten aus classlist.js.
+ * Digitale Einsammel-Listen auf Basis der Klassenlisten aus classlist.js:
+ *   „Wer hat abgegeben?“  Unterschriften, Geld, Dokumente … – abhaken, wer es hat.
+ *   „Wer hat es nicht?“   Hausaufgaben, Material … (type "missing") – nur die
+ *                         antippen, die es nicht haben, mit Grund. Jede Liste gilt
+ *                         für einen Tag, es gibt bewusst keinen Verlauf pro Kind,
+ *                         und sie wird am gewählten Tag automatisch gelöscht.
  *
  * Datenstruktur (localStorage "lehrerCockpit.collections"):
  *   {
@@ -10,6 +14,8 @@
  *       id, title, type, note, classIds, dueDate, createdAt,
  *       archived,
  *       checks: { studentId: { done: bool, note: string } }
+ *       // nur type "missing":
+ *       date, reasons: [text], marks: { studentId: reason }, keep, deleteOn
  *     }
  *   }
  *
@@ -25,11 +31,24 @@ var LehrerCollections = (function () {
     { value: 'document',  label: 'Dokument' },
     { value: 'other',     label: 'Sonstiges' },
   ];
+  var MISSING = 'missing';
+  var PRESETS = [
+    { title: 'Hausaufgaben', reasons: ['vergessen', 'unvollständig'] },
+    { title: 'Material', reasons: ['Heft', 'Buch', 'Mappe', 'Sportzeug'] },
+  ];
+  var KEEP = [
+    { id: '4w', label: 'nach 4 Wochen' },
+    { id: 'hj', label: 'Halbjahresende' },
+    { id: 'sj', label: 'Schuljahresende' },
+  ];
+  var MODE_KEY = 'lc.colNewMode';
 
   var _container   = null;
   var _data        = {};
   var _activeId    = null;
   var _showArchive = false;
+  var _reason      = {};      // list id → reason for the next tap
+  var _editReasons = false;
 
   // ── Persistence ──────────────────────────────────────────────────────────
   function _load() {
@@ -39,6 +58,8 @@ var LehrerCollections = (function () {
     // Stored data may come from older versions or another device: never let
     // one odd entry break the page.
     _data = {};
+    var today = _todayIso();
+    var expired = false;
     var list = Array.isArray(raw) ? raw : Object.values(raw && typeof raw === 'object' ? raw : {});
     list.forEach(function (c) {
       if (!c || typeof c !== 'object' || !c.id) return;
@@ -47,8 +68,17 @@ var LehrerCollections = (function () {
       c.createdAt = String(c.createdAt || '');
       c.classIds = Array.isArray(c.classIds) ? c.classIds : [];
       c.checks = c.checks && typeof c.checks === 'object' ? c.checks : {};
+      if (c.type === MISSING) {
+        // „Wer hat es nicht?“ lists delete themselves on the chosen day
+        if (c.deleteOn && String(c.deleteOn) <= today) { expired = true; return; }
+        c.date = /^\d{4}-\d{2}-\d{2}$/.test(String(c.date || '')) ? c.date : today;
+        c.reasons = (Array.isArray(c.reasons) ? c.reasons : []).map(function (r) { return String(r || '').trim().slice(0, 30); }).filter(Boolean).slice(0, 8);
+        if (!c.reasons.length) c.reasons = ['fehlt'];
+        c.marks = c.marks && typeof c.marks === 'object' ? c.marks : {};
+      }
       _data[c.id] = c;
     });
+    if (expired) _save();
   }
   function _save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_data)); } catch(e) {}
@@ -56,6 +86,31 @@ var LehrerCollections = (function () {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function _uid() { return 'col_' + Math.random().toString(36).slice(2, 10); }
+  function _iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function _todayIso() { return _iso(new Date()); }
+  function _addDays(iso, n) { var d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return _iso(d); }
+
+  /** Day a „Wer hat es nicht?“ list deletes itself: 4 weeks after, or the first day of the
+   *  next Winter-/Sommerferien (Halbjahresende) or Sommerferien (Schuljahresende). */
+  function _deleteOn(keep, iso) {
+    if (keep === '4w') return _addDays(iso, 28);
+    var re = keep === 'sj' ? /^Sommerferien/ : /^(Winter|Sommer)ferien/;
+    var SY = window.LehrerSchoolYear;
+    var breaks = [];
+    if (SY && SY.schoolYear) {
+      var d = new Date(iso + 'T12:00:00');
+      breaks = SY.schoolYear(d).breaks.concat(SY.schoolYear(new Date(d.getFullYear() + 1, d.getMonth(), d.getDate())).breaks);
+    }
+    var hit = breaks.filter(function (b) { return re.test(b.name) && b.start > iso; })[0];
+    return hit ? hit.start : _addDays(iso, keep === 'sj' ? 365 : 182);
+  }
+  function _longDate(iso) {
+    return iso ? new Date(iso + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  }
+  function _activeReason(col) {
+    var r = _reason[col.id];
+    return r && col.reasons.indexOf(r) !== -1 ? r : col.reasons[0];
+  }
   function _esc(s) {
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
@@ -117,6 +172,7 @@ var LehrerCollections = (function () {
 
   function _buildSidebar(cols) {
     var items = cols.map(function(c) {
+      if (c.type === MISSING) return _sidebarMissing(c);
       var p   = _progress(c);
       var pct = p.total ? Math.round(p.done/p.total*100) : 0;
       var due = c.dueDate ? '<span class="col-item-due">' + _formatDate(c.dueDate) + '</span>' : '';
@@ -148,7 +204,101 @@ var LehrerCollections = (function () {
       + '</aside>';
   }
 
+  function _missCount(col) {
+    return _getStudentsForCollection(col).filter(function (s) { return col.marks[s.classId + '|' + s.id]; }).length;
+  }
+
+  function _sidebarMissing(c) {
+    var n = _missCount(c);
+    return '<button class="col-item-btn' + (c.id === _activeId ? ' active' : '') + (c.archived ? ' col-item-archived' : '') + '" type="button" data-col-id="' + c.id + '">'
+      + '<span class="col-item-title">' + _esc(c.title) + '</span>'
+      + '<span class="col-item-meta">' + _esc(c.classIds.join(', ')) + ' · ' + _formatDate(c.date) + '</span>'
+      + '<span class="col-item-progress"><span class="col-miss-count' + (n ? '' : ' is-zero') + '">' + (n ? n + ' ohne' : 'alle hatten es') + '</span></span>'
+      + '</button>';
+  }
+
+  function _missRowInner(s, mark) {
+    return '<span class="col-miss-mark" aria-hidden="true">' + (mark ? '✗' : '') + '</span>'
+      + '<span class="col-check-name"><span class="col-ln">' + _esc(s.lastName) + '</span> <span class="col-fn">' + _esc(s.firstName) + '</span></span>'
+      + (mark ? '<span class="col-miss-reason">' + _esc(mark) + '</span>' : '');
+  }
+
+  function _missLabel(col) {
+    var marked = _getStudentsForCollection(col).filter(function (s) { return col.marks[s.classId + '|' + s.id]; });
+    if (!marked.length) return 'Noch niemand angetippt – alle hatten es.';
+    return 'Ohne: ' + marked.slice(0, 6).map(function (s) { return s.lastName + ' (' + col.marks[s.classId + '|' + s.id] + ')'; }).join(', ')
+      + (marked.length > 6 ? ' +' + (marked.length - 6) : '');
+  }
+
+  function _missProgressText(col) {
+    var n = _missCount(col);
+    var total = _getStudentsForCollection(col).length;
+    return n ? n + ' von ' + total + ' ohne' : 'Alle ' + total + ' hatten es';
+  }
+
+  function _buildMissing(col) {
+    var students = _getStudentsForCollection(col);
+    var active = _activeReason(col);
+    var byClass = {};
+    students.forEach(function (s) { (byClass[s.classId] = byClass[s.classId] || []).push(s); });
+    var rows = '';
+    Object.keys(byClass).sort().forEach(function (cid) {
+      if (col.classIds.length > 1) rows += '<li class="col-check-classhead">Klasse ' + _esc(cid) + '</li>';
+      byClass[cid].forEach(function (s) {
+        var sid = s.classId + '|' + s.id;
+        var mark = col.marks[sid] || '';
+        rows += '<li><button type="button" class="col-miss-row' + (mark ? ' is-missing' : '') + '" data-miss="' + _esc(sid) + '" aria-pressed="' + !!mark + '">'
+          + _missRowInner(s, mark) + '</button></li>';
+      });
+    });
+    var today = _todayIso();
+    var soon = col.deleteOn && col.deleteOn <= _addDays(today, 7);
+    var archBtn = col.archived
+      ? '<button class="btn btn-sm btn-secondary" type="button" data-action="unarchive">Reaktivieren</button>'
+      : '<button class="btn btn-sm btn-secondary" type="button" data-action="archive">Archivieren</button>';
+    return '<div class="col-panel">'
+      + '<div class="col-panel-head">'
+      +   '<div class="col-panel-title-block">'
+      +     '<h2 class="col-panel-title">' + _esc(col.title) + '</h2>'
+      +     '<p class="col-panel-meta">Wer hat es nicht? · Klasse ' + _esc(col.classIds.join(', ')) + ' · ' + _esc(_longDate(col.date)) + '</p>'
+      +     '<span class="col-panel-progress col-miss-progress" data-col-progress>' + _missProgressText(col) + '</span>'
+      +   '</div>'
+      +   '<div class="col-panel-actions action-row">'
+      +     (col.date !== today && !col.archived ? '<button class="btn btn-sm btn-primary" type="button" data-action="repeat-col" title="Gleiche Liste (Titel, Klasse, Gründe) für heute neu anlegen">Nochmal für heute</button>' : '')
+      +     '<button class="btn btn-sm btn-secondary" type="button" data-action="print-col" title="Nur diese Liste – drucken oder als PDF sichern">PDF</button>'
+      +     archBtn
+      +     '<details class="more-menu"><summary class="btn btn-sm btn-secondary" aria-label="Weitere Aktionen">⋯</summary>'
+      +       '<div class="more-menu-list" role="menu">'
+      +         '<button type="button" role="menuitem" data-action="export-col">Als CSV speichern</button>'
+      +         '<button type="button" role="menuitem" data-action="clear-miss">Alle Striche entfernen</button>'
+      +         '<button type="button" role="menuitem" class="is-danger" data-action="delete-col">Liste löschen …</button>'
+      +       '</div>'
+      +     '</details>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="col-miss-bar">'
+      +   '<span class="col-miss-bar-label">Antippen trägt ein:</span>'
+      +   col.reasons.map(function (r) {
+            return '<button type="button" class="col-reason' + (r === active ? ' is-active' : '') + '" data-reason="' + _esc(r) + '" aria-pressed="' + (r === active) + '">' + _esc(r) + '</button>';
+          }).join('')
+      +   '<button type="button" class="col-reason-edit" data-action="edit-reasons">' + (_editReasons ? 'Abbrechen' : 'Gründe ändern') + '</button>'
+      + '</div>'
+      + (_editReasons
+          ? '<div class="col-reason-form"><input class="col-form-input" data-reasons-input value="' + _esc(col.reasons.join(', ')) + '" placeholder="z. B. vergessen, unvollständig" autocomplete="off">'
+            + '<button class="btn btn-sm btn-primary" type="button" data-action="save-reasons">Fertig</button>'
+            + '<p class="col-hint">Mit Komma trennen, höchstens 8. Schon gesetzte Striche behalten ihren Grund.</p></div>'
+          : '')
+      + '<div class="col-check-toolbar"><span class="col-missing-label" id="col-missing-label">' + _esc(_missLabel(col)) + '</span></div>'
+      + '<ul class="col-check-list">' + (rows || '<li class="classlist-empty-hint">Keine Schüler in dieser Klasse.</li>') + '</ul>'
+      + '<p class="col-delete-note' + (soon ? ' is-soon' : '') + '">'
+      +   (soon ? 'Wird am ' + _esc(_longDate(col.deleteOn)) + ' automatisch gelöscht – sichere vorher ein PDF, falls du die Liste noch brauchst.'
+                : 'Wird am ' + _esc(_longDate(col.deleteOn)) + ' automatisch gelöscht.')
+      + '</p>'
+      + '</div>';
+  }
+
   function _buildChecklist(col) {
+    if (col.type === MISSING) return _buildMissing(col);
     var students = _getStudentsForCollection(col);
     var p = _progress(col);
     var pct = p.total ? Math.round(p.done/p.total*100) : 0;
@@ -241,6 +391,9 @@ var LehrerCollections = (function () {
   // ── New Collection Dialog ─────────────────────────────────────────────────
   function _showNewDialog() {
     var classes = window.LehrerClasslist ? Object.keys(window.LehrerClasslist.getClassLists()).sort(function(a,b){ return a.localeCompare(b,'de',{numeric:true}); }) : [];
+    var mode = 'positive';
+    try { if (localStorage.getItem(MODE_KEY) === MISSING) mode = MISSING; } catch (e) { /* private mode */ }
+    var today = _todayIso();
 
     var classOptions = classes.map(function(c) {
       return '<label class="col-class-check"><input type="checkbox" value="' + _esc(c) + '"> ' + _esc(c) + '</label>';
@@ -253,21 +406,34 @@ var LehrerCollections = (function () {
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = [
-      '<div class="modal" style="width:min(480px,95vw)">',
+      '<div class="modal" style="width:min(500px,95vw)">',
         '<div class="modal-header">',
-          '<span class="modal-title">Neue Einsammlung</span>',
+          '<span class="modal-title">Neue Liste</span>',
           '<button class="modal-close" type="button" data-action="close">✕</button>',
         '</div>',
-        '<div style="padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px;">',
-          '<label class="col-form-label">Titel<input class="col-form-input" type="text" id="col-new-title" placeholder="z.B. Geld Klassenfahrt" autocomplete="off"></label>',
-          '<label class="col-form-label">Art',
+        '<div class="col-new-body">',
+          '<div class="col-mode" role="radiogroup" aria-label="Art der Liste">',
+            '<button type="button" class="col-mode-btn" data-mode="positive" role="radio"><strong>✓ Wer hat abgegeben?</strong><span>Unterschrift, Geld, Dokument – du hakst ab, wer es hat.</span></button>',
+            '<button type="button" class="col-mode-btn" data-mode="missing" role="radio"><strong>✗ Wer hat es nicht?</strong><span>Hausaufgaben, Material – du tippst nur die an, die es nicht haben.</span></button>',
+          '</div>',
+          '<div class="col-presets" data-only="missing">' + PRESETS.map(function (p, n) {
+            return '<button type="button" class="col-preset" data-preset="' + n + '">' + _esc(p.title) + '</button>';
+          }).join('') + '</div>',
+          '<label class="col-form-label">Titel<input class="col-form-input" type="text" id="col-new-title" autocomplete="off"></label>',
+          '<label class="col-form-label" data-only="positive">Art',
             '<select class="col-form-input" id="col-new-type">' + typeOptions + '</select>',
           '</label>',
           '<div class="col-form-label">Klasse(n) *',
             '<div class="col-class-checks">' + (classOptions || '<p class="classlist-empty-hint">Zuerst Klassen anlegen.</p>') + '</div>',
           '</div>',
-          '<label class="col-form-label">Fälligkeit (optional)<input class="col-form-input" type="date" id="col-new-due"></label>',
-          '<label class="col-form-label">Notiz (optional)<input class="col-form-input" type="text" id="col-new-note" placeholder="z.B. 15 €" autocomplete="off"></label>',
+          '<div class="col-form-row" data-only="missing">',
+            '<label class="col-form-label">Datum<input class="col-form-input" type="date" id="col-new-date" value="' + today + '"></label>',
+            '<label class="col-form-label">Automatisch löschen<select class="col-form-input" id="col-new-keep"></select></label>',
+          '</div>',
+          '<label class="col-form-label" data-only="missing">Gründe zum Antippen<input class="col-form-input" type="text" id="col-new-reasons" value="vergessen, unvollständig" autocomplete="off"></label>',
+          '<p class="col-hint" data-only="missing">Mit Komma trennen. Jede Liste gilt für einen Tag – mit „Nochmal für heute“ legst du sie in der nächsten Stunde mit einem Tipp neu an.</p>',
+          '<label class="col-form-label" data-only="positive">Fälligkeit (optional)<input class="col-form-input" type="date" id="col-new-due"></label>',
+          '<label class="col-form-label" data-only="positive">Notiz (optional)<input class="col-form-input" type="text" id="col-new-note" placeholder="z.B. 15 €" autocomplete="off"></label>',
           '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">',
             '<button class="btn btn-secondary" type="button" data-action="close">Abbrechen</button>',
             '<button class="btn btn-primary" type="button" data-action="create">Erstellen</button>',
@@ -277,28 +443,79 @@ var LehrerCollections = (function () {
     ].join('');
 
     document.body.appendChild(overlay);
+    var $ = function (sel) { return overlay.querySelector(sel); };
+
+    function keepOptions() {
+      var day = $('#col-new-date').value || today;
+      var select = $('#col-new-keep');
+      var chosen = select.value || 'hj';
+      select.innerHTML = KEEP.map(function (k) {
+        return '<option value="' + k.id + '"' + (k.id === chosen ? ' selected' : '') + '>' + k.label + ' (' + _formatDate(_deleteOn(k.id, day)) + ')</option>';
+      }).join('');
+    }
+    function setMode(next) {
+      mode = next;
+      overlay.querySelectorAll('[data-mode]').forEach(function (b) {
+        var on = b.dataset.mode === mode;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-checked', String(on));
+      });
+      overlay.querySelectorAll('[data-only]').forEach(function (el) { el.hidden = el.dataset.only !== mode; });
+      $('#col-new-title').placeholder = mode === MISSING ? 'z. B. Hausaufgaben' : 'z. B. Geld Klassenfahrt';
+    }
+    keepOptions();
+    setMode(mode);
+    $('#col-new-date').addEventListener('change', keepOptions);
+    setTimeout(function () { $('#col-new-title').focus(); }, 0);
 
     overlay.addEventListener('click', function(e) {
       if (e.target === overlay) { _removeEl(overlay); return; }
+      var modeBtn = e.target.closest('[data-mode]');
+      if (modeBtn) { setMode(modeBtn.dataset.mode); return; }
+      var preset = e.target.closest('[data-preset]');
+      if (preset) {
+        var p = PRESETS[+preset.dataset.preset];
+        var title = $('#col-new-title');
+        if (!title.value.trim() || PRESETS.some(function (x) { return x.title === title.value.trim(); })) title.value = p.title;
+        $('#col-new-reasons').value = p.reasons.join(', ');
+        return;
+      }
       var action = e.target.closest('[data-action]');
       if (!action) return;
       if (action.dataset.action === 'close') { _removeEl(overlay); return; }
       if (action.dataset.action === 'create') {
-        var title = overlay.querySelector('#col-new-title').value.trim();
-        if (!title) { overlay.querySelector('#col-new-title').focus(); return; }
-        var type  = overlay.querySelector('#col-new-type').value;
-        var due   = overlay.querySelector('#col-new-due').value;
-        var note  = overlay.querySelector('#col-new-note').value.trim();
+        var titleText = $('#col-new-title').value.trim();
+        if (!titleText) { $('#col-new-title').focus(); return; }
         var classIds = Array.from(overlay.querySelectorAll('.col-class-check input:checked')).map(function(cb){ return cb.value; });
         if (!classIds.length) { alert('Bitte mindestens eine Klasse auswählen.'); return; }
         var id = _uid();
-        _data[id] = { id: id, title: title, type: type, note: note, classIds: classIds, dueDate: due, createdAt: new Date().toISOString(), archived: false, checks: {} };
+        if (mode === MISSING) {
+          var day = $('#col-new-date').value || today;
+          var keep = $('#col-new-keep').value || 'hj';
+          var reasons = _parseReasons($('#col-new-reasons').value);
+          _data[id] = { id: id, title: titleText, type: MISSING, note: '', classIds: classIds, date: day, reasons: reasons, marks: {},
+                        keep: keep, deleteOn: _deleteOn(keep, day), createdAt: new Date().toISOString(), archived: false, checks: {} };
+        } else {
+          _data[id] = { id: id, title: titleText, type: $('#col-new-type').value, note: $('#col-new-note').value.trim(), classIds: classIds,
+                        dueDate: $('#col-new-due').value, createdAt: new Date().toISOString(), archived: false, checks: {} };
+        }
+        try { localStorage.setItem(MODE_KEY, mode); } catch (err) { /* private mode */ }
         _save();
         _activeId = id;
         _removeEl(overlay);
         render();
       }
     });
+  }
+
+  function _parseReasons(text) {
+    var seen = {};
+    var list = String(text || '').split(',').map(function (r) { return r.trim().slice(0, 30); }).filter(function (r) {
+      if (!r || seen[r.toLowerCase()]) return false;
+      seen[r.toLowerCase()] = true;
+      return true;
+    }).slice(0, 8);
+    return list.length ? list : ['fehlt'];
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -346,6 +563,85 @@ var LehrerCollections = (function () {
     render();
   }
 
+  /** Tap on a name: mark with the chosen reason, tap again to remove, other reason → switch. */
+  function _toggleMiss(colId, sid) {
+    var col = _data[colId];
+    if (!col || col.type !== MISSING) return;
+    var reason = _activeReason(col);
+    if (col.marks[sid] === reason) delete col.marks[sid]; else col.marks[sid] = reason;
+    _save();
+    var row = _container.querySelector('[data-miss="' + CSS.escape(sid) + '"]');
+    var student = _getStudentsForCollection(col).filter(function (s) { return s.classId + '|' + s.id === sid; })[0];
+    if (row && student) {
+      row.classList.toggle('is-missing', !!col.marks[sid]);
+      row.setAttribute('aria-pressed', String(!!col.marks[sid]));
+      row.innerHTML = _missRowInner(student, col.marks[sid] || '');
+    }
+    _refreshMissing(col);
+  }
+
+  function _refreshMissing(col) {
+    var label = _container.querySelector('#col-missing-label');
+    if (label) label.textContent = _missLabel(col);
+    var head = _container.querySelector('[data-col-progress]');
+    if (head) head.textContent = _missProgressText(col);
+    var btn = _container.querySelector('[data-col-id="' + col.id + '"] .col-miss-count');
+    if (btn) {
+      var n = _missCount(col);
+      btn.textContent = n ? n + ' ohne' : 'alle hatten es';
+      btn.classList.toggle('is-zero', !n);
+    }
+  }
+
+  function _setReason(colId, reason) {
+    var col = _data[colId];
+    if (!col) return;
+    _reason[colId] = reason;
+    _container.querySelectorAll('[data-reason]').forEach(function (b) {
+      var on = b.dataset.reason === reason;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  function _saveReasons(colId) {
+    var col = _data[colId];
+    var input = _container.querySelector('[data-reasons-input]');
+    if (!col || !input) return;
+    col.reasons = _parseReasons(input.value);
+    _save();
+    _editReasons = false;
+    render();
+  }
+
+  /** Same list (title, class, reasons, deletion rule) for today – one tap in the next lesson. */
+  function _repeatCol(colId) {
+    var col = _data[colId];
+    if (!col) return;
+    var today = _todayIso();
+    var same = Object.values(_data).filter(function (c) {
+      return c.type === MISSING && !c.archived && c.date === today && c.title === col.title && c.classIds.join('|') === col.classIds.join('|');
+    })[0];
+    if (!same) {
+      var id = _uid();
+      var keep = col.keep || 'hj';
+      same = _data[id] = { id: id, title: col.title, type: MISSING, note: '', classIds: col.classIds.slice(), date: today, reasons: col.reasons.slice(), marks: {},
+                           keep: keep, deleteOn: _deleteOn(keep, today), createdAt: new Date().toISOString(), archived: false, checks: {} };
+      _save();
+    }
+    _activeId = same.id;
+    render();
+  }
+
+  function _clearMiss(colId) {
+    var col = _data[colId];
+    if (!col || !Object.keys(col.marks).length) return;
+    if (!confirm('Alle Striche in „' + col.title + '“ entfernen?')) return;
+    col.marks = {};
+    _save();
+    render();
+  }
+
   function _archiveCol(colId, archived) {
     if (_data[colId]) { _data[colId].archived = archived; _save(); render(); }
   }
@@ -353,7 +649,7 @@ var LehrerCollections = (function () {
   function _deleteCol(colId) {
     var col = _data[colId];
     if (!col) return;
-    if (!confirm('Einsammlung "' + col.title + '" wirklich löschen?')) return;
+    if (!confirm((col.type === MISSING ? 'Liste' : 'Einsammlung') + ' "' + col.title + '" wirklich löschen?')) return;
     delete _data[colId];
     _save();
     _activeId = null;
@@ -364,15 +660,18 @@ var LehrerCollections = (function () {
     var col = _data[colId];
     if (!col) return;
     var students = _getStudentsForCollection(col);
-    var lines = ['Klasse,Nachname,Vorname,Abgegeben,Notiz'];
+    var missing = col.type === MISSING;
+    var lines = [missing ? 'Klasse,Nachname,Vorname,Datum,Ohne,Grund' : 'Klasse,Nachname,Vorname,Abgegeben,Notiz'];
     students.forEach(function(s) {
       var sid = s.classId+'|'+s.id;
       var c = col.checks && col.checks[sid] || {};
-      lines.push([s.classId, s.lastName, s.firstName, c.done?'Ja':'Nein', c.note||''].map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','));
+      var cells = missing ? [s.classId, s.lastName, s.firstName, col.date, col.marks[sid] ? 'Ja' : 'Nein', col.marks[sid] || '']
+                          : [s.classId, s.lastName, s.firstName, c.done?'Ja':'Nein', c.note||''];
+      lines.push(cells.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(','));
     });
     var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob);
-    var a = document.createElement('a'); a.href = url; a.download = col.title.replace(/[^a-z0-9äöü]/gi,'_') + '.csv'; a.click();
+    var a = document.createElement('a'); a.href = url; a.download = col.title.replace(/[^a-z0-9äöü]/gi,'_') + (missing ? '_' + col.date : '') + '.csv'; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -380,6 +679,7 @@ var LehrerCollections = (function () {
   function _printCol(colId) {
     var col = _data[colId];
     if (!col || !window.LehrerClasslist || !window.LehrerClasslist.printDocument) return;
+    if (col.type === MISSING) { _printMissing(col); return; }
     var students = _getStudentsForCollection(col);
     var p = _progress(col);
     var today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -401,6 +701,26 @@ var LehrerCollections = (function () {
       '<h1>' + _esc(col.title) + '</h1><p class="meta">' + _esc(meta.join(' · ')) + '</p>'
       + (col.note ? '<p class="meta">' + _esc(col.note) + '</p>' : '')
       + (tables || '<p>Keine Schüler:innen in dieser Einsammlung.</p>'),
+      { css: 'tr{height:6.5mm}td.name{width:1%}' });
+  }
+
+  function _printMissing(col) {
+    var students = _getStudentsForCollection(col);
+    var multi = col.classIds.length > 1;
+    var tables = col.classIds.map(function (cid) {
+      var rows = students.filter(function (s) { return s.classId === cid; }).map(function (s, n) {
+        var mark = col.marks[cid + '|' + s.id] || '';
+        return '<tr><td class="nr">' + (n + 1) + '</td><td class="name">' + _esc(s.lastName) + (s.firstName ? ', ' + _esc(s.firstName) : '') + '</td>'
+          + '<td class="mark">' + (mark ? '✗' : '') + '</td><td>' + _esc(mark) + '</td></tr>';
+      }).join('');
+      if (!rows) return '';
+      return (multi ? '<h2>Klasse ' + _esc(cid) + '</h2>' : '')
+        + '<table><thead><tr><th class="nr"></th><th class="name">Name</th><th class="mark">Ohne</th><th>Grund</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }).join('');
+    var meta = ['Wer hat es nicht?', 'Klasse ' + col.classIds.join(', '), _longDate(col.date), _missProgressText(col)];
+    window.LehrerClasslist.printDocument(col.title + ' ' + _formatDate(col.date),
+      '<h1>' + _esc(col.title) + '</h1><p class="meta">' + _esc(meta.join(' · ')) + '</p>'
+      + (tables || '<p>Keine Schüler:innen in dieser Liste.</p>'),
       { css: 'tr{height:6.5mm}td.name{width:1%}' });
   }
 
@@ -427,7 +747,11 @@ var LehrerCollections = (function () {
 
     _container.addEventListener('click', function(e) {
       var colBtn = e.target.closest('.col-item-btn');
-      if (colBtn) { _activeId = colBtn.dataset.colId; render(); return; }
+      if (colBtn) { _activeId = colBtn.dataset.colId; _editReasons = false; render(); return; }
+      var miss = e.target.closest('[data-miss]');
+      if (miss) { _toggleMiss(_activeId, miss.dataset.miss); return; }
+      var reason = e.target.closest('[data-reason]');
+      if (reason) { _setReason(_activeId, reason.dataset.reason); return; }
 
       var action = e.target.closest('[data-action]');
       if (!action) return;
@@ -441,6 +765,21 @@ var LehrerCollections = (function () {
       if (act === 'print-col')    { _printCol(_activeId); return; }
       if (act === 'mark-all')     { _markAll(_activeId, true); return; }
       if (act === 'clear-all')    { _markAll(_activeId, false); return; }
+      if (act === 'clear-miss')   { _clearMiss(_activeId); return; }
+      if (act === 'repeat-col')   { _repeatCol(_activeId); return; }
+      if (act === 'save-reasons') { _saveReasons(_activeId); return; }
+      if (act === 'edit-reasons') {
+        _editReasons = !_editReasons;
+        render();
+        var input = _container.querySelector('[data-reasons-input]');
+        if (input) input.focus();
+        return;
+      }
+    });
+
+    _container.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.hasAttribute('data-reasons-input')) { e.preventDefault(); _saveReasons(_activeId); }
+      if (e.key === 'Escape' && e.target.hasAttribute('data-reasons-input')) { _editReasons = false; render(); }
     });
 
     _container.addEventListener('change', function(e) {
@@ -464,7 +803,7 @@ var LehrerCollections = (function () {
   /** Open collections with progress, nearest due date first (for „Heute wichtig“). */
   function summary() {
     _load();
-    return _sortedCollections().filter(function (c) { return !c.archived; }).map(function (c) {
+    return _sortedCollections().filter(function (c) { return !c.archived && c.type !== MISSING; }).map(function (c) {
       var p = _progress(c);
       return { id: c.id, title: c.title, classIds: c.classIds.slice(), dueDate: c.dueDate || '', done: p.done, total: p.total };
     }).filter(function (c) { return c.total > 0 && c.done < c.total; }).sort(function (a, b) {
@@ -472,10 +811,19 @@ var LehrerCollections = (function () {
     });
   }
 
+  /** „Wer hat es nicht?“ lists that delete themselves within the next 7 days (reminder on „Heute“). */
+  function deleteSoon() {
+    _load();
+    var limit = _addDays(_todayIso(), 7);
+    return Object.values(_data).filter(function (c) { return c.type === MISSING && c.deleteOn && c.deleteOn <= limit; })
+      .map(function (c) { return { id: c.id, title: c.title, classIds: c.classIds.slice(), date: c.date, deleteOn: c.deleteOn }; })
+      .sort(function (a, b) { return a.deleteOn.localeCompare(b.deleteOn) || b.date.localeCompare(a.date); });
+  }
+
   /** Show this collection when the tab is opened next. */
   function select(id) { _activeId = id; }
 
-  return { init: init, render: render, summary: summary, select: select };
+  return { init: init, render: render, summary: summary, select: select, deleteSoon: deleteSoon };
 })();
 
 if (typeof window !== 'undefined') window.LehrerCollections = LehrerCollections;
