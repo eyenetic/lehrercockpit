@@ -6458,7 +6458,7 @@ textarea.form-input { resize: vertical; line-height: 1.5; }
 .gr-custom { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); }
 .gr-custom input { width: 72px; min-height: 32px; }
 .gr-boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.gr-box { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); display: grid; gap: 8px; }
+.gr-box { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
 .gr-box-head { display: flex; align-items: center; gap: 8px; }
 .gr-name { flex: 1; min-width: 0; padding: 2px 4px; margin-left: -4px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 0.9rem; font-weight: 620; }
 .gr-name:hover, .gr-name:focus { border-color: var(--line-strong); outline: none; background: var(--panel); }
@@ -6484,6 +6484,14 @@ textarea.form-input { resize: vertical; line-height: 1.5; }
 .gr-table td { padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .gr-pct-input { width: 64px; padding: 3px 6px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; }
 .gr-privacy { margin: 16px 0 0; font-size: 0.74rem; color: var(--muted); }
+.gr-boxes.is-many { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.gr-weight { display: inline-flex; align-items: center; gap: 2px; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+.gr-weight-input { width: 46px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--accent); font: inherit; text-align: right; font-variant-numeric: tabular-nums; }
+.gr-weight-input:focus { outline: none; border-color: var(--accent); }
+.gr-remove { width: 26px; height: 26px; flex: none; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 0.8rem; cursor: pointer; }
+.gr-remove:hover { background: var(--surface-hover); color: var(--ink); }
+.gr-area-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.gr-sum { font-size: 0.78rem; }
 @media (max-width: 640px) {
   .gr-boxes { grid-template-columns: 1fr; }
   .gr-field input { width: 120px; }

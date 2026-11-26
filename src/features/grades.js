@@ -1,9 +1,10 @@
 /**
  * LehrerGrades — Notenrechner mit zwei schnellen Werkzeugen
  *
- *   Zeugnisnote     pro Bereich ein Feld, Noten einfach hintereinander tippen
- *                   („2 3+ 2- 1“, doppelt zählen: „2x2“), Gewichtung per Klick,
- *                   Ergebnis sofort – ohne „Berechnen“.
+ *   Zeugnisnote     so viele Teilnoten wie nötig (Schriftlich, Mündlich, Tests …),
+ *                   je ein Feld, Noten einfach hintereinander tippen
+ *                   („2 3+ 2- 1“, doppelt zählen: „2x2“), Gewichtung in Prozent
+ *                   (bei zwei Teilnoten auch per Klick), Ergebnis sofort.
  *   Punkte → Note   Höchstpunktzahl eingeben, der ganze Notenschlüssel steht da;
  *                   Schwellen per Klick (Standard, Abitur) oder selbst anpassen.
  *
@@ -34,10 +35,14 @@
     punkte: [[15, 95], [14, 90], [13, 85], [12, 80], [11, 75], [10, 70], [9, 65], [8, 60], [7, 55], [6, 50], [5, 45], [4, 40], [3, 33], [2, 27], [1, 20], [0, 0]],
   };
 
+  var MAX_AREAS = 8;
+
   function copySteps(steps) { return steps.map(function (step) { return step.slice(); }); }
+  function areaId() { return 'x' + Math.random().toString(36).slice(2, 8); }
+  function num(value) { return parseFloat(String(value == null ? '' : value).replace(',', '.')); }
 
   var _settings = loadSettings();
-  var _inputs = { a: '', b: '' };   // eingegebene Noten (nicht gespeichert)
+  var _inputs = {};   // Bereich → eingegebene Noten (nicht gespeichert)
   var _max = '';
   var _reached = '';
   var _editKey = false;
@@ -57,6 +62,20 @@
     var merged = Object.assign(defaults, stored);
     if (!merged.keys || !Array.isArray(merged.keys.noten) || !Array.isArray(merged.keys.punkte)) merged.keys = defaults.keys;
     merged.keysOwn = Object.assign({ noten: false, punkte: false }, merged.keysOwn);
+    // earlier versions: exactly two areas (nameA/nameB) with a preset or own share
+    if (!Array.isArray(merged.areas) || !merged.areas.length) {
+      var preset = WEIGHTS.filter(function (w) { return w.id === merged.weight; })[0];
+      var first = merged.weight === 'custom' ? Math.min(100, Math.max(0, Number(merged.custom) || 0)) : (preset ? preset.first : 50);
+      merged.areas = [{ id: 'a', name: merged.nameA, weight: first }, { id: 'b', name: merged.nameB, weight: 100 - first }];
+    }
+    var seen = {};
+    merged.areas = merged.areas.filter(function (a) { return a && typeof a === 'object'; }).slice(0, MAX_AREAS).map(function (a) {
+      var id = /^[a-z0-9]{1,12}$/i.test(String(a.id || '')) && !seen[a.id] ? String(a.id) : areaId();
+      seen[id] = true;
+      var weight = num(a.weight);
+      return { id: id, name: String(a.name == null ? 'Teilnote' : a.name).slice(0, 40), weight: weight >= 0 && weight <= 100 ? weight : 0 };
+    });
+    if (!merged.areas.length) merged.areas = [{ id: 'a', name: 'Schriftlich', weight: 50 }, { id: 'b', name: 'Mündlich & Sonstiges', weight: 50 }];
     return merged;
   }
 
@@ -119,66 +138,154 @@
     }).join('') + '</div>';
   }
 
-  function firstShare() {
-    if (_settings.weight === 'custom') return Math.min(100, Math.max(0, Number(_settings.custom) || 0));
-    var preset = WEIGHTS.filter(function (w) { return w.id === _settings.weight; })[0];
-    return preset ? preset.first : 50;
+  function pctText(value) {
+    var rounded = Math.round(value * 10) / 10;
+    return de(rounded, rounded % 1 ? 1 : 0);
+  }
+
+  function weightSum() {
+    return _settings.areas.reduce(function (sum, a) { return sum + a.weight; }, 0);
+  }
+
+  /** The preset that matches two areas, if any. */
+  function activePreset() {
+    var areas = _settings.areas;
+    if (areas.length !== 2) return '';
+    var hit = WEIGHTS.filter(function (w) {
+      return Math.abs(areas[0].weight - w.first) < 0.2 && Math.abs(areas[1].weight - (100 - w.first)) < 0.2;
+    })[0];
+    return hit ? hit.id : '';
   }
 
   function renderZeugnis() {
-    var share = firstShare();
+    var areas = _settings.areas;
     var hint = _settings.scale === 'noten'
       ? 'Noten mit Leerzeichen trennen – „2+“ zählt 1,7, „2-“ 2,3. Doppelt zählen: „2x2“.'
       : 'Punkte mit Leerzeichen trennen. Doppelt zählen: „11x2“.';
-    var box = function (id, name, pct) {
-      return '<div class="gr-box">'
-        + '<div class="gr-box-head"><input class="gr-name" data-gr-name="' + id + '" value="' + esc(name) + '" aria-label="Name des Bereichs" />'
-        + '<span class="gr-pct">' + de(pct, pct % 1 ? 1 : 0) + ' %</span></div>'
-        + '<input class="form-input gr-input" data-gr-input="' + id + '" value="' + esc(_inputs[id]) + '" inputmode="text" autocomplete="off" spellcheck="false" placeholder="' + (_settings.scale === 'noten' ? 'z. B. 2 3+ 2- 1' : 'z. B. 11 9 13') + '" />'
-        + '<p class="gr-avg" data-gr-avg="' + id + '"></p></div>';
+    var box = function (area) {
+      return '<div class="gr-box" data-gr-area="' + area.id + '">'
+        + '<div class="gr-box-head"><input class="gr-name" data-gr-name="' + area.id + '" value="' + esc(area.name) + '" aria-label="Name der Teilnote" />'
+        + '<label class="gr-weight"><input class="gr-weight-input" data-gr-w="' + area.id + '" value="' + esc(pctText(area.weight)) + '" inputmode="decimal" autocomplete="off" aria-label="Gewicht von ' + esc(area.name) + ' in Prozent" />%</label>'
+        + (areas.length > 1 ? '<button type="button" class="gr-remove" data-gr-remove="' + area.id + '" aria-label="' + esc(area.name || 'Teilnote') + ' entfernen" title="Teilnote entfernen">✕</button>' : '')
+        + '</div>'
+        + '<input class="form-input gr-input" data-gr-input="' + area.id + '" value="' + esc(_inputs[area.id] || '') + '" inputmode="text" autocomplete="off" spellcheck="false" placeholder="' + (_settings.scale === 'noten' ? 'z. B. 2 3+ 2- 1' : 'z. B. 11 9 13') + '" />'
+        + '<p class="gr-avg" data-gr-avg="' + area.id + '"></p></div>';
     };
-    return '<div class="gr-row">'
-      + '<span class="gr-label">Gewichtung</span>'
-      + segmented('weight', WEIGHTS.concat([{ id: 'custom', label: 'eigene' }]), _settings.weight)
-      + (_settings.weight === 'custom' ? '<label class="gr-custom"><input class="form-input" type="number" min="0" max="100" data-gr-custom value="' + esc(_settings.custom) + '" /> % / Rest</label>' : '')
+    return (areas.length === 2
+        ? '<div class="gr-row"><span class="gr-label">Gewichtung</span>' + segmented('weight', WEIGHTS, activePreset()) + '</div>'
+        : '')
+      + '<div class="gr-boxes' + (areas.length > 2 ? ' is-many' : '') + '">' + areas.map(box).join('') + '</div>'
+      + '<div class="gr-area-actions">'
+      +   (areas.length < MAX_AREAS ? '<button type="button" class="btn btn-sm btn-secondary" data-gr-add>＋ Teilnote</button>' : '')
+      +   (areas.length > 1 ? '<button type="button" class="btn btn-sm btn-ghost" data-gr-equal>Gleich gewichten</button>' : '')
+      +   '<span class="gr-sum" data-gr-sum></span>'
       + '</div>'
-      + '<div class="gr-boxes">' + box('a', _settings.nameA, share) + box('b', _settings.nameB, 100 - share) + '</div>'
       + '<p class="gr-hint">' + esc(hint) + '</p>'
       + '<div class="gr-result" data-gr-result></div>';
   }
 
   function updateZeugnis() {
     if (!_root) return;
-    var share = firstShare() / 100;
-    var parts = ['a', 'b'].map(function (id) {
-      var parsed = parseGrades(_inputs[id], _settings.scale);
+    var areas = _settings.areas;
+    var parts = areas.map(function (area) {
+      var parsed = parseGrades(_inputs[area.id], _settings.scale);
       var avg = average(parsed.grades);
-      var el = _root.querySelector('[data-gr-avg="' + id + '"]');
+      var el = _root.querySelector('[data-gr-avg="' + area.id + '"]');
       if (el) {
         var count = parsed.grades.reduce(function (sum, g) { return sum + g.weight; }, 0);
         el.innerHTML = (avg == null ? '<span class="gr-muted">noch keine Noten</span>'
           : 'Ø <strong>' + de(avg, 2) + '</strong> <span class="gr-muted">· ' + count + (count === 1 ? ' Note' : ' Noten') + '</span>')
           + (parsed.invalid.length ? ' <span class="gr-warn">nicht erkannt: ' + esc(parsed.invalid.join(' ')) + '</span>' : '');
       }
-      return avg;
+      return { area: area, avg: avg };
     });
-    var result;
-    if (parts[0] == null && parts[1] == null) result = null;
-    else if (parts[0] == null) result = parts[1];
-    else if (parts[1] == null) result = parts[0];
-    else result = parts[0] * share + parts[1] * (1 - share);
+
+    var sum = weightSum();
+    var sumEl = _root.querySelector('[data-gr-sum]');
+    if (sumEl) {
+      var off = areas.length > 1 && Math.abs(sum - 100) > 0.5;
+      sumEl.className = 'gr-sum' + (off ? ' gr-warn' : ' gr-muted');
+      sumEl.textContent = areas.length < 2 ? '' : off
+        ? 'Zusammen ' + pctText(sum) + ' % statt 100 % – gerechnet wird anteilig.'
+        : 'Zusammen 100 %';
+    }
+    var preset = activePreset();
+    _root.querySelectorAll('[data-gr-weight]').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.grWeight === preset);
+      btn.setAttribute('aria-pressed', String(btn.dataset.grWeight === preset));
+    });
+
+    var counted = parts.filter(function (p) { return p.avg != null && p.area.weight > 0; });
+    var missing = parts.filter(function (p) { return p.avg == null; });
+    var total = counted.reduce(function (s, p) { return s + p.area.weight; }, 0);
+    var result = total ? counted.reduce(function (s, p) { return s + p.avg * p.area.weight; }, 0) / total : null;
     var box = _root.querySelector('[data-gr-result]');
     if (!box) return;
-    if (result == null) { box.innerHTML = '<span class="gr-muted">Das Ergebnis erscheint, sobald du Noten eingibst.</span>'; return; }
+    if (result == null) {
+      var anyGrades = parts.some(function (p) { return p.avg != null; });
+      box.innerHTML = '<span class="gr-muted">' + (anyGrades ? 'Die Teilnoten mit Noten haben 0 % Gewicht.' : 'Das Ergebnis erscheint, sobald du Noten eingibst.') + '</span>';
+      return;
+    }
     var label = gradeLabel(result, _settings.scale);
-    var onlyOne = parts[0] == null || parts[1] == null;
+    var note = missing.length && areas.length > 1
+      ? 'ohne Noten, nicht mitgerechnet: ' + missing.map(function (p) { return p.area.name || 'Teilnote'; }).join(', ')
+      : '';
     box.innerHTML = '<span class="gr-result-label">Gesamt</span>'
       + '<span class="gr-result-avg">' + de(result, 2) + '</span>'
       + '<span class="gr-result-arrow" aria-hidden="true">→</span>'
       + '<span class="gr-result-grade">' + esc(_settings.scale === 'noten' ? label.whole : label) + '</span>'
       + (_settings.scale === 'noten' ? '<span class="gr-result-tendency">Tendenz ' + esc(label.withTendency) + '</span>' : '')
-      + (onlyOne ? '<span class="gr-muted gr-result-note">nur ein Bereich eingetragen</span>' : '')
+      + (note ? '<span class="gr-muted gr-result-note">' + esc(note) + '</span>' : '')
       + '<button type="button" class="btn btn-sm btn-ghost gr-clear" data-gr-clear>Leeren</button>';
+  }
+
+  function addArea() {
+    var areas = _settings.areas;
+    if (areas.length >= MAX_AREAS) return;
+    var rest = 100 - weightSum();
+    var area = { id: areaId(), name: 'Teilnote ' + (areas.length + 1), weight: rest > 0.5 ? rest : 0 };
+    areas.push(area);
+    if (rest <= 0.5) equalWeights();
+    saveSettings();
+    renderGrades();
+    var name = _root.querySelector('[data-gr-name="' + area.id + '"]');
+    if (name) { name.focus(); name.select(); }
+  }
+
+  function removeArea(id) {
+    var areas = _settings.areas;
+    if (areas.length < 2) return;
+    _settings.areas = areas.filter(function (a) { return a.id !== id; });
+    delete _inputs[id];
+    var left = _settings.areas;
+    var sum = weightSum();
+    if (left.length === 1) left[0].weight = 100;
+    else if (sum > 0) left.forEach(function (a) { a.weight = a.weight * 100 / sum; });
+    else equalWeights();
+    saveSettings();
+    renderGrades();
+  }
+
+  function equalWeights() {
+    var areas = _settings.areas;
+    areas.forEach(function (a) { a.weight = 100 / areas.length; });
+  }
+
+  function setWeight(id, text) {
+    var value = num(text);
+    if (!(value >= 0 && value <= 100)) return;
+    var areas = _settings.areas;
+    var area = areas.filter(function (a) { return a.id === id; })[0];
+    if (!area) return;
+    area.weight = value;
+    if (areas.length === 2) {   // two areas: the other one takes the rest
+      var other = areas[0] === area ? areas[1] : areas[0];
+      other.weight = 100 - value;
+      var otherInput = _root.querySelector('[data-gr-w="' + other.id + '"]');
+      if (otherInput) otherInput.value = pctText(other.weight);
+    }
+    saveSettings();
+    updateZeugnis();
   }
 
   function currentSteps() {
@@ -254,7 +361,17 @@
       if (!btn) return;
       if (btn.dataset.grTool) { _settings.tool = btn.dataset.grTool; saveSettings(); renderGrades(); }
       else if (btn.dataset.grScale) { _settings.scale = btn.dataset.grScale; saveSettings(); renderGrades(); }
-      else if (btn.dataset.grWeight) { _settings.weight = btn.dataset.grWeight; saveSettings(); renderGrades(); }
+      else if (btn.dataset.grWeight) {
+        var preset = WEIGHTS.filter(function (w) { return w.id === btn.dataset.grWeight; })[0];
+        if (preset && _settings.areas.length === 2) {
+          _settings.areas[0].weight = preset.first;
+          _settings.areas[1].weight = 100 - preset.first;
+          saveSettings(); renderGrades();
+        }
+      }
+      else if (btn.hasAttribute('data-gr-add')) addArea();
+      else if (btn.dataset.grRemove) removeArea(btn.dataset.grRemove);
+      else if (btn.hasAttribute('data-gr-equal')) { equalWeights(); saveSettings(); renderGrades(); }
       else if (btn.dataset.grKeyscale) { _settings.keyScale = btn.dataset.grKeyscale; saveSettings(); renderGrades(); }
       else if (btn.hasAttribute('data-gr-editkey')) { _editKey = !_editKey; renderGrades(); }
       else if (btn.hasAttribute('data-gr-resetkey')) {
@@ -263,22 +380,30 @@
         _settings.keysOwn[scale] = false;
         saveSettings(); renderGrades();
       } else if (btn.hasAttribute('data-gr-clear')) {
-        _inputs = { a: '', b: '' };
+        _inputs = {};
         renderGrades();
-        var first = _root.querySelector('[data-gr-input="a"]');
+        var first = _root.querySelector('[data-gr-input]');
         if (first) first.focus();
       }
     });
     _root.addEventListener('input', function (event) {
       var el = event.target;
       if (el.dataset.grInput) { _inputs[el.dataset.grInput] = el.value; updateZeugnis(); }
-      else if (el.hasAttribute('data-gr-custom')) { _settings.custom = el.value; saveSettings(); updatePercents(); updateZeugnis(); }
-      else if (el.dataset.grName) { _settings[el.dataset.grName === 'a' ? 'nameA' : 'nameB'] = el.value.slice(0, 40); saveSettings(); }
+      else if (el.dataset.grW) setWeight(el.dataset.grW, el.value);
+      else if (el.dataset.grName) {
+        _settings.areas.forEach(function (a) { if (a.id === el.dataset.grName) a.name = el.value.slice(0, 40); });
+        saveSettings();
+      }
       else if (el.hasAttribute('data-gr-max')) { _max = el.value; updateSchluessel(); }
       else if (el.hasAttribute('data-gr-reached')) { _reached = el.value; updateSchluessel(); }
     });
     _root.addEventListener('change', function (event) {
       var el = event.target;
+      if (el.dataset.grW) {   // tidy the shown number when leaving the field
+        var area = _settings.areas.filter(function (a) { return a.id === el.dataset.grW; })[0];
+        if (area) el.value = pctText(area.weight);
+        return;
+      }
       if (el.dataset.grStep !== undefined) {
         var scale = _settings.keyScale === 'punkte' ? 'punkte' : 'noten';
         var steps = _settings.keys[scale];
@@ -295,13 +420,6 @@
         if (status) status.textContent = 'Dein Schlüssel – gespeichert.';
       }
     });
-  }
-
-  function updatePercents() {
-    var share = firstShare();
-    var pcts = _root.querySelectorAll('.gr-pct');
-    if (pcts[0]) pcts[0].textContent = de(share, share % 1 ? 1 : 0) + ' %';
-    if (pcts[1]) pcts[1].textContent = de(100 - share, (100 - share) % 1 ? 1 : 0) + ' %';
   }
 
   // ── Schnittstelle zu app.js ──────────────────────────────────────────────
